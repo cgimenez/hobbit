@@ -390,14 +390,20 @@ mouvement, R4 1463×WAIT, R5/R6 informées — `build/sim/ticks_r*/ticks.log`)
   s'éteignent, piloté par scripts** : e9/e10 PC figé à `$2AD0`
   pendant 959 ticks (attente multi-ticks tête de script `13 10 00
   D0 2A`), puis marche de blocs 5 o (`03 11 00 04 FF` ×3 +
-  queue), dernier bloc = ACT 17 = mort (`act_v14_17` `$6CDB` =
-  `L7143[17]` : `code_4D47` ×2, RAZ bit7 `$1F94`/`$1FA6`,
+  queue), dernier bloc = mort (`act_v14_17` `$6EA7` = `L7143`
+  entrée 18 : `code_4D47` ×2, RAZ bit7 `$1F94`/`$1FA6`,
   `desc $2154`=`$1645`, `$214C`&=~`$40`, `L5713` ×2, dit
-  `$16EB`). Dragon e5 : oscillation PC `$2A38`↔`$2A42` puis ACT 8
-  (`$6CFA` = `L7143[8]`) à 961. Table events intacte →
-  countdown dans les opcodes (mécanisme exact du compteur :
-  ouvert — `n` innocent). Gollum (`$44`) actif, dormants jamais
-  réveillés (`id` `$00` + PC figés 1463+ ticks).
+  `$16EB` ; e9/e10 usent aussi entrée 16 `act_v14_15` `$6E8B`
+  = check/mange si même lieu, et 17 `act_v14_16` `$6CDB`).
+  Dragon e5 : oscillation PC `$2A38`↔`$2A42` puis entrée 9
+  (`act_v14_08` `$6E59`, tirage dragon-flying/burn) à 961.
+  **Même signature plus tôt (trouvé via DB)** : e3 (`$43`,
+  eloc `$15`) `id`→`$00` au **9e** tick monde, e2 (`$40`, eloc
+  `$1C`) au **324e** (PC `$BC`→`$C0`, sans autre dégât).
+  Table events intacte → countdown dans les opcodes (mécanisme
+  exact du compteur : ouvert — `n` innocent).
+  Gollum (`$44`) actif, dormants jamais réveillés (`id` `$00` +
+  PC figés 1463+ ticks).
 - **Mort joueur (R5/R6, narratif + deltas)** : dans la clairière,
   le hideous mange le joueur → `act_v14_15` (`L7143[15]` :
   `ploc==5`, `obj==$47` → `$162B`/`$1615`), `e9.id` `$47`→`$00`

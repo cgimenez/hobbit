@@ -278,6 +278,15 @@ Verdict events : bin == runtime, `cpt=0` partout (R4/R5/R6) →
 Deux images : `hobbit_fast.sim` (texte seul, tickdiff) +
 `hires.sim` (`--fast --hires`, OCR) ; cmdfile tickdiff en `\n`
 (1re ligne = touche boot), run brut en `\r` (`tr`).
+**DB SQLite** `build/sim/hobbit.db` (gitignorée) via
+`scripts/tickdb.py` (`import` + `traj`/`touches`/`diverge`/
+`morts`/`query`) : 15 runs importés (R1–R7, repros).
+Premier gain : `morts` trouve 2 extinctions manquées — e3
+(`$43`) au 9e tick monde, e2 (`$40`) au 324e (même signature
+`id`→`$00`) ; `diverge 966a 966b` vide (déterministe).
+`L7143` = 19 entrées (0–18 : sentinelle + 15 + 3 inédites ;
+labels `act_v14_ii` = entrée−1 : `act_v14_15`=`$6E8B` mange,
+`act_v14_16`=`$6CDB`, `act_v14_17`=`$6EA7` mort programmée).
 Prochaines pistes : triggers d'armement events, `n`/`s6`,
 ZP inconnus, géo SW/SE/N, Gandalf (R7/R8/R9).
 

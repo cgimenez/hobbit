@@ -99,7 +99,7 @@ hideous troll eats you. His foul gluttony has killed the
 hideous troll. You are dead. You have mastered 2.5% of this
 adventure`. Deltas : e9.id `$47`→`$00` (tick 9), reboot restaure
 `$00`→`$47` + PC `$D0` (tick 10) ; e10 (`$48`) intact. Code :
-`act_v14_15` (`L7143[15]`, `ploc==5`, `obj==$47` → `$162B`/
+`act_v14_15` (`$6E8B` : `ploc==5`, `obj==$47` → `$162B`/
 `$1615`) ; tueur partagé `code_4D47` (aussi `act_v14_17`).
 Leçon : attaque vouée à l'échec, le troll mange le joueur
 (et en meurt — gloutonnerie), reboot restaure tout.
