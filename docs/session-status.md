@@ -149,21 +149,6 @@
 - **30 actions documentées** (16 890 o de code bloc 4, checker PROPRE,
   textes décodés par réimplémentation Python du moteur — voir
   `docs/block4-analysis.md`, citations intégrées aux `ROUTINE_DOCS`) :
-- **Qui arme `$2B12` élucidé** (événements différés, 20 `evt_*`) : `world_tick`
-  2e moitié (`evt_tick` `$4E75`) balaye 10 entrées 5 o `[id,cpt,actA,cond,actB]`
-  (`$FF` fin) : `cpt--`, réarme, puis `evt_cond` (`$4E9D`) dispatche `actB`
-  via table de sauts `$7169` (`evt_fire` `$4EAB` → `L4C5D`) si `cond<>0` et
-  `cond>=cpt`. Armement = idiome `cpt := id` (`LDA $2Bxx / STA $2Bxx+1`) ou
-  immédiat ou `0`=désarme ou aléatoire (`e6 := 2+rand(8)`) : **14 sites**
-  (e0 code_6407, e1 araignées `$66E8`, e2 `$70CB`, e3 `$65A5` en zone données,
-  e4 `$70D2`/`$6C67`, e5 `$6B66`, e6 `$66A6`/`$66D2`, e7 `$6A20`, e8 `$70F8`,
-  e9 `$6AF0`/`$6D60`/`$70D9`), dispatchés pour certains via table à clés
-  `$709F` (`evt_lookup`, clé `$8F`). Effectifs : seuls `cond<>0` tirent
-  (e4 bog `$6C5F` auto-désarmant, e5 `$6DD0`, e8 yeux `$6D9F` ×4, e9 `$6DBB`) ;
-  voie `actA` inactive (`L4E58` toujours 0, aucun autre écrivain), `cond=0`
-  = compte à rebours silencieux, e3 sans site en code (trouvailles par scan
-  binaire, seeds `$65A5`/`$70B5`). Détails : `docs/block4-analysis.md`.
-  Validation harnais restante : observer `$2B2B` après voyage PNJ.
   corps lus au binaire + r2, nommés `act_p14_ii` (table `L7014`, verbes
   joueur) et `act_v14_ii` (table `L7143`, PNJ). Effets vérifiés (guarde +
   mutation + message). `L7014` : 00 `$60BF` consomme compteur ($C6)+5 + RAZ
@@ -171,7 +156,7 @@
   bit5 de ($8A)+7 = 0/1 (03 id==1 → `$580F` fête, msg $171B « CHEERING
   CROWD ») ; 04-05 `$5CA9`/`$5D06` prise/pose ; 06 `$65DD` dit $140C ;
   08/12 `$65BA`/`$65B6` dispatch objet $16 ($04/$0F) ; 09 `$6B72` (garde
-  $C5==$41) ; 10 `$65F1` gate ; 11 `$66D6` programme l'événement `$2B18` ;
+  $C5==$41) ;   10 `$65F1` gate ; 11 `$66D6` dit $1478 (araignées) + arme e1 ;
   13 `$6041` flags objet ; 07/14 `$61E5`/`$5CB6` lecture flags. `L7143` :
   00 `$692D` dit $1427 ; 01 `$68E0` 1 de 3 messages d'oisiveté ; 02 `$690C`
   dit $1441 ; 03 `$6962` (même lieu) dit $14AB ; 04 `$6936` tirage 0-7
@@ -179,9 +164,26 @@
   prend l'objet $1FC1 ; 08 `$6E59` tirage 0-100 msg $1582/$1596 ;
   09 `$6C8D` (lieux 27/2C/29) ; 10 `$6CBE` dit $153F/$155D ; 11 `$6C33`
   one-shot $CE ; 12 `$6C09` ; 13 `$6DF9` cherche via $3485 ; 14 `$6D78`
-  tirage msg $16B9/$16C8. Messages encodés (tokens <$20, $60-7F → bloc 2,
-  bit7=2 o) : décodage anglais complet = TODO (interpolation d'état).
-- Les 6 pointeurs `$440D` nuls (`TODO`) élucidés : **idiome général** —
+  tirage msg $16B9/$16C8. Textes décodés (moteur `render_text`, voir
+  `docs/block4-analysis.md`) : dragon (`prepare to die`), Gollum
+  (`pocket ?`, `my precious`), fête (`CHEERING CROWD…SUNSET`), etc.
+- **Qui arme `$2B12` élucidé** (événements différés, 20 `evt_*`) : `world_tick`
+  2e moitié (`evt_tick` `$4E75`) balaye 10 entrées 5 o `[id,cpt,actA,cond,actB]`
+  (`$FF` fin) : `cpt--`, réarme, puis `evt_cond` (`$4E9D`) dispatche `actB`
+  via table de sauts `$7169` (`evt_fire` `$4EAB` → `L4C5D`) si `cond<>0` et
+  `cond>=cpt`. Armement = idiome `cpt := id` (`LDA $2Bxx / STA $2Bxx+1`) ou
+  immédiat ou `0`=désarme ou aléatoire (`e6 := 2+rand(8)`) : **14 sites**,
+  les 10 entrées couvertes (e0 code_6407, e1 araignées `$66E8`, e2 `$70CB`,
+  e3 `$65A5`, e4 `$70D2`/`$6C67`, e5 `$6B66`, e6 `$66A6`/`$66D2`, e7 `$6A20`,
+  e8 `$70F8`, e9 `$6AF0`/`$6D60`/`$70D9`), dispatchés pour certains via table
+  à clés `$709F` (`evt_lookup`, clé `$8F`). Deux sites trouvés uniquement par
+  scan binaire des `STA $2Bxx` (en zones données, seeds `$65A5`/`$70B5`).
+  Effectifs : seuls `cond<>0` tirent (e4 bog `$6C5F` auto-désarmant, e5
+  `$6DD0`, e8 yeux `$6D9F` ×4, e9 `$6DBB`) ; voie `actA` inactive (`L4E58`
+  toujours 0, aucun autre écrivain), `cond=0` = compte à rebours silencieux.
+  Détails : `docs/block4-analysis.md`. Validation harnais restante :
+  observer `$2B2B` après voyage PNJ.
+- Les 7 pointeurs `$440D` nuls (`TODO`) élucidés : **idiome général** —
   slot `.word` rempli juste avant `JSR print_msg` (constantes `$13DC/$13E0`,
   lookup `L5399`, table `L6359,x`, calculé, ou `STX/STY` de `L5279` pour
   `msg_52C6`). Aucun n'est un bug du découpage.
