@@ -229,8 +229,8 @@
 Moteur de messages, armement `$2B12`, zéro-page, bloc 3, système de
 messages du bloc 2, records de lieux (structure + exits étendues) et
 scripts `$29xx` et layout records `+0..7` décodés (`docs/block4-analysis.md`).
-Reste : lecteurs `b0`/`b1`, trou `$2C-$3B`, sémantique `$xC`, table `$28E6`,
-dormants `$2B45`, eloc non-chambres (harnais ciblé ou statique).
+Reste (harnais ciblé) : bit7 `b0`/`b1`, identité `$3C`, eloc runtime
+(`$09`, `$38`/`$3A` = conteneurs ?), `$xC` si rencontré en jeu.
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 
@@ -265,8 +265,11 @@ dormants `$2B45`, eloc non-chambres (harnais ciblé ou statique).
   voies `L53C3` (cond↔record+8), `L54F8` (cond↔record+2), `L37DE`
   (cond↔exit), `L363E` (record+1 bit6, cherche id==arg1) ; groupes :
   `$0F`+`$34-$41`, `$44-$4A`(+`$0C`), `$4B-$4D`, `$4E-$4F`, `$42`=WEST,
-  `$43`=EAST, rooms uniques. Reste mineur : lecteurs exacts `b0`/`b1`
-  (`$A0`/`$B0` en rooms `$01`/`$2B`). Détails `docs/block4-analysis.md`.
+  `$43`=EAST, rooms uniques. `b0`&`$0E` = template LOOK (`L4DC6`),
+  bit7 ? ; `b1` bit6 = `L363E`, `$A0`/`$B0` ? ; dormants = vrais
+  scripts (`$42`/`$46`/`$3C`, id seul par events) ; copies boot `L30F9`
+  (états→`$91D0`, `$28CC`→`$9726`, records→`$9A17` mutables, ZP→`$9FDF`).
+  Détails `docs/block4-analysis.md`.
 
 ## Bloc 3 : illustrations vectorielles élucidées (sous sim65)
 

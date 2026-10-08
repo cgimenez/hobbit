@@ -329,9 +329,26 @@ $2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non promu).
   `$30`/`$37` valides : `$285A`/`$2892`) ; wids des scripts :
   `$01 $06 $0B $0D $0E $10 $13 $1D $24 $27 $30 $37` (ex. `$1D` =
   `8D C4 DE 0A 00 10 00 60`, `$10` = `8B 87…40`).
-- Ouverts : trou `$2C-$3B` ; `$xC`/hang ; `n`/`s6` exacts ;
-  eloc non-chambres (`$09`, `$3A` = bateau ?) ; dormants (déclencheurs
-  d'activation ?) ; cohabitation scripts `$28E1` / table `$28E6`.
+- Ouverts : trou `$2C-$3B` (voir § records : `$2D-$33` objets sans état,
+  `$34`/`$35` faction sans état/slot, `$3C` futur — état `$1B30`
+  pré-existant, identité à confirmer) ; `$xC` (0 occurrence dans les
+  17 scripts : runtime-only si jamais) ; `n`/`s6` exacts ;
+  eloc non-chambres (`$09`, `$38`/`$3A` = conteneurs ?) ; cohabitation
+  scripts `$28E1` / copies boot (zone lue ET exécutée, ROM intacte).
+- Dormants `$2B45` = **vrais scripts** (pas du garbage) : `$42`
+  (`$29EE` : MOVE `$26`/`$10`/`$0D` arg `$08`), `$46` (`$2A77` :
+  ACT `$6C33` + MOVE `$13` arg `$25`, loop), `$3C` (`$2A54` : ACT
+  `$6E59`→`$6C8D`→MOVE `$24`, sauts calculés bit `$10` chaînés) ;
+  activation = id seul (`evt_arme16` : `$2B61`:=`$42` si
+  `($1DC5&8)==0` ; `evt_arme9` : `$2B76`:=`$46`, `$2B7D`:=`$3C`),
+  PC/base résiduels valides (`$29EE` table[0]=self).
+- Copies boot `L30F9` (4×6 o, via `boot_copy`) : `$1B1A`→`$91D0`
+  (1366 o, états), `$28CC`→`$9726` (753 o, bases+scripts+tables —
+  pas `$28E6`, la vraie source est `$28CC`), `$211A`→`$9A17`
+  (1480 o, **records mutables**), `$00BE`→`$9FDF` (24 o, ZP) ;
+  contiguës (`$9726`=`$91D0`+`$556`, `$9A17`=`$9726`+`$2F1`) =
+  image SAVE/LOAD (`boot_copyback` = restore). Corrige le
+  « `$28E6`+ » approximatif des notes précédentes.
 
 ## Bloc 2 : records lieux — layout `+0..7` élucidé (matcher `code_433A`)
 
@@ -361,9 +378,10 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   `$03`/`$1B`/`$32`, directions `$42`=WEST (`c2 0b`) `$43`=EAST
   (`35 03`) ; rooms quasi toutes uniques (ex. `$01` =
   `ea 14 18 0b 29 06`).
-- `b0`/`b1` = type/flags : `b0` ∈ `$02 $04 $08 $80 $84 $86 $88`
-  (lecteur exact à identifier) ; `b1` = `$FF` sauf rooms `$01`=`$A0`
-  et `$2B`=`$B0` (bit6 testé par `L363E` : absent de `$A0`/`$B0`).
+- `b0`/`b1` = type/flags : `b0`&`$0E` = template LOOK (`L4DC6` →
+  `$2110`), bit7 ? (`$13`/`$14` même desc `$1931`, b0 `$02`/`$80`) ;
+  `b1` = `$FF` sauf rooms `$01`=`$A0` et `$2B`=`$B0` (bit6 testé par
+  `L363E`, absent de `$A0`/`$B0` ; bit7 ?).
   Décodeurs : `/tmp/condmatch.py`, `/tmp/condmat.py` (non promus).
 
 ## Bloc 3 : illustrations vectorielles (`$7AC0`–`$91B1`, 5 874 o)
