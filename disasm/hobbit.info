@@ -476,11 +476,14 @@ LABEL { NAME "act_v14_11"; ADDR $6C33; COMMENT "one-shot ($CE==1) : RAZ $CE, $3F
 LABEL { NAME "evt_act5"; ADDR $6C5F; COMMENT "actB e4 : si $C8==$1D dit $1535 (bog) sinon desarme e4"; };
 LABEL { NAME "act_v14_09"; ADDR $6C8D; COMMENT "si $C8 in {27,2C,29} : sonde + dit $13F6 (X enter)"; };
 LABEL { NAME "act_v14_10"; ADDR $6CBE; COMMENT "meme lieu : $153F (dragon : prepare to die) ou $155D (aveugle) si $80"; };
+LABEL { NAME "act_v14_16"; ADDR $6CDB; COMMENT "si meme lieu : sonde, wid=$1B/arg1=0, $60BF + JMP $5FAE"; };
 LABEL { NAME "act_v14_07"; ADDR $6CFA; COMMENT "si meme lieu : prend l'objet $1FC1 (id $1FB2=41)"; };
 LABEL { NAME "evt_print"; ADDR $6D72; COMMENT "dit $1685 (hole vanish) ; queue du sub $6AEB"; };
 LABEL { NAME "act_v14_14"; ADDR $6D78; COMMENT "si $C8==$1E4B : tirage, $16B9 (pocket ?) / $16C8 (my precious)"; };
 LABEL { NAME "act_v14_13"; ADDR $6DF9; COMMENT "cherche lieu $3485, RAZ $D5, dit $15B6 (strangle you)"; };
 LABEL { NAME "act_v14_08"; ADDR $6E59; COMMENT "si $1F47!=$29 : tirage 0-100, $1582 (dragon flying) / $1596 (burn you)"; };
+LABEL { NAME "act_v14_15"; ADDR $6E8B; COMMENT "si $C8==5 : sonde, $C5==$47 ? $1615 (BLIMEY, COOK EM) : $162B (MOUTHFUL) [trolls]"; };
+LABEL { NAME "act_v14_17"; ADDR $6EA7; COMMENT "sonde + L4D47 ($47/$48), RAZ bit7 $1F94/$1FA6, $214C&~$40, desc $2154=$1645, dit $16EB"; };
 LABEL { NAME "evt_arme2"; ADDR $70CB; COMMENT "cpt e2 := id (cle $1A, table $709F)"; };
 LABEL { NAME "evt_arme4"; ADDR $70D2; COMMENT "cpt e4 := id (cle $1D)"; };
 LABEL { NAME "evt_arme9"; ADDR $70D9; COMMENT "cpt e9 := 3 + ecrit entites $2B76/$2B7D (cle $20)"; };

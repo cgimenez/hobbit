@@ -13,7 +13,7 @@
   `$456F` + stubs d'armement `$65A5`/`$70B5` (en zones données, trahis par
   scan binaire des `STA $2Bxx`) ; `SEED_EXCLUDE={0x6DCE}`).
 - Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
-  (**121** : socle + 30 actions + 27 moteur de messages + 20 événements
+  (**124** : socle + 33 actions + 27 moteur de messages + 20 événements
   `evt_*` (`evt_tick`/`evt_fire`, stubs `evt_armeN`, `evt_lookup`…) + 10
   moteur vectoriel (`vec_image`/`vec_line`/`vec_fill`/`vec_pos`/`vec_skip`/
   `vec_setup`/`vec_testpx`/`vec_plot`/`vec_addr`, `img_show`) ; nom +
@@ -171,6 +171,17 @@
   tirage msg $16B9/$16C8. Textes décodés (moteur `render_text`, voir
   `docs/block4-analysis.md`) : dragon (`prepare to die`), Gollum
   (`pocket ?`, `my precious`), fête (`CHEERING CROWD…SUNSET`), etc.
+- **Scripts `$29xx` décodés statiquement** (`/tmp/vmdec.py`, `docs/block4-analysis.md`) :
+  17 entrées `$2B45` `[id,n,PC,base,s6]` (3 dormantes id=`$00`, 14 actives),
+  opcodes déterministes (MOVE pair 4 o, ACT impair via `L7143`, `$x4`, `$xE`
+  GOTO, `$xC` PATCH table, `$xF` RAND, `$x5-D` INDIR table[0], budget 6 ops/tick) ;
+  table `L7143` = 18 mots (pas 15) → **3 actions inédites** `act_v14_15/16/17`
+  (`$6E8B` trolls lieu 5, `$6CDB` wid=`$1B`, `$6EA7` queue de `$6E8B` qui retombe
+  sur le slot mutable `$2154`=`$1645`) ; identifiés : `$3E` Gandalf (eloc `$01`),
+  `$44` Gollum (arg `$10` caverne), `$41` dragon, `$47`/`$48` lieu 5 ;
+  états `$1A62` (60 clés, trou `$2C-$3B`, `L5331`≠`L530B`, eloc=état+`$10`) ;
+  exits étendues `$26DA`+wid*8 jusqu'à ~`$28C2` (wids `$0B+` conditionnelles).
+  Ouverts : `+0..7` records, `$xC`, dormants, `$28E6`.
 - **Qui arme `$2B12` élucidé** (événements différés, 20 `evt_*`) : `world_tick`
   2e moitié (`evt_tick` `$4E75`) balaye 10 entrées 5 o `[id,cpt,actA,cond,actB]`
   (`$FF` fin) : `cpt--`, réarme, puis `evt_cond` (`$4E9D`) dispatche `actB`
@@ -216,9 +227,10 @@
 ## Prochaine étape
 
 Moteur de messages, armement `$2B12`, zéro-page, bloc 3, système de
-messages du bloc 2 et records de lieux décodés (`docs/block4-analysis.md`,
-sauf section records restant à consigner). Reste : encodage `+0..7` des
-records, table `$28E6`, scripts `$29xx`, table `$2732+`, layouts non-lieux.
+messages du bloc 2, records de lieux (structure + exits étendues) et
+scripts `$29xx` décodés (`docs/block4-analysis.md`). Reste : encodage
+`+0..7` des records, trou `$2C-$3B`, sémantique `$xC`, table `$28E6`,
+dormants `$2B45` (harnais ciblé ou statique).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 

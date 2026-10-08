@@ -55,8 +55,10 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 - `JSR $440D` (`print_msg`) **et** `JSR $5B24` (`act_msg`) + mot inline =
   adresse du message ; reprise du code à JSR+5 (cf. `INLINE_MSGS`). Queue :
   `JSR $4737` / `JMP ($6A)`, helper `$44BE` (`INC $6A`).
-- Tables d'actions `L7014` (verbes joueur) / `L7143` (PNJ, VM `$4ED5`) :
-  15 entrées `word`, index par nibble d'opcode / compteur, dispatch indirect
+- Tables d'actions `L7014` (verbes joueur, 15 entrées) / `L7143` (PNJ, VM
+  `$4ED5`, **18 mots** : sentinelle + 15 connues + 3 inédites `$6E8B`/`$6CDB`/
+  `$6EA7` = index VM 16–18, cf. `act_v14_15/16/17`) :
+  entrées `word`, index par octet d'action (script `$x1`/`$x3`) / compteur, dispatch indirect
   (`L4C5D`). Corps en bloc 4, souvent orphelins du graphe d'appels →
   recensés en `MANUAL_ENTRIES` (checker D = garde-fou).
 - Table de 16 vecteurs `JMP` en `$2C05`–`$2C34` (API interne) ; le bloc 4 n'use
@@ -96,5 +98,7 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
   jeu probable) ; zéro-page nommée (51 `ZP_NAMES`) ; bloc 3 élucidé
   (13 illustrations vectorielles, table `$7AC0`, moteur `vec_*`) ; bloc 2
   messages élucidé (600 mots `$0540`, 32 courants `$1117`, 171 messages,
-  29 lieux `$18AA`) ; reste données monde (records `$21xx`, exits `$26DA`,
-  table `$28E6`, scripts `$29xx`).
+  29 lieux `$18AA`) ; records lieux cartographiés (table `$2070`, desc +8,
+  exits étendues `$26DA`+wid*8, états `$1A62`) ; scripts `$29xx` décodés
+  (VM `$4ED5`, 14 entités + 3 dormantes, table `L7143` = 18 mots dont 3
+  inédites) ; reste : `+0..7` records, trou `$2C-$3B`, `$xC`, table `$28E6`.

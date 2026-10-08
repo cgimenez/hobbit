@@ -8810,6 +8810,8 @@ msg_6CD8:
 code_6CDA:
         rts
 
+; si meme lieu : sonde, wid=$1B/arg1=0, $60BF + JMP $5FAE
+act_v14_16:
         lda     eloc
         cmp     ploc
         beq     L6CE2
@@ -9090,6 +9092,8 @@ msg_6E86:
 code_6E88:
         jmp     L5FAE
 
+; si $C8==5 : sonde, $C5==$47 ? $1615 (BLIMEY, COOK EM) : $162B (MOUTHFUL) [trolls]
+act_v14_15:
         lda     ploc
         cmp     #$05
         beq     L6E92
@@ -9113,6 +9117,8 @@ msg_6EA4:
 code_6EA6:
         rts
 
+; sonde + L4D47 ($47/$48), RAZ bit7 $1F94/$1FA6, $214C&~$40, desc $2154=$1645, dit $16EB
+act_v14_17:
         jsr     act_probe
         lda     #$47
         jsr     code_4D47

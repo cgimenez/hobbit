@@ -278,6 +278,62 @@ données comme la table d'actions étendue `$7020`, 30 mots). Restent intirés
 par le ticker : `$6915` (tip aléatoire `$1485`, `actB` des `cond=0`), `$6F2A`
 (flags web — le re-mend différé ne part jamais : à confirmer en jeu).
 
+## Bloc 2 : scripts PNJ — VM AnimAction (`$28E1`–`$2B11`, `entity_tick` $4ED5)
+
+Table `$2B45` : 17 entrées 7 o `[id, n, PC_lo, PC_hi, base_lo, base_hi, s6]`,
+`$FF` en `$2BBC` ; id `$00` = slot dormant (3 : `$2B61 $2B76 $2B7D`) ;
+14 actives `$3E $3F $40 $43 $41 $44 $47 $48 $3D $45 $4B $49 $4A $4C`
+(PC initiaux `$295C $298E $29BC $29C7 $2A38 $2A8F $2AD0×2 $28E1×2 $2910
+$2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non promu).
+
+- Tour : `once` (test `L3E8E`) → préambule one-shot `$x0-4` (bit `$40`
+  clair, via `code_3F7F`/`L46E9`/`L5127`) ; sinon dispatch nibble bas :
+  pair `$x0/$x2` = MOVE 4 o (+2 si bit `$10`) `[wid,arg1,arg2]` via
+  `entity_move` ; impair `$x1/$x3` = ACT 3 o (+2) via `L7143` ;
+  `$x4` = MOVE court (`wid`, arg=`$FF`) ou saut (`$FF`+bit `$10`) ;
+  `$xE` = GOTO absolu 3 o ; `$xC` = PATCH table (ligne clé := cible,
+  PC courant inchangé — hang apparent, à vérifier sous harnais) ;
+  `$xF` = RAND parmi `min(opérande,n)` cibles ; `$x5-$xD` = INDIR
+  table[0]. **Budget 6 ops/tick** (`L4ED3`) = garde-fou des boucles
+  (`GOTO self`, INDIR cycliques). Après move : bit `$20` → efface
+  l'opcode (auto-modification) ; bit `$10` → saut calculé si échec.
+- Base (entrée+4,5) = table de sauts 3 o `[clé,lo,hi]` (clés `$00`,
+  réécrites par `$xC`) ; ex. `$3E`/`$2943` : 5 cibles `$2964-$297E`.
+- ACT : octet b → **mot b** de la table `$7143` (38 o : sent `$FF0B` +
+  18 mots — pas 15 !) : 1–15 = connues, **16–18 = 3 inédites**
+  documentées (`act_v14_15/16/17`, checker PROPRE, rebuild OK) :
+  `$6E8B` (si `$C8`==5 : sonde, `$C5`==`$47` ? `$1615` BLIMEY COOK EM
+  : `$162B` MOUTHFUL [trolls]) ; `$6CDB` (visible : sonde, wid=`$1B`,
+  `$60BF` + `JMP $5FAE` ; routine jumelle `$6CF9` collée derrière :
+  tracking objet `$1FC1`/`$1FB2`) ; `$6EA7` = `$6E8B`+28 (sonde +
+  `L4D47` ×2, RAZ bit7 `$1F94`/`$1FA6`, `$214C`&~`$40`, desc
+  `$2154`=`$1645`, dit `$16EB` — **retombe sur le slot mutable des
+  records**, § précédent).
+- Scripts : `$3E` errance (MOVE `$1D`/`$10`/`$24`/`$13`/`$0D`/`$0E`,
+  ACT 1/2, RAND→4 cibles) ; `$44` Gollum présumé (ACT 13/14, MOVE
+  `$0E`/`$01`=NORTH/`$13` arg=`$10` = caverne aux torches) ; `$41`
+  dragon présumé (ACT 7/8, eloc `$09`) ; `$47`/`$48` (ACT 16/17,
+  eloc `$05`, template `EYE`) ; `$3D`/`$45` en `$28E1` (MOVE `$10`
+  arg `$06` + boucle MOVE `$30`) ; `$3F`/`$43`/`$49`/`$4B` boucles
+  `MOVE`+`GOTO self`.
+- États `$1A62` : 60 clés (`$00-$2B`, `$3C-$4B` ; **trou `$2C-$3B`**)
+  → blocs `$1Bxx` ; `L5331` (état mutable) ≠ `L530B` (record
+  template) ; `L57BB` : état+0==1 → eloc=état+`$10` (`$3E`=`$01`,
+  map `$03`=`$01` holder `$3E` ; `$41`=`$09`, `$43`=`$15`,
+  `$44`=`$11`, `$47`/`$48`=`$05`) ; état+1 = porteur? (`$03`→`$3E`
+  = Gandalf porte la carte au boot) ; état+8 = template description
+  (tokens runtime `<t00>`/`<t08>`, illisible statiquement).
+- Exits étendue : `$26DA`+wid*8 ; wid `$00-$0A` directions (mot +
+  `AD 04`), wid `$0B+` **conditionnelles** (format `code_4141`,
+  flags `$40`/`$60`/`$80` → direct/variant) jusqu'à ~`$28C2` (wid
+  `$30`/`$37` valides : `$285A`/`$2892`) ; wids des scripts :
+  `$01 $06 $0B $0D $0E $10 $13 $1D $24 $27 $30 $37` (ex. `$1D` =
+  `8D C4 DE 0A 00 10 00 60`, `$10` = `8B 87…40`).
+- Ouverts : `+0..7` records chambres (pas des wids — ressemble à
+  `[flags,$FF,…]`) ; trou `$2C-$3B` ; `$xC`/hang ; `n`/`s6` exacts ;
+  eloc non-chambres (`$09`, `$3A` = bateau ?) ; dormants (déclencheurs
+  d'activation ?) ; cohabitation scripts `$28E1` / table `$28E6`.
+
 ## Bloc 3 : illustrations vectorielles (`$7AC0`–`$91B1`, 5 874 o)
 
 Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
@@ -324,8 +380,8 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 890 o de code**, 99 sites
-  `$440D` (115 inline `$440D`/`$5B24`), 121 routines documentées (dont 10
-  `vec_*`/`img_show` du moteur d'illustrations), 0 conflit.
+  `$440D` (115 inline `$440D`/`$5B24`), 124 routines documentées (dont 10
+  `vec_*`/`img_show` et 33 actions `L7014`/`L7143`), 0 conflit.
 
 Régénérer et vérifier :
 
@@ -339,10 +395,9 @@ Régénérer et vérifier :
 - Le découpage **code/données est validé statiquement** (checker exit 0), mais
   7 pointeurs nuls et les zones atteintes par dispatch indirect reposent sur des
   `MANUAL_ENTRIES` arbitrées à la main (trampolines `JSR`+`JMP`, routines
-  `LDA $C5`/`LDA $1F76`+`RTS`, 30 actions `L7014`/`L7143`, token `$456F`, etc.).
+  `LDA $C5`/`LDA $1F76`+`RTS`, 33 actions `L7014`/`L7143`, token `$456F`, etc.).
 - Auto-modification : `STA $6A5C` patch un octet relu par `LDA $6A5C` (donnée
   conservée en table, code adjacent marqué à partir de `$6A5E`).
 - Les rôles des vecteurs `vec_init`, `vec_06`, `vec_07` restent à confirmer.
-- Prochaines étapes : nommer les variables zéro-page, explorer le bloc 2
-  (table `$0500` + textes, dont les messages pointés depuis le bloc 4) et le
-  bloc 3.
+- Prochaines étapes : `+0..7` des records lieux, trou `$2C-$3B`, sémantique
+  `$xC`, table `$28E6`, dormants `$2B45` (harnais ciblé ou statique).
