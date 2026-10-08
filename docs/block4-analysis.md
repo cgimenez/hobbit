@@ -5,7 +5,9 @@ principal**. Le loader (bloc 1) lit successivement les blocs 2, 3 puis 4 et saut
 à l'adresse de chargement du **dernier lu** (`$2C00`), c'est-à-dire l'autorun.
 
 > Listing désassemblé : [`disasm/block4.asm`](../disasm/block4.asm) (généré par
-> [`scripts/disasm.py`](../scripts/disasm.py), radare2 + da65).
+> [`scripts/disasm.py`](../scripts/disasm.py) : descente récursive + point fixe,
+> da65). Découpage vérifié par [`scripts/check_disasm.py`](../scripts/check_disasm.py)
+> : **RÉSULTAT PROPRE** (0 opcode illégal, 0 BRK, toutes cibles alignées).
 
 ## Cartographie mémoire
 
@@ -92,24 +94,52 @@ explique la présence des patchs ROM décrits dans
 - `$56`, `$57`, `$5F`, `$65`, `$7E`, `$88`/`$89`, `$8A`/`$8B`, `$C4` : état du jeu.
 - `$024D` : mode cassette (fast/slow) ; `$0300`–`$030F` : VIA.
 
+## Convention d'affichage `JSR $440D`
+
+Le motif dominant du bloc 4 : **`JSR $440D` suivi de 2 octets inline** = adresse
+du message à afficher ; le code reprend à JSR+5 (queue `JSR $4737` / `JMP ($6A)`,
+helper `$44BE` qui incrémente le pointeur). 79 sites recensés, chacun avec son
+mot pointeur marqué `.word` (`msg_XXXX`) et un aperçu du texte en commentaire.
+Sans cette règle, chaque site décalerait tout le désassemblage aval.
+
+- 6 sites ont un pointeur **nul** (`$3CB4`, `$4DF9`, `$4E2D`, `$52C3`, `$5BB5`,
+  `$631A` → `TODO pointeur nul`) : adresse du message résolue à l'exécution.
+- Quelques pointeurs visent le **bloc 2** (`$1370`, `$165A`, …) : messages ou
+  tables hors bloc 4, affichés `(hors image)` / bruts dans le listing.
+- Pas d'appels ROM directs dans le bloc 4 : tout passe par les vecteurs du
+  bloc 1 (`$0405`–`$0417`), patchés selon ROM 1.0/1.1.
+
 ## Outillage
 
-- `scripts/disasm.py` : analyse radare2 (`aaaa`) + génération du listing da65.
-  Le résultat de `afl` est mis en cache dans `disasm/.r2_afl.txt`.
+- `scripts/disasm.py` : **descente récursive** (entries `$2C00`, `$2C35`, 16
+  vecteurs) + point fixe (seeds radare2 validés par `try_decode`, `MANUAL_ENTRIES`
+  pour le dispatch indirect, `SEED_EXCLUDE` pour les faux positifs comme
+  `fcn.00006dce` qui chevauchait un pointeur `$440D`). Le résultat de `afl` est
+  mis en cache dans `disasm/.r2_afl.txt`.
+- `scripts/opcodes6502.py` : table des 150 opcodes légaux 6502.
+- `scripts/check_disasm.py` : contrôles A–G (sync linéaire avec règle `$440D`,
+  cibles de branches/JSR/JMP, tables ressemblant à du code, ROM, vecteurs,
+  pointeurs marqués). Sortie 0 = propre.
 - `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
-- `disasm/block4.asm` : listing annoté.
+- `disasm/block4.asm` : listing annoté — **15 692 o de code (78 %)**, 79 sites
+  `$440D`, 0 conflit.
 
-Régénérer :
+Régénérer et vérifier :
 
 ```
 .venv/bin/python scripts/disasm.py
+.venv/bin/python scripts/check_disasm.py   # viser exit 0 (RÉSULTAT: PROPRE)
 ```
 
 ## Limites
 
-- Le découpage **code/données est heuristique** (~80 % du bloc 4 classé « code »).
-  radare2 rate certaines routines et en détecte dans les données ; quelques zones
-  sont donc encore en `.byte` ou inversement.
+- Le découpage **code/données est validé statiquement** (checker exit 0), mais
+  6 pointeurs nuls et les zones atteintes par dispatch indirect reposent sur des
+  `MANUAL_ENTRIES` arbitrées à la main (trampolines `JSR`+`JMP`, routines
+  `LDA $C5`/`LDA $1F76`+`RTS`, etc.).
+- Auto-modification : `STA $6A5C` patch un octet relu par `LDA $6A5C` (donnée
+  conservée en table, code adjacent marqué à partir de `$6A5E`).
 - Les rôles des vecteurs `vec_init`, `vec_06`, `vec_07` restent à confirmer.
-- Prochaines étapes : affiner les frontières, nommer les variables zéro-page,
-  explorer le bloc 2 (table `$0500` + textes) et le bloc 3.
+- Prochaines étapes : nommer les variables zéro-page, explorer le bloc 2
+  (table `$0500` + textes, dont les messages pointés depuis le bloc 4) et le
+  bloc 3.

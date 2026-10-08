@@ -1,46 +1,39 @@
-# Session en cours — exploration bloc 4 (The Hobbit, Oric)
+# Session — exploration bloc 4 (The Hobbit, Oric) : ÉTAT PROPRE
 
-## Où on en est
+## État
 
-Le listing `disasm/block4.asm` est en cours de fiabilisation :
-- `scripts/disasm.py` réécrit : **descente récursive** (entries `$2C00`, `$2C35`,
-  16 vecteurs) + point fixe (seeds r2 validés + `MANUAL_ENTRIES`) + règle
-  `JSR $440D` (2 octets pointeur inline, reprise à JSR+5).
-- `scripts/check_disasm.py` (nouveau) + `scripts/opcodes6502.py` (150 opcodes).
-- Dernier `check` : 14875 o code (74 %), **0 illégal, 0 BRK**, 61 pointeurs
-  `$440D` tous marqués (dont 5 nuls → TODO), 0 appel ROM direct, vecteurs OK.
-- Reste (checker exit 1) : 61 désyncs tous expliqués (splits `$440D`, à
-  exempter), ~15 tables-D à trier (12 vérifiées comme code), 2 branches
-  queue (`$7A6E`/`$7A78` → `$7A62`), 2 conflits (`$6DCF` RTS légitime,
-  `$6F6C` seed r2 à exclure).
+- `disasm/block4.asm` fiabilisé : **15 692 o de code (78 %)**, 79 sites
+  `JSR $440D`, **0 conflit**, `scripts/check_disasm.py` → **RÉSULTAT: PROPRE
+  (exit 0)** depuis le commit `c6bdde3` + travail ci-dessous (à committer).
+- Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
+  (seeds r2 validés + 24 `MANUAL_ENTRIES` + `SEED_EXCLUDE={0x6DCE}`).
+- Conflit `$6DCF` résolu : `JSR $440D` en `$6DCA` (cible d'un `BEQ`, idiome
+  print-and-return vers `RTS`) confirmé ; seed `fcn.00006dce` exclu
+  (chevauchait le pointeur `$165A`) ; routine orpheline `$6DD0` ajoutée
+  en manuelle (ses messages `$1415`/`$14F5` contiennent du texte lisible).
+- Conflit `$6F6C` résorbé par la couverture du cluster `$6F44`/`$6F7E`.
 
-## Prochaine commande
-
-Les 12 `MANUAL_ENTRIES` (`$32B9 $3C8E $5B44 $5BC9 $5D31 $698B $6A02 $6EA7
-$6D55 $6F2A $4599 $4DAF`) sont dans `scripts/disasm.py` mais le run
-n'a pas encore été relancé :
+## Prochaine étape
 
 ```
-.venv/bin/python scripts/disasm.py
-.venv/bin/python scripts/check_disasm.py   # viser exit 0
+.venv/bin/python scripts/disasm.py && .venv/bin/python scripts/check_disasm.py
 ```
 
-## Points ouverts
+puis : nommer les variables zéro-page, explorer bloc 2 (messages `$1370`,
+`$165A`, … pointés depuis le bloc 4) et bloc 3.
 
-1. Exempter les désyncs de splits `$440D` dans `check_disasm.py`
-   (super-plages via WORDTABLE) ; longueur min pour la règle D.
-2. Forcer la table de vecteurs `$2C05-$2C34` en code (16× `JMP`, vérifié).
-3. Trancher queue `$7A60+` (données probable, seed `$7A67` à rejeter :
-   branche vers `$04` illégal) et conflit `$6F6C` (exclure le seed).
-4. Trier les tables-D restantes ; les pointeurs `$0000` (`$4DF9 $4E2D
-   $52C3 $5BB5 $631A`) restent en TODO (sémantique runtime inconnue).
-5. Mettre à jour `docs/block4-analysis.md` (convention `$440D`, carte
-   corrigée), puis commit.
+## Points ouverts (non bloquants)
+
+1. 6 pointeurs `$440D` nuls (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A`) : adresses
+   résolues à l'exécution → `TODO` dans le listing.
+2. Pointeurs vers le bloc 2 (`$1370`, `$165A`, …) : zone message non analysée.
+3. `STA $6A5C` (auto-modification) : octet gardé en donnée, code dès `$6A5E`.
+4. Rôles de `vec_init`, `vec_06`, `vec_07` à confirmer.
 
 ## Conventions établies
 
 - `JSR $440D` + mot inline = adresse du message ; reprise à JSR+5.
 - Queue `$440D` : `JSR $4737` / `JMP ($6A)`, helper `$44BE` (`INC $6A`).
 - Base image : `data/hobbit.bin` chargée à `$0400` ; bloc 4 = `$2C00-$7A80`.
-- Pas d'appels ROM directs dans le bloc 4 (tout passe par les vecteurs
-  `$0405-$0417` du bloc 1, patchés selon ROM 1.0/1.1).
+- Pas d'appels ROM directs dans le bloc 4 (vecteurs `$0405-$0417` du bloc 1,
+  patchés selon ROM 1.0/1.1).

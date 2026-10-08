@@ -51,7 +51,13 @@ MANUAL_ENTRIES: list[int] = (
     [0x2C05 + 3 * k for k in range(16)]
     + [0x32B9, 0x3C8E, 0x5B44, 0x5BC9, 0x5D31, 0x698B,
        0x6A02, 0x6EA7, 0x6D55, 0x6F2A, 0x4599, 0x4DAF]
+    + [0x32E9, 0x3CCE, 0x3D39, 0x4569, 0x6A12, 0x6A24, 0x6A5E, 0x6A86,
+       0x6F44, 0x6F7E, 0x70D2, 0x6DD0]
 )
+
+# Seeds radare2 récusés : chevauchent des pointeurs $440D ou du connu.
+# $6DCE = fcn.00006dce, octet haut du pointeur $165A (JSR $440D en $6DCA).
+SEED_EXCLUDE = {0x6DCE}
 
 # Points d'entrée de la table de vecteurs en $2C05 (16 entrées JMP).
 VECTORS = {
@@ -361,6 +367,8 @@ def main() -> int:
         added = 0
         for s in r2seeds:
             if not (lo <= s <= hi):
+                continue
+            if s in SEED_EXCLUDE:
                 continue
             if s in starts or s in code_bytes or s in ptr_bytes:
                 continue
