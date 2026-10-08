@@ -79,6 +79,7 @@ static int reg_index(unsigned base) {
 static Stream G_s = {0};
 static unsigned char G_buf[OUT_CHUNK];
 static unsigned char *G_cur[NREG] = {0};
+static int G_seen[NREG] = {0};   /* 1 = au moins un dump recu */
 static long G_frames = 0;
 static int G_rfd = -1;
 static long G_timeout_ms = 300;
@@ -114,8 +115,10 @@ static int wait_quiet(void) {
                     { G_s.pos++; continue; }  /* faux-positif : avance */
                 if (avail < 16u + ln) break;
                 int ri = reg_index(a);
-                if (ri >= 0 && ln == REG_LEN[ri])
+                if (ri >= 0 && ln == REG_LEN[ri]) {
                     memcpy(G_cur[ri], p + 16, ln);
+                    G_seen[ri] = 1;
+                }
                 G_s.pos += 16 + ln;
             } else if (avail >= 13 && !memcmp(p, "@@TAPE-BLOCK\n", 13)) {
                 G_s.pos += 13;
@@ -188,8 +191,43 @@ int main(int argc, char **argv) {
     G_timeout_ms = timeout_ms;
     long ticks = 0;
 
-    /* tick 0 : etat boot (avant tout ordre) */
-    int alive = wait_quiet();
+    /* tick 0 : envoie le 1er ordre (touche boot = 1re ligne, vide en
+       general) PUIS attend que les 4 regions aient dumpe. Sans l'ordre
+       d'abord, pas de frame donc pas de dumps -> deadlock. */
+    char *line = NULL;
+    size_t ll = 0;
+    FILE *in = cmdf ? cmdf : stdin;
+    if (!cmdf)
+        fprintf(stderr, "tickdiff interactif : tapez les ordres (Ctrl-D pour finir)\n"
+                        "  (1re ligne = touche boot)\n");
+    ssize_t n0 = getline(&line, &ll, in);
+    if (n0 < 0) { fprintf(stderr, "aucun ordre\n"); return 1; }
+    {
+        char *send = line;
+        size_t sn = (size_t)n0;
+        if (sn > 0 && send[sn - 1] == '\n') send[sn - 1] = '\r';
+        size_t off = 0;
+        while (off < sn) {
+            ssize_t w = write(wfd, send + off, sn - off);
+            if (w <= 0) { fprintf(stderr, "sim65 parti\n"); return 1; }
+            off += (size_t)w;
+        }
+    }
+    int alive = 0;
+    {
+        int all, guard = 0;
+        do {
+            alive = wait_quiet();
+            all = 1;
+            for (int i = 0; i < NREG; i++) all &= G_seen[i];
+            guard++;
+        } while (alive && !all && guard < 3000);
+        if (!all) fprintf(stderr, "avertissement : dumps incomplets (baseline partielle)\n");
+    }
+    if (!alive) {
+        fprintf(stderr, "sim65 parti avant le premier dump complet\n");
+        return 1;
+    }
     {
         char sp[1024];
         snprintf(sp, sizeof sp, "%s/snap0000.bin", outdir);
@@ -199,14 +237,9 @@ int main(int argc, char **argv) {
         fprintf(log, "TICK 0 BOOT (frames=%ld, snapshot snap0000.bin)\n", G_frames);
         fflush(log);
         for (int i = 0; i < NREG; i++) memcpy(snap_prev[i], G_cur[i], REG_LEN[i]);
-        ticks = 1;
     }
+    ticks = 1;
 
-    char *line = NULL;
-    size_t ll = 0;
-    FILE *in = cmdf ? cmdf : stdin;
-    if (!cmdf)
-        fprintf(stderr, "tickdiff interactif : tapez les ordres (Ctrl-D pour finir)\n");
     while (alive) {
         ssize_t n;
         if (cmdf) {
