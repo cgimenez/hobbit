@@ -248,6 +248,14 @@ scripts `$29xx`, layout records `+0..7` et dispatch SAVE/LOAD décodés
 (`docs/block4-analysis.md`). Ensuite : stub cassette B1 (`vec_02/03`
 → shim, round-trip save/load), puis jeu tour-par-tour. Sondes en
 attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
+**B1 en cours** (`harness/tape.s` + `pack_sim.py` + `save_tape.py` +
+`tape_check.py`, committé `db3924f`) **mais BLOQUÉ au premier test** :
+`SAVE` n'émet que 51 octets tous `$40` (attendu ~3671 : headers
+`$24…` + données) puis exit 255 (anormal, pas le timeout 254).
+Patches `$0405`–`$0417`→`$F7xx` vérifiés à l'assemblage (table en
+`$F700` cohérente) ; cause racine inconnue (stub `$040E` ?
+déraillement d'exécution ?). Piste : test unitaire des stubs via
+pilote (comme le pilote vec des 13 images).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 
