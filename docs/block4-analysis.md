@@ -94,6 +94,33 @@ explique la présence des patchs ROM décrits dans
 - `$56`, `$57`, `$5F`, `$65`, `$7E`, `$88`/`$89`, `$8A`/`$8B`, `$C4` : état du jeu.
 - `$024D` : mode cassette (fast/slow) ; `$0300`–`$030F` : VIA.
 
+## Entrées/sorties (chemins observés sous harnais sim65)
+
+- **Clavier, bas niveau `$7353`** : scan matriciel VIA (`$0302`/`$0303`/`$030C`,
+  AY via `$7464`/`$7472`/`$7454`). Retourne A = touche (bit 7 = présente) ou
+  bit 7 à 0 (absente). 4 sites d'appel : `keyin`, pauses `$7628`/`$7640`,
+  SAVE (`$72A5`). **Seul point à shimmer pour l'input** (patch `JMP` en `$7353`).
+- **`keyin` `$7481`** : `JSR $7353` en boucle `BPL` (attente bloquante),
+  puis `AND #$7F`. Le `JSR keyin` du boot (`$2C3D`) est du code mort
+  (`BNE` toujours pris après `LDX #$FF`).
+- **`putchar` `$7491`** : filtrages `$0C`&`$0B`, `$0D`, `$C4` (dont conversion
+  en capitales `AND #$5F`), puis rendu. Ne pas shimmer ici (logique jeu).
+- **Rendu `$75B4`** : une touche → glyphe 8×6 dans le **bitmap hires `$A000`**
+  (pas à pas de `$28`, `ORA #$40`), font = charset ROM via `($0403)` :
+  `$FC70` (ROM 1.0) ou `$FC78` (ROM 1.1, après patch bloc 1). L'écran **texte
+  `$BB80` n'est jamais écrit par le jeu** (tout l'affichage est en hires).
+- **Pause `$7619`** (`CR` quand `$11==$0F`) : bip `$771A` (inopérant si
+  `$0A==0`, valeur d'init), attente relâchement `$7628` (`BMI`), délai,
+  attente pression `$7640` (`BPL`). C'est elle qui consomme le 1er octet
+  des scripts : **préfixer d'une touche "page-turn"** (ex. `\rLOOK\r`).
+- **Zones mémoire touchées au boot** : copie `$1B1A`→`$91D0` (1366 o, via
+  `$3097` ; retour via `$30BB`), table `$28E6`+ → workspace haut (`$9740`+
+  observé — base de données jeu probable, cf. AnimAction), fontes vers
+  `$B7E8`+, clear hires `$7747` (`$40` sur `$A000`–`$BFDF`).
+- **Réponse parser observée** : `I DO NOT KNOW THE WORD " XXX."` (mot inconnu
+  quoté) ; `LOOK` re-décrit le lieu (`to the east there is the round green
+  door`, `you see : the wooden chest.`, `Gandalf…`, `Thorin.`).
+
 ## Convention d'affichage `JSR $440D`
 
 Le motif dominant du bloc 4 : **`JSR $440D` suivi de 2 octets inline** = adresse
