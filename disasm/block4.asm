@@ -4256,7 +4256,7 @@ L4C6D:  pha
         and     #$08
         bne     L4C80
         pla
-        jmp     L5249
+        jmp     entity_goto
 
 L4C80:  pla
         rts
@@ -4706,7 +4706,7 @@ L4FCD:  cmp     #$0C
         tax
         ldy     #$00
         lda     ($88),y
-        jsr     L5249
+        jsr     entity_goto
         jmp     L4F58
 
 L4FE0:  cmp     #$0F
@@ -4743,21 +4743,27 @@ L5008:  lda     #$00
         rts
 
 L501E:  lda     #$04
-L5020:  clc
+; avance PC script $8C de A
+script_adv:
+        clc
         adc     $8C
         sta     $8C
         bcc     L5029
         inc     $8D
 L5029:  rts
 
-L502A:  lda     #$04
-L502C:  jsr     L5020
+; +4 (bit $10:+2), reecrit PC dans l'entree
+script_step4:
+        lda     #$04
+; +2 (bit $10:+2), reecrit PC dans l'entree
+script_step2:
+        jsr     script_adv
         ldy     #$00
         lda     ($8A),y
         and     #$10
         beq     L503C
         lda     #$02
-        jsr     L5020
+        jsr     script_adv
 L503C:  ldy     #$02
         lda     $8C
         sta     ($88),y
@@ -4770,7 +4776,7 @@ L5048:  ldy     #$00
         lda     ($8A),y
         and     #$01
         bne     L506B
-        jsr     L502A
+        jsr     script_step4
         ldy     #$01
         lda     ($8A),y
         sta     $13
@@ -4780,12 +4786,12 @@ L5048:  ldy     #$00
         iny
         lda     ($8A),y
         sta     $16
-        jsr     L511C
+        jsr     entity_move
         bne     L509A
         jmp     L50EB
 
 L506B:  lda     #$03
-        jsr     L502C
+        jsr     script_step2
         ldy     #$01
         lda     ($8A),y
         asl     a
@@ -4817,7 +4823,7 @@ L50A5:  lda     #$00
         jmp     L4FFA
 
 L50AC:  lda     #$02
-        jsr     L502C
+        jsr     script_step2
         ldy     #$01
         lda     ($8A),y
         cmp     #$FF
@@ -4826,7 +4832,7 @@ L50AC:  lda     #$02
         lda     #$FF
         sta     $15
         sta     $16
-        jsr     L511C
+        jsr     entity_move
         beq     L50E7
         jmp     L4FFA
 
@@ -4878,7 +4884,9 @@ L5105:  ldy     #$00
         sta     $8C
         jmp     L4F63
 
-L511C:  jsr     L46E9
+; mouvement entite ($13/$15/$16), message si visible
+entity_move:
+        jsr     L46E9
         jsr     L36DB
         bne     L5127
         jmp     L51C7
@@ -4951,7 +4959,7 @@ L51A0:  jsr     L4B37
         lda     $C5
         ldx     #$F6
         ldy     #$13
-        jsr     L5279
+        jsr     say_if_visible
         lda     $73
         cmp     #$01
         beq     L51C5
@@ -4960,7 +4968,7 @@ L51A0:  jsr     L4B37
         lda     $15
         ldx     #$FA
         ldy     #$13
-        jsr     L5279
+        jsr     say_if_visible
 L51C5:  lda     #$01
 L51C7:  jmp     fetch_retaddr
 
@@ -5037,7 +5045,9 @@ code_5235:
 L5245:  sta     L4ED4
         rts
 
-L5249:  jsr     L46E6
+; positionne PC entite depuis ($8A)+1..2
+entity_goto:
+        jsr     L46E6
         jsr     L520D
         cmp     #$FF
         beq     L5276
@@ -5065,7 +5075,9 @@ L5249:  jsr     L46E6
         sta     ($88),y
 L5276:  jmp     L471B
 
-L5279:  cmp     #$FF
+; message (msg_52C6 patche) si entite au lieu du joueur
+say_if_visible:
+        cmp     #$FF
         beq     code_52C8
         cmp     #$00
         beq     code_52C8

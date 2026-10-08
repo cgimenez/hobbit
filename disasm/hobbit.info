@@ -294,6 +294,12 @@ LABEL { NAME "boot_copyback"; ADDR $30BB; COMMENT "recopie inverse ($8C)->($8A),
 LABEL { NAME "print_msg"; ADDR $440D; COMMENT "affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)"; };
 LABEL { NAME "msgptr_inc"; ADDR $44BE; COMMENT "INC $6A (+ $6B si retenue) ; avance le pointeur message"; };
 LABEL { NAME "fetch_retaddr"; ADDR $4737; COMMENT "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"; };
+LABEL { NAME "script_adv"; ADDR $5020; COMMENT "avance PC script $8C de A"; };
+LABEL { NAME "script_step4"; ADDR $502A; COMMENT "+4 (bit $10:+2), reecrit PC dans l'entree"; };
+LABEL { NAME "script_step2"; ADDR $502C; COMMENT "+2 (bit $10:+2), reecrit PC dans l'entree"; };
+LABEL { NAME "entity_move"; ADDR $511C; COMMENT "mouvement entite ($13/$15/$16), message si visible"; };
+LABEL { NAME "entity_goto"; ADDR $5249; COMMENT "positionne PC entite depuis ($8A)+1..2"; };
+LABEL { NAME "say_if_visible"; ADDR $5279; COMMENT "message (msg_52C6 patche) si entite au lieu du joueur"; };
 LABEL { NAME "tape_load"; ADDR $71DB; COMMENT "LOAD bloc cassette via $0417 + verif $32/$33"; };
 LABEL { NAME "tape_save"; ADDR $7215; COMMENT "SAVE : leader, en-tete 9 o, donnees, checksum EOR"; };
 LABEL { NAME "kb_scan"; ADDR $7353; COMMENT "scan clavier VIA ; A = touche bit7=presente, sinon bit7=0"; };

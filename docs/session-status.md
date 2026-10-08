@@ -92,9 +92,22 @@
   possibles) → `entity_tick` (`$4ED5`) = **VM à scripts** : table `$2B45`
   d'entrées 7 o `[id, ?, PC_lo, PC_hi, ?, ?, ?]` (`$FF` termine) ; ≤6 opcodes
   par entrée et par tick, opcode = nibble bas du script (`$29xx`, bloc 2),
-  PC réécrit dans l'entrée (`L502A`) — vu en MEM : PC Gandalf `$295C→$297A…`
-  (linéaire), autres `$298E↔$29AF` (boucle). Opcodes vus : `$x0` avance,
-  `$x1-3` (`L5048`), `$x4` (`L50AC`), `$xC/$xE/$xF`, défaut `L51DA` (à mapper).
+  PC réécrit dans l'entrée (`script_step4/step2` = `L502A/C` : +4/+2,
+  +2 si bit `$10`, commit ; `script_adv` = `L5020`) — vu en MEM : PC entité
+  `$3E` `$295C→$297A…` (linéaire, plusieurs ops/tick possibles : +13 en un
+  tick), autres `$298E↔$29AF` (boucle). Opcodes (nibble bas) : `$x0-3`→`L5048`
+  (pair : step+`entity_move` `$13/$15/$16` ; impair : step+appel table `L7143`),
+  `$x4`→`L50AC` (step +2, move si octet1≠`$FF`, sinon jump si bit `$10`),
+  `$x5-E`→chaîne (`$xE` : PC=script+1..2 ; `$xC`=`entity_goto` ;
+  `$xF`=`L51CA`), défaut `$x6,7,8,9,A,B,D`→`L51DA`. `entity_move` (`L511C`) :
+  test lieu/flags, `L4B37`, message via `say_if_visible` (`L5279`, **seulement
+  si entité au lieu du joueur `$C8`** — règle de visibilité).
+  Programme `$3E` décodé : `02 1D 03 00 / 02 10 05 FF / 04 24 14 13 / …`
+  (tentatives de mouvement, `$13` = param direction/dest à mapper).
+- Les 6 pointeurs `$440D` nuls (`TODO`) élucidés : **idiome général** —
+  slot `.word` rempli juste avant `JSR print_msg` (constantes `$13DC/$13E0`,
+  lookup `L5399`, table `L6359,x`, calculé, ou `STX/STY` de `L5279` pour
+  `msg_52C6`). Aucun n'est un bug du découpage.
   Seconde table `$2B12` (5 o, compteurs, actions via table de sauts `$7169`) :
   dormante au début (compteurs à 0, aucun changement en MEM sur 6 ticks).
 - Sondes : shim dump MEM (`@@MEM 0000 0100` ZP + `@@MEM 2B00 0100` tables,
