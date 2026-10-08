@@ -2513,6 +2513,8 @@ L3D35:  txa
         jsr     keyin
         jmp     L3C07
 
+; trampoline JSR+params [len src] : fetch pile, jmp (L006A)
+tape_tramp:
         pla
         clc
         adc     #$01
@@ -2540,20 +2542,28 @@ L3D5F:  lda     ($8C),y
         bne     L3D5F
         jmp     (L006A)
 
-        .byte   " ?= "
-        .byte   $0B
-        .byte   ","
-        .byte   $B0,$01
-        .byte   "`"
-        .byte   $A9,$01,$85,$0D
-        .byte   " "
-        .byte   $0D
-        .byte   "D&>L=, "
-        .byte   $E6
-        .byte   "F "
-        .byte   $14
-        .byte   ", j="
-        .byte   $18,$00,$BE,$00
+L3D6A:  jsr     tape_tramp
+        jsr     vec_02
+        bcs     L3D73
+        rts
+
+L3D73:  lda     #$01
+        sta     raw
+        jsr     print_msg
+; -> $3E26 TAPE LOADING ERROR :- PRESS 
+msg_3D7A:
+        .word   $3E26
+code_3D7C:
+        jmp     L2C3D
+
+; LOAD(i7) : vec_05 (PRESS ANY KEY) + L3D6A (vec_02) + copies
+load_handler:
+        jsr     L46E6
+        jsr     vec_05
+        jsr     L3D6A
+        clc
+        brk
+        .byte   $BE,$00
         .byte   " j=V"
         .byte   $05,$1A,$1B
         .byte   " j="
@@ -2566,76 +2576,66 @@ L3D5F:  lda     ($8C),y
         .byte   $1B
         .byte   "GL"
         .byte   $07
-        .byte   "< ?= "
-        .byte   $0E
-        .byte   ","
-        .byte   $B0,$01
-        .byte   "`"
-        .byte   $A9,$01,$85,$0D
-        .byte   " "
-        .byte   $0D
-        .byte   "D"
-        .byte   $1A,$1A
-        .byte   " ),hhL > ?= "
+        .byte   "<"
+; ecrit 1 bloc SAVE : L3D3F + vec_03 (params inline [len src])
+save_block:
+        jsr     tape_tramp
+        jsr     vec_03
+        bcs     L3DB3
+        rts
 
-        .byte   $11
-        .byte   ","
-        .byte   $B0,$01
-        .byte   "`"
-        .byte   $A9,$01,$85,$0D
-        .byte   " "
-        .byte   $0D
-        .byte   "D8"
-        .byte   $1A
-        .byte   "L"
-        .byte   $BC
-        .byte   "= "
-        .byte   $E6
-        .byte   "F "
-        .byte   $17
-        .byte   ", "
-        .byte   $AA
-        .byte   "="
-        .byte   $18,$00,$BE,$00
-        .byte   " "
-        .byte   $AA
-        .byte   "=V"
-        .byte   $05,$1A,$1B
-        .byte   " "
-        .byte   $AA
-        .byte   "="
-        .byte   $F1,$02,$CC
-        .byte   "( "
-        .byte   $AA
-        .byte   "="
-        .byte   $C8,$05,$1A
-        .byte   "!  , "
-        .byte   $1A
-        .byte   ", "
-        .byte   $C4
-        .byte   "="
-        .byte   $18,$00,$BE,$00
-        .byte   " "
-        .byte   $C4
-        .byte   "=V"
-        .byte   $05,$1A,$1B
-        .byte   " "
-        .byte   $C4
-        .byte   "="
-        .byte   $F1,$02,$CC
-        .byte   "( "
-        .byte   $C4
-        .byte   "="
-        .byte   $C8,$05,$1A
-        .byte   "! #, "
-        .byte   $1B
-        .byte   "GL"
-        .byte   $07
-        .byte   "<TAPE LOADING ERROR :- PRESS AN"
+L3DB3:  lda     #$01
+        sta     raw
+        jsr     print_msg
+; -> $1A1A .` SAVING.{:-......d CONTINU
+msg_3DBA:
+        .word   $1A1A
+; echec SAVE : dit $1A1A, keyin, abandonne params, code_3E20
+save_err:
+        jsr     keyin
+        pla
+        pla
+        jmp     cmd_next
+
+        jsr     tape_tramp
+        jsr     vec_04
+        bcs     L3DCD
+        rts
+
+L3DCD:  lda     #$01
+        sta     raw
+        jsr     print_msg
+; -> $1A38 .` VERIFICATION...          
+msg_3DD4:
+        .word   $1A38
+code_3DD6:
+        jmp     save_err
+
+; SAVE : vec_06 + 4x save_block (ZP/etats/scripts/records) + verify
+cmd_save:
+        jsr     L46E6
+        jsr     vec_06
+        jsr     save_block
+        clc
+        brk
+        .byte   $BE,$00,$20,$AA,$3D,$56,$05,$1A
+        .byte   $1B,$20,$AA,$3D,$F1,$02,$CC,$28
+        .byte   $20,$AA,$3D,$C8,$05,$1A,$21,$20
+        .byte   $20,$2C,$20,$1A,$2C,$20,$C4,$3D
+        .byte   $18,$00,$BE,$00,$20,$C4,$3D,$56
+        .byte   $05,$1A,$1B,$20,$C4,$3D,$F1,$02
+        .byte   $CC,$28,$20,$C4,$3D,$C8,$05,$1A
+        .byte   $21,$20,$23,$2C
+; restore ptr2 (L471B) + retour boucle commandes (L3C07)
+cmd_next:
+        jsr     L471B
+        jmp     L3C07
+
+        .byte   "TAPE LOADING ERROR :- PRESS ANY"
 
 
 
-        .byte   "Y KEY TO RESTART GAME."
+        .byte   " KEY TO RESTART GAME."
 
 
         .byte   $14

@@ -384,6 +384,41 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   `L363E`, absent de `$A0`/`$B0` ; bit7 ?).
   Décodeurs : `/tmp/condmatch.py`, `/tmp/condmat.py` (non promus).
 
+## Bloc 4 : commandes spéciales et SAVE/LOAD (`$3B75`, `$3D3F`–`$3E40`)
+
+- Dispatch (`L3B75`/`L3B9F`) : le mot parsé (`adr`, lo + hi&`$0F`)
+  comparé à la table **$3BC6** (13 clés 2 o) ; match → `jmp (L3BC4)`
+  vers la table **$3BE0** (13 cibles) : ALL `$3C26`, EXCEPT `$3C0E`,
+  IT `$3C33`, ONE `$3135`, PRINT `$3BFA`, NOPRINT `$3C03`,
+  (mot impossible `(3D,06)`) `$3D7F` = **LOAD** (prouvé sous harnais :
+  taper LOAD → `PRESS ANY KEY WHEN READY`), SAVE `$3DD9` (mot
+  `$0DA0`), QUIT `$3C88` (score + `JMP $2C3D`), HELP `$3C8E`,
+  SCORE `$3CCE`, PAUSE `$3D39`. Verbes ordinaires : table **$6FAC**
+  (23 entrées `[wid,lo,hi]`, `$01-$0A` = mouvements → `$5D44`) ;
+  objets : `(orec)+1` bit7 → `L7014` vs `L7114+X` (`L4BA3`) ;
+  compatibilité verbe/objet : liste en record+`$10` (`L52EA`).
+- SAVE (`cmd_save` `$3DD9`) : `vec_06` (PREPARE TAPE) + 4×
+  `save_block` (`$3DAA` = `L3D3F` + `vec_03`/`tape_save`, params
+  inline `[len src]` : ZP `$0018`@`$00BE`, états `$0556`@`$1B1A`,
+  scripts `$02F1`@`$28CC`, records `$05C8`@`$211A`) + `vec_10` +
+  `vec_07` (REWIND + VERIFY) + 4× `save_block` via `$3DC4` + fin
+  `cmd_next` (`$3E20` : `L471B` + `JMP $3C07`). Échec → `save_err`
+  (`$3DBC` : dit `$1A1A`, `keyin`, abandonne params). En-tête bloc :
+  10 o (`$FF/start/end/$50/$50/$FF/$FF/$24`), checksum EOR (`$3B`).
+- LOAD (`load_handler` `$3D7F`, fall-through après erreur LOAD
+  comme `$6EA7` dans `$6E8B`) : `vec_05` (PRESS ANY KEY) +
+  `L3D6A` (`L3D3F` + `vec_02`/`tape_load`, `SEC` = échec) + copies
+  workspace→bas ; échec → dit `$3E26` (TAPE LOADING ERROR) +
+  `JMP $2C3D` (reboot input). Boot : `boot_copy` (bas→haut) puis
+  `boot_copyback` (haut→bas, table `L30F9`) ; `$65`≠`$FF` →
+  `L2DEA` ; `$56` = flag images (`img_show`, `N` au boot = sans).
+- Ouverts : idiome exact `L3D3F`/`tape_tramp` (reprise JSR+5 vs
+  `JMP W(params)`, à relire) ; mot `(3D,06)` sans entrée dico
+  (`LOAD` = `$0B3D`, `BFLOAD` = `$0B3B` : artefact de rendu,
+  matching à éclaircir) ; `L7114+X` (`$596C`/`$796C`/`$1B4C`…).
+- Harnais : taper LOAD sous sim65 (EOF) affiche le prompt puis
+  timeout (exit 254) — le stub B1 nourrira `L0408` en `PVRead`.
+
 ## Bloc 3 : illustrations vectorielles (`$7AC0`–`$91B1`, 5 874 o)
 
 Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
@@ -429,9 +464,10 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
   cibles de branches/JSR/JMP, tables ressemblant à du code, ROM, vecteurs,
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
-- `disasm/block4.asm` : listing annoté — **16 890 o de code**, 99 sites
-  `$440D` (115 inline `$440D`/`$5B24`), 124 routines documentées (dont 10
-  `vec_*`/`img_show` et 33 actions `L7014`/`L7143`), 0 conflit.
+- `disasm/block4.asm` : listing annoté — **16 980 o de code**, 99 sites
+  `$440D` (118 inline `$440D`/`$5B24`), 130 routines documentées (dont 10
+  `vec_*`/`img_show`, 33 actions `L7014`/`L7143` et 6 handlers SAVE/LOAD),
+  0 conflit.
 
 Régénérer et vérifier :
 

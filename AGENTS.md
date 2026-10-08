@@ -101,5 +101,5 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
   29 lieux `$18AA`) ; records lieux cartographiés (table `$2070`, desc +8,
   exits étendues `$26DA`+wid*8, états `$1A62`) ; scripts `$29xx` décodés
   (VM `$4ED5`, 14 entités + 3 dormantes, table `L7143` = 18 mots dont 3
-  inédites) ; reste (harnais) : bit7 `b0`/`b1`, identité `$3C`, eloc
-  runtime, `$xC` si rencontré.
+  inédites) ; SAVE/LOAD élucidés (dispatch `$3BC6`, handlers `$3D7F`/`$3DD9`,
+  4 blocs cassette) ; ensuite : stub cassette B1 puis jeu tour-par-tour.

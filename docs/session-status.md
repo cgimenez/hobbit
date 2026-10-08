@@ -171,6 +171,14 @@
   tirage msg $16B9/$16C8. Textes décodés (moteur `render_text`, voir
   `docs/block4-analysis.md`) : dragon (`prepare to die`), Gollum
   (`pocket ?`, `my precious`), fête (`CHEERING CROWD…SUNSET`), etc.
+- **Phase A SAVE/LOAD terminée** : dispatch commandes spéciales
+  (`L3B75` : table `$3BC6` 13 clés + `$3BE0` 13 cibles) — SAVE=`$3DD9`
+  (mot `$0DA0`), LOAD=`$3D7F` (prouvé harnais : `PRESS ANY KEY`),
+  QUIT=`$3C88`, HELP=`$3C8E`, SCORE=`$3CCE`, PAUSE=`$3D39` ; verbes
+  `$6FAC` (23 entrées) ; SAVE = 4 blocs (`save_block` `$3DAA` via
+  `vec_03`, params `[len src]`) + VERIFY (`vec_07`) ; +90 o de code,
+  130 routines, checker PROPRE, rebuild OK. Reste : idiome `L3D3F`,
+  mot `(3D,06)`, `L7114+X`. Ensuite : stub B1.
 - **Scripts `$29xx` décodés statiquement** (`/tmp/vmdec.py`, `docs/block4-analysis.md`) :
   17 entrées `$2B45` `[id,n,PC,base,s6]` (3 dormantes id=`$00`, 14 actives),
   opcodes déterministes (MOVE pair 4 o, ACT impair via `L7143`, `$x4`, `$xE`
@@ -228,9 +236,10 @@
 
 Moteur de messages, armement `$2B12`, zéro-page, bloc 3, système de
 messages du bloc 2, records de lieux (structure + exits étendues) et
-scripts `$29xx` et layout records `+0..7` décodés (`docs/block4-analysis.md`).
-Reste (harnais ciblé) : bit7 `b0`/`b1`, identité `$3C`, eloc runtime
-(`$09`, `$38`/`$3A` = conteneurs ?), `$xC` si rencontré en jeu.
+scripts `$29xx`, layout records `+0..7` et dispatch SAVE/LOAD décodés
+(`docs/block4-analysis.md`). Ensuite : stub cassette B1 (`vec_02/03`
+→ shim, round-trip save/load), puis jeu tour-par-tour. Sondes en
+attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 

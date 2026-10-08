@@ -145,6 +145,10 @@ MANUAL_ENTRIES: list[int] = (
     # (cpt e3, queue jsr $6222+$4D95) et $70B5 (cle $16 : ecrit entite
     # $2B61). Seuls des STA $2Bxx les trahissent (scan binaire complet).
     + [0x65A5, 0x70B5]
+    # Handlers SAVE/LOAD + ecriture cassette ($3D3F-$3E40) : atteints
+    # uniquement via le dispatch indirect des commandes speciales
+    # (table $3BC6/$3BE0, jmp (L3BC4)). Cf. docs/block4-analysis.md.
+    + [0x3D3F, 0x3D7F, 0x3DAA, 0x3DBC, 0x3DC4, 0x3DD9, 0x3E20]
 )
 
 # Seeds radare2 récusés : chevauchent des pointeurs $440D ou du connu.
@@ -270,6 +274,34 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x4E59: (
         "world_tick",
         "apres commande reussie : L46E6, L69E7, VM entites, table $2B12",
+    ),
+    # Commandes speciales : table $3BC6 (13 cles [lo,hi&$0F]) + $3BE0
+    # (13 cibles, jmp (L3BC4)) ; SAVE=$3DD9 (mot $0DA0), QUIT=$3C88,
+    # HELP=$3C8E, SCORE=$3CCE, PAUSE=$3D39. Zone $3D3F-$3E40 atteinte
+    # uniquement par ce dispatch (MANUAL_ENTRIES).
+    0x3D3F: (
+        "tape_tramp",
+        "trampoline JSR+params [len src] : fetch pile, jmp (L006A)",
+    ),
+    0x3D7F: (
+        "load_handler",
+        "LOAD(i7) : vec_05 (PRESS ANY KEY) + L3D6A (vec_02) + copies",
+    ),
+    0x3DAA: (
+        "save_block",
+        "ecrit 1 bloc SAVE : L3D3F + vec_03 (params inline [len src])",
+    ),
+    0x3DBC: (
+        "save_err",
+        "echec SAVE : dit $1A1A, keyin, abandonne params, code_3E20",
+    ),
+    0x3DD9: (
+        "cmd_save",
+        "SAVE : vec_06 + 4x save_block (ZP/etats/scripts/records) + verify",
+    ),
+    0x3E20: (
+        "cmd_next",
+        "restore ptr2 (L471B) + retour boucle commandes (L3C07)",
     ),
     0x4ED5: (
         "entity_tick",
