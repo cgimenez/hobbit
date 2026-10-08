@@ -316,8 +316,9 @@ $2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non promu).
   eloc `$05`, template `EYE`) ; `$3D`/`$45` en `$28E1` (MOVE `$10`
   arg `$06` + boucle MOVE `$30`) ; `$3F`/`$43`/`$49`/`$4B` boucles
   `MOVE`+`GOTO self`.
-- États `$1A62` : 60 clés (`$00-$2B`, `$3C-$4B` ; **trou `$2C-$3B`**)
-  → blocs `$1Bxx` ; `L5331` (état mutable) ≠ `L530B` (record
+- États `$1A62` : 61 clés (`$00-$2B`, `$3C-$4C` ; **trou `$2C-$3B`** ;
+  triplets `[clé,lo,hi]` + `$FF` en `$1B19`) → blocs `$1Bxx` (plan
+  d'octets : `docs/savegame-memory-map.md`) ; `L5331` (état mutable) ≠ `L530B` (record
   template) ; `L57BB` : état+0==1 → eloc=état+`$10` (`$3E`=`$01`,
   map `$03`=`$01` holder `$3E` ; `$41`=`$09`, `$43`=`$15`,
   `$44`=`$11`, `$47`/`$48`=`$05`) ; état+1 = porteur? (`$03`→`$3E`

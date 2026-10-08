@@ -195,7 +195,7 @@
   (`$6E8B` trolls lieu 5, `$6CDB` wid=`$1B`, `$6EA7` queue de `$6E8B` qui retombe
   sur le slot mutable `$2154`=`$1645`) ; identifiés : `$3E` Gandalf (eloc `$01`),
   `$44` Gollum (arg `$10` caverne), `$41` dragon, `$47`/`$48` lieu 5 ;
-  états `$1A62` (60 clés, trou `$2C-$3B`, `L5331`≠`L530B`, eloc=état+`$10`) ;
+  états `$1A62` (61 clés `$00-$2B`+`$3C-$4C`, trou `$2C-$3B`, `L5331`≠`L530B`, eloc=état+`$10`) ;
   exits étendues `$26DA`+wid*8 jusqu'à ~`$28C2` (wids `$0B+` conditionnelles).
   Ouverts : `+0..7` records, `$xC`, dormants, `$28E6`.
 - **Qui arme `$2B12` élucidé** (événements différés, 20 `evt_*`) : `world_tick`
