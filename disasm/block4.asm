@@ -1,5 +1,8 @@
 ; ============================================================
-; The Hobbit (Oric, 1982) - bloc 4 ($2C00-$7A80)
+; The Hobbit (Oric, 1982)
+; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)
+; 6502 port : Greg Barrett (Beam Software)
+; - bloc 4 ($2C00-$7A80)
 ; Listing généré par scripts/disasm.py (descente récursive + da65)
 ; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.
 ; Convention : JSR $440D + pointeur inline (2 octets, adresse du
