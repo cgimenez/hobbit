@@ -4,7 +4,8 @@
 - Assemble harness/shim.s (ca65+ld65, cale a $C000).
 - Assemble harness/tape.s (stubs cassette B1, cales a $F700).
 - Patch : JMP $C000 sur $7353 (scan clavier VIA -> shim paravirt),
-  JMP stubs sur $0405-$0417 (bloc 1 cassette, ROM 1.0 morte sous sim65).
+  JMP stubs sur les 6 vecteurs bloc 1 $0405-$0414 (ROM 1.0 morte sous
+  sim65 ; $0417 = loader jeu conserve, cf. harness/tape.s).
 - Packe au format sim65 (header + load $0400 + reset $2C00 + SPAddr $02).
 
 Artefacts dans build/sim/ (regenerables, gitignore). Sortie 0 si OK.
@@ -37,7 +38,8 @@ KB_SCAN = 0x7353  # scan clavier VIA -> remplace par JMP shim
 TAPE_SRC = ROOT / "harness" / "tape.s"
 TAPE_CFG = ROOT / "harness" / "tape.cfg"
 TAPE_ADDR = 0xF700  # stubs cassette B1 (zone ROM, cf. tape.s)
-TAPE_VECS = (0x0405, 0x0408, 0x040B, 0x040E, 0x0411, 0x0414, 0x0417)
+TAPE_VECS = (0x0405, 0x0408, 0x040B, 0x040E, 0x0411, 0x0414)
+# ($0417 n'est pas un vecteur : loader jeu conserve ; cf. harness/tape.s)
 TAPE_RD, TAPE_WR, TAPE_DATA, TAPE_END = 0xE800, 0xE802, 0xE804, 0xF700
 TAPE_CAP = TAPE_END - TAPE_DATA  # 3820 o utiles
 HIBIT_ADDR = 0xC2F2
@@ -91,7 +93,7 @@ def main() -> int:
         print(f"stubs tape trop gros : {len(tape)} > 1280 octets")
         return 1
     import struct as _st
-    entries = _st.unpack("<7H", tape[:14])
+    entries = _st.unpack("<6H", tape[:12])
     if entries[0] < TAPE_ADDR or max(entries) >= 0xFC00:
         print(f"table tape hors zone : {[f'{a:04X}' for a in entries]}")
         return 1

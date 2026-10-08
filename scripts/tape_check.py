@@ -3,10 +3,14 @@
 
 Prend le .tape (scripts/save_tape.py) comme reference : chaque bloc
 [dest len] donne l'image attendue en basse memoire. Prend le dernier
-dump @@MEM par region dans frames.bin (les stubs $0417 dumpent apres
-chaque bloc ; les dumps shim eventuels posterieurs ne couvrent que
-$0000/$2B00) et compare. Seuls $00BE-$00D5 sont compares dans la page 0
-(le reste bouge avec l'echo clavier).
+dump @@MEM par region dans frames.bin et compare. Seuls $00BE-$00D5
+sont compares dans la page 0 (le reste bouge avec l'echo clavier).
+
+NOTE : les dumps @@MEM des 4 regions n'existent que si un stub les
+emet (le stub s_0417 historique le faisait ; le loader $0417 d'origine
+restaure ne dumpe pas — le shim ne couvre que $0000/$2B00). Voie
+recommandee : LOAD puis SAVE#2 et comparaison des deux .tape
+bloc a bloc (cf. docs/session-status.md, validation B1).
 
 Usage : .venv/bin/python scripts/tape_check.py sav/game.tape frames.bin
 Sortie 0 si identique, 1 sinon (diffs affiches).
@@ -27,13 +31,13 @@ def tape_image(path: Path) -> dict[int, bytes]:
     out: dict[int, bytes] = {}
     while p < len(data):
         assert data[p] == 0x24, f"sync en offset {p}"
-        hdr = data[p + 1:p + 11]
+        hdr = data[p + 1:p + 10]  # 9 o (Y=9..1) : FF FF 50 50 end dest FF
         end = (hdr[4] << 8) | hdr[5]
         dest = (hdr[6] << 8) | hdr[7]
         ln = (end - dest) & 0xFFFF
-        assert data[p + 11] == 0x00, f"separateur bloc dest=${dest:04X}"
-        out[dest] = data[p + 12:p + 12 + ln]
-        p += 13 + ln
+        assert data[p + 10] == 0x00, f"separateur bloc dest=${dest:04X}"
+        out[dest] = data[p + 11:p + 11 + ln]
+        p += 12 + ln
     return out
 
 

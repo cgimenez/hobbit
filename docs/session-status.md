@@ -248,14 +248,18 @@ scripts `$29xx`, layout records `+0..7` et dispatch SAVE/LOAD décodés
 (`docs/block4-analysis.md`). Ensuite : stub cassette B1 (`vec_02/03`
 → shim, round-trip save/load), puis jeu tour-par-tour. Sondes en
 attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
-**B1 en cours** (`harness/tape.s` + `pack_sim.py` + `save_tape.py` +
-`tape_check.py`, committé `db3924f`) **mais BLOQUÉ au premier test** :
-`SAVE` n'émet que 51 octets tous `$40` (attendu ~3671 : headers
-`$24…` + données) puis exit 255 (anormal, pas le timeout 254).
-Patches `$0405`–`$0417`→`$F7xx` vérifiés à l'assemblage (table en
-`$F700` cohérente) ; cause racine inconnue (stub `$040E` ?
-déraillement d'exécution ?). Piste : test unitaire des stubs via
-pilote (comme le pilote vec des 13 images).
+**B1** (`harness/tape.s` + `pack_sim.py` + `save_tape.py` +
+`diff_tape.py`, 6 vecteurs `$0405`–`$0414` ; `$0417` = loader jeu
+conservé, pas un vecteur) : SAVE écrit 4 blocs valides (headers+EOR
+vérifiés) ; bugs stub trouvés+fixés (`MARK_1` sans `\n`, header 9 o
+pas 10, `rd_byte` qui retombait dans son entrée, `ST_OP` qui écrivait
+à côté du buffer). Reste : VERIFY reporte une erreur et LOAD même
+session échoue (buffer relu différent ?) — diagnostic en pause,
+priorité à l'observation via tickdiff (pas de SAVE/LOAD).
+**tickdiff** (`scripts/tickdiff.c` → `build/sim/tickdiff`, + shim
+`dump_mem` 6 régions) : superviseur C, sim65 vivant par pipes, un
+ordre = un tick = snapshot 3623 o + deltas dans `build/sim/ticks*/`.
+R1 calibré : boot ~2779 o, `WAIT` = 15–24 o (scheduler seul).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 

@@ -14,9 +14,12 @@
 ; A chaque appel, l'ecran texte ($BB80-$BFDF, 1120 o) est compare a son
 ; miroir ; en cas de changement, dump sur stdout (fd 1) :
 ;   "@@FRAME text\n" + 1120 octets bruts. Idem hires ($A000-$BFFF, 8192 o)
-; si HIBIT = 1. Quand au moins un ecran a change, dump memoire en plus :
-;   "@@MEM 0000 0100\n" + 256 o (zero-page) et "@@MEM 2B00 0100\n" + 256 o
-;   (tables scheduler $2B12/$2B45) — Decode via scripts/decode_mems.py.
+; si HIBIT = 1. Quand au moins un ecran a change, dump memoire en plus
+; (6 regions, marqueurs "@@MEM addr len\n" 16 o + payload) :
+;   $00BE/$0018 (ZP SAVE), $1B1A/$0556 (etats), $28CC/$02F1 (scripts),
+;   $211A/$05C8 (records), $0000/$0100 et $2B00/$0100 (historiques).
+; Decode via scripts/decode_mems.py ; suivi par tick dans
+; scripts/tickdiff.c.
 
         .setcpu "6502"
         .segment "CODE"
@@ -303,35 +306,52 @@ dump_hires:
         rts
 
 ; ---- dump memoire (seulement si MEMFLAG) ----
-MARK_M1: .byte "@@MEM 0000 0100", $0A
-MARK_M2: .byte "@@MEM 2B00 0100", $0A
+; 6 regions : les 4 sources SAVE (octets suivis par tickdiff) + les
+; 2 historiques ($0000/$2B00, cf. decode_mems.py). Marqueurs 16 o.
+M_S0:   .byte "@@MEM 00BE 0018", $0A
+M_S1:   .byte "@@MEM 1B1A 0556", $0A
+M_S2:   .byte "@@MEM 28CC 02F1", $0A
+M_S3:   .byte "@@MEM 211A 05C8", $0A
+M_S4:   .byte "@@MEM 0000 0100", $0A
+M_S5:   .byte "@@MEM 2B00 0100", $0A
+MEMTAB:
+        .byte <M_S0, >M_S0, <$00BE, >$00BE, <$0018, >$0018
+        .byte <M_S1, >M_S1, <$1B1A, >$1B1A, <$0556, >$0556
+        .byte <M_S2, >M_S2, <$28CC, >$28CC, <$02F1, >$02F1
+        .byte <M_S3, >M_S3, <$211A, >$211A, <$05C8, >$05C8
+        .byte <M_S4, >M_S4, <$0000, >$0000, <$0100, >$0100
+        .byte <M_S5, >M_S5, <$2B00, >$2B00, <$0100, >$0100
 dump_mem:
-        lda #<MARK_M1
+        ldx #0                  ; index table (6 entrees x 6 o)
+@reg:   txa
+        pha                     ; sauve index (pv_write clobbe X)
+        lda MEMTAB,x            ; marqueur 16 o
         sta P_W
-        lda #>MARK_M1
+        lda MEMTAB+1,x
         sta P_W+1
         lda #16
         ldx #0
         jsr pv_write
-        lda #<$0000
+        pla
+        tax                     ; restaure index
+        txa
+        pha
+        lda MEMTAB+2,x          ; payload [src, len)
         sta P_W
-        lda #>$0000
+        lda MEMTAB+3,x
         sta P_W+1
-        lda #<$0100
-        ldx #>$0100
+        lda MEMTAB+4,x
+        pha                     ; len_lo de cote (X va servir)
+        lda MEMTAB+5,x
+        tax                     ; len_hi
+        pla                     ; len_lo -> A
         jsr pv_write
-        lda #<MARK_M2
-        sta P_W
-        lda #>MARK_M2
-        sta P_W+1
-        lda #16
-        ldx #0
-        jsr pv_write
-        lda #<$2B00
-        sta P_W
-        lda #>$2B00
-        sta P_W+1
-        lda #<$0100
-        ldx #>$0100
-        jsr pv_write
+        pla
+        tax
+        txa
+        clc
+        adc #6
+        tax
+        cpx #36
+        bcc @reg
         rts

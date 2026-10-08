@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Extrait le flux cassette @@TAPE du harnais sim65 vers un fichier .tape.
 
-Le stub $040E (harness/tape.s) emet "@@TAPE-BLOCK\\n" (leader $040B, un
-par bloc SAVE) puis "@@TAPE-BYTE\\n" + 1 octet brut par octet ecrit.
-Ce script reassemble les octets, decoupe en blocs ($24 + 10 o header +
+Le stub $040E (harness/tape.s) emet "@@TAPE-BYTE\n" + 1 octet brut par octet ecrit.
+Ce script reassemble les octets, decoupe en blocs ($24 + 9 o header +
 $00 + donnees + checksum EOR), verifie et sauve.
 
 Usage : sim65 ... > run.bin ; .venv/bin/python scripts/save_tape.py
@@ -42,19 +41,19 @@ def parse_blocks(data: bytes) -> tuple[list[bytes], int]:
             raise ValueError(f"sync $24 attendu en offset {p}, vu ${stream[p]:02X}")
         if p + 12 > len(stream):
             raise ValueError("bloc tronque (header)")
-        hdr = stream[p + 1:p + 11]
+        hdr = stream[p + 1:p + 10]  # 9 o (Y=9..1) : FF FF 50 50 end dest FF
         if not (hdr[0] == 0xFF and hdr[1] == 0xFF and hdr[2] == 0x50
                 and hdr[3] == 0x50 and hdr[8] == 0xFF):
             raise ValueError(f"header inattendu en bloc {len(blocks)} : {hdr.hex()}")
         end = (hdr[4] << 8) | hdr[5]
         dest = (hdr[6] << 8) | hdr[7]
         ln = (end - dest) & 0xFFFF
-        if stream[p + 11] != 0x00:
+        if stream[p + 10] != 0x00:
             raise ValueError(f"separateur $00 attendu bloc {len(blocks)}")
-        data = stream[p + 12:p + 12 + ln]
+        data = stream[p + 11:p + 11 + ln]
         if len(data) < ln:
             raise ValueError(f"donnees tronquees bloc {len(blocks)}")
-        cksum = stream[p + 12 + ln]
+        cksum = stream[p + 11 + ln]
         eor = 0
         for b in data:
             eor ^= b
@@ -62,8 +61,8 @@ def parse_blocks(data: bytes) -> tuple[list[bytes], int]:
             raise ValueError(f"checksum bloc {len(blocks)} : vu ${cksum:02X}, "
                              f"calcule ${eor:02X}")
         print(f"bloc {len(blocks)} : dest=${dest:04X} len=${ln:04X} ({ln}) cksum OK")
-        blocks.append(stream[p:p + 13 + ln])
-        p += 13 + ln
+        blocks.append(stream[p:p + 12 + ln])
+        p += 12 + ln
     return blocks, len(stream)
 
 

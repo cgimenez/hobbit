@@ -238,8 +238,8 @@ sens exacts ouverts (relire). id `$00` = dormant (activé par id seul :
 ## 4. Blocs cassette SAVE (sources basses, §0)
 
 `save_block` (`$3DAA` = `L3D3F` + `vec_03`/`tape_save`) : leader
-(`$040B`), header 10 o, `$00`, données `[ptr,end)`, checksum EOR.
-Header (écrit `Y=9..0` depuis `$36+Y`) :
+(`$040B`), header 9 o, `$00`, données `[ptr,end)`, checksum EOR.
+Header (écrit `Y=9..1` depuis `$36+Y`, vérifié sur flux réel) :
 `$24 FF FF 50 50 end_hi end_lo ptr_hi ptr_lo FF`.
 `code_72FC` (VERIFY) relit pareil et compare à `($37)` ; `$32`/`$33`
 := dest ; `$0417` (LOAD) : stub B1 (`harness/tape.s`).
