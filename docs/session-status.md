@@ -235,6 +235,11 @@
 - Recette : après toute sortie longue (illustration : `LOOK`, mouvement,
   `QUIT`), intercaler une touche sacrificielle (`\r` → no-op `> .` au prompt,
   sans tick) avant la commande suivante.
+- **Gabarit cmdfile F4/F5 (obligatoire)** : le boot mange la 1re ligne et
+  `pause_key` les suivantes → `\n\nLOOK\n` initial puis `\n\nCMD\n` par
+  ordre (2 lignes vides avant chaque commande). Sans ça : ordres mangés
+  ou exécutés au tunnel. `tickdiff SIM CMDFILE` : sim65 hardcodé
+  (`tools/cc65/bin/sim65`), flags `-t/-s/--db/--name` avant positionnels.
 - Coût rendu illustration sous sim65 ≈ plusieurs centaines de M cycles :
   budgets `-x` généreux (2G pour 2 rendus), préférer les commandes
   texte seul (`WAIT`, `INVENTORY`) pour les sondes. `QUIT` perd l'input
@@ -295,8 +300,8 @@ Premier gain : `morts` trouve 2 extinctions manquées — e3
 `L7143` = 19 entrées (0–18 : sentinelle + 15 + 3 inédites ;
 labels `act_v14_ii` = entrée−1 : `act_v14_15`=`$6E8B` mange,
 `act_v14_16`=`$6CDB`, `act_v14_17`=`$6EA7` mort programmée).
-Prochaines pistes : **sortie de clairière TROUVÉE (`RUN SOUTH`
-→ `$09` Rivendell, voir aventure)** ; triggers d'armement events,
+Prochaines pistes : **salle `$0A` Misty mountains (sorties
+E/N/W/S, warg offensif)** ; triggers d'armement events,
 `n`/`s6`, ZP inconnus, nord `$06` (porte rock), Gandalf (R8/R9).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)

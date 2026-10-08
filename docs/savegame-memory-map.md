@@ -427,6 +427,16 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   (porteur `$FF`→`$00`, eloc `$00`→`$09`). `EAST` terre
   morne→clairière aussi (2 sorties → `$05`). `$06` visité :
   record `$06` `b0` `$84`→`$C4` (premier bit jamais vu avant).
+- **Rivendell et au-delà (F5)** : `EAST` `$09`→`$0A` (**Misty
+  mountains**, `hard dangerous path`, sorties E/N/W/S, `the
+  vicious warg` attaque — survécu 1 WAIT ; record `$0A` `b0`
+  `$86`→`$C6` = visite) ; `WEST` `$09`→`$05` (retour clairière
+  = mort + reboot tunnel). **Déclencheur du lunch** : donné à
+  la 1re commande réussie après l'arrivée (f4c : LOOK tick12 ;
+  f5e : TALK tick14 — les lignes vides ne comptent pas, 0
+  delta). `TALK TO ELROND` ✓ (20, même signature) ;
+  `EXAMINE ELROND/THORIN`, `EAT LUNCH`, `GIVE LUNCH TO ELROND`
+  = 0 (PNJ non examinables, lunch non mangeable/donnable).
 - **Events `$2B12` : TOUS `cpt=0`, donc `evt_tick` les saute**
   (`beq L4EBE`) — 1463 WAIT + R2/R3 + R5/R6 (combat, mort) :
   aucun changement. Pas de contradiction avec le driver décodé

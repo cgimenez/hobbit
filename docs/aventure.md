@@ -40,7 +40,15 @@ porte verte) ; `OPEN ROCK`/`NORTH` rejetés (0 tick).
 `You are in Rivendell`, sorties est/ouest, `Elrond.` (+ Thorin
 suit). `Elrond says " Hello ".` + **`Elrond gives some lunch
 to you.`** (clé `$26` : porteur `$FF`→`$00`, eloc `$00`→`$09` =
-le lunch).
+le lunch). Sorties : `EAST`→`$0A`, `WEST`→`$05` (retour
+clairière = mortel). `TALK TO ELROND` accepté ; `EXAMINE
+ELROND`/`EXAMINE THORIN`/`EAT LUNCH`/`GIVE LUNCH TO ELROND`
+rejetés (0 tick).
+- `$0A` Misty mountains (à l'est de Rivendell) : `You are on a
+hard dangerous path in the Misty mountains`, sorties
+est/nord/ouest/sud, `the vicious warg.` (+ Thorin suit).
+`The vicious warg attacks you.` (survécu 1 WAIT ; danger à
+mesurer).
 
 ## Vocabulaire parser (sondes 63+19+8 verbes, réponses lues)
 
@@ -137,6 +145,10 @@ présence pure, pilotée script (ACT 16/17), inévitable sur place.
 F4 (sortie) : `UP`/`DOWN`/`GO SOUTH` = 0 ; `RUN SOUTH` (28) →
 **`$09` Rivendell, vivant**. `TAKE/STEAL/GET (LARGE) KEY` = 0
 (clé portée = invisible).
+F5 (Rivendell, gabarit F4) : `EAST`→`$0A` (23), `WEST`→`$05`
+(19, puis mort+reboot tunnel) ; `TALK TO ELROND` ✓ (20, même
+signature que le don du lunch) ; `EXAMINE ELROND/THORIN`,
+`EAT LUNCH`, `GIVE LUNCH TO ELROND` = 0.
 
 ## Questions ouvertes (jeu)
 

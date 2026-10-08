@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """DB SQLite unique des turns sim65 (The Hobbit, Oric).
 
-Importe les logs tickdiff (ticks.log + reponses *.out) dans
-build/sim/hobbit.db et offre des requetes pretes pour l'analyse.
+tickdiff (C) ecrit directement dans build/sim/hobbit.db (--db/--name) ;
+ce module offre des requetes pretes pour l'analyse.
 
 Usage :
-  tickdb.py import <ticksdir> --name R8 [--text r8.out]
   tickdb.py traj <base_hex> <off_hex> [--run R6]
   tickdb.py touches <base_hex> <off_hex>
   tickdb.py diverge <runA> <runB>
@@ -14,12 +13,11 @@ Usage :
 
 Schema : runs(run) / ticks(run,n,cmd,frames) /
 deltas(run,n,base,off,avant,apres) / texts(run,n,reponse).
-Snaps binaires : hors DB (build/sim/<run>/snapNNNN.bin).
+Etat ZP : table state(run,n,ploc,eloc,obj,crec).
 """
 
 from __future__ import annotations
 
-import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -50,108 +48,12 @@ CREATE TABLE IF NOT EXISTS state(
   PRIMARY KEY(run_id, n));
 """
 
-TICK_RE = re.compile(r'TICK (\d+) (BOOT|cmd="(.*)") \(frames=(\d+)\)')
-DELTA_RE = re.compile(r'\s+\$(....) \+\$(....): \$(..)->\$(..)')
-
 
 def connect() -> sqlite3.Connection:
     DB.parent.mkdir(parents=True, exist_ok=True)
     cx = sqlite3.connect(DB)
     cx.executescript(SCHEMA)
     return cx
-
-
-def cmd_import(tdir: str, name: str, text: str | None) -> int:
-    d = ROOT / tdir
-    log = d / "ticks.log"
-    if not log.exists():
-        print(f"pas de ticks.log dans {tdir}");
-        return 1
-    cx = connect()
-    cur = cx.cursor()
-    cur.execute("INSERT OR IGNORE INTO runs(name) VALUES(?)", (name,))
-    run_id = cur.execute("SELECT run_id FROM runs WHERE name=?",
-                         (name,)).fetchone()[0]
-    nt = nd = 0
-    n = cmd = None
-    for line in log.read_text().splitlines():
-        m = TICK_RE.match(line)
-        if m:
-            n, cmd = int(m.group(1)), (m.group(3) or "")
-            frames = int(m.group(4))
-            cur.execute("INSERT OR IGNORE INTO ticks VALUES(?,?,?,?)",
-                        (run_id, n, cmd, frames))
-            nt += 1
-            continue
-        m = DELTA_RE.match(line)
-        if m and n is not None:
-            base, off = int(m.group(1), 16), int(m.group(2), 16)
-            cur.execute("INSERT OR IGNORE INTO deltas VALUES(?,?,?,?,?,?)",
-                        (run_id, n, base, off,
-                         int(m.group(3), 16), int(m.group(4), 16)))
-            nd += 1
-    if text:
-        for tn, resp in parse_text(ROOT / text):
-            cur.execute("INSERT OR REPLACE INTO texts VALUES(?,?,?)",
-                        (run_id, tn, resp))
-    # etat ZP par tick depuis les snaps (layout: 18|556|2F1|5C8)
-    for sn in sorted(d.glob("snap*.bin")):
-        try:
-            n = int(sn.stem[4:])
-        except ValueError:
-            continue
-        zp = sn.read_bytes()[:0x18]
-        if len(zp) < 0x18:
-            continue
-        cur.execute("INSERT OR REPLACE INTO state VALUES(?,?,?,?,?,?)",
-                    (run_id, n, zp[0x0A], zp[0x0B], zp[0x07],
-                     zp[0x08] | (zp[0x09] << 8)))
-    cx.commit()
-    print(f"{name}: {nt} ticks, {nd} deltas")
-    return 0
-
-
-def parse_text(path: Path) -> list[tuple[int, str]]:
-    """Heuristique : n-ieme '> CMD.' complete -> reponse = texte en dessous.
-    Retourne (n_ordre, reponse) ; l'ordre suit le cmdfile (1-based, sans BOOT).
-    Appele uniquement si le .out vient du meme cmdfile que le log."""
-    if not path.exists():
-        return []
-    caps: dict[int, list] = {}
-    cur = None
-    for line in path.read_text().splitlines():
-        m = re.match(r"===== capture (\d+)", line)
-        if m:
-            cur = int(m.group(1))
-            caps[cur] = []
-            continue
-        m = re.match(r"\s*(\d+): (.*)$", line.rstrip())
-        if m and cur is not None:
-            caps[cur].append((int(m.group(1)), m.group(2).rstrip()))
-    out: list[tuple[int, str]] = []
-    seen: set[str] = set()
-    order = 0
-    for c in sorted(caps):
-        rl = caps[c]
-        for i, (row, t) in enumerate(rl):
-            m = re.match(r"^> ([A-Z][A-Z ]*)\.\s*$", t)
-            if m and "+" not in t and m.group(1).strip() not in seen:
-                seen.add(m.group(1).strip())
-                order += 1
-                below = [t2.strip() for _, t2 in rl[i + 1:]
-                         if t2.strip() and not t2.strip().startswith(">")]
-                resp = None
-                if below:
-                    resp = " | ".join(below)[:400]
-                else:
-                    nxt = caps.get(c + 1, [])
-                    top = [t2.strip() for _, t2 in nxt
-                           if t2.strip() and not t2.strip().startswith(">")]
-                    if top:
-                        resp = " | ".join(top)[:400]
-                if resp:
-                    out.append((order, resp))
-    return out
 
 
 def cmd_traj(base: str, off: str, run: str | None) -> int:
@@ -307,14 +209,6 @@ def main(argv: list[str]) -> int:
         print(__doc__)
         return 1
     c = argv[1]
-    if c == "import":
-        import argparse
-        ap = argparse.ArgumentParser()
-        ap.add_argument("ticksdir")
-        ap.add_argument("--name", required=True)
-        ap.add_argument("--text", default=None)
-        a = ap.parse_args(argv[2:])
-        return cmd_import(a.ticksdir, a.name, a.text)
     if c == "traj" and len(argv) >= 4:
         run = argv[4] if len(argv) > 4 and argv[4] != "--run" else None
         if "--run" in argv:

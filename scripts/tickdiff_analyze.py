@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Interprete un ticks.log de tickdiff : mappe chaque delta vers la
+"""OBSOLETE (logs ticks.log supprimes) : voir tickdb.py.
+Interpretait un ticks.log de tickdiff : mappait chaque delta vers la
 structure connue (docs/savegame-memory-map.md).
 
 Usage : .venv/bin/python scripts/tickdiff_analyze.py build/sim/ticks_r4 [N]
