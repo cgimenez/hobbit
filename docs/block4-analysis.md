@@ -185,13 +185,52 @@ dictionnaire sortent en anglais propre) :
   (retour Z = saute `word_render`), `$14/$15/$16` = fins inline, autres =
   interpolation d'état (`tok_nested` $00 messages imbriqués, `tok_objC5` $06 /
   `tok_obj15` $07 / `tok_obj16` $09 noms d'objets, `tok_pronC5` $0C his/your,
-  `tok_recurse` $0B récursion `render_text`, `tok_skip` $02 saut relatif…).
+   `tok_recurse` $0B recurse sur offset signé (queues partagées), `tok_skip`
+   $02 GOTO offset signé (sans retour, `tidx=$FF`)…).
   `$05/$0A/$0F/$12` (`tok_noop`) réservés sans effet ; `$08` = vecteur `$2C2F`,
   `$0D` = CR inline.
 - Sous-estimé initialement : le handler `$09` (`$456F`) coupait la plage
   `code_436C` (RTS `$456E`, JMP indirect invisible) → seed manuel, plages
   fusionnées. Espacement exact (flags `$0D`/`$0F` runtime) et pluriels : le
   décodeur statique approxime (espace avant mot sauf après espace/début).
+
+## Bloc 2 : dictionnaire et catalogue de messages (`$0500-$1A0E`)
+
+Le bloc 2 est la **banque de mots + messages** (émulation structurelle de
+`render_text` en Python : tout sort en anglais propre, validé sur textes
+observés sous harnais — `PREPARE TO DIE`, `WHAT HAS IT GOT IN ITS POCKET ?`,
+`A CHEERING CROWD OF DWARVES...`, `I CANNOT DO THAT.`) :
+
+- Banque `$0540-$1156` : **600 mots triés** (même format 5-bit que `word_render`
+  : 2e car bit7 → continue, 3e → continue ssi bit7 du 2e, code 0 = fin).
+  Index `$0500-$053F` : 1er mot de chaque lettre (26 entrées, X/Z nuls ;
+  25/26 exacts — 7 lettres pointent des isolées D/E/L/N/S/U/W et O est décalé
+  d'un : séparateurs de groupes ou entrées périmées, ouvert).
+- Table `$1117` : 32 mots courants (`$60-$7F` = THE A AND YOU TO IS OF IN BUT
+  WITH NOT IT SEE TOO AT CANNOT THIS I CARRYING BE DO HERE ON RIVER FROM
+  DRAGON BLOW SIDE ARE DOOR THIEF TROLLS, pages `$05-$11`).
+- Nibble haut du 2e octet = page (`$05`+nib) + flags : `$40` suffixe toujours,
+  `$10` suffixe si `arg1`, sinon suffixe si `obj` (table `$4322` :
+  S/ES/IES/BS+IES/D/ING — formes exactes = runtime, décodage statique entre
+  crochets `[+S?]`), `$50` espace, `$60`/`$30`/`$20` fins, `$70` capitale.
+- Catalogue `$1157-$1A0E` : **171 messages**, packing linéaire sans
+  chevauchement (micro-messages 1-2 mots inclus : `HELLO` $143F, `THE` $13A6,
+  `TO THE` $11EE, `<t10>DEAD.` $13D1). Zones : parser/inventaire `$1157-$1212`
+  (erreurs, `TIME PASSES...`), combat `$1212-$1345` (~20 msgs : `VICIOUS CUT
+  IN THE RIBS`, `BLOOD DRIPS`, `YOU CANNOT KILL WITH <obj>`), bateau
+  `$1346-$139A` (GOTO `$1380→$134D`), prépositions `$13A6-$13BF` (IN/ON/
+  BEHIND/UNDER/TIED+TO partageant la queue `THE` par 5 GOTO), templates LOOK
+  `$13C0-$1412` (`VISIBLE EXITS ARE :`, micro-messages `<t06>SEE :`,
+  `<t00>APPEAR.`), actions/PNJ `$1415-$1535` (warg, araignées, archery, bog),
+  dragon `$153F-$155D` (`PREPARE TO DIE` ×2 verbatim), dialogues `$15BE-$1645`
+  (riddle, trolls : `CAN YER COOK 'EM?`), portcullis/crack `$1650-$16B8`,
+  chaîne Gollum `$16B9-$1721` + victoire `$1722`, score/hints `$178A-$1863`
+  (`YOU HAVE MASTERED` + `%OF THIS ADVENTURE` assemblés), **29 descriptions
+  de lieux `$18AA-$1A07`** (`$18AA` = tunnel initial : `A COMFORTABLE TUNNEL
+  LIKE HALL` en 15 o, 1 littéral + 4 mots inline).
+- Restes : suffixes exacts (contexte `obj`/`arg1` = runtime), interpolation
+  tokens `$00-$13` (noms/objets), records lieux `$21xx` (slots desc mutables,
+  ex. `$2154 := $1645`), mots morts `$07E5-$07F1` (table `$0732` ?).
 
 ## Événements différés : qui arme `$2B12`
 

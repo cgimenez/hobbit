@@ -411,7 +411,7 @@ LABEL { NAME "msgptr_inc"; ADDR $44BE; COMMENT "INC $6A (+ $6B si retenue) ; ava
 LABEL { NAME "tok_nested"; ADDR $44C5; COMMENT "token $00 : rend le message empile (L466F/$0200), Z=saute"; };
 LABEL { NAME "stk_pop"; ADDR $44E4; COMMENT "depile une adresse L466F ($76) en $5C/$5D"; };
 LABEL { NAME "tok_stkword"; ADDR $44F5; COMMENT "token $01 : rend le mot a l'adresse empilee (L466F)"; };
-LABEL { NAME "tok_skip"; ADDR $44FB; COMMENT "token $02 : avance ($8A) de $6F + saut relatif (L4507)"; };
+LABEL { NAME "tok_skip"; ADDR $44FB; COMMENT "token $02 : GOTO offset signe (octet suivant, L4507, tidx=$FF, sans retour)"; };
 LABEL { NAME "tok_noop"; ADDR $4504; COMMENT "tokens $05/$0A/$0F/$12 reserves : sans effet (lda #0, saute)"; };
 LABEL { NAME "tok_objw"; ADDR $452E; COMMENT "token $03 : rend le mot pointe par ($71/$72)"; };
 LABEL { NAME "tok_stkvar"; ADDR $4539; COMMENT "token $04 : variante ($70=1, tables $28BC/$28C4) du mot empile"; };
@@ -419,7 +419,7 @@ LABEL { NAME "tok_objC5"; ADDR $454B; COMMENT "token $06 : rend le nom de l'obje
 LABEL { NAME "tok_obj15"; ADDR $4557; COMMENT "token $07 : rend l'objet $15 (direct $43E4 si $73, sinon $43F3)"; };
 LABEL { NAME "tok_ctrl08"; ADDR $4569; COMMENT "token $08 : appel vecteur interne $2C2F avec A=$08"; };
 LABEL { NAME "tok_obj16"; ADDR $456F; COMMENT "token $09 : rend l'objet $16 (variante $74)"; };
-LABEL { NAME "tok_recurse"; ADDR $4599; COMMENT "token $0B : rend en recursif (L4444) le message apres avance"; };
+LABEL { NAME "tok_recurse"; ADDR $4599; COMMENT "token $0B : recurse render_text sur offset signe (octet suivant, queues partagees)"; };
 LABEL { NAME "tok_pronC5"; ADDR $45B0; COMMENT "token $0C : pronom his ($0548->$0A48) si $C5, your ($0C12->$1112) sinon"; };
 LABEL { NAME "tok_pron15"; ADDR $45CA; COMMENT "token $0E : idem tok_pronC5 avec $15"; };
 LABEL { NAME "tok_nameC5"; ADDR $45CF; COMMENT "token $10 : nom objet $C5 ($05B2=is si absent, $0958=someone si $FF)"; };

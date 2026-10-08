@@ -3529,7 +3529,7 @@ tok_stkword:
         lda     #$01
         rts
 
-; token $02 : avance ($8A) de $6F + saut relatif (L4507)
+; token $02 : GOTO offset signe (octet suivant, L4507, tidx=$FF, sans retour)
 tok_skip:
         inc     tidx
         jsr     L4507
@@ -3635,7 +3635,7 @@ L4590:  jsr     nested_render
         lda     #$00
         rts
 
-; token $0B : rend en recursif (L4444) le message apres avance
+; token $0B : recurse render_text sur offset signe (octet suivant, queues partagees)
 tok_recurse:
         jsr     L46E9
         inc     tidx

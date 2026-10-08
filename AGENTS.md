@@ -94,5 +94,7 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 - Pistes : AnimTalk (parser, via harnais) ; AnimAction (PNJ autonomes :
   l'init recopie une table `$28E6`+ vers le workspace haut — base de données
   jeu probable) ; zéro-page nommée (51 `ZP_NAMES`) ; bloc 3 élucidé
-  (13 illustrations vectorielles, table `$7AC0`, moteur `vec_*`) ; reste le
-  bloc 2 (messages `$1370`/`$165A`/…, dico `$1117`, scripts `$29xx`).
+  (13 illustrations vectorielles, table `$7AC0`, moteur `vec_*`) ; bloc 2
+  messages élucidé (600 mots `$0540`, 32 courants `$1117`, 171 messages,
+  29 lieux `$18AA`) ; reste données monde (records `$21xx`, exits `$26DA`,
+  table `$28E6`, scripts `$29xx`).

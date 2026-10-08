@@ -215,8 +215,23 @@
 
 ## Prochaine étape
 
-Moteur de messages, armement `$2B12`, zéro-page et bloc 3 décodés
-(`docs/block4-analysis.md`). Reste : bloc 2.
+Moteur de messages, armement `$2B12`, zéro-page, bloc 3 et système de
+messages du bloc 2 décodés (`docs/block4-analysis.md`). Reste : données
+monde du bloc 2 (records lieux `$21xx`, exits `$26DA`, table `$28E6`,
+scripts `$29xx`, scheduler `$2Bxx`).
+
+## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
+
+- Banque `$0540-$1156` : **600 mots triés** + index 26 lettres `$0500`
+  (25/26) ; 32 mots courants `$1117` (THE…TROLLS) ; format bit7/flags et
+  suffixes `$4322` élucidés (émulation fidèle de `word_render`).
+- `$02` = **GOTO** (offset signé, sans retour), `$0B` = recurse offset signé
+  (queues partagées : prépositions `$13A8` IN/ON/BEHIND/UNDER/TIED+TO sur
+  queue `THE`, bateau `$1380→$134D`). Docs `tok_skip`/`tok_recurse` à jour.
+- Catalogue `$1157-$1A0E` : **171 messages** (parser, combat ~20, bateau,
+  templates LOOK, dragon `PREPARE TO DIE` ×2, Gollum, victoire, score/hints,
+  **29 lieux** dont `$18AA` tunnel initial). Décodeurs en `/tmp`
+  (`dict.py`, `msgdec.py`, `msgsweep.py`, `bankparse.py`, non promus).
 
 ## Bloc 3 : illustrations vectorielles élucidées (sous sim65)
 
