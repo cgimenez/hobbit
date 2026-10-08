@@ -44,6 +44,10 @@ CREATE INDEX IF NOT EXISTS idx_deltas_addr
 CREATE TABLE IF NOT EXISTS texts(
   run_id INTEGER, n INTEGER, reponse TEXT,
   PRIMARY KEY(run_id, n));
+CREATE TABLE IF NOT EXISTS state(
+  run_id INTEGER, n INTEGER, ploc INTEGER, eloc INTEGER,
+  obj INTEGER, crec INTEGER,
+  PRIMARY KEY(run_id, n));
 """
 
 TICK_RE = re.compile(r'TICK (\d+) (BOOT|cmd="(.*)") \(frames=(\d+)\)')
@@ -90,6 +94,18 @@ def cmd_import(tdir: str, name: str, text: str | None) -> int:
         for tn, resp in parse_text(ROOT / text):
             cur.execute("INSERT OR REPLACE INTO texts VALUES(?,?,?)",
                         (run_id, tn, resp))
+    # etat ZP par tick depuis les snaps (layout: 18|556|2F1|5C8)
+    for sn in sorted(d.glob("snap*.bin")):
+        try:
+            n = int(sn.stem[4:])
+        except ValueError:
+            continue
+        zp = sn.read_bytes()[:0x18]
+        if len(zp) < 0x18:
+            continue
+        cur.execute("INSERT OR REPLACE INTO state VALUES(?,?,?,?,?,?)",
+                    (run_id, n, zp[0x0A], zp[0x0B], zp[0x07],
+                     zp[0x08] | (zp[0x09] << 8)))
     cx.commit()
     print(f"{name}: {nt} ticks, {nd} deltas")
     return 0
@@ -166,6 +182,26 @@ def cmd_touches(base: str, off: str) -> int:
     return 0
 
 
+def cmd_lieu(run: str | None) -> int:
+    """Lieu du joueur (ploc) + eloc/obj/crec a chaque tick (table state)."""
+    cx = connect()
+    q = ("SELECT r.name, s.n, t.cmd, s.ploc, s.eloc, s.obj, s.crec "
+         "FROM state s JOIN runs r ON r.run_id=s.run_id "
+         "LEFT JOIN ticks t ON t.run_id=s.run_id AND t.n=s.n")
+    args: list = []
+    if run:
+        q += " WHERE r.name=?"
+        args.append(run)
+    q += " ORDER BY r.name, s.n"
+    last: dict[str, int | None] = {}
+    for name, n, cmd, ploc, eloc, obj, crec in cx.execute(q, args):
+        mark = "" if last.get(name, None) == ploc else "  <--"
+        last[name] = ploc
+        print(f"{name} tick{n} {cmd!r}: ploc=${ploc:02X} "
+              f"eloc=${eloc:02X} obj=${obj:02X} crec=${crec:04X}{mark}")
+    return 0
+
+
 def cmd_diverge(a: str, b: str) -> int:
     cx = connect()
     ida = cx.execute("SELECT run_id FROM runs WHERE name=?",
@@ -238,6 +274,9 @@ def main(argv: list[str]) -> int:
     if c == "morts":
         run = argv[argv.index("--run") + 1] if "--run" in argv else None
         return cmd_morts(run)
+    if c == "lieu":
+        run = argv[argv.index("--run") + 1] if "--run" in argv else None
+        return cmd_lieu(run)
     if c == "runs":
         for r in connect().execute(
                 "SELECT name, (SELECT COUNT(*) FROM ticks t "
