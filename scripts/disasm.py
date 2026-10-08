@@ -74,6 +74,10 @@ MANUAL_ENTRIES: list[int] = (
     # code_436C s'arrete au RTS $456E et $456F-$4572 tombent en donnees
     # (le JMP patche est indirect, invisible de la descente).
     + [0x456F]
+    # Stubs d'armement des evenements $2B12 en zones donnees : $65A5
+    # (cpt e3, queue jsr $6222+$4D95) et $70B5 (cle $16 : ecrit entite
+    # $2B61). Seuls des STA $2Bxx les trahissent (scan binaire complet).
+    + [0x65A5, 0x70B5]
 )
 
 # Seeds radare2 récusés : chevauchent des pointeurs $440D ou du connu.
@@ -123,6 +127,28 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x461B: ("obj_lookup", "id objet -> mot : $FF=someone ($0958), sinon rendu $458A"),
     0x46DB: ("cr_aware_out", "putchar + Z si $0D (token $0D = CR inline, saute $4241)"),
     0x42CE: ("word_space", "espace auto ($0D/$0F) + wrap (longueur X vs $04/$05, flag $0E)"),
+    # Evenements differes : table $2B12 (entrees 5 o [id,cpt,actA,cond,actB],
+    # $FF fin), balayee par world_tick ; actions via table de sauts $7169.
+    0x4E75: ("evt_tick", "balaye $2B12 : cpt--, re-arme, dispatch actB via $7169"),
+    0x4E9D: ("evt_cond", "si cond<>0 et cond>=cpt : dispatch entree+4 (L4EAB)"),
+    0x4EAB: ("evt_fire", "patch L4C64/L4C65 depuis $7169+X*2 puis jsr L4C5D"),
+    0x4ECC: ("evt_end", "fin de table ($FF) : $0B=1 puis jmp $471B"),
+    0x5DE2: ("evt_lookup", "dispatch $8F via table $709F (cles->$70CB..) sinon $5DFD"),
+    0x6689: ("evt_disarme6", "desarme e6 (cpt:=0) + pose bit7 ($1CCB, ($C6)+7/+5)"),
+    0x66AA: ("evt_arme6", "arme e6 : cpt := 2+rand(8) (delai aleatoire)"),
+    0x65A5: ("evt_arme3", "jsr $6222 + $4D95 puis cpt e3 := id (orphelin)"),
+    0x6A19: ("evt_disarme7", "si $C5==0 : $C4:=1 + desarme e7 (cpt:=cond=0)"),
+    0x6AEB: ("evt_arme9b", "jsr $4D95, cpt e9 := 6, flags $1C7B, jmp $6D72"),
+    0x6B66: ("evt_arme5", "cpt e5 := id + dit $168B (magic door) ; orphelin"),
+    0x6C5F: ("evt_act5", "actB e4 : si $C8==$1D dit $1535 (bog) sinon desarme e4"),
+    0x6D72: ("evt_print", "dit $1685 (hole vanish) ; queue du sub $6AEB"),
+    0x6915: ("evt_tip", "sonde + tirage : ~20% dit $1485 (expect me) ; orphelin"),
+    0x70B5: ("evt_arme16", "si ($1DC5&8) : $2B61:=$42 (entite) + bit7 (cle $16)"),
+    0x70CB: ("evt_arme2", "cpt e2 := id (cle $1A, table $709F)"),
+    0x70D2: ("evt_arme4", "cpt e4 := id (cle $1D)"),
+    0x70D9: ("evt_arme9", "cpt e9 := 3 + ecrit entites $2B76/$2B7D (cle $20)"),
+    0x70F8: ("evt_arme8", "$BE:=$8F + cpt e8 := id (cles $02/$03)"),
+    0x7103: ("evt_gate21", "$1B1B==$13 ? $5DFD + print (cle $21)"),
     0x4E59: ("world_tick", "apres commande reussie : L46E6, L69E7, VM entites, table $2B12"),
     0x4ED5: ("entity_tick", "VM : entree 7 o $2B45 ([id,?,PC,..]), <=6 opcodes/tick (nibble bas)"),
     0x5020: ("script_adv", "avance PC script $8C de A"),
@@ -153,7 +179,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x65BA: ("act_p14_08", "dispatcher objet $16 (cas $04) -> $65DD/$4C57"),
     0x65DD: ("act_p14_06", "dit $140C (X do not fit this lock) sinon $139B (i cannot do that)"),
     0x65F1: ("act_p14_10", "si ($C6)+16==$0F -> $6222 sinon $5A62"),
-    0x66D6: ("act_p14_11", "dit $1478 (spiders mend the web) puis programme $2B18"),
+    0x66D6: ("act_p14_11", "dit $1478 (spiders mend the web) + arme e1 (cpt:=id)"),
     0x6B72: ("act_p14_09", "si $C5==$41 : parcourt ($C1), dit $13E0/$15AB (go...from...to)"),
     # Actions dispatchees par la table L7143 (index 0-14) : comportements
     # autonomes des PNJ dans la VM $4ED5.

@@ -4580,34 +4580,40 @@ world_tick:
         sta     $88
         lda     #$2B
         sta     $89
-L4E75:  ldy     #$00
+; balaye $2B12 : cpt--, re-arme, dispatch actB via $7169
+evt_tick:
+        ldy     #$00
         lda     ($88),y
         cmp     #$FF
-        beq     L4ECC
+        beq     evt_end
         ldy     #$01
         lda     ($88),y
         beq     L4EBE
         sec
         sbc     #$01
         sta     ($88),y
-        bne     L4E9D
+        bne     evt_cond
         lda     L4E58
         cmp     #$01
         sta     ($88),y
-        beq     L4E9D
+        beq     evt_cond
         lda     #$01
         sta     L4E58
         ldy     #$02
-        jmp     L4EAB
+        jmp     evt_fire
 
-L4E9D:  ldy     #$03
+; si cond<>0 et cond>=cpt : dispatch entree+4 (L4EAB)
+evt_cond:
+        ldy     #$03
         lda     ($88),y
         beq     L4EBE
         ldy     #$01
         cmp     ($88),y
         bcc     L4EBE
         ldy     #$04
-L4EAB:  lda     ($88),y
+; patch L4C64/L4C65 depuis $7169+X*2 puis jsr L4C5D
+evt_fire:
+        lda     ($88),y
         asl     a
         tax
         lda     L7169,x
@@ -4621,9 +4627,10 @@ L4EBE:  lda     $88
         sta     $88
         bcc     L4EC9
         inc     $89
-L4EC9:  jmp     L4E75
+L4EC9:  jmp     evt_tick
 
-L4ECC:  lda     #$01
+; fin de table ($FF) : $0B=1 puis jmp $471B
+evt_end:lda     #$01
         sta     $0B
         jmp     L471B
 
@@ -6754,10 +6761,12 @@ L5DCB:  jsr     act_probe
         jsr     L5612
         lda     $C5
         cmp     #$00
-        beq     L5DE2
+        beq     evt_lookup
         rts
 
-L5DE2:  ldx     #$9F
+; dispatch $8F via table $709F (cles->$70CB..) sinon $5DFD
+evt_lookup:
+        ldx     #$9F
         ldy     #$70
         lda     $8F
         jsr     L5399
@@ -7781,8 +7790,15 @@ L64F4:  lda     #$02
         .byte   $2B,$38,$B5,$06,$4B,$A0,$2B,$40
         .byte   $6B,$0B,$4C,$B5,$2B,$10,$D8,$02
         .byte   $A0,$10,$B1,$C6,$C9,$10,$F0,$03
-        .byte   $4C,$62,$5A,$20,$22,$62,$20,$95
-        .byte   $4D,$AD,$21,$2B,$8D,$22,$2B,$60
+        .byte   $4C,$62,$5A
+; jsr $6222 + $4D95 puis cpt e3 := id (orphelin)
+evt_arme3:
+        jsr     act_p14_03
+        jsr     L4D95
+        lda     $2B21
+        sta     $2B22
+        rts
+
         .byte   $A9,$02,$D0,$06
 ; dispatcher objet $16 (cas $0F) -> $65DD/$641D/$6448
 act_p14_12:
@@ -7915,7 +7931,7 @@ code_6678:
 
 L667C:  lda     $1CCB
         and     #$80
-        beq     L6689
+        beq     evt_disarme6
         jsr     print_msg
 ; -> $1454 .j WEARING...e....`.k......c
 msg_6686:
@@ -7923,7 +7939,9 @@ msg_6686:
 code_6688:
         rts
 
-L6689:  jsr     act_probe
+; desarme e6 (cpt:=0) + pose bit7 ($1CCB, ($C6)+7/+5)
+evt_disarme6:
+        jsr     act_probe
         ldy     #$07
         lda     ($C6),y
         ora     #$80
@@ -7940,6 +7958,8 @@ L6689:  jsr     act_probe
         sta     $2B31
         rts
 
+; arme e6 : cpt := 2+rand(8) (delai aleatoire)
+evt_arme6:
         jsr     act_probe
         ldy     #$07
         lda     ($C6),y
@@ -7962,7 +7982,7 @@ L6689:  jsr     act_probe
         sta     $2B31
         rts
 
-; dit $1478 (spiders mend the web) puis programme $2B18
+; dit $1478 (spiders mend the web) + arme e1 (cpt:=id)
 act_p14_11:
         ldy     #$07
         lda     ($17),y
@@ -8104,7 +8124,8 @@ msg_6912:
 code_6914:
         rts
 
-        jsr     act_probe
+; sonde + tirage : ~20% dit $1485 (expect me) ; orphelin
+evt_tip:jsr     act_probe
         lda     #$0A
         jsr     rand_range
         cmp     #$08
@@ -8282,10 +8303,12 @@ code_6A0F:
 
         lda     $C5
         cmp     #$00
-        beq     L6A19
+        beq     evt_disarme7
         rts
 
-L6A19:  lda     #$01
+; si $C5==0 : $C4:=1 + desarme e7 (cpt:=cond=0)
+evt_disarme7:
+        lda     #$01
         sta     $C4
         lda     $2B35
         sta     $2B36
@@ -8413,6 +8436,8 @@ L6AE3:  lda     #$64
         cmp     #$32
         rts
 
+; jsr $4D95, cpt e9 := 6, flags $1C7B, jmp $6D72
+evt_arme9b:
         jsr     L4D95
         lda     #$06
         sta     $2B40
@@ -8420,7 +8445,7 @@ L6AE3:  lda     #$64
         and     #$7F
         ora     #$01
         sta     $1C7B
-        jmp     L6D72
+        jmp     evt_print
 
         lda     $C5
         cmp     #$00
@@ -8482,7 +8507,7 @@ L6B54:  rts
         ldy     #$07
         lda     ($C6),y
         and     #$80
-        beq     L6B66
+        beq     evt_arme5
         jsr     print_msg
 ; -> $13D4 .l.`..u..''..l..l :.... '. '
 msg_6B63:
@@ -8490,7 +8515,9 @@ msg_6B63:
 code_6B65:
         rts
 
-L6B66:  lda     $2B2B
+; cpt e5 := id + dit $168B (magic door) ; orphelin
+evt_arme5:
+        lda     $2B2B
         sta     $2B2C
         jsr     print_msg
 ; -> $168B `..}..f.Z.....e`...q...^..g`
@@ -8640,6 +8667,8 @@ L6C46:  lda     #$00
         sta     $2A7A
         rts
 
+; actB e4 : si $C8==$1D dit $1535 (bog) sinon desarme e4
+evt_act5:
         lda     $C8
         cmp     #$1D
         beq     L6C6B
@@ -8811,10 +8840,12 @@ L6D5D:  lda     $2B3F
         sta     $1C7B
         lda     $C8
         cmp     #$2A
-        beq     L6D72
+        beq     evt_print
         rts
 
-L6D72:  jsr     print_msg
+; dit $1685 (hole vanish) ; queue du sub $6AEB
+evt_print:
+        jsr     print_msg
 ; -> $1685 `.a.].`..}..f.Z.....e`...q..
 msg_6D75:
         .word   $1685
@@ -9328,25 +9359,35 @@ L7015:  .byte   $FF,$BF
         .byte   "p "
         .byte   $D9
         .byte   "p"
-        .byte   $FF,$AD,$C5,$1D
-        .byte   ")"
-        .byte   $08,$F0,$01
-        .byte   "`"
-        .byte   $A9
-        .byte   "B"
-        .byte   $8D
-        .byte   "a+"
-        .byte   $AD,$C5,$1D,$09,$80,$8D,$C5,$1D
-        .byte   "`"
-code_70CB:
+        .byte   $FF
+; si ($1DC5&8) : $2B61:=$42 (entite) + bit7 (cle $16)
+evt_arme16:
+        lda     $1DC5
+        and     #$08
+        beq     L70BD
+        rts
+
+L70BD:  lda     #$42
+        sta     $2B61
+        lda     $1DC5
+        ora     #$80
+        sta     $1DC5
+        rts
+
+; cpt e2 := id (cle $1A, table $709F)
+evt_arme2:
         lda     $2B1C
         sta     $2B1D
         rts
 
+; cpt e4 := id (cle $1D)
+evt_arme4:
         lda     $2B26
         sta     $2B27
         rts
 
+; cpt e9 := 3 + ecrit entites $2B76/$2B7D (cle $20)
+evt_arme9:
         lda     #$03
         sta     $2B40
         lda     $1B37
@@ -9363,12 +9404,16 @@ L70F2:  lda     #$46
         sta     $2B76
         rts
 
+; $BE:=$8F + cpt e8 := id (cles $02/$03)
+evt_arme8:
         lda     $8F
         sta     $BE
         lda     $2B3A
         sta     $2B3B
         rts
 
+; $1B1B==$13 ? $5DFD + print (cle $21)
+evt_gate21:
         lda     $1B1B
         cmp     #$13
         bne     L710B

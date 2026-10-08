@@ -165,6 +165,52 @@ dictionnaire sortent en anglais propre) :
   fusionnées. Espacement exact (flags `$0D`/`$0F` runtime) et pluriels : le
   décodeur statique approxime (espace avant mot sauf après espace/début).
 
+## Événements différés : qui arme `$2B12`
+
+Seconde moitié de `world_tick` (`evt_tick` `$4E75`, après `entity_tick`) :
+balaye une table de **10 entrées 5 octets `[id,cpt,actA,cond,actB]`** en
+`$2B12` (`$FF` termine en `$2B44`), dormante à l'init (compteurs 0) :
+
+- `cpt==0` → entrée suivante ; sinon `cpt--`, si `<>0` → `evt_cond` (`$4E9D`).
+- `cpt==0` (expire) : `cpt := L4E58` (réarme) ; si `L4E58==1` (jamais : aucun
+  autre écrivain, voie `actA` **inactive** — `$688D $6F2A $6F1B $6903 $6C79
+  $6E35 $6E54 $6D3D $6D55` intirés par cette voie) → dispatch `actA`.
+- `evt_cond` : si `cond==0` → suivante ; si `cond < cpt` → suivante ; sinon
+  `evt_fire` (`$4EAB`) : index `×2` dans la **table de sauts `$7169`**
+  (16 cibles : `$6915 $688D $6F2A $6F1B $6903 $6C5F $6C79 $6DD0 $6E35 $6E54
+  $6D3D $6D9F $6D55 $6DBB $AC06 $0917`), patch `L4C64/L4C65`, `jsr L4C5D`.
+  Entrée suivante (`$88+=5`), fin (`$FF`) → `evt_end` (`$4ECC` : `$0B=1`).
+
+Table initiale : e0 `[02,01,00,00]`, e1 `[02,02,00,00]`, e2 `[05,03,00,00]`,
+e3 `[02,04,00,00]`, e4 `[02,05,02,05]`, e5 `[04,06,01,07]`, e6 `[00,08,00,00]`,
+e7 `[05,09,00,00]`, e8 `[04,0A,03,0B]`, e9 `[05,0C,01,0D]` (`[id,actA,cond,actB]`,
+cpt initiaux 0). Seuls `cond<>0` tirent : e4 bog (`$6C5F` : si `$C8==$1D` dit
+`$1535` sink into the bog, sinon **auto-désarme** e4 — tirs à C=1,0), e5
+(`$6DD0`, tirs C=1,0), e8 yeux (`$6D9F` dit `$16F0` pale bulbous eyes, tirs
+C=3,2,1,0 = ×4, sans désarmement), e9 (`$6DBB`, tirs C=1,0). `cond=0` =
+compte à rebours silencieux (e0,e1,e2,e3,e6,e7 armés pour rien via cette voie).
+
+Armement (scan binaire exhaustif des `STA $2Bxx` : 17 sites, dont 3 écritures
+table entités `$2B61/$2B76/$2B7D`) : idiome `cpt := id` (`LDA $2Bxx/STA $2Bxx+1`)
+ou immédiat ou `0`=désarme ou aléatoire. **14 sites** : e0:=2 (queue objet
+`code_6407`), e1:=id (araignées `act_p14_11` `$66E8`, avec dit `$1478`),
+e2:=id (stub `$70CB`), e3:=id (routine orpheline `$65A5` en **zone données** :
+`jsr $6222+$4D95`), e4:=id (stub `$70D2`) / e4:=0 si `$C8<>$1D` (`$6C67`),
+e5:=id + dit `$168B` magic door (stub orphelin `$6B66`), e6:=0 (`$66A6`) /
+e6:=2+rand(8) (`$66AA`), e7:=cond=0 donc désarme (`$6A19`), e8:=id (stub
+`$70F8`), e9:=6 (`$6AEB` + `jmp $6D72` dit `$1685` hole vanish) / e9:=id
+(`$6D5D`, tête active uniquement par voie morte) / e9:=3 (`$70D9`).
+
+Une partie des stubs est dispatchée par **table à clés `$709F`**
+(`evt_lookup` `$5DE2`, format `L5399`, clé `$8F`) : `$16`→`$70B5` (écrit
+entité `$2B61:=$42`, en zone données — seed), `$1A`→`$70CB`,
+`$1D`→`$70D2`, `$21`→`$7103`, `$02/$03`→`$70F8`, `$20`→`$70D9`, `$FF` fin.
+Appelant de `evt_lookup` non établi (aucune réf. directe — listes `($8A)` ?) ;
+idem stubs `$6689/$66AA/$6A19/$6B66/$65A5` (orphelins, via tables de dispatch
+données comme la table d'actions étendue `$7020`, 30 mots). Restent intirés
+par le ticker : `$6915` (tip aléatoire `$1485`, `actB` des `cond=0`), `$6F2A`
+(flags web — le re-mend différé ne part jamais : à confirmer en jeu).
+
 ## Outillage
 
 - `scripts/disasm.py` : **descente récursive** (entries `$2C00`, `$2C35`, 16
@@ -177,8 +223,8 @@ dictionnaire sortent en anglais propre) :
   cibles de branches/JSR/JMP, tables ressemblant à du code, ROM, vecteurs,
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
-- `disasm/block4.asm` : listing annoté — **16 855 o de code**, 99 sites
-  `$440D` (115 inline `$440D`/`$5B24`), 91 routines documentées, 0 conflit.
+- `disasm/block4.asm` : listing annoté — **16 890 o de code**, 99 sites
+  `$440D` (115 inline `$440D`/`$5B24`), 111 routines documentées, 0 conflit.
 
 Régénérer et vérifier :
 

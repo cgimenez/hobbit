@@ -2,19 +2,19 @@
 
 ## État
 
-- `disasm/block4.asm` fiabilisé : **16 855 o de code**, 99 sites
+- `disasm/block4.asm` fiabilisé : **16 890 o de code**, 99 sites
   `JSR $440D` (115 pointeurs inline `$440D`/`$5B24`), **0 conflit**,
   `scripts/check_disasm.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
   Round-trip ca65 prouvé (byte-identique, `scripts/rebuild.py`). Arbre
   propre, tout commité.
 - Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
-  (seeds r2 validés + 75 `MANUAL_ENTRIES` dont 16 vecteurs + 59 orphelins
+  (seeds r2 validés + 77 `MANUAL_ENTRIES` dont 16 vecteurs + 61 orphelins
   dispatch-indirect : 30 actions `L7014`/`L7143` + voisines règle D + token
-  `$456F` ; `SEED_EXCLUDE={0x6DCE}`).
+  `$456F` + stubs d'armement `$65A5`/`$70B5` (en zones données, trahis par
+  scan binaire des `STA $2Bxx`) ; `SEED_EXCLUDE={0x6DCE}`).
 - Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
-  (**91** : socle `print_msg`/`kb_scan`/`glyph_out`/`tape_load/save`… +
-  `act_probe`/`rand_range`/`act_msg` + 30 actions `act_p14_ii`/`act_v14_ii`
-  + 27 moteur de messages `render_text`/`word_render`/`tok_*`… ; nom +
+  (**111** : socle + 30 actions + 27 moteur de messages + 20 événements
+  `evt_*` (`evt_tick`/`evt_fire`, stubs `evt_armeN`, `evt_lookup`…) ; nom +
   résumé → labels/commentaires régénérés ; checker H : début d'instruction,
   nom unique/valide). Ne jamais éditer le listing à la main.
 - Conflit `$6DCF` résolu : `JSR $440D` en `$6DCA` (cible d'un `BEQ`, idiome
@@ -146,9 +146,24 @@
   index 0-13, `$AC06…` jamais indexés). Seconde table `$2B12` (5 o,
   compteurs, actions via table de sauts `$7169`) : dormante au début
   (compteurs à 0, aucun changement en MEM sur 6 ticks).
-- **30 actions documentées** (16 855 o de code bloc 4, checker PROPRE,
+- **30 actions documentées** (16 890 o de code bloc 4, checker PROPRE,
   textes décodés par réimplémentation Python du moteur — voir
   `docs/block4-analysis.md`, citations intégrées aux `ROUTINE_DOCS`) :
+- **Qui arme `$2B12` élucidé** (événements différés, 20 `evt_*`) : `world_tick`
+  2e moitié (`evt_tick` `$4E75`) balaye 10 entrées 5 o `[id,cpt,actA,cond,actB]`
+  (`$FF` fin) : `cpt--`, réarme, puis `evt_cond` (`$4E9D`) dispatche `actB`
+  via table de sauts `$7169` (`evt_fire` `$4EAB` → `L4C5D`) si `cond<>0` et
+  `cond>=cpt`. Armement = idiome `cpt := id` (`LDA $2Bxx / STA $2Bxx+1`) ou
+  immédiat ou `0`=désarme ou aléatoire (`e6 := 2+rand(8)`) : **14 sites**
+  (e0 code_6407, e1 araignées `$66E8`, e2 `$70CB`, e3 `$65A5` en zone données,
+  e4 `$70D2`/`$6C67`, e5 `$6B66`, e6 `$66A6`/`$66D2`, e7 `$6A20`, e8 `$70F8`,
+  e9 `$6AF0`/`$6D60`/`$70D9`), dispatchés pour certains via table à clés
+  `$709F` (`evt_lookup`, clé `$8F`). Effectifs : seuls `cond<>0` tirent
+  (e4 bog `$6C5F` auto-désarmant, e5 `$6DD0`, e8 yeux `$6D9F` ×4, e9 `$6DBB`) ;
+  voie `actA` inactive (`L4E58` toujours 0, aucun autre écrivain), `cond=0`
+  = compte à rebours silencieux, e3 sans site en code (trouvailles par scan
+  binaire, seeds `$65A5`/`$70B5`). Détails : `docs/block4-analysis.md`.
+  Validation harnais restante : observer `$2B2B` après voyage PNJ.
   corps lus au binaire + r2, nommés `act_p14_ii` (table `L7014`, verbes
   joueur) et `act_v14_ii` (table `L7143`, PNJ). Effets vérifiés (guarde +
   mutation + message). `L7014` : 00 `$60BF` consomme compteur ($C6)+5 + RAZ
@@ -194,9 +209,8 @@
 
 ## Prochaine étape
 
-Moteur de messages décodé (détails : `docs/block4-analysis.md`) et 30 actions
-recitées avec leurs textes. Reste : repérer qui arme `$2B12`, puis nommer la
-zéro-page, bloc 2 et bloc 3.
+Moteur de messages et armement `$2B12` décodés (`docs/block4-analysis.md`).
+Reste : nommer la zéro-page, bloc 2 et bloc 3.
 
 ## Points ouverts et limites harnais (non bloquants)
 
