@@ -380,11 +380,15 @@ mouvement, R4 1463×WAIT — `build/sim/ticks_r*/ticks.log`)
   distinct (`$01`→`$04`→`$01` : salle précédente ?).
 - **Visite** : entrer dans une salle pose bit6 du `b0` de son record
   (`$84`→`$C4` : record `$04` en terre morne, `$05` au nord).
-- **Tick 966 (R4, soak pur) — les trolls meurent** : entités `$47`/`$48`
-  `id`→`$00` (définitif, jamais réarmés), porteur `$47`→`$FF`,
-  record `$05` `desc` `$0000`→`$1645`, rafale d'états. Cause exacte
-  non attribuée (script PNJ probable, pas un event : table events
-  intacte) ; timing ≈966 ticks aveugle-confirmé, à reproduire.
+- **Ticks 960–966 (soak pur, 3 runs identiques) — les monstres
+  s'éteignent** : précurseurs tick 960 (paires d'états), **tick 961 :
+  dragon `$41` `id`→`$00`**, **tick 966 : trolls `$47`/`$48`
+  `id`→`$00`** (définitif) + porteur `$47`→`$FF` (clé `$04` lâchée)
+  + record `$05` `desc` `$0000`→`$1645` + rafale d'états.
+  Gollum (`$44`) reste actif, dormants (`$42`/`$46`/`$3C`) jamais
+  réveillés. Table events intacte avant/pendant/après → le timer
+  est dans les scripts d'entités (VM), PAS le système d'events
+  (compteur local ? opcode à N itérations ? — cause exacte ouverte).
 - **Dormants `$42`/`$46`/`$3C` : jamais armés** (id `$00` + PC figés
   sur 1463 ticks). Réveil = déclencheur joueur, pas le temps.
 - **Events `$2B12` : IMMOBILES partout** (1463 WAIT + 12 actions) —
