@@ -121,20 +121,49 @@ explique la présence des patchs ROM décrits dans
   quoté) ; `LOOK` re-décrit le lieu (`to the east there is the round green
   door`, `you see : the wooden chest.`, `Gandalf…`, `Thorin.`).
 
-## Convention d'affichage `JSR $440D`
+## Convention d'affichage `JSR $440D` / `JSR $5B24`
 
-Le motif dominant du bloc 4 : **`JSR $440D` suivi de 2 octets inline** = adresse
-du message à afficher ; le code reprend à JSR+5 (queue `JSR $4737` / `JMP ($6A)`,
-helper `$44BE` qui incrémente le pointeur). 79 sites recensés, chacun avec son
-mot pointeur marqué `.word` (`msg_XXXX`) et un aperçu du texte en commentaire.
-Sans cette règle, chaque site décalerait tout le désassemblage aval.
+Le motif dominant du bloc 4 : **`JSR $440D` (`print_msg`) ou `JSR $5B24`
+(`act_msg`, rebondit vers `print_msg`) suivi de 2 octets inline** = adresse
+du message à afficher ; le code reprend à JSR+5 (queue `JSR $4737` /
+`JMP ($6A)`, helper `$44BE` qui incrémente le pointeur). 99 sites `$440D`
+recensés (115 pointeurs inline au total), chacun avec son mot pointeur marqué
+`.word` (`msg_XXXX`) et un aperçu du texte en commentaire. Sans cette règle,
+chaque site décalerait tout le désassemblage aval.
 
-- 6 sites ont un pointeur **nul** (`$3CB4`, `$4DF9`, `$4E2D`, `$52C3`, `$5BB5`,
-  `$631A` → `TODO pointeur nul`) : adresse du message résolue à l'exécution.
+- 7 sites ont un pointeur **nul** (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A $63BE`
+  → `TODO pointeur nul`) : slots `.word` remplis à l'exécution (idiome général,
+  élucidé : constantes, lookups, `STX/STY` de `say_if_visible`…).
 - Quelques pointeurs visent le **bloc 2** (`$1370`, `$165A`, …) : messages ou
   tables hors bloc 4, affichés `(hors image)` / bruts dans le listing.
 - Pas d'appels ROM directs dans le bloc 4 : tout passe par les vecteurs du
   bloc 1 (`$0405`–`$0417`), patchés selon ROM 1.0/1.1.
+
+## Moteur de messages (`render_text` $4444, `word_render` $4241)
+
+Format décodé (validé par réimplémentation Python : les 32 mots `$1117` et le
+dictionnaire sortent en anglais propre) :
+
+- Octets `$20-$5F` : littéraux (espaces/capitales inclus, ex. `CHEERING CROWD`).
+- Octets `$60-$7F` : 32 mots courants via la table bloc 2 `$1117`
+  (`the/a/and/you/to/is/of/in/but/with/not/it/see/.../dragon/.../trolls`).
+- Bit7 set : mot 2 octets du dictionnaire packé 5-bit (`(b&$1F)+$60`),
+  pointeur `($05+(hi&$0F)):lo` (bloc 2, `$0500-$14FF`). Nibble haut = grammaire
+  + fin : `$0/$1/$4/$5/$7` continuent (accords via `$C5`/`$15`, suffixes
+  `S/ES/IES/ING` en `$4322`, espace auto `$0D`/`$0F`, wrap `$04`/`$05`) ;
+  `$2x`=fin, `$3x`=fin+`.`, `$6x`=fin+CR (`text_end` $44AE).
+- Octets `<$20` : 32 handlers via saut auto-patché (`token_dispatch` $44A0,
+  table $4641 ; 23 valides, `$17-$1F`=0000 inutilisés) : `<$14` sous-routines
+  (retour Z = saute `word_render`), `$14/$15/$16` = fins inline, autres =
+  interpolation d'état (`tok_nested` $00 messages imbriqués, `tok_objC5` $06 /
+  `tok_obj15` $07 / `tok_obj16` $09 noms d'objets, `tok_pronC5` $0C his/your,
+  `tok_recurse` $0B récursion `render_text`, `tok_skip` $02 saut relatif…).
+  `$05/$0A/$0F/$12` (`tok_noop`) réservés sans effet ; `$08` = vecteur `$2C2F`,
+  `$0D` = CR inline.
+- Sous-estimé initialement : le handler `$09` (`$456F`) coupait la plage
+  `code_436C` (RTS `$456E`, JMP indirect invisible) → seed manuel, plages
+  fusionnées. Espacement exact (flags `$0D`/`$0F` runtime) et pluriels : le
+  décodeur statique approxime (espace avant mot sauf après espace/début).
 
 ## Outillage
 
@@ -144,12 +173,12 @@ Sans cette règle, chaque site décalerait tout le désassemblage aval.
   `fcn.00006dce` qui chevauchait un pointeur `$440D`). Le résultat de `afl` est
   mis en cache dans `disasm/.r2_afl.txt`.
 - `scripts/opcodes6502.py` : table des 150 opcodes légaux 6502.
-- `scripts/check_disasm.py` : contrôles A–G (sync linéaire avec règle `$440D`,
+- `scripts/check_disasm.py` : contrôles A–H (sync linéaire avec règle `$440D`,
   cibles de branches/JSR/JMP, tables ressemblant à du code, ROM, vecteurs,
-  pointeurs marqués). Sortie 0 = propre.
+  pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
-- `disasm/block4.asm` : listing annoté — **15 692 o de code (78 %)**, 79 sites
-  `$440D`, 0 conflit.
+- `disasm/block4.asm` : listing annoté — **16 855 o de code**, 99 sites
+  `$440D` (115 inline `$440D`/`$5B24`), 91 routines documentées, 0 conflit.
 
 Régénérer et vérifier :
 
@@ -161,9 +190,9 @@ Régénérer et vérifier :
 ## Limites
 
 - Le découpage **code/données est validé statiquement** (checker exit 0), mais
-  6 pointeurs nuls et les zones atteintes par dispatch indirect reposent sur des
+  7 pointeurs nuls et les zones atteintes par dispatch indirect reposent sur des
   `MANUAL_ENTRIES` arbitrées à la main (trampolines `JSR`+`JMP`, routines
-  `LDA $C5`/`LDA $1F76`+`RTS`, etc.).
+  `LDA $C5`/`LDA $1F76`+`RTS`, 30 actions `L7014`/`L7143`, token `$456F`, etc.).
 - Auto-modification : `STA $6A5C` patch un octet relu par `LDA $6A5C` (donnée
   conservée en table, code adjacent marqué à partir de `$6A5E`).
 - Les rôles des vecteurs `vec_init`, `vec_06`, `vec_07` restent à confirmer.

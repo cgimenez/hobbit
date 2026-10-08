@@ -2,20 +2,21 @@
 
 ## État
 
-- `disasm/block4.asm` fiabilisé : **16 851 o de code**, 99 sites
+- `disasm/block4.asm` fiabilisé : **16 855 o de code**, 99 sites
   `JSR $440D` (115 pointeurs inline `$440D`/`$5B24`), **0 conflit**,
   `scripts/check_disasm.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
   Round-trip ca65 prouvé (byte-identique, `scripts/rebuild.py`). Arbre
   propre, tout commité.
 - Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
-  (seeds r2 validés + 74 `MANUAL_ENTRIES` dont 16 vecteurs + 58 orphelins
-  dispatch-indirect, dont les 30 actions `L7014`/`L7143` et leurs voisines
-  révélées par la règle D ; `SEED_EXCLUDE={0x6DCE}`).
+  (seeds r2 validés + 75 `MANUAL_ENTRIES` dont 16 vecteurs + 59 orphelins
+  dispatch-indirect : 30 actions `L7014`/`L7143` + voisines règle D + token
+  `$456F` ; `SEED_EXCLUDE={0x6DCE}`).
 - Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
-  (64 : socle `print_msg`/`kb_scan`/`glyph_out`/`tape_load/save`… +
-  `act_probe`/`rand_range`/`act_msg` + 30 actions `act_p14_ii`/`act_v14_ii` ;
-  nom + résumé → labels/commentaires régénérés ; checker H :
-  adresse=start, nom unique/valide). Ne jamais éditer le listing à la main.
+  (**91** : socle `print_msg`/`kb_scan`/`glyph_out`/`tape_load/save`… +
+  `act_probe`/`rand_range`/`act_msg` + 30 actions `act_p14_ii`/`act_v14_ii`
+  + 27 moteur de messages `render_text`/`word_render`/`tok_*`… ; nom +
+  résumé → labels/commentaires régénérés ; checker H : début d'instruction,
+  nom unique/valide). Ne jamais éditer le listing à la main.
 - Conflit `$6DCF` résolu : `JSR $440D` en `$6DCA` (cible d'un `BEQ`, idiome
   print-and-return vers `RTS`) confirmé ; seed `fcn.00006dce` exclu
   (chevauchait le pointeur `$165A`) ; routine orpheline `$6DD0` ajoutée
@@ -145,7 +146,9 @@
   index 0-13, `$AC06…` jamais indexés). Seconde table `$2B12` (5 o,
   compteurs, actions via table de sauts `$7169`) : dormante au début
   (compteurs à 0, aucun changement en MEM sur 6 ticks).
-- **30 actions documentées** (16 851 o de code bloc 4, checker PROPRE) :
+- **30 actions documentées** (16 855 o de code bloc 4, checker PROPRE,
+  textes décodés par réimplémentation Python du moteur — voir
+  `docs/block4-analysis.md`, citations intégrées aux `ROUTINE_DOCS`) :
   corps lus au binaire + r2, nommés `act_p14_ii` (table `L7014`, verbes
   joueur) et `act_v14_ii` (table `L7143`, PNJ). Effets vérifiés (guarde +
   mutation + message). `L7014` : 00 `$60BF` consomme compteur ($C6)+5 + RAZ
@@ -191,9 +194,9 @@
 
 ## Prochaine étape
 
-Décoder l'encodage des messages (tokens <$20 via table `$4641`, $60-7F via
-`$1117`, bit7=2 o) pour nommer les textes, repérer qui arme `$2B12`, puis
-nommer la zéro-page, bloc 2 et bloc 3.
+Moteur de messages décodé (détails : `docs/block4-analysis.md`) et 30 actions
+recitées avec leurs textes. Reste : repérer qui arme `$2B12`, puis nommer la
+zéro-page, bloc 2 et bloc 3.
 
 ## Points ouverts et limites harnais (non bloquants)
 

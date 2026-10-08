@@ -2995,7 +2995,7 @@ L41AC:  jsr     L454F
         sta     $5D
         lda     $12
         bne     L41BE
-        jsr     L4241
+        jsr     word_render
 L41BE:  ldy     #$06
         jsr     L4232
         jsr     L4C82
@@ -3008,7 +3008,7 @@ L41BE:  ldy     #$06
         sta     $5C
         lda     #$09
         sta     $5D
-        jsr     L4241
+        jsr     word_render
         iny
         iny
         jmp     L41E3
@@ -3041,7 +3041,7 @@ L4215:  ldy     #$04
         lda     $77
         bmi     L421E
         jsr     L4232
-L421E:  jsr     code_4573
+L421E:  jsr     L4573
 L4221:  lda     #$2E
         jsr     putchar
         jsr     print_cr
@@ -3060,9 +3060,11 @@ L4232:  lda     ($F8),y
         and     #$0F
         sta     $5D
         iny
-        jmp     L4241
+        jmp     word_render
 
-L4241:  lda     $5D
+; rend un mot du dico packe 5-bit : pluriels S/ES/IES/ING, espace auto, wrap
+word_render:
+        lda     $5D
         sta     $5B
         and     #$0F
         ora     $5C
@@ -3110,7 +3112,7 @@ L4267:  lda     ($5C),y
 L428D:  lda     $5B
         and     #$F0
         cmp     #$50
-        beq     L42CE
+        beq     word_space
         cmp     #$40
         beq     L42A6
         cmp     #$10
@@ -3119,11 +3121,11 @@ L428D:  lda     $5B
         jmp     L42A4
 
 L42A2:  lda     $15
-L42A4:  beq     L42CE
+L42A4:  beq     word_space
 L42A6:  ldy     #$01
         lda     ($5C),y
         and     #$80
-        beq     L42CE
+        beq     word_space
         iny
         lda     ($5C),y
         and     #$E0
@@ -3136,7 +3138,7 @@ L42B9:  pha
         lda     L4322,y
         bne     L42C3
         pla
-        jmp     L42CE
+        jmp     word_space
 
 L42C3:  sta     L430E,x
         iny
@@ -3145,7 +3147,9 @@ L42C3:  sta     L430E,x
         sec
         sbc     #$01
         bne     L42B9
-L42CE:  lda     $0D
+; espace auto ($0D/$0F) + wrap (longueur X vs $04/$05, flag $0E)
+word_space:
+        lda     $0D
         pha
         bne     L42D5
         lda     $0F
@@ -3353,7 +3357,7 @@ print_msg:
         lda     $0C
         bne     L4437
         sta     $12
-L4437:  jsr     L4444
+L4437:  jsr     render_text
         pla
         tax
         pla
@@ -3361,7 +3365,9 @@ L4437:  jsr     L4444
         jsr     fetch_retaddr
         jmp     (L006A)
 
-L4444:  ldy     #$00
+; boucle : literaux $20-5F, mots $60-7F ($1117), tokens <$20 ($4641), 2 o si bit7
+render_text:
+        ldy     #$00
         sty     $6F
 L4448:  ldy     $6F
         lda     ($8A),y
@@ -3375,12 +3381,12 @@ L4448:  ldy     $6F
         lda     $5D
         and     #$F0
         cmp     #$30
-        beq     L44AE
+        beq     text_end
         cmp     #$20
-        beq     L44AE
+        beq     text_end
         cmp     #$60
-        beq     L44AE
-L4469:  jsr     L4241
+        beq     text_end
+L4469:  jsr     word_render
 L446C:  inc     $6F
         jmp     L4448
 
@@ -3388,38 +3394,41 @@ L4471:  cmp     #$20
         bcc     L4482
         cmp     #$60
         bcc     L447C
-        jmp     L462D
+        jmp     common_lookup
 
-L447C:  jsr     L46DB
+L447C:  jsr     cr_aware_out
         jmp     L446C
 
 L4482:  clc
         pha
         rol     a
         tax
-        lda     L4641,x
+        lda     token_jumps,x
         sta     L44A1
         inx
-        lda     L4641,x
+        lda     token_jumps,x
         sta     L44A2
         pla
         cmp     #$14
-        bcs     L44A0
-        jsr     L44A0
+        bcs     token_dispatch
+        jsr     token_dispatch
         beq     L446C
         jmp     L4469
 
-L44A0:
+; JMP auto-patche vers le handler du token (mot L4641+tok*2)
+token_dispatch:
 L44A1           := * + 1
 L44A2           := * + 2
-        jmp     L4641
+        jmp     token_jumps
 
 L44A3:  lda     #$2E
         jsr     putchar
 L44A8:  jsr     print_cr
         jmp     L44BD
 
-L44AE:  jsr     L4241
+; fin 2 o : $2x=fin, $3x='.', $6x=CR (via $44A3/$44A8)
+text_end:
+        jsr     word_render
         lda     $5B
         and     #$F0
         cmp     #$60
@@ -3435,9 +3444,11 @@ msgptr_inc:
         inc     $6B
 L44C4:  rts
 
+; token $00 : rend le message empile (L466F/$0200), Z=saute
+tok_nested:
         lda     #$00
 L44C7:  sta     $70
-        jsr     L44E4
+        jsr     stk_pop
         jsr     L46E9
         lda     $5C
         sta     $8A
@@ -3445,12 +3456,13 @@ L44C7:  sta     $70
         sta     $8B
         ora     $5C
         beq     L44DE
-        jsr     L460A
+        jsr     nested_render
 L44DE:  jsr     fetch_retaddr
         lda     #$00
         rts
 
-L44E4:  ldx     $76
+; depile une adresse L466F ($76) en $5C/$5D
+stk_pop:ldx     $76
         lda     L466F,x
         sta     $5C
         inx
@@ -3460,14 +3472,20 @@ L44E4:  ldx     $76
         stx     $76
         rts
 
-        jsr     L44E4
+; token $01 : rend le mot a l'adresse empilee (L466F)
+tok_stkword:
+        jsr     stk_pop
         lda     #$01
         rts
 
+; token $02 : avance ($8A) de $6F + saut relatif (L4507)
+tok_skip:
         inc     $6F
         jsr     L4507
         lda     #$FF
         sta     $6F
+; tokens $05/$0A/$0F/$12 reserves : sans effet (lda #0, saute)
+tok_noop:
         lda     #$00
         rts
 
@@ -3495,6 +3513,8 @@ L4522:  clc
         sta     $8B
         rts
 
+; token $03 : rend le mot pointe par ($71/$72)
+tok_objw:
         lda     $71
         sta     $5C
         lda     $72
@@ -3502,7 +3522,9 @@ L4522:  clc
         lda     #$01
         rts
 
-        jsr     L44E4
+; token $04 : variante ($70=1, tables $28BC/$28C4) du mot empile
+tok_stkvar:
+        jsr     stk_pop
         lda     #$01
         sta     $70
         jsr     code_4683
@@ -3512,13 +3534,17 @@ L4522:  clc
         lda     #$01
         jmp     L44C7
 
+; token $06 : rend le nom de l'objet $C5 via $461B (imbrique $44C7)
+tok_objC5:
         lda     #$00
         sta     $70
 L454F:  lda     $C5
-        jsr     L461B
+        jsr     obj_lookup
         lda     #$00
         rts
 
+; token $07 : rend l'objet $15 (direct $43E4 si $73, sinon $43F3)
+tok_obj15:
         lda     #$01
         sta     $70
 L455B:  lda     $73
@@ -3529,13 +3555,17 @@ L455B:  lda     $73
 L4564:  lda     $15
         jmp     L458A
 
+; token $08 : appel vecteur interne $2C2F avec A=$08
+tok_ctrl08:
         jsr     putchar
         lda     #$00
         rts
 
-        .byte   $A9,$01,$85,$70
-code_4573:
-        lda     $74
+; token $09 : rend l'objet $16 (variante $74)
+tok_obj16:
+        lda     #$01
+        sta     $70
+L4573:  lda     $74
         beq     L457C
         lda     $16
         jmp     L4581
@@ -3549,23 +3579,27 @@ L4581:  jsr     L46E9
 
 L458A:  jsr     L46E9
         jsr     L43F3
-L4590:  jsr     L460A
+L4590:  jsr     nested_render
         jsr     fetch_retaddr
         lda     #$00
         rts
 
+; token $0B : rend en recursif (L4444) le message apres avance
+tok_recurse:
         jsr     L46E9
         inc     $6F
         lda     $6F
         pha
         jsr     L4507
-        jsr     L4444
+        jsr     render_text
         pla
         sta     $6F
         jsr     fetch_retaddr
         lda     #$00
         rts
 
+; token $0C : pronom his ($0548->$0A48) si $C5, your ($0C12->$1112) sinon
+tok_pronC5:
         lda     $C5
 L45B2:  beq     L45BF
         lda     #$48
@@ -3582,16 +3616,20 @@ L45BF:  lda     #$12
         lda     #$01
         rts
 
+; token $0E : idem tok_pronC5 avec $15
+tok_pron15:
         lda     $15
         jmp     L45B2
 
+; token $10 : nom objet $C5 ($05B2=is si absent, $0958=someone si $FF)
+tok_nameC5:
         lda     $C5
         pha
         lda     #$00
 L45D4:  sta     $70
         pla
         pha
-        jsr     L461B
+        jsr     obj_lookup
         pla
         beq     L45E9
         lda     #$B2
@@ -3608,11 +3646,15 @@ L45E9:  lda     #$BE
         lda     #$01
         rts
 
+; token $11 : idem avec $15 et variante $70=1
+tok_name15:
         lda     $15
         pha
         lda     #$01
         jmp     L45D4
 
+; token $13 : empile L466F ($76) puis nom objet ($45D4)
+tok_nameSTK:
         ldx     $76
         lda     L466F,x
         pha
@@ -3621,7 +3663,9 @@ L45E9:  lda     #$BE
         lda     #$01
         jmp     L45D4
 
-L460A:  jsr     L4702
+; rend le message imbrique ($5C/$5D) : pile $0200 ($5535)
+nested_render:
+        jsr     L4702
         lda     $8A
         sta     $88
         lda     $8B
@@ -3629,7 +3673,9 @@ L460A:  jsr     L4702
         jsr     L5535
         jmp     L471E
 
-L461B:  cmp     #$FF
+; id objet -> mot : $FF=someone ($0958), sinon rendu $458A
+obj_lookup:
+        cmp     #$FF
         beq     L4622
         jmp     L458A
 
@@ -3637,9 +3683,11 @@ L4622:  lda     #$58
         sta     $5C
         lda     #$09
         sta     $5D
-        jmp     L4241
+        jmp     word_render
 
-L462D:  sec
+; octet $60-7F -> mot courant de la table $1117 (the/a/and/you/to/...)
+common_lookup:
+        sec
         sbc     #$60
         clc
         rol     a
@@ -3651,7 +3699,9 @@ L462D:  sec
         sta     $5D
         jmp     L4469
 
-L4641:  cmp     $44
+; table des 32 tokens <$20 : <$14 sous-routines (Z=saute $4241), $14/15/16=fins
+token_jumps:
+        cmp     $44
         sbc     $44,x
         .byte   $FB,$44,$2E,$45,$39,$45,$04,$45
         .byte   $4B,$45,$57,$45,$69,$45,$6F,$45
@@ -3679,7 +3729,7 @@ L4690:  pla
         sta     $5D
         pla
         sta     $5C
-        jmp     L4241
+        jmp     word_render
 
 L469B:  lda     $5D
         bpl     L46B1
@@ -3709,16 +3759,18 @@ L46B1:  lda     $5D
         inx
         lda     $28C4,x
         sta     $5D
-        jmp     L4241
+        jmp     word_render
 
 L46CD:  lda     $28BC,x
         sta     $5C
         inx
         lda     $28BC,x
         sta     $5D
-        jmp     L4241
+        jmp     word_render
 
-L46DB:  jsr     putchar
+; putchar + Z si $0D (token $0D = CR inline, saute $4241)
+cr_aware_out:
+        jsr     putchar
         cmp     #$0D
         beq     L46E3
         rts
@@ -5504,14 +5556,14 @@ L5535:  lda     $70
         iny
         lda     ($88),y
         sta     $5D
-        jsr     L4241
+        jsr     word_render
         ldy     #$04
         lda     ($88),y
         sta     $5C
         iny
         lda     ($88),y
         sta     $5D
-        jsr     L4241
+        jsr     word_render
 L5563:  ldy     #$00
         lda     ($88),y
         sta     $5C
@@ -6100,7 +6152,7 @@ code_59C0:
         sta     $5D
         pla
         sta     $5C
-L59C6:  jsr     L4241
+L59C6:  jsr     word_render
         jsr     print_msg
 ; -> $13F1 ..e....n......{..| :.c..a.:.
 msg_59CC:
@@ -6158,7 +6210,7 @@ code_5A2E:
         ldy     #$00
         lda     ($8A),y
         jsr     L59E7
-        jsr     L4241
+        jsr     word_render
         jsr     L5A43
         bne     code_5A2E
         jsr     print_cr
@@ -6347,7 +6399,7 @@ code_5B66:
         lda     ($8A),y
         and     #$0F
         sta     $5D
-        jsr     L4241
+        jsr     word_render
         lda     #$2E
         jsr     putchar
         jsr     print_cr
@@ -7050,7 +7102,7 @@ code_6027:
 
 L6040:  rts
 
-; flags objet ($19) : bits 0-2, messages $11D3/$13D1
+; flags objet ($19) : bits 0-2, dit $11D3 (swept away) / $13D1 (X dead)
 act_p14_13:
         jsr     L5BBB
         lda     $17
@@ -7121,7 +7173,7 @@ L609A:  lda     #$05
         sta     ($8A),y
         lda     #$01
         bne     L60C4
-; consomme compteur ($C6)+5, RAZ 16 o ; msg $1525
+; consomme compteur ($C6)+5, RAZ 16 o ; dit $1525 (gluttony KILLED)
 act_p14_00:
         jsr     act_probe
         lda     #$0A
@@ -7317,7 +7369,7 @@ L620B:  jsr     act_probe
         lda     $15
         jmp     L5612
 
-; objet : bit5 de ($8A)+7 -> 1 ; si id==1 -> $580F (fete)
+; bit5 ($8A)+7 -> 1 ; si id==1 fete $580F (CHEERING CROWD...SUNSET)
 act_p14_03:
         jsr     L5A70
         beq     L622A
@@ -7757,7 +7809,7 @@ L65CC:  lda     $16
         beq     act_p14_06
         jmp     L4C57
 
-; dit le message $140C (ou via $4C57 $139B)
+; dit $140C (X do not fit this lock) sinon $139B (i cannot do that)
 act_p14_06:
         jsr     print_msg
 ; -> $140C ...j..p.A`..}...`..}....lc. 
@@ -7910,7 +7962,7 @@ L6689:  jsr     act_probe
         sta     $2B31
         rts
 
-; message $1478 puis programme l'evenement $2B18
+; dit $1478 (spiders mend the web) puis programme $2B18
 act_p14_11:
         ldy     #$07
         lda     ($17),y
@@ -7990,7 +8042,7 @@ code_66F0:
         .byte   $00,$85,$0B,$A9,$13,$20,$13,$57
         .byte   $A9,$01,$85,$0B,$A9,$20,$8D,$B8
         .byte   $1D,$A9,$13,$8D,$A9,$1D,$60
-; si meme lieu ($C9==$C8) : sonde + dit $143F
+; si meme lieu ($C9==$C8) : sonde + dit $143F (hello)
 act_v14_06:
         lda     $C9
         cmp     $C8
@@ -8005,7 +8057,7 @@ msg_68DD:
 code_68DF:
         rts
 
-; 3 messages d'oisivete aleatoires ($1432/$143B/$143F)
+; oisivete : $1432 (great job) / $143B (hurry up) / $143F (hello)
 act_v14_01:
         jsr     act_probe
         lda     #$02
@@ -8042,7 +8094,7 @@ code_6901:
         sta     $1CF3
         rts
 
-; sonde + dit $1441
+; sonde + dit $1441 (thrains key)
 act_v14_02:
         jsr     act_probe
         jsr     act_msg
@@ -8071,7 +8123,7 @@ msg_692A:
 code_692C:
         rts
 
-; sonde + dit $1427 (WHAT'S ... WEARING)
+; sonde + dit $1427 (WHAT'S this ?)
 act_v14_00:
         jsr     act_probe
         jsr     act_msg
@@ -8112,7 +8164,7 @@ msg_695F:
 code_6961:
         rts
 
-; si meme lieu et !($1B21&$80) : sonde + dit $14AB (WHERE'S)
+; si meme lieu et !($1B21&$80) : dit $14AB (WHERE'S the thief ?)
 act_v14_03:
         lda     $C9
         cmp     $C8
@@ -8447,7 +8499,7 @@ msg_6B6F:
 code_6B71:
         rts
 
-; si $C5==$41 : parcourt ($C1), messages $13E0/$15AB
+; si $C5==$41 : parcourt ($C1), dit $13E0/$15AB (go...from...to)
 act_p14_09:
         lda     $C5
         cmp     #$41
@@ -8620,7 +8672,7 @@ msg_6C8A:
 code_6C8C:
         rts
 
-; si $C8 in {27,2C,29} : sonde + dit $13F6
+; si $C8 in {27,2C,29} : sonde + dit $13F6 (X enter)
 act_v14_09:
         lda     $C8
         cmp     #$27
@@ -8651,7 +8703,7 @@ msg_6CBB:
 code_6CBD:
         rts
 
-; si meme lieu : dit $153F, ou $155D selon ($1B21&$80)
+; meme lieu : $153F (dragon : prepare to die) ou $155D (aveugle) si $80
 act_v14_10:
         lda     $C8
         cmp     $C9
@@ -8769,7 +8821,7 @@ msg_6D75:
 code_6D77:
         rts
 
-; si $C8==$1E4B : tirage 0-7, dit $16B9/$16C8
+; si $C8==$1E4B : tirage, $16B9 (pocket ?) / $16C8 (my precious)
 act_v14_14:
         lda     $C8
         cmp     $1E4B
@@ -8861,7 +8913,7 @@ L6DEF:  lda     $C8
 L6DF6:  cmp     #$1C
         rts
 
-; recherche lieu via $3485, RAZ $D5, message $15B6
+; cherche lieu $3485, RAZ $D5, dit $15B6 (strangle you)
 act_v14_13:
         jsr     act_probe
         lda     #$00
@@ -8919,7 +8971,7 @@ L6E51:  jmp     L667C
         sta     $C4
         rts
 
-; si $1F47!=$29 : tirage 0-100 (<$50 -> dit $1582/$1596)
+; si $1F47!=$29 : tirage 0-100, $1582 (dragon flying) / $1596 (burn you)
 act_v14_08:
         lda     $1F47
         cmp     #$29
