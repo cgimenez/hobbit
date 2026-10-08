@@ -249,6 +249,59 @@ def cmd_morts(run: str | None) -> int:
     return 0
 
 
+def cmd_coverage() -> int:
+    """% des 3623 o jamais mutes (tous runs), par region + apport par run."""
+    cx = connect()
+    regions = [(0x00BE, 0x18, "ZP"), (0x1B1A, 0x556, "etats"),
+               (0x28CC, 0x2F1, "scripts"), (0x211A, 0x5C8, "records")]
+    touched: set[tuple[int, int]] = set()
+    for base, ln, _ in regions:
+        for (off,) in cx.execute(
+                "SELECT DISTINCT off FROM deltas WHERE base=?", (base,)):
+            touched.add((base, off))
+    total = sum(ln for _, ln, _ in regions)
+    print(f"couverture globale: {len(touched)}/{total} "
+          f"({100 * len(touched) / total:.1f}%)")
+    for base, ln, nom in regions:
+        n = sum(1 for (b, _) in touched if b == base)
+        print(f"  ${base:04X} {nom}: {n}/{ln} ({100 * n / ln:.1f}%)")
+    print("apport marginal par run (offsets vus nulle part ailleurs):")
+    rows = cx.execute(
+        "SELECT r.name, d.base, d.off FROM deltas d "
+        "JOIN runs r ON r.run_id=d.run_id").fetchall()
+    from collections import Counter
+    owners: dict[tuple[int, int], str] = {}
+    counts: Counter[tuple[int, int]] = Counter()
+    for name, b, o in rows:
+        owners.setdefault((b, o), name)
+        counts[(b, o)] += 1
+    per: Counter[str] = Counter()
+    for key, n in counts.items():
+        if n == 1:
+            per[owners[key]] += 1
+    for name, n in per.most_common():
+        print(f"  {name}: {n} offsets uniques")
+    return 0
+
+
+def cmd_vierges() -> int:
+    """Octets JAMAIS mutes (tous runs) : les vraies cibles du fuzz."""
+    cx = connect()
+    regions = [(0x00BE, 0x18, "ZP"), (0x1B1A, 0x556, "etats"),
+               (0x28CC, 0x2F1, "scripts"), (0x211A, 0x5C8, "records")]
+    touched: set[tuple[int, int]] = set()
+    for base, _, _ in regions:
+        for (off,) in cx.execute(
+                "SELECT DISTINCT off FROM deltas WHERE base=?", (base,)):
+            touched.add((base, off))
+    for base, ln, nom in regions:
+        vierges = [o for o in range(ln) if (base, o) not in touched]
+        show = " ".join(f"+${o:04X}" for o in vierges[:24])
+        more = f" (+{len(vierges) - 24})" if len(vierges) > 24 else ""
+        print(f"${base:04X} {nom}: {len(vierges)} vierges : {show}{more}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
@@ -277,6 +330,10 @@ def main(argv: list[str]) -> int:
     if c == "lieu":
         run = argv[argv.index("--run") + 1] if "--run" in argv else None
         return cmd_lieu(run)
+    if c == "coverage":
+        return cmd_coverage()
+    if c == "vierges":
+        return cmd_vierges()
     if c == "runs":
         for r in connect().execute(
                 "SELECT name, (SELECT COUNT(*) FROM ticks t "

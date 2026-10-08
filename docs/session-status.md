@@ -257,8 +257,12 @@ pas 10, `rd_byte` qui retombait dans son entrée, `ST_OP` qui écrivait
 session échoue (buffer relu différent ?) — diagnostic en pause,
 priorité à l'observation via tickdiff (pas de SAVE/LOAD).
 **tickdiff** (`scripts/tickdiff.c` → `build/sim/tickdiff`, + shim
-`dump_mem` 6 régions) : superviseur C, sim65 vivant par pipes, un
-ordre = un tick = snapshot 3623 o + deltas dans `build/sim/ticks*/`.
+`dump_mem` 4 régions) : superviseur C, sim65 vivant par pipes, un
+ordre = un tick = INSERT direct en SQLite (`--db/--name`, plus
+aucun `ticks.log`/`snap*.bin`). Protocole durci : `-t 300` +
+touche sacrificielle (ligne vide) après chaque sortie longue —
+sans ça, `pause_key` mange le début de l'ordre suivant
+(`SOUTH`→`UTH`, `NORTH`→`RTH`).
 Runs joués : R1 300×WAIT, R2 objets, R3 mouvement (diffs seuls),
 R4 1463×WAIT (stop limite 2G cycles, pas un crash),
 R5 exploration (`r5.txt`, 18 ordres : EXAMINE/OPEN/TALK/EAST/NORTH,

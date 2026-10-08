@@ -1,4 +1,4 @@
-/* tickdiff : pilote sim65 tick par tick et log les diffs memoire.
+/* tickdiff : pilote sim65 tick par tick et stocke en SQLite.
  *
  * Un processus sim65 est garde vivant (pipes stdin/stdout). Les ordres
  * arrivent un par un (fichier de commandes ou stdin interactif) ; apres
@@ -6,14 +6,14 @@
  * frames/dumps) puis on snapshotte les 4 regions SAVE via les marqueurs
  * @@MEM du shim et on diffe contre le tick precedent.
  *
- * Usage : tickdiff [-t timeout_ms] [-o dir] simfile [cmdfile]
+ * Usage : tickdiff [-t timeout_ms] --db base.db --name RUN simfile [cmdfile]
  *   sans cmdfile : interactif (ordres tapes au clavier, un par ligne).
- * Sorties dans dir (defaut build/sim/ticks) :
- *   ticks.log   : TICK n cmd="..." + lignes "  $BASE +$OFF: $AV->$AP"
- *   snapNNNN.bin : snapshot brut des 4 regions (ordre fixe, tailles fixes)
+ * Sortie : DB SQLite (runs/ticks/deltas/state, voir scripts/tickdb.py).
+ *   Rejouer le meme --name ecrase le run precedent (DELETE + re-INSERT).
  *
- * Ne logue que les deltas (octets changes). Les frames texte/hires sont
- * parsees-et-jetees (servent juste a detecter l'activite).
+ * Ne stocke que les deltas (octets changes) + l'etat ZP par tick.
+ * Les frames texte/hires sont parsees-et-jetees (servent juste
+ * a detecter l'activite).
  */
 
 #include <stdio.h>
@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <sys/select.h>
 #include <sys/wait.h>
+#include <sqlite3.h>
 
 #define NREG 4
 static const unsigned REG_BASE[NREG] = {0x00BE, 0x1B1A, 0x28CC, 0x211A};
@@ -135,26 +136,86 @@ static int wait_quiet(void) {
 
 int main(int argc, char **argv) {
     long timeout_ms = 300;
-    const char *outdir = "build/sim/ticks";
+    const char *dbpath = NULL, *runname = NULL;
     const char *simfile = NULL, *cmdfile = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-t") && i + 1 < argc) timeout_ms = atol(argv[++i]);
-        else if (!strcmp(argv[i], "-o") && i + 1 < argc) outdir = argv[++i];
+        else if (!strcmp(argv[i], "--db") && i + 1 < argc) dbpath = argv[++i];
+        else if (!strcmp(argv[i], "--name") && i + 1 < argc) runname = argv[++i];
         else if (!simfile) simfile = argv[i];
         else if (!cmdfile) cmdfile = argv[i];
         else { fprintf(stderr, "arg inattendu : %s\n", argv[i]); return 1; }
     }
-    if (!simfile) {
-        fprintf(stderr, "usage : tickdiff [-t ms] [-o dir] simfile [cmdfile]\n");
+    if (!simfile || !dbpath || !runname) {
+        fprintf(stderr, "usage : tickdiff [-t ms] --db base.db --name RUN simfile [cmdfile]\n");
         return 1;
     }
-    char mk[1024];
-    snprintf(mk, sizeof mk, "mkdir -p %s", outdir);
-    if (system(mk) != 0) { fprintf(stderr, "mkdir %s impossible\n", outdir); return 1; }
-    char logpath[1024];
-    snprintf(logpath, sizeof logpath, "%s/ticks.log", outdir);
-    FILE *log = fopen(logpath, "w");
-    if (!log) { perror("fopen log"); return 1; }
+    sqlite3 *db = NULL;
+    if (sqlite3_open(dbpath, &db) != SQLITE_OK) {
+        fprintf(stderr, "sqlite open %s: %s\n", dbpath, sqlite3_errmsg(db));
+        return 1;
+    }
+    sqlite3_exec(db, "PRAGMA journal_mode=WAL;", 0, 0, 0);
+    const char *schema =
+        "CREATE TABLE IF NOT EXISTS runs(run_id INTEGER PRIMARY KEY,"
+        " name TEXT UNIQUE, image TEXT, cmdfile TEXT, started TEXT);"
+        "CREATE TABLE IF NOT EXISTS ticks(run_id INTEGER, n INTEGER,"
+        " cmd TEXT, frames INTEGER, PRIMARY KEY(run_id, n));"
+        "CREATE TABLE IF NOT EXISTS deltas(run_id INTEGER, n INTEGER,"
+        " base INTEGER, off INTEGER, avant INTEGER, apres INTEGER,"
+        " PRIMARY KEY(run_id, n, base, off)) WITHOUT ROWID;"
+        "CREATE INDEX IF NOT EXISTS idx_deltas_addr"
+        " ON deltas(base, off, run_id, n);"
+        "CREATE TABLE IF NOT EXISTS texts(run_id INTEGER, n INTEGER,"
+        " reponse TEXT, PRIMARY KEY(run_id, n));"
+        "CREATE TABLE IF NOT EXISTS state(run_id INTEGER, n INTEGER,"
+        " ploc INTEGER, eloc INTEGER, obj INTEGER, crec INTEGER,"
+        " PRIMARY KEY(run_id, n));";
+    if (sqlite3_exec(db, schema, 0, 0, 0) != SQLITE_OK) {
+        fprintf(stderr, "sqlite schema: %s\n", sqlite3_errmsg(db));
+        return 1;
+    }
+    sqlite3_exec(db, "BEGIN;", 0, 0, 0);
+    sqlite3_stmt *st_run = NULL, *st_tick = NULL, *st_delta = NULL,
+                 *st_state = NULL;
+    sqlite3_prepare_v2(db, "INSERT INTO runs(name) VALUES(?)"
+                       " ON CONFLICT(name) DO NOTHING"
+                       " RETURNING run_id;", -1, &st_run, 0);
+    sqlite3_bind_text(st_run, 1, runname, -1, SQLITE_STATIC);
+    long run_id = -1;
+    if (sqlite3_step(st_run) == SQLITE_ROW)
+        run_id = sqlite3_column_int64(st_run, 0);
+    sqlite3_finalize(st_run);
+    if (run_id < 0) { /* existait deja : le reutilise */
+        sqlite3_prepare_v2(db, "SELECT run_id FROM runs WHERE name=?;",
+                           -1, &st_run, 0);
+        sqlite3_bind_text(st_run, 1, runname, -1, SQLITE_STATIC);
+        if (sqlite3_step(st_run) == SQLITE_ROW)
+            run_id = sqlite3_column_int64(st_run, 0);
+        sqlite3_finalize(st_run);
+    }
+    if (run_id < 0) { fprintf(stderr, "run_id impossible\n"); return 1; }
+    /* rejouer le meme nom = ecrase (frais, idempotent) */
+    sqlite3_prepare_v2(db, "DELETE FROM deltas WHERE run_id=?;",
+                       -1, &st_delta, 0);
+    sqlite3_bind_int64(st_delta, 1, run_id);
+    sqlite3_step(st_delta);
+    sqlite3_finalize(st_delta);
+    const char *tables[] = {"ticks", "state", "texts"};
+    for (int k = 0; k < 3; k++) {
+        char q[128];
+        snprintf(q, sizeof q, "DELETE FROM %s WHERE run_id=?;", tables[k]);
+        sqlite3_prepare_v2(db, q, -1, &st_delta, 0);
+        sqlite3_bind_int64(st_delta, 1, run_id);
+        sqlite3_step(st_delta);
+        sqlite3_finalize(st_delta);
+    }
+    sqlite3_prepare_v2(db, "INSERT INTO ticks VALUES(?,?,?,?);",
+                       -1, &st_tick, 0);
+    sqlite3_prepare_v2(db, "INSERT INTO deltas VALUES(?,?,?,?,?,?);",
+                       -1, &st_delta, 0);
+    sqlite3_prepare_v2(db, "INSERT INTO state VALUES(?,?,?,?,?,?);",
+                       -1, &st_state, 0);
 
     FILE *cmdf = NULL;
     if (cmdfile) {
@@ -228,16 +289,23 @@ int main(int argc, char **argv) {
         fprintf(stderr, "sim65 parti avant le premier dump complet\n");
         return 1;
     }
-    {
-        char sp[1024];
-        snprintf(sp, sizeof sp, "%s/snap0000.bin", outdir);
-        FILE *f = fopen(sp, "wb");
-        for (int i = 0; i < NREG; i++) fwrite(G_cur[i], 1, REG_LEN[i], f);
-        fclose(f);
-        fprintf(log, "TICK 0 BOOT (frames=%ld, snapshot snap0000.bin)\n", G_frames);
-        fflush(log);
-        for (int i = 0; i < NREG; i++) memcpy(snap_prev[i], G_cur[i], REG_LEN[i]);
-    }
+    /* etat ZP du boot (snap implicite : G_cur) */
+    sqlite3_bind_int64(st_tick, 1, run_id);
+    sqlite3_bind_int64(st_tick, 2, 0);
+    sqlite3_bind_text(st_tick, 3, "", -1, SQLITE_STATIC);
+    sqlite3_bind_int64(st_tick, 4, G_frames);
+    sqlite3_step(st_tick);
+    sqlite3_reset(st_tick);
+    sqlite3_bind_int64(st_state, 1, run_id);
+    sqlite3_bind_int64(st_state, 2, 0);
+    sqlite3_bind_int64(st_state, 3, G_cur[0][0x0A]);
+    sqlite3_bind_int64(st_state, 4, G_cur[0][0x0B]);
+    sqlite3_bind_int64(st_state, 5, G_cur[0][0x07]);
+    sqlite3_bind_int64(st_state, 6, G_cur[0][0x08] | (G_cur[0][0x09] << 8));
+    sqlite3_step(st_state);
+    sqlite3_reset(st_state);
+    fprintf(stderr, "BOOT (frames=%ld)\n", G_frames);
+    for (int i = 0; i < NREG; i++) memcpy(snap_prev[i], G_cur[i], REG_LEN[i]);
     ticks = 1;
 
     while (alive) {
@@ -267,26 +335,38 @@ int main(int argc, char **argv) {
         char cmd[256];
         snprintf(cmd, sizeof cmd, "%.*s", (int)(sn > 0 ? sn - 1 : 0), send);
         alive = wait_quiet();
-        /* snapshot + diff */
-        char sp[1024];
-        snprintf(sp, sizeof sp, "%s/snap%04ld.bin", outdir, ticks);
-        FILE *f = fopen(sp, "wb");
-        for (int i = 0; i < NREG; i++) fwrite(G_cur[i], 1, REG_LEN[i], f);
-        fclose(f);
+        /* ticks + deltas + etat ZP */
+        sqlite3_bind_int64(st_tick, 1, run_id);
+        sqlite3_bind_int64(st_tick, 2, ticks);
+        sqlite3_bind_text(st_tick, 3, cmd, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(st_tick, 4, G_frames);
+        sqlite3_step(st_tick);
+        sqlite3_reset(st_tick);
         long ndiff = 0;
-        fprintf(log, "TICK %ld cmd=\"%s\" (frames=%ld)\n", ticks, cmd, G_frames);
         for (int i = 0; i < NREG; i++) {
             for (unsigned j = 0; j < REG_LEN[i]; j++) {
                 if (snap_prev[i][j] != G_cur[i][j]) {
-                    fprintf(log, "  $%04X +$%04X: $%02X->$%02X\n",
-                            REG_BASE[i], j, snap_prev[i][j], G_cur[i][j]);
+                    sqlite3_bind_int64(st_delta, 1, run_id);
+                    sqlite3_bind_int64(st_delta, 2, ticks);
+                    sqlite3_bind_int64(st_delta, 3, REG_BASE[i]);
+                    sqlite3_bind_int64(st_delta, 4, j);
+                    sqlite3_bind_int64(st_delta, 5, snap_prev[i][j]);
+                    sqlite3_bind_int64(st_delta, 6, G_cur[i][j]);
+                    sqlite3_step(st_delta);
+                    sqlite3_reset(st_delta);
                     ndiff++;
                 }
             }
             memcpy(snap_prev[i], G_cur[i], REG_LEN[i]);
         }
-        if (ndiff == 0) fprintf(log, "  (aucun changement)\n");
-        fflush(log);
+        sqlite3_bind_int64(st_state, 1, run_id);
+        sqlite3_bind_int64(st_state, 2, ticks);
+        sqlite3_bind_int64(st_state, 3, G_cur[0][0x0A]);
+        sqlite3_bind_int64(st_state, 4, G_cur[0][0x0B]);
+        sqlite3_bind_int64(st_state, 5, G_cur[0][0x07]);
+        sqlite3_bind_int64(st_state, 6, G_cur[0][0x08] | (G_cur[0][0x09] << 8));
+        sqlite3_step(st_state);
+        sqlite3_reset(st_state);
         fprintf(stderr, "tick %ld cmd=\"%s\" : %ld octets changes\n", ticks, cmd, ndiff);
         ticks++;
     }
@@ -299,8 +379,11 @@ int main(int argc, char **argv) {
     }
     int st = 0;
     waitpid(pid, &st, 0);
-    fprintf(log, "FIN (%ld ticks)\n", ticks);
-    fclose(log);
-    fprintf(stderr, "log : %s (%ld ticks)\n", logpath, ticks);
+    sqlite3_exec(db, "COMMIT;", 0, 0, 0);
+    sqlite3_finalize(st_tick);
+    sqlite3_finalize(st_delta);
+    sqlite3_finalize(st_state);
+    sqlite3_close(db);
+    fprintf(stderr, "db : %s run=%s (%ld ticks)\n", dbpath, runname, ticks);
     return 0;
 }
