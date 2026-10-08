@@ -101,4 +101,5 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
   29 lieux `$18AA`) ; records lieux cartographiés (table `$2070`, desc +8,
   exits étendues `$26DA`+wid*8, états `$1A62`) ; scripts `$29xx` décodés
   (VM `$4ED5`, 14 entités + 3 dormantes, table `L7143` = 18 mots dont 3
-  inédites) ; reste : `+0..7` records, trou `$2C-$3B`, `$xC`, table `$28E6`.
+  inédites) ; reste : lecteurs `b0`/`b1` records, trou `$2C-$3B`, `$xC`,
+  table `$28E6`.

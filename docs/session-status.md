@@ -228,9 +228,9 @@
 
 Moteur de messages, armement `$2B12`, zéro-page, bloc 3, système de
 messages du bloc 2, records de lieux (structure + exits étendues) et
-scripts `$29xx` décodés (`docs/block4-analysis.md`). Reste : encodage
-`+0..7` des records, trou `$2C-$3B`, sémantique `$xC`, table `$28E6`,
-dormants `$2B45` (harnais ciblé ou statique).
+scripts `$29xx` et layout records `+0..7` décodés (`docs/block4-analysis.md`).
+Reste : lecteurs `b0`/`b1`, trou `$2C-$3B`, sémantique `$xC`, table `$28E6`,
+dormants `$2B45`, eloc non-chambres (harnais ciblé ou statique).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 
@@ -259,10 +259,14 @@ dormants `$2B45` (harnais ciblé ou statique).
   `wid := $6C`) rattachée au choix PNJ (`L35AE`), pas au LOOK. Cond :
   table clés `$1A62` → blocs `$1Bxx`, table 3 o `$1A5F`, flot
   `move_core`/`cond_eval` cartographié ; table `$2732+` à queues `$40`.
-- **Ouvert** : encodage exact `+0..7` (mots `$F2` vs entrées : aucun match
-  E/N/NE par émulation fidèle → `ptr2` du listage ≠ record lieu direct).
-  Outillage en `/tmp` (`roomrec.py`, `dump.py`). Rien à committer pour
-  ce chantier (aucun fichier repo touché).
+- **Ouvert `+0..7` RÉSOLU** : `[b0, b1, 3 paires (mot, masque-nibble)]` =
+  signature d'appartenance ; matcher `code_433A` émulé fidèlement
+  ((0,0)=absent, octet0 full + octet1-nibble, repli paires croisées) ;
+  voies `L53C3` (cond↔record+8), `L54F8` (cond↔record+2), `L37DE`
+  (cond↔exit), `L363E` (record+1 bit6, cherche id==arg1) ; groupes :
+  `$0F`+`$34-$41`, `$44-$4A`(+`$0C`), `$4B-$4D`, `$4E-$4F`, `$42`=WEST,
+  `$43`=EAST, rooms uniques. Reste mineur : lecteurs exacts `b0`/`b1`
+  (`$A0`/`$B0` en rooms `$01`/`$2B`). Détails `docs/block4-analysis.md`.
 
 ## Bloc 3 : illustrations vectorielles élucidées (sous sim65)
 

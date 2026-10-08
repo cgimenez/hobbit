@@ -329,10 +329,42 @@ $2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non promu).
   `$30`/`$37` valides : `$285A`/`$2892`) ; wids des scripts :
   `$01 $06 $0B $0D $0E $10 $13 $1D $24 $27 $30 $37` (ex. `$1D` =
   `8D C4 DE 0A 00 10 00 60`, `$10` = `8B 87…40`).
-- Ouverts : `+0..7` records chambres (pas des wids — ressemble à
-  `[flags,$FF,…]`) ; trou `$2C-$3B` ; `$xC`/hang ; `n`/`s6` exacts ;
+- Ouverts : trou `$2C-$3B` ; `$xC`/hang ; `n`/`s6` exacts ;
   eloc non-chambres (`$09`, `$3A` = bateau ?) ; dormants (déclencheurs
   d'activation ?) ; cohabitation scripts `$28E1` / table `$28E6`.
+
+## Bloc 2 : records lieux — layout `+0..7` élucidé (matcher `code_433A`)
+
+Record = `[b0, b1, cond0_lo, cond0_hi, cond1_lo, cond1_hi, cond2_lo,
+cond2_hi, desc_lo, desc_hi, ...]` (`L530B` : `*($2070+id*2)`, id `$2F` =
+nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
+(`$00`×6) = `$00` uniquement.
+
+- `+2..+7` = **3 paires (mot, masque-nibble)** = signature
+  d'appartenance, comparée par `code_433A`/`code_436C`/`L4387`/`L43A8`
+  (émulation fidèle validée) : paire `(0,0)` = absent (skip) ; sinon
+  octet0 égalité complète, octet1 sur nibble bas ; repli `X=1`
+  (paires croisées `p3[2,3]`↔`ex[4,5]`, `p3[4,5]`↔`ex[2,3]`, cf.
+  `L380A` qui swapp `$F4`/`$F6` si `X=1`).
+- Consommateurs (voies `cond_eval` selon `$73`) : direct=0 `L53C3`
+  (scan table 3-o, filtre `(record)+7`&`$48` vs `$81`, compare
+  **cond ↔ record+8**, retourne `(table)+0`) ; direct=1 `L54F8`
+  (compare **cond ↔ record+2**, retourne `(table)+2`) ; `L37DE`
+  (compare **cond ↔ entrée exit** depuis `exit_ptr`, `$6C`++,
+  stop si paire0 `(0,0)`) ; `L363E` (record+1 bit6 → `ptr3`=record+8,
+  cherche id==arg1 dans `$1A5F` filtré par match). Rôle : trouver les
+  records compatibles avec la cond de l'argument du move (objets du
+  lieu / faction).
+- Groupes (conds partagées) : `$0F`+`$34-$41` (`ad 07 91 02 15 0a`,
+  faction créatures), `$44-$4A` (`be 17 22 07…`, +`$0C` en repli),
+  `$4B-$4D`, `$4E-$4F`, paires `$02`/`$2E` `$08`/`$24` `$17`/`$21`
+  `$03`/`$1B`/`$32`, directions `$42`=WEST (`c2 0b`) `$43`=EAST
+  (`35 03`) ; rooms quasi toutes uniques (ex. `$01` =
+  `ea 14 18 0b 29 06`).
+- `b0`/`b1` = type/flags : `b0` ∈ `$02 $04 $08 $80 $84 $86 $88`
+  (lecteur exact à identifier) ; `b1` = `$FF` sauf rooms `$01`=`$A0`
+  et `$2B`=`$B0` (bit6 testé par `L363E` : absent de `$A0`/`$B0`).
+  Décodeurs : `/tmp/condmatch.py`, `/tmp/condmat.py` (non promus).
 
 ## Bloc 3 : illustrations vectorielles (`$7AC0`–`$91B1`, 5 874 o)
 
