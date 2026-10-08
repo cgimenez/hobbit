@@ -419,29 +419,11 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
 - Harnais : taper LOAD sous sim65 (EOF) affiche le prompt puis
   timeout (exit 254) — le stub B1 nourrira `L0408` en `PVRead`.
 
-## Carte mémoire de l'état sauvegardé (workspace haut `$91D0`–`$9FF7`)
+## Carte mémoire de l'état sauvegardé
 
-Table `L30F9` (4×6 o `[len_lo,len_hi,src_lo,src_hi,dst_lo,dst_hi]`,
-`boot_copy` bas→haut, `boot_copyback` haut→bas). Tout est contigu
-(`$9726`=`$91D0`+`$556`, `$9A17`=`$9726`+`$2F1`, `$9FDF`=`$9A17`+`$5C8`,
-fin `$9FF7`) : `$0E28` o d'état mutable = matière des blocs SAVE.
-
-| # | Source basse | Dest haute | Taille | Contenu (décodé) |
-|---|--------------|------------|-------:|------------------|
-| 1 | `$1B1A` | `$91D0` | `$0556` (1366) | Blocs d'état (`$1A62` : 60 clés → états ; `+0`==1→eloc=`+$10`, `+1`=porteur, `+8`=template/cond ; voir § scripts) |
-| 2 | `$28CC` | `$9726` | `$02F1` (753) | Bases INDIR, scripts `$28E1`–`$2B11`, events `$2B12` (10×5 o), entités `$2B45` (17×7 o) |
-| 3 | `$211A` | `$9A17` | `$05C8` (1480) | Records `[b0,b1,cond×3,desc,…]` (79, `$2F` nul ; voir § records) |
-| 4 | `$00BE` | `$9FDF` | `$0018` (24) | ZP `$BE`–`$D5` : `exploc`/`obj`/`crec`/`ploc`/`eloc`/`once` connus (`ZP_NAMES`), `$BF` `$C0`-`$C4` `$CA`-`$CD` `$CF`-`$D5` non détaillés |
-
-Offsets internes : état_WS = `$91D0`+(état−`$1B1A`) ; entités_WS =
-`$999F` (`$2B45`+$279), events_WS = `$976C` (`$2B12`+`$46`) ;
-rec_WS = `$9A17`+(rec−`$211A`). Accès jeu : `L530B` (records bas),
-`L5331` (états bas), `$2B45` direct — **usage en jeu des copies
-hautes non observé** (snapshot SAVE / restore LOAD uniquement ?).
-Blocs cassette SAVE (params inline = sources basses) : `0018`@`$00BE`,
-`0556`@`$1B1A`, `02F1`@`$28CC`, `05C8`@`$211A` (+ VERIFY). Répartition
-exacte `$3DAA`×4 / `$3DC4`×4 (snapshot ? écriture ?) à relire au
-runtime (idiome `L3D3F` ouvert).
+Voir `docs/savegame-memory-map.md` : workspace haut `$91D0`–`$9FF7`
+(`$0E28` o, 4 copies `L30F9` contiguës), offsets internes, blocs
+cassette SAVE, cycle de vie boot/SAVE/LOAD.
 
 ## Bloc 3 : illustrations vectorielles (`$7AC0`–`$91B1`, 5 874 o)
 
