@@ -43,6 +43,11 @@ JSR, JMP_ABS, JMP_IND, RTS, RTI, BRK = 0x20, 0x4C, 0x6C, 0x60, 0x40, 0x00
 
 # Routine d'affichage de The Hobbit : JSR $440D + pointeur inline (2 octets).
 PRINT_MSG = 0x440D
+# Wrappers d'affichage appelés aussi avec un pointeur inline : $5B24 (act_msg)
+# affiche $13E8 puis rebondit vers print_msg qui lit le mot inline de
+# l'appelant. Même convention de reprise (JSR+5).
+ACT_MSG = 0x5B24
+INLINE_MSGS = {PRINT_MSG, ACT_MSG}
 
 
 def ilen(op: int) -> int:

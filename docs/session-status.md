@@ -137,14 +137,32 @@
   message via `act_msg` (`$5B24`, `$13E8`). Branche ids `≥$80` (`L4BC9`) :
   table `[$5FAE` + mots hors-bloc4 `$0732…]` — usage non observé (code
   blocs 2/3 ? chemin mort ?). Convergence vérifiée : id VM `$29` et action
-  compteur `07` → même `$6DD0` (`L7143`/`L7169` contiguës, fenêtre valide
-  index 0-13, `$AC06…` jamais indexés).
+  compteur `07` → même `$6DD0` (`L7143`/`$7169` contiguës, fenêtre valide
+  index 0-13, `$AC06…` jamais indexés). Seconde table `$2B12` (5 o,
+  compteurs, actions via table de sauts `$7169`) : dormante au début
+  (compteurs à 0, aucun changement en MEM sur 6 ticks).
+- **30 actions documentées** (16 851 o de code bloc 4, checker PROPRE) :
+  corps lus au binaire + r2, nommés `act_p14_ii` (table `L7014`, verbes
+  joueur) et `act_v14_ii` (table `L7143`, PNJ). Effets vérifiés (guarde +
+  mutation + message). `L7014` : 00 `$60BF` consomme compteur ($C6)+5 + RAZ
+  16 o (msg $1525) ; 01 `$60ED` déplace objet ; 02 `$61C9`/03 `$6222`
+  bit5 de ($8A)+7 = 0/1 (03 id==1 → `$580F` fête, msg $171B « CHEERING
+  CROWD ») ; 04-05 `$5CA9`/`$5D06` prise/pose ; 06 `$65DD` dit $140C ;
+  08/12 `$65BA`/`$65B6` dispatch objet $16 ($04/$0F) ; 09 `$6B72` (garde
+  $C5==$41) ; 10 `$65F1` gate ; 11 `$66D6` programme l'événement `$2B18` ;
+  13 `$6041` flags objet ; 07/14 `$61E5`/`$5CB6` lecture flags. `L7143` :
+  00 `$692D` dit $1427 ; 01 `$68E0` 1 de 3 messages d'oisiveté ; 02 `$690C`
+  dit $1441 ; 03 `$6962` (même lieu) dit $14AB ; 04 `$6936` tirage 0-7
+  ($4D9E) ; 05 `$697A` (lieu $1DE0) ; 06 `$68D0` dit $143F ; 07 `$6CFA`
+  prend l'objet $1FC1 ; 08 `$6E59` tirage 0-100 msg $1582/$1596 ;
+  09 `$6C8D` (lieux 27/2C/29) ; 10 `$6CBE` dit $153F/$155D ; 11 `$6C33`
+  one-shot $CE ; 12 `$6C09` ; 13 `$6DF9` cherche via $3485 ; 14 `$6D78`
+  tirage msg $16B9/$16C8. Messages encodés (tokens <$20, $60-7F → bloc 2,
+  bit7=2 o) : décodage anglais complet = TODO (interpolation d'état).
 - Les 6 pointeurs `$440D` nuls (`TODO`) élucidés : **idiome général** —
   slot `.word` rempli juste avant `JSR print_msg` (constantes `$13DC/$13E0`,
   lookup `L5399`, table `L6359,x`, calculé, ou `STX/STY` de `L5279` pour
   `msg_52C6`). Aucun n'est un bug du découpage.
-  Seconde table `$2B12` (5 o, compteurs, actions via table de sauts `$7169`) :
-  dormante au début (compteurs à 0, aucun changement en MEM sur 6 ticks).
 - Sondes : shim dump MEM (`@@MEM 0000 0100` ZP + `@@MEM 2B00 0100` tables,
   `scripts/decode_mems.py` diff par trame) ; frappes d'écho = seuls
   `$0000/$0004` bougent ; chaque tick mute `$2B47/$2B4E/$2B55/$2B5C`
@@ -169,14 +187,14 @@
 
 ## Prochaine étape
 
-Dispatch verbes/tick dans le code (textes en bloc 2, handlers en bloc 4 ;
-table des verbes à localiser), inspection mémoire de l'état PNJ (workspace
-haut, copie `$28E6`+), puis nommer la zéro-page, bloc 2 et bloc 3.
+Décoder l'encodage des messages (tokens <$20 via table `$4641`, $60-7F via
+`$1117`, bit7=2 o) pour nommer les textes, repérer qui arme `$2B12`, puis
+nommer la zéro-page, bloc 2 et bloc 3.
 
 ## Points ouverts et limites harnais (non bloquants)
 
-1. 6 pointeurs `$440D` nuls (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A`) : adresses
-   résolues à l'exécution → `TODO` dans le listing.
+1. 7 pointeurs `$440D` nuls (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A $63BE`) :
+   slots `.word` remplis à l'exécution → `TODO` dans le listing.
 2. Pointeurs vers le bloc 2 (`$1370`, `$165A`, …) : zone message non analysée.
 3. `STA $6A5C` (auto-modification) : octet gardé en donnée, code dès `$6A5E`.
 4. Rôles de `vec_init`, `vec_06`, `vec_07` à confirmer.
@@ -191,7 +209,8 @@ haut, copie `$28E6`+), puis nommer la zéro-page, bloc 2 et bloc 3.
 
 ## Conventions établies
 
-- `JSR $440D` + mot inline = adresse du message ; reprise à JSR+5.
+- `JSR $440D` (`print_msg`) **et** `JSR $5B24` (`act_msg`, rebondit vers
+  `print_msg`) + mot inline = adresse du message ; reprise à JSR+5.
   Mécanique exacte (`print_msg`) : PLA de l'adresse de retour (+1) en
   `$6A/$6B`, lit le pointeur message en `($8A)` via `($6A)`+`$44BE`
   (`msgptr_inc` : `INC $6A`), rend le texte (`$4444`+), puis `JSR $4737`

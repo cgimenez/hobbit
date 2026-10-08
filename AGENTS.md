@@ -52,8 +52,13 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 
 ## 5. Conventions binaire connues (à respecter)
 
-- `JSR $440D` + mot inline = adresse du message ; reprise du code à JSR+5.
-  Queue : `JSR $4737` / `JMP ($6A)`, helper `$44BE` (`INC $6A`).
+- `JSR $440D` (`print_msg`) **et** `JSR $5B24` (`act_msg`) + mot inline =
+  adresse du message ; reprise du code à JSR+5 (cf. `INLINE_MSGS`). Queue :
+  `JSR $4737` / `JMP ($6A)`, helper `$44BE` (`INC $6A`).
+- Tables d'actions `L7014` (verbes joueur) / `L7143` (PNJ, VM `$4ED5`) :
+  15 entrées `word`, index par nibble d'opcode / compteur, dispatch indirect
+  (`L4C5D`). Corps en bloc 4, souvent orphelins du graphe d'appels →
+  recensés en `MANUAL_ENTRIES` (checker D = garde-fou).
 - Table de 16 vecteurs `JMP` en `$2C05`–`$2C34` (API interne) ; le bloc 4 n'use
   le hardware que via les vecteurs du bloc 1 (`$0405`–`$0417`, patchés selon
   ROM 1.0/1.1). **Zéro appel ROM direct dans le bloc 4** (vérifié, checker E).

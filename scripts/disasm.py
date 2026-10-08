@@ -7,9 +7,11 @@ en suivant ``JSR``/``JMP``/branchements, jusqu'à point fixe. Les seeds
 radare2 validés (décodage propre) et les entrées manuelles complètent la
 couverture (dispatch indirect).
 
-Règle spéciale : ``JSR $440D`` (routine d'affichage) est suivi de 2 octets
-inline (adresse du message) ; le code reprend à JSR+5. Les pointeurs nuls
-sont marqués ``TODO``.
+Règle spéciale : ``JSR $440D`` (print_msg) et ``JSR $5B24`` (act_msg,
+qui rebondit vers print_msg) sont suivis de 2 octets inline (adresse du
+message) ; le code reprend à JSR+5. Les pointeurs nuls sont marqués ``TODO``.
+Les actions indirectes (tables ``L7014``/``L7143``) et les routines
+avoisinantes sont des ``MANUAL_ENTRIES`` (validées par le checker, règle D).
 
 da65 (cc65) produit ensuite le listing à partir du fichier d'information
 (``disasm/hobbit.info``) et de ``data/hobbit.bin``.
@@ -28,7 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from opcodes6502 import BRANCH, JMP_ABS, JMP_IND, JSR, PRINT_MSG, RTI, RTS, BRK, ilen
+from opcodes6502 import BRANCH, JMP_ABS, JMP_IND, JSR, INLINE_MSGS, PRINT_MSG, RTI, RTS, BRK, ilen
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "data" / "hobbit.bin"
@@ -58,6 +60,16 @@ MANUAL_ENTRIES: list[int] = (
        0x6A02, 0x6EA7, 0x6D55, 0x6F2A, 0x4599, 0x4DAF]
     + [0x32E9, 0x3CCE, 0x3D39, 0x4569, 0x6A12, 0x6A24, 0x6A5E, 0x6A86,
        0x6F44, 0x6F7E, 0x70D2, 0x6DD0]
+    # Actions dispatchees par les tables L7014/L7143 (indirect -> hors
+    # descente). Cf. docs/block4-analysis.md.
+    + [0x65DD, 0x65BA, 0x65B6, 0x65F1, 0x66D6, 0x68D0, 0x68E0, 0x690C,
+       0x692D, 0x6936, 0x6962, 0x6B72, 0x6C09, 0x6C33, 0x6C8D, 0x6CBE,
+       0x6CFA]
+    # Suite contigue des handlers d'actions (orphelins confirmes code
+    # par le checker, regle D : decode >=85%).
+    + [0x65E3, 0x6607, 0x6629, 0x6666, 0x66AA, 0x6902, 0x6903, 0x6915,
+       0x6B00, 0x6B27, 0x6B55, 0x6BDB, 0x6C5F, 0x6C79, 0x6CDB, 0x6D3D,
+       0x6D9F]
 )
 
 # Seeds radare2 récusés : chevauchent des pointeurs $440D ou du connu.
@@ -93,6 +105,40 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x5386: ("act_probe", "sonde : $0C==1 execute, sinon $12=1 et annule un niveau"),
     0x56D7: ("rand_range", "tirage pseudo-aleatoire borne par A (bruit ($93))"),
     0x5B24: ("act_msg", "message d'action $13E8 + epilogue"),
+    # Actions dispatchees par la table L7014 (index 0-14), declenchees par
+    # les verbes joueur (L4B37). Effets deduits du flot + messages.
+    0x5CA9: ("act_p14_04", "objet $15 : test flags ($64D7/$5C88) puis prise/pose"),
+    0x5CB6: ("act_p14_14", "objet $C5 : test flags ($5C88) puis bascule $46E9"),
+    0x5D06: ("act_p14_05", "objet : seuil ($8A)+2, deplace et fixe $13/$15"),
+    0x6041: ("act_p14_13", "flags objet ($19) : bits 0-2, messages $11D3/$13D1"),
+    0x60BF: ("act_p14_00", "consomme compteur ($C6)+5, RAZ 16 o ; msg $1525"),
+    0x60ED: ("act_p14_01", "deplacement objet (bits $78), ecrit $75/$70/$5C/$5D"),
+    0x61C9: ("act_p14_02", "objet ($17) : bit5 de ($8A)+7 -> 0 ; sinon $5A9D"),
+    0x61E5: ("act_p14_07", "objet $16 : lit bit5 de ($88)+7, branche $5A90"),
+    0x6222: ("act_p14_03", "objet : bit5 de ($8A)+7 -> 1 ; si id==1 -> $580F (fete)"),
+    0x65B6: ("act_p14_12", "dispatcher objet $16 (cas $0F) -> $65DD/$641D/$6448"),
+    0x65BA: ("act_p14_08", "dispatcher objet $16 (cas $04) -> $65DD/$4C57"),
+    0x65DD: ("act_p14_06", "dit le message $140C (ou via $4C57 $139B)"),
+    0x65F1: ("act_p14_10", "si ($C6)+16==$0F -> $6222 sinon $5A62"),
+    0x66D6: ("act_p14_11", "message $1478 puis programme l'evenement $2B18"),
+    0x6B72: ("act_p14_09", "si $C5==$41 : parcourt ($C1), messages $13E0/$15AB"),
+    # Actions dispatchees par la table L7143 (index 0-14) : comportements
+    # autonomes des PNJ dans la VM $4ED5.
+    0x68D0: ("act_v14_06", "si meme lieu ($C9==$C8) : sonde + dit $143F"),
+    0x68E0: ("act_v14_01", "3 messages d'oisivete aleatoires ($1432/$143B/$143F)"),
+    0x690C: ("act_v14_02", "sonde + dit $1441"),
+    0x692D: ("act_v14_00", "sonde + dit $1427 (WHAT'S ... WEARING)"),
+    0x6936: ("act_v14_04", "tirage 0-7 : $4D9E + dec ($14), message $143B"),
+    0x6962: ("act_v14_03", "si meme lieu et !($1B21&$80) : sonde + dit $14AB (WHERE'S)"),
+    0x697A: ("act_v14_05", "si $C8==$1DE0 : sonde, $4D9E, ror ($14)"),
+    0x6C09: ("act_v14_12", "si $1E4B==$C8 et ($1B21&$80) : message patche ($6C2C)"),
+    0x6C33: ("act_v14_11", "one-shot ($CE==1) : RAZ $CE, $3F7F, copie $14/$15 en $2A7B"),
+    0x6C8D: ("act_v14_09", "si $C8 in {27,2C,29} : sonde + dit $13F6"),
+    0x6CBE: ("act_v14_10", "si meme lieu : dit $153F, ou $155D selon ($1B21&$80)"),
+    0x6CFA: ("act_v14_07", "si meme lieu : prend l'objet $1FC1 (id $1FB2=41)"),
+    0x6D78: ("act_v14_14", "si $C8==$1E4B : tirage 0-7, dit $16B9/$16C8"),
+    0x6DF9: ("act_v14_13", "recherche lieu via $3485, RAZ $D5, message $15B6"),
+    0x6E59: ("act_v14_08", "si $1F47!=$29 : tirage 0-100 (<$50 -> dit $1582/$1596)"),
     0x4737: ("fetch_retaddr", "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"),
     0x71DB: ("tape_load", "LOAD bloc cassette via $0417 + verif $32/$33"),
     0x7215: ("tape_save", "SAVE : leader, en-tete 9 o, donnees, checksum EOR"),
@@ -200,7 +246,7 @@ def try_decode(raw: bytes, lo: int, hi: int, addr: int,
         if pc in covered:
             return False
         op = B(pc)
-        if op == JSR and pc + 2 <= hi and word(pc + 1) == PRINT_MSG:
+        if op == JSR and pc + 2 <= hi and word(pc + 1) in INLINE_MSGS:
             pc += 5
             n += 5
             continue
@@ -293,7 +339,7 @@ def descend(raw: bytes, lo: int, hi: int, entries: list[int]):
             ln = ilen(op)
             if ln == 0:
                 break
-            if op == JSR and pc + 2 <= hi and word(pc + 1) == PRINT_MSG:
+            if op == JSR and pc + 2 <= hi and word(pc + 1) in INLINE_MSGS:
                 for b in range(pc, pc + 3):
                     code_bytes.add(b)
                 ptrs[pc + 3] = word(pc + 3)
@@ -455,7 +501,8 @@ def main() -> int:
     INFO.write_text(build_info(raw, code_bytes, ptrs, lo, hi))
 
     print(f"bloc4 ${lo:04X}-${hi:04X} : {len(code_bytes)} octets code, "
-          f"{len(ptrs)} pointeurs $440D, {len(set(conflicts))} conflits")
+          f"{len(ptrs)} pointeurs inline ($440D/$5B24), "
+          f"{len(set(conflicts))} conflits")
     if conflicts:
         print("  conflits :",
               ", ".join(f"${a:04X}" for a in sorted(set(conflicts))[:12]))

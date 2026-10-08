@@ -28,7 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from disasm import ROUTINE_DOCS
-from opcodes6502 import BRANCH, JMP_ABS, JMP_IND, JSR, PRINT_MSG, ilen
+from opcodes6502 import BRANCH, INLINE_MSGS, JMP_ABS, JMP_IND, JSR, PRINT_MSG, ilen
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "data" / "hobbit.bin"
@@ -92,8 +92,10 @@ def main() -> int:
         while pc <= e:
             starts.add(pc)
             op = B(pc)
-            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) == PRINT_MSG:
-                print_sites.append((pc, B(pc + 3) | (B(pc + 4) << 8)))
+            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) in INLINE_MSGS:
+                t = B(pc + 1) | (B(pc + 2) << 8)
+                if t == PRINT_MSG and pc + 4 <= e:
+                    print_sites.append((pc, B(pc + 3) | (B(pc + 4) << 8)))
                 pc += 5
                 continue
             ln = ilen(op)
@@ -124,7 +126,7 @@ def main() -> int:
         pc = s
         while pc <= e:
             op = B(pc)
-            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) == PRINT_MSG:
+            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) in INLINE_MSGS:
                 pc += 5
                 continue
             if op in BRANCH and pc + 1 <= hi + 2:
@@ -169,7 +171,7 @@ def main() -> int:
         pc, ok, total = s, 0, e - s + 1
         while pc <= e:
             op = B(pc)
-            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) == PRINT_MSG:
+            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) in INLINE_MSGS:
                 ok += 5
                 pc += 5
                 continue
