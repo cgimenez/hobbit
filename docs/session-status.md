@@ -51,7 +51,15 @@
   ROM, grille 8 px, bit5-gauche ; n'affiche que les lignes non vides).
 - Recette input : `printf '\rLOOK\r' | sim65 -x 150000000 /tmp/hobbit.sim
   > frames.bin` (CR=`$0D` ; `\r` initial = touche du tourne-page d'intro),
-  puis `decode_frames.py frames.bin`.
+  puis `decode_frames.py frames.bin` (OCR hires → texte).
+- **Mode rapide** (`pack_sim.py --fast` → `/tmp/hobbit_fast.sim`,
+  patch `$2C4A` `01`→`00` : `$56=0`, `img_show` no-op) : texte seul,
+  500 ticks + dumps complets en **3,4 s** mur ; lecture par OCR hires
+  (les dumps `@@FRAME text` bruts sont des pixels en mode hires).
+  Touche sacrifiée `\r` tous les 8 `WAIT` (pause toutes les 16 CR).
+- `$56` : **toujours 1 au boot** (`LDX #$FF` / `BNE L2C49`, `L2C3D`
+  morte depuis `start`, ne vit que via QUIT ; aucun autre écrivain) —
+  l'idée « répondre N au boot » était fausse.
 - Validé : boot → intro 2 pages (`You are in a comfortable tunnel like
   hall` … `to the east there is the round green door` … `Gandalf gives
   the curious map to you.`) → prompt `> LOOK.` ; `LOOK` rejoué (écho

@@ -7,10 +7,12 @@
 
 Artefacts dans /tmp (regenerables). Sortie 0 si OK.
 
-Usage : .venv/bin/python scripts/pack_sim.py [--hires]
-         --hires : active aussi le dump de l'ecran hires ($A000-$BFFF).
+Usage : .venv/bin/python scripts/pack_sim.py [--hires] [--fast]
+          --hires : active aussi le dump de l'ecran hires ($A000-$BFFF).
+          --fast : force $56=0 au boot (pas d'illustrations vectorielles ;
+            img_show devient no-op -> avance rapide texte seul).
+            Sortie /tmp/hobbit_fast.sim (le .sim stock est inchange).
 """
-
 from __future__ import annotations
 
 import struct
@@ -36,10 +38,16 @@ FONT_LO, FONT_HI = 0xFC70, 0xFFC0
 OBJ = Path("/tmp/hobbit_shim.o")
 SHIM_BIN = Path("/tmp/hobbit_shim.bin")
 OUT = Path("/tmp/hobbit.sim")
+FAST_OUT = Path("/tmp/hobbit_fast.sim")
+# start: LDX #$FF / TXS / BNE L2C49 ($56=1 force) ; L2C49 = LDA #$01.
+# Forcer $56=0 (pas d'images) = patcher l'immediat $2C4A ($01 -> $00).
+NOIMG_ADDR, NOIMG_WANT = 0x2C4A, 0x01
 
 
 def main() -> int:
     hires = "--hires" in sys.argv
+    fast = "--fast" in sys.argv
+    out = FAST_OUT if fast else OUT
     for tool in (CA65, LD65):
         if not Path(tool).is_file():
             print(f"{tool} manquant : toolchain attendue dans tools/cc65/bin (cf. AGENTS.md)")
@@ -58,6 +66,13 @@ def main() -> int:
     print(f"patch ${KB_SCAN:04X} : "
           f"{' '.join(f'{b:02X}' for b in img[kb_off:kb_off + 3])} -> {' '.join(f'{b:02X}' for b in jmp)}")
     img[kb_off:kb_off + 3] = jmp
+    if fast:
+        off = NOIMG_ADDR - BASE
+        if img[off] != NOIMG_WANT:
+            print(f"refus patch --fast : ${NOIMG_ADDR:04X} = {img[off]:02X} (attendu {NOIMG_WANT:02X})")
+            return 1
+        img[off] = 0x00
+        print(f"patch --fast ${NOIMG_ADDR:04X} : 01 -> 00 ($56=0, sans images)")
     # Colle le shim (zero-fill jusqu'a SHIM_ADDR).
     if len(img) < SHIM_ADDR - BASE:
         img += bytes(SHIM_ADDR - BASE - len(img))
@@ -82,11 +97,12 @@ def main() -> int:
           f"({FONT_HI - FONT_LO} o)")
 
     hdr = b"sim65" + bytes((2, 0, 0x02)) + struct.pack("<HH", 0x0400, 0x2C00)
-    OUT.write_bytes(hdr + bytes(img))
+    out.write_bytes(hdr + bytes(img))
     end = 0x0400 + len(img) - 1
-    print(f"pack : /tmp/hobbit.sim, image $0400-${end:04X} "
+    print(f"pack : {out}, image $0400-${end:04X} "
           f"({len(img)} o), reset $2C00, shim {len(shim)} o @ ${SHIM_ADDR:04X}"
-          + (", hires ON" if hires else ""))
+          + (", hires ON" if hires else "")
+          + (", $56=0 (fast)" if fast else ""))
     return 0
 
 
