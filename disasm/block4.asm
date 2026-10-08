@@ -6,10 +6,7 @@
 ; message) ; reprise du code à JSR+5.
 ; ============================================================
 
-; da65 V2.19 - N/A
-; Created:    2026-10-08 13:19:02
-; Input file: /tmp/hobbit_block4.bin
-; Page:       1
+; da65 V2.19 - Git 71746c829
 
 
         .setcpu "6502"

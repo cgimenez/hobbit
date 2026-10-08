@@ -14,7 +14,8 @@ sont marqués ``TODO``.
 da65 (cc65) produit ensuite le listing à partir du fichier d'information
 (``disasm/hobbit.info``) et de ``data/hobbit.bin``.
 
-Prérequis : da65 (paquet ``cc65``). Vérification : scripts/check_disasm.py.
+Prérequis : ``tools/cc65/bin/da65`` (cf. AGENTS.md).
+Vérification : scripts/check_disasm.py.
 
 Usage : .venv/bin/python scripts/disasm.py
 """
@@ -35,6 +36,10 @@ DISASM = ROOT / "disasm"
 INFO = DISASM / "hobbit.info"
 LISTING = DISASM / "block4.asm"
 R2CACHE = DISASM / ".r2_afl.txt"
+TOOLS = ROOT / "tools" / "cc65" / "bin"
+DA65 = TOOLS / "da65"
+CA65 = TOOLS / "ca65"
+LD65 = TOOLS / "ld65"
 
 BASE = 0x0400
 BLOCK1 = (0x0400, 0x0500)
@@ -395,12 +400,22 @@ def main() -> int:
     print(f"  pointeurs nuls : {len(nulls)}",
           ", ".join(f"${p:04X}" for p in sorted(nulls)))
 
+    if not DA65.is_file():
+        print(f"{DA65} manquant : toolchain attendue dans tools/cc65/bin (cf. AGENTS.md)")
+        return 1
     slice_path = Path("/tmp/hobbit_block4.bin")
     slice_path.write_bytes(raw[lo - BASE:hi - BASE + 1])
     subprocess.run(
-        ["da65", "-i", str(INFO), "-S", f"0x{lo:x}", "-o", str(LISTING), str(slice_path)],
+        [str(DA65), "-i", str(INFO), "-S", f"0x{lo:x}", "-o", str(LISTING), str(slice_path)],
         check=True,
     )
+    # En-tête da65 volatil (date d'extraction) : on le neutralise pour un
+    # listing déterministe (seule la ligne de version est conservée).
+    asm = LISTING.read_text().splitlines(keepends=True)
+    asm = [ln for ln in asm
+           if not ln.startswith("; Created:")
+           and not ln.startswith("; Input file:")
+           and not ln.startswith("; Page:")]
     header = (
         "; ============================================================\n"
         "; The Hobbit (Oric, 1982) - bloc 4 ($2C00-$7A80)\n"
@@ -410,7 +425,7 @@ def main() -> int:
         "; message) ; reprise du code à JSR+5.\n"
         "; ============================================================\n\n"
     )
-    LISTING.write_text(header + LISTING.read_text())
+    LISTING.write_text(header + "".join(asm))
     print(f"Listing écrit : {LISTING}")
     return 0
 

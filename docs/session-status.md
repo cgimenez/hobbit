@@ -15,12 +15,15 @@
 
 ## Prochaine étape
 
-```
-.venv/bin/python scripts/disasm.py && .venv/bin/python scripts/check_disasm.py
-```
+Round-trip ca65 **prouvé** : `scripts/rebuild.py` (ca65+ld65 via
+`build/block4.cfg`, toolchain `tools/cc65/bin` exclusive) → 20 097 octets
+byte-identiques `$2C00-$7A80`, exit 0. Listing déterministe (en-tête da65
+volatil neutralisé).
 
-puis : nommer les variables zéro-page, explorer bloc 2 (messages `$1370`,
-`$165A`, … pointés depuis le bloc 4) et bloc 3.
+Ensuite : harnais sim65 (packer format `sim65` + shims paravirt
+`JSR $FFF1-$FFF9` : `putchar`→`PVWrite`, `keyin`→`PVRead`, cassette→stubs,
+`PVExit`), puis nommer la zéro-page, explorer bloc 2 (messages `$1370`,
+`$165A`, …) et bloc 3.
 
 ## Points ouverts (non bloquants)
 
