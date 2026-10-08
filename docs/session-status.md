@@ -215,10 +215,10 @@
 
 ## Prochaine étape
 
-Moteur de messages, armement `$2B12`, zéro-page, bloc 3 et système de
-messages du bloc 2 décodés (`docs/block4-analysis.md`). Reste : données
-monde du bloc 2 (records lieux `$21xx`, exits `$26DA`, table `$28E6`,
-scripts `$29xx`, scheduler `$2Bxx`).
+Moteur de messages, armement `$2B12`, zéro-page, bloc 3, système de
+messages du bloc 2 et records de lieux décodés (`docs/block4-analysis.md`,
+sauf section records restant à consigner). Reste : encodage `+0..7` des
+records, table `$28E6`, scripts `$29xx`, table `$2732+`, layouts non-lieux.
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 
@@ -232,6 +232,25 @@ scripts `$29xx`, scheduler `$2Bxx`).
   templates LOOK, dragon `PREPARE TO DIE` ×2, Gollum, victoire, score/hints,
   **29 lieux** dont `$18AA` tunnel initial). Décodeurs en `/tmp`
   (`dict.py`, `msgdec.py`, `msgsweep.py`, `bankparse.py`, non promus).
+
+## Bloc 2 : records de lieux cartographiés (statique, non committé)
+
+- Table `$2070` : 80 ids → records (`L530B` : `record = *($2070+id*2)` ;
+  id ≥`$50` → 0, id `$2F` nul). Mêmes records lieux + objets + créatures.
+- **29 records de lieux** (ids `$01 $04 $06 $07 $0A-$0C $0E $10 $11 $13 $14`
+  `$18-$1C... $32`) : champ `+8` = pointeur desc (uniforme, consommateur
+  `code_4DF6` du LOOK) ; flags `+1` bit6 (`L363E`), `+7` & `$48` (`L53C3`) ;
+  slots mutables (`$2154 := $1645` trolls, bit6 `$214C` clear). `$13`/`$14`
+  partagent `$1931`, `$1A07` en 2e desc (`+$0B`) pour 4 lieux.
+- Exits `$26DA` : 10 directions + noms décodés (NORTH…DOWN),
+  `exit_ptr = $26DA+$13*8`, boucle `L37DE` + matcher `code_433A` (émulé :
+  `wid := $6C`) rattachée au choix PNJ (`L35AE`), pas au LOOK. Cond :
+  table clés `$1A62` → blocs `$1Bxx`, table 3 o `$1A5F`, flot
+  `move_core`/`cond_eval` cartographié ; table `$2732+` à queues `$40`.
+- **Ouvert** : encodage exact `+0..7` (mots `$F2` vs entrées : aucun match
+  E/N/NE par émulation fidèle → `ptr2` du listage ≠ record lieu direct).
+  Outillage en `/tmp` (`roomrec.py`, `dump.py`). Rien à committer pour
+  ce chantier (aucun fichier repo touché).
 
 ## Bloc 3 : illustrations vectorielles élucidées (sous sim65)
 
@@ -255,7 +274,9 @@ scripts `$29xx`, scheduler `$2Bxx`).
 
 1. 7 pointeurs `$440D` nuls (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A $63BE`) :
    slots `.word` remplis à l'exécution → `TODO` dans le listing.
-2. Pointeurs vers le bloc 2 (`$1370`, `$165A`, …) : zone message non analysée.
+2. Bloc 2 messages résolu (171 msgs, catalogue `/tmp/catalog.txt`) ; reste
+   l'encodage `+0..7` des records lieux (piste : harnais ciblé ou scripts
+   `$29xx`, opcodes VM connus).
 3. `STA $6A5C` (auto-modification) : octet gardé en donnée, code dès `$6A5E`.
 4. Rôles de `vec_06`, `vec_07` à confirmer (`vec_init` établi : entrée
    du renderer d'illustrations → `vec_image` `$77D4`).
