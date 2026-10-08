@@ -44,13 +44,13 @@ vec_init:
 
 vec_01: jmp     code_71A8
 
-vec_02: jmp     L71DB
+vec_02: jmp     tape_load
 
-vec_03: jmp     L7215
+vec_03: jmp     tape_save
 
 vec_04: jmp     L71CB
 
-vec_05: jmp     code_72A0
+vec_05: jmp     tape_prompt
 
 vec_06: jmp     L7293
 
@@ -62,18 +62,19 @@ vec_09: jmp     L7204
 
 vec_10: jmp     L7201
 
-vec_11: jmp     L7353
+vec_11: jmp     kb_scan
 
-keyin:  jmp     code_7481
+keyin:  jmp     kb_wait
 
 print_cr:
-        jmp     L7489
+        jmp     cr_out
 
-putchar:jmp     L7491
+putchar:jmp     ch_out
 
-main:   jmp     L7779
+main:   jmp     game_main
 
-start:  jsr     code_3097
+; init : copies boot, pile, RAZ vars, prompt '> LOOK.', boucle d'input
+start:  jsr     boot_copy
         ldx     #$FF
         txs
         bne     L2C49
@@ -87,8 +88,8 @@ L2C49:  lda     #$01
 L2C4B:  sta     $56
         lda     #$FF
         sta     $65
-        jsr     L30BB
-        jsr     L2DC8
+        jsr     boot_copyback
+        jsr     init_vars
         ldx     #$C8
         lda     #$00
 L2C5B:  sta     L47E2,x
@@ -212,7 +213,7 @@ L2D45:  cmp     #$02
         beq     L2D42
         lda     #$01
         sta     $0D
-        jsr     L440D
+        jsr     print_msg
 ; -> $1177 .. ?..c..........qtj..`.c '.
 msg_2D50:
         .word   $1177
@@ -250,7 +251,7 @@ L2D7F:  lda     $F2
         lda     #$00
         sta     $0D
         sta     $7E
-        jsr     L440D
+        jsr     print_msg
 ; -> $117C .c..........qtj..`.c '... '.
 msg_2D92:
         .word   $117C
@@ -263,7 +264,7 @@ L2D97:  jsr     L3A0B
 
 L2D9F:  lda     #$01
         sta     $0D
-        jsr     L440D
+        jsr     print_msg
 ; -> $116B qtj..`.. ' ... ?..c.........
 msg_2DA6:
         .word   $116B
@@ -283,7 +284,9 @@ L2DBD:  lda     #$22
         jsr     print_cr
         jmp     L2C99
 
-L2DC8:  lda     #$00
+; RAZ variables ($97.., $AF, $CC/$CD) puis JMP main $7779
+init_vars:
+        lda     #$00
         ldx     #$05
 L2DCC:  sta     $97,x
         dex
@@ -691,7 +694,8 @@ L3078:  lda     ($8A),y
 L308F:  .byte   "> "
 L3091:  .byte   "LOOK."
         .byte   $0D
-code_3097:
+; copie $1B1A->$91D0 (1366 o) ; $6C = compteur
+boot_copy:
         lda     #$04
         sta     $6C
         ldx     #$00
@@ -711,7 +715,9 @@ L30AB:  ldy     #$00
         bne     L309D
         rts
 
-L30BB:  lda     #$04
+; recopie inverse ($8C)->($8A), meme gabarit
+boot_copyback:
+        lda     #$04
         sta     $6C
         ldx     #$00
 L30C1:  ldy     #$00
@@ -2367,22 +2373,22 @@ L3C95:  jsr     L46E9
         sta     msg_3CB7+1
         lda     #$01
         sta     $0D
-        jsr     L440D
+        jsr     print_msg
 ; TODO pointeur $0000
 msg_3CB7:
         .word   $0000
 code_3CB9:
-        jsr     L4737
+        jsr     fetch_retaddr
         jmp     L3C07
 
 L3CBF:  lda     #$01
         sta     $0D
-        jsr     L440D
+        jsr     print_msg
 ; -> $179D  YOU'RE.. FINE.a.} NEEDSa...
 msg_3CC6:
         .word   $179D
 code_3CC8:
-        jsr     L4737
+        jsr     fetch_retaddr
         jmp     L3C07
 
         jsr     L3CD4
@@ -2391,7 +2397,7 @@ code_3CC8:
 L3CD4:  jsr     L46E9
         lda     #$00
         sta     $0D
-        jsr     L440D
+        jsr     print_msg
 ; -> $178A c.. MASTERED .%fp.W YOU'RE..
 msg_3CDE:
         .word   $178A
@@ -2415,12 +2421,12 @@ L3CF2:  lda     #$0A
         jsr     putchar
         lda     #$00
         sta     $0E
-        jsr     L440D
+        jsr     print_msg
 ; -> $1798 %fp.W YOU'RE.. FINE.a.} NEED
 msg_3D0E:
         .word   $1798
 code_3D10:
-        jmp     L4737
+        jmp     fetch_retaddr
 
 L3D13:  .byte   $D5
 code_3D14:
@@ -2779,7 +2785,7 @@ L3FD4:  lda     $7E
         jmp     L3F8E
 
 L3FE5:  jsr     L4702
-        jsr     L4737
+        jsr     fetch_retaddr
 L3FEB:  jsr     L356E
         ldy     #$01
         lda     ($88),y
@@ -3312,9 +3318,11 @@ L4402:  lda     $5E
         beq     L440A
         lda     #$00
         sta     $0C
-L440A:  jmp     L440D
+L440A:  jmp     print_msg
 
-L440D:  jsr     L46E9
+; affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)
+print_msg:
+        jsr     L46E9
         pla
         clc
         adc     #$01
@@ -3330,10 +3338,10 @@ L440D:  jsr     L46E9
         sty     $76
         lda     (L006A),y
         sta     $8A
-        jsr     L44BE
+        jsr     msgptr_inc
         lda     (L006A),y
         sta     $8B
-        jsr     L44BE
+        jsr     msgptr_inc
         lda     $0C
         bne     L4437
         sta     $12
@@ -3342,7 +3350,7 @@ L4437:  jsr     L4444
         tax
         pla
         tay
-        jsr     L4737
+        jsr     fetch_retaddr
         jmp     (L006A)
 
 L4444:  ldy     #$00
@@ -3412,7 +3420,9 @@ L44AE:  jsr     L4241
         beq     L44A3
 L44BD:  rts
 
-L44BE:  inc     L006A
+; INC $6A (+ $6B si retenue) ; avance le pointeur message
+msgptr_inc:
+        inc     L006A
         bne     L44C4
         inc     $6B
 L44C4:  rts
@@ -3428,7 +3438,7 @@ L44C7:  sta     $70
         ora     $5C
         beq     L44DE
         jsr     L460A
-L44DE:  jsr     L4737
+L44DE:  jsr     fetch_retaddr
         lda     #$00
         rts
 
@@ -3532,7 +3542,7 @@ L4581:  jsr     L46E9
 L458A:  jsr     L46E9
         jsr     L43F3
 L4590:  jsr     L460A
-        jsr     L4737
+        jsr     fetch_retaddr
         lda     #$00
         rts
 
@@ -3544,7 +3554,7 @@ L4590:  jsr     L460A
         jsr     L4444
         pla
         sta     $6F
-        jsr     L4737
+        jsr     fetch_retaddr
         lda     #$00
         rts
 
@@ -3737,7 +3747,7 @@ L4702:  sta     $AD
         lda     $AD
         rts
 
-L471B:  jsr     L4737
+L471B:  jsr     fetch_retaddr
 L471E:  sta     $AD
         stx     $AE
         ldx     $AF
@@ -3752,7 +3762,9 @@ L471E:  sta     $AD
         lda     $AD
         rts
 
-L4737:  sta     $AD
+; copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B
+fetch_retaddr:
+        sta     $AD
         stx     $AE
         ldx     $AF
         dex
@@ -3790,7 +3802,7 @@ L475F:  pla
         tay
         jsr     vec_init
         jsr     keyin
-L477E:  jsr     L4737
+L477E:  jsr     fetch_retaddr
 L4781:  pla
 L4782:  rts
 
@@ -4071,7 +4083,7 @@ code_4B07:
         bcs     L4B32
         ldx     #$00
 L4B32:  stx     $12
-        jmp     L4737
+        jmp     fetch_retaddr
 
 L4B37:  jsr     L46E9
         jsr     code_52CA
@@ -4087,7 +4099,7 @@ L4B42:  jsr     L4C82
         lda     $16
         jsr     L534B
         bcs     L4B5F
-L4B57:  jsr     L440D
+L4B57:  jsr     print_msg
 ; -> $13A0 ql.`u.`......}... ...*......
 msg_4B5A:
         .word   $13A0
@@ -4167,7 +4179,7 @@ L4BE9:  lda     $0C
         bne     code_4BFF
         jsr     L4C82
         bcc     code_4BFF
-        jsr     L440D
+        jsr     print_msg
 ; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
 msg_4BFD:
         .word   $11F6
@@ -4186,7 +4198,7 @@ code_4BFF:
         sta     $8B
         lda     $16
         jsr     L4C6D
-L4C1D:  jmp     L4737
+L4C1D:  jmp     fetch_retaddr
 
 L4C20:  lda     $13
         ldx     #$AC
@@ -4215,7 +4227,7 @@ L4C48:  ldy     #$00
 L4C51:  jsr     L4C57
         jmp     L4C1D
 
-L4C57:  jsr     L440D
+L4C57:  jsr     print_msg
 ; -> $139B qot.qql.`u.`......}... ...*.
 msg_4C5A:
         .word   $139B
@@ -4307,7 +4319,7 @@ L4CE4:  sta     L4D44
         beq     L4CF8
 L4CF0:  lda     #$00
 L4CF2:  php
-        jsr     L4737
+        jsr     fetch_retaddr
         plp
         rts
 
@@ -4340,7 +4352,7 @@ L4CF8:  lda     L4D44
         iny
         lda     ($8A),y
         sta     L4670
-        jsr     L440D
+        jsr     print_msg
 ; -> $13C4 .er..qo.#.xu.....l.`..u..''.
 msg_4D3D:
         .word   $13C4
@@ -4406,7 +4418,7 @@ L4D9E:  pla
         pha
         txa
         pha
-        jmp     L440D
+        jmp     print_msg
 
         lda     #$2E
         jsr     putchar
@@ -4444,7 +4456,7 @@ L4DE9:  sta     L4DF5
 L4DF5:  .byte   $22
 code_4DF6:
         jsr     L530B
-        jsr     L440D
+        jsr     print_msg
 ; TODO pointeur $0000
 msg_4DFC:
         .word   $0000
@@ -4469,7 +4481,7 @@ L4E20:  beq     L4E33
         dey
         lda     ($8A),y
         sta     msg_4E30
-        jsr     L440D
+        jsr     print_msg
 ; TODO pointeur $0000
 msg_4E30:
         .word   $0000
@@ -4606,7 +4618,7 @@ L4EF7:  sta     $C5
         cmp     #$01
         bne     L4F43
         inc     L4ED4
-        jsr     L440D
+        jsr     print_msg
 ; -> $1406 c..a.:...j..p.A`..}...`..}..
 msg_4F3D:
         .word   $1406
@@ -4915,7 +4927,7 @@ L5163:  lda     $C5
         jsr     L417C
         jmp     L518A
 
-L5182:  jsr     L440D
+L5182:  jsr     print_msg
 ; -> $1406 c..a.:...j..p.A`..}...`..}..
 msg_5185:
         .word   $1406
@@ -4948,7 +4960,7 @@ L51A0:  jsr     L4B37
         ldy     #$13
         jsr     L5279
 L51C5:  lda     #$01
-L51C7:  jmp     L4737
+L51C7:  jmp     fetch_retaddr
 
 L51CA:  ldy     #$01
         lda     ($8A),y
@@ -4988,7 +5000,7 @@ L51E3:  jsr     L46E9
         dey
         txa
         sta     ($88),y
-        jmp     L4737
+        jmp     fetch_retaddr
 
 L520D:  sta     L5234
         lda     #$45
@@ -5083,7 +5095,7 @@ L529B           := * + 1
         lda     #$00
         adc     $8B
         sta     L4670
-        jsr     L440D
+        jsr     print_msg
 ; TODO pointeur $0000
 msg_52C6:
         .word   $0000
@@ -5194,7 +5206,7 @@ L534D:  stx     L536C
 
 L5356:  jsr     L46E9
         jsr     L535F
-        jmp     L4737
+        jmp     fetch_retaddr
 
 L535F:  jsr     L5331
         tax
@@ -5334,7 +5346,7 @@ code_5439:
         lda     $C7
         sta     $8B
         jsr     code_5454
-        jsr     L4737
+        jsr     fetch_retaddr
         lda     L5451
         rts
 
@@ -5353,7 +5365,7 @@ code_5454:
         jsr     L4702
         jsr     L54C8
         sta     L5452
-        jsr     L4737
+        jsr     fetch_retaddr
         lda     L5452
         cmp     L5451
         beq     L549D
@@ -5377,7 +5389,7 @@ L5498:  lda     #$00
 
 L549D:  lda     #$01
 L549F:  sta     L5451
-        jsr     L4737
+        jsr     fetch_retaddr
         lda     L5451
         rts
 
@@ -5408,7 +5420,7 @@ L54CB:  ldy     #$01
         lda     ($8A),y
         and     #$28
         bne     L54CB
-L54E1:  jsr     L4737
+L54E1:  jsr     fetch_retaddr
         lda     L54E8
         rts
 
@@ -5436,7 +5448,7 @@ L54F8:  jsr     L540F
         lda     $8B
         adc     #$00
         sta     $7D
-        jsr     L4737
+        jsr     fetch_retaddr
         jsr     code_433A
         bne     L54F8
         ldy     #$02
@@ -5560,7 +5572,7 @@ L55E3           := * + 1
         sta     L560F
 L5604:  jmp     L55D4
 
-L5607:  jmp     L4737
+L5607:  jmp     fetch_retaddr
 
 L560A:  ldx     #$FF
         jmp     L5607
@@ -5732,7 +5744,7 @@ L572B:  jsr     L542C
         and     #$7F
         sta     ($88),y
         jsr     L5521
-        jsr     L440D
+        jsr     print_msg
 ; -> $1522 .....Z.... KILLED....'....`.
 msg_575B:
         .word   $1522
@@ -5823,7 +5835,7 @@ L57FB:  .byte   $C0
 L57FC:  .byte   $20
 code_57FD:
         pha
-        jsr     L440D
+        jsr     print_msg
 ; -> $13E3 .l :.... '. '...e....n......
 msg_5801:
         .word   $13E3
@@ -5846,7 +5858,7 @@ L580F:  stx     L5832
         jsr     code_5836
         lda     L5834
         bne     code_582F
-        jsr     L440D
+        jsr     print_msg
 ; -> $171B      .`...a CHEERING CROWDf 
 msg_582D:
         .word   $171B
@@ -5940,7 +5952,7 @@ L58D6:  pla
 L58DA:  jsr     print_cr
         jmp     L58D6
 
-L58E0:  jsr     L4737
+L58E0:  jsr     fetch_retaddr
         pla
         sta     $10
         rts
@@ -5964,7 +5976,7 @@ L58E7:  sta     L5958
         beq     L591C
         lda     L5958
         sta     L466F
-        jsr     L440D
+        jsr     print_msg
 ; -> $11D0 .r.bk...7...em..d...rm.....r
 msg_5917:
         .word   $11D0
@@ -5989,14 +6001,14 @@ L591C:  ldy     #$08
         lda     #$00
         sta     L4672
 L5942:  jsr     L5B9B
-        jsr     L440D
+        jsr     print_msg
 ; -> $13BF ......er..qo.#.xu.....l.`..u
 msg_5948:
         .word   $13BF
 code_594A:
         clc
 L594B:  php
-        jsr     L4737
+        jsr     fetch_retaddr
         plp
         rts
 
@@ -6054,7 +6066,7 @@ L59B5:  lda     $5C
         pha
         lda     $5D
         pha
-        jsr     L440D
+        jsr     print_msg
 ; -> $11EE d`..em.kke...em.(.8.d.n..em.
 msg_59BE:
         .word   $11EE
@@ -6064,7 +6076,7 @@ code_59C0:
         pla
         sta     $5C
 L59C6:  jsr     L4241
-        jsr     L440D
+        jsr     print_msg
 ; -> $13F1 ..e....n......{..| :.c..a.:.
 msg_59CC:
         .word   $13F1
@@ -6113,7 +6125,7 @@ code_5A0D:
         inc     $8B
 L5A24:  jsr     L5A43
         beq     L5A40
-        jsr     L440D
+        jsr     print_msg
 ; -> $13FE .{..| :.c..a.:...j..p.A`..}.
 msg_5A2C:
         .word   $13FE
@@ -6205,7 +6217,7 @@ L5AB3:  tax
         inx
         lda     L5AD0,x
         sta     L4672
-        jsr     L440D
+        jsr     print_msg
 ; -> $1397 .e..qot.qql.`u.`......}... .
 msg_5AC4:
         .word   $1397
@@ -6244,7 +6256,7 @@ L5B0F:  tya
         dey
         txa
         sta     ($8A),y
-        jmp     L4737
+        jmp     fetch_retaddr
 
 L5B1B:  ldy     #$07
         lda     ($8A),y
@@ -6252,7 +6264,7 @@ L5B1B:  ldy     #$07
         cmp     #$40
         rts
 
-L5B24:  jsr     L440D
+L5B24:  jsr     print_msg
 ; -> $13E8 ... '. '...e....n......{..| 
 msg_5B27:
         .word   $13E8
@@ -6271,9 +6283,9 @@ code_5B29:
         pha
         txa
         pha
-        jmp     L440D
+        jmp     print_msg
 
-        jsr     L440D
+        jsr     print_msg
 ; -> $13EE  '...e....n......{..| :.c..a
 msg_5B41:
         .word   $13EE
@@ -6293,7 +6305,7 @@ code_5B43:
         sta     $13DD
         lda     #$00
         sta     $13DE
-        jsr     L440D
+        jsr     print_msg
 ; -> $13DC .''..l..l :.... '. '...e....
 msg_5B64:
         .word   $13DC
@@ -6313,7 +6325,7 @@ code_5B66:
         lda     #$2E
         jsr     putchar
         jsr     print_cr
-        jsr     L440D
+        jsr     print_msg
 ; -> $13E3 .l :.... '. '...e....n......
 msg_5B89:
         .word   $13E3
@@ -6341,7 +6353,7 @@ L5BA7:  rol     a
         lda     #$00
         adc     #$13
         sta     msg_5BB8+1
-        jsr     L440D
+        jsr     print_msg
 ; TODO pointeur $0000
 msg_5BB8:
         .word   $0000
@@ -6354,7 +6366,7 @@ L5BBB:  jsr     L5349
 
 L5BC1:  pla
         pla
-        jsr     L440D
+        jsr     print_msg
 ; -> $11C8 .jrk..r..r.bk...7...em..d...
 msg_5BC6:
         .word   $11C8
@@ -6363,7 +6375,7 @@ code_5BC8:
 
         jsr     L5349
         bcc     L5BD4
-        jsr     L440D
+        jsr     print_msg
 ; -> $11E8 ...r..d`..em.kke...em.(.8.d.
 msg_5BD1:
         .word   $11E8
@@ -6403,12 +6415,12 @@ L5C07:  jsr     L46E9
         and     #$07
         cmp     $05
         beq     L5C1D
-        jsr     L4737
+        jsr     fetch_retaddr
         jmp     L5C00
 
 L5C1D:  ldx     $8A
         ldy     $8B
-        jsr     L4737
+        jsr     fetch_retaddr
         stx     $8A
         sty     $8B
         jmp     L5BF8
@@ -6456,7 +6468,7 @@ L5C77:  .byte   $00
 code_5C78:
         pla
         pla
-        jsr     L440D
+        jsr     print_msg
 ; -> $11DB .em..d...rm.....r..d`..em.kk
 msg_5C7D:
         .word   $11DB
@@ -6465,7 +6477,7 @@ code_5C7F:
 
 L5C80:  pla
         pla
-        jsr     L440D
+        jsr     print_msg
 ; -> $11E3 .rm.....r..d`..em.kke...em.(
 msg_5C85:
         .word   $11E3
@@ -6485,7 +6497,7 @@ L5C8E:  ldy     #$01
         bne     L5C8E
         lda     #$01
 L5CA3:  php
-        jsr     L4737
+        jsr     fetch_retaddr
         plp
         rts
 
@@ -6513,7 +6525,7 @@ L5CC8:  ldy     #$02
         jsr     L530B
         ldy     #$00
         lda     ($8A),y
-        jsr     L4737
+        jsr     fetch_retaddr
         and     #$80
         beq     L5D00
         lda     $C6
@@ -6533,7 +6545,7 @@ L5CC8:  ldy     #$02
         sta     ($88),y
         rts
 
-L5D00:  jsr     L440D
+L5D00:  jsr     print_msg
 ; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
 msg_5D03:
         .word   $11F6
@@ -6550,7 +6562,7 @@ L5D09:  cmp     #$FF
         lda     ($8A),y
         jsr     L46E9
         jsr     L5E66
-        jsr     L4737
+        jsr     fetch_retaddr
         bne     L5CC5
         jsr     L5386
         ldy     #$00
@@ -6566,7 +6578,7 @@ L5D09:  cmp     #$FF
         bcc     L5D3D
         jmp     L5BD4
 
-L5D3D:  jsr     L440D
+L5D3D:  jsr     print_msg
 ; -> $1391 .ejg...e..qot.qql.`u.`......
 msg_5D40:
         .word   $1391
@@ -6619,14 +6631,14 @@ L5D92:  jsr     L5386
         lsr     a
         sta     $1B1A,y
         beq     L5DA7
-        jsr     L440D
+        jsr     print_msg
 ; -> $1157 h..b.K....h..b.-....qtj..`..
 msg_5DA4:
         .word   $1157
 code_5DA6:
         rts
 
-L5DA7:  jsr     L440D
+L5DA7:  jsr     print_msg
 ; -> $1161 h..b.-....qtj..`.. ' ... ?..
 msg_5DAA:
         .word   $1161
@@ -6710,7 +6722,7 @@ L5E39:  lda     $8F
 L5E3B:  jmp     L4DC6
 
 L5E3E:  jsr     L5E50
-        jsr     L440D
+        jsr     print_msg
 ; -> $11FA .em.(.8.d.n..em.k.8.d.n.i...
 msg_5E44:
         .word   $11FA
@@ -6718,7 +6730,7 @@ code_5E46:
         rts
 
 L5E47:  jsr     L5E50
-        jsr     L440D
+        jsr     print_msg
 ; -> $1206 .em.k.8.d.n.i......z....... 
 msg_5E4D:
         .word   $1206
@@ -6815,7 +6827,7 @@ L5EE4:  ldy     #$10
         lda     #$00
         adc     $8B
         sta     L4670
-        jsr     L440D
+        jsr     print_msg
 ; -> $1521 ......Z.... KILLED....'....`
 msg_5EFC:
         .word   $1521
@@ -6853,7 +6865,7 @@ L5F23:  sta     $13
         beq     L5F3A
         jmp     L5D09
 
-L5F3A:  jsr     L440D
+L5F3A:  jsr     print_msg
 ; -> $13C9 qo.#.xu.....l.`..u..''..l..l
 msg_5F3D:
         .word   $13C9
@@ -6912,7 +6924,7 @@ L5F6A:  lda     $17
 L5FA0:  jsr     code_3E5B
         rts
 
-L5FA4:  jsr     L440D
+L5FA4:  jsr     print_msg
 ; -> $15BE ... '.7 '.kos SEEN,os.....s.
 msg_5FA7:
         .word   $15BE
@@ -6922,7 +6934,7 @@ code_5FA9:
 
 L5FAE:  lda     #$00
         sta     $C5
-        jsr     L440D
+        jsr     print_msg
 ; -> $13D1 ....l.`..u..''..l..l :.... '
 msg_5FB5:
         .word   $13D1
@@ -6986,7 +6998,7 @@ L6019:  iny
         bne     L6021
         lda     #$00
 L6021:  pha
-        jsr     L440D
+        jsr     print_msg
 ; -> $11D3 bk...7...em..d...rm.....r..d
 msg_6025:
         .word   $11D3
@@ -7041,7 +7053,7 @@ L6057:  cmp     #$06
         sbc     $6C
         beq     L6084
         bcs     L608A
-L6084:  jsr     L440D
+L6084:  jsr     print_msg
 ; -> $11F1 .em.kke...em.(.8.d.n..em.k.8
 msg_6087:
         .word   $11F1
@@ -7096,7 +7108,7 @@ L60DA:  lda     #$00
         bne     L60DA
         rts
 
-L60E3:  jsr     L440D
+L60E3:  jsr     print_msg
 ; -> $1525 ..Z.... KILLED....'....`.f`y
 msg_60E6:
         .word   $1525
@@ -7137,7 +7149,7 @@ L6109:  ldy     #$06
         sta     $8B
         lda     #$0C
         jsr     L52EA
-        jsr     L4737
+        jsr     fetch_retaddr
         cmp     #$FF
         beq     L60FD
         ldy     #$05
@@ -7334,7 +7346,7 @@ L628E:  ldy     #$05
         lda     ($19),y
         cmp     #$01
         beq     L62A9
-        jsr     L440D
+        jsr     print_msg
 ; -> $133F co..i..k...Qb...v`..{.......
 msg_62A6:
         .word   $133F
@@ -7357,7 +7369,7 @@ L62B8:  lda     L6320
         jsr     L6341
         cmp     L6320
         bcc     L62D6
-        jsr     L440D
+        jsr     print_msg
 ; -> $1330 h`.Ae......em..co..i..k...Qb
 msg_62D3:
         .word   $1330
@@ -7398,7 +7410,7 @@ L630B:  lda     L6321
         adc     ($17),y
         bcc     L631A
         sta     ($17),y
-L631A:  jsr     L440D
+L631A:  jsr     print_msg
 ; TODO pointeur $0000
 msg_631D:
         .word   $0000
@@ -7408,7 +7420,7 @@ code_631F:
 L6320:  .byte   $00
 L6321:  .byte   $00
 code_6322:
-        jsr     L440D
+        jsr     print_msg
 ; -> $1212 i......z....... VIOLENT.....
 msg_6325:
         .word   $1212
@@ -7605,7 +7617,7 @@ code_667C:
         lda     $1CCB
         and     #$80
         beq     L6689
-        jsr     L440D
+        jsr     print_msg
 ; -> $1454 .j WEARING...e....`.k......c
 msg_6686:
         .word   $1454
@@ -7743,7 +7755,7 @@ L6985:  jsr     L4D9E
         lda     #$19
         jsr     L534B
         bcs     L6998
-        jsr     L440D
+        jsr     print_msg
 ; -> $1503 .jr`.i`.......a....`...K...m
 msg_6995:
         .word   $1503
@@ -7760,7 +7772,7 @@ L6998:  jsr     L6250
         lda     $15
         cmp     #$3C
         bne     L69B4
-L69AE:  jsr     L440D
+L69AE:  jsr     print_msg
 ; -> $1509 `.......a....`...K...m.:....
 msg_69B1:
         .word   $1509
@@ -7776,7 +7788,7 @@ L69BD:  lda     $15
         beq     L69C8
         lda     #$FF
         sta     $1E74
-L69C8:  jsr     L440D
+L69C8:  jsr     print_msg
 ; -> $1516 `...K...m.:......Z.... KILLE
 msg_69CB:
         .word   $1516
@@ -7799,7 +7811,7 @@ L69E7:  lda     $1F38
         beq     L69EF
         rts
 
-L69EF:  jsr     L440D
+L69EF:  jsr     print_msg
 ; -> $1722 ...a CHEERING CROWDf DWARVES
 msg_69F2:
         .word   $1722
@@ -7817,7 +7829,7 @@ L69FF:  jmp     code_5FB7
         beq     L6A0A
         rts
 
-L6A0A:  jsr     L440D
+L6A0A:  jsr     print_msg
 ; -> $1380 ia..`.^...Q`wb....ejg...e..q
 msg_6A0D:
         .word   $1380
@@ -7841,7 +7853,7 @@ L6A19:  lda     #$01
         jsr     L5774
         cmp     #$FF
         bne     L6A38
-L6A32:  jsr     L440D
+L6A32:  jsr     print_msg
 ; -> $16E1 .o.....xu.......l.T........n
 msg_6A35:
         .word   $16E1
@@ -7874,7 +7886,7 @@ code_6A5E:
         beq     L6A69
         rts
 
-L6A69:  jsr     L440D
+L6A69:  jsr     print_msg
 ; -> $1370 `.^...Q`wb..vp{.ia..`.^...Q`
 msg_6A6C:
         .word   $1370
@@ -7897,7 +7909,7 @@ L6A79:  stx     $1F85
         jmp     L5A62
 
 L6A92:  jsr     L5386
-        jsr     L440D
+        jsr     print_msg
 ; -> $1346 k...Qb...v`..{.......f`..{..
 msg_6A98:
         .word   $1346
@@ -7910,14 +7922,14 @@ code_6A9A:
         bcs     L6AB9
         jsr     L6AE3
         bcs     L6AB3
-        jsr     L440D
+        jsr     print_msg
 ; -> $1367 ..h.....o`.^...Q`wb..vp{.ia.
 msg_6AB0:
         .word   $1367
 code_6AB2:
         rts
 
-L6AB3:  jsr     L440D
+L6AB3:  jsr     print_msg
 ; -> $1355 ......f`..{...g`.^..h.....o`
 msg_6AB6:
         .word   $1355
@@ -7926,7 +7938,7 @@ code_6AB8:
 
 L6AB9:  lda     #$12
         sta     $1F76
-        jsr     L440D
+        jsr     print_msg
 ; -> $1361 ..g`.^..h.....o`.^...Q`wb..v
 msg_6AC1:
         .word   $1361
@@ -7945,7 +7957,7 @@ L6AC4:  jsr     L6AE3
         sta     ($17),y
         lda     $15
         jsr     L5612
-        jsr     L440D
+        jsr     print_msg
 ; -> $134D ..v`..{.......f`..{...g`.^..
 msg_6AE0:
         .word   $134D
@@ -8041,7 +8053,7 @@ L6AE3:  lda     #$64
         .byte   $02,$F0,$05,$C9,$03,$F0,$01,$60
         .byte   $20,$0D,$44,$F0,$16
 code_6D4D:
-        jsr     L440D
+        jsr     print_msg
 ; -> $16FF .T....x.Lb...c|....`..f`.^..
 msg_6D50:
         .word   $16FF
@@ -8063,7 +8075,7 @@ L6D5D:  lda     $2B3F
         beq     L6D72
         rts
 
-L6D72:  jsr     L440D
+L6D72:  jsr     print_msg
 ; -> $1685 `.a.].`..}..f.Z.....e`...q..
 msg_6D75:
         .word   $1685
@@ -8088,7 +8100,7 @@ L6D92:  lda     #$44
         jsr     L5B24
         iny
         asl     $60,x
-        jsr     L440D
+        jsr     print_msg
 ; -> $16F0 .l.T........n...T....x.Lb...
 msg_6DA2:
         .word   $16F0
@@ -8117,7 +8129,7 @@ code_6DBE:
         beq     L6DCA
         rts
 
-L6DCA:  jsr     L440D
+L6DCA:  jsr     print_msg
 ; -> $165A ..ea.j.Hba.a...G....x`...c|.
 msg_6DCD:
         .word   $165A
@@ -8129,14 +8141,14 @@ code_6DCF:
         sta     $1D26
         jsr     L6DEF
         bne     code_6DE2
-        jsr     L440D
+        jsr     print_msg
 ; -> $1415 `..}...`..}....lc. WHAT'Sp ?
 msg_6DE0:
         .word   $1415
 code_6DE2:
         jsr     L6DEF
         bne     code_6DEC
-        jsr     L440D
+        jsr     print_msg
 ; -> $14F5 ...G.1..co.@...jr`.i`.......
 msg_6DEA:
         .word   $14F5
@@ -8178,7 +8190,7 @@ L6E15:  jsr     L3485
 
 L6E29:  lda     #$01
         sta     $0B
-        jsr     L440D
+        jsr     print_msg
 ; -> $15B6 .X..cx. ... '.7 '.kos SEEN,o
 msg_6E30:
         .word   $15B6
@@ -8226,14 +8238,14 @@ L6E74:  lda     #$64
         jsr     code_56D7
         cmp     #$50
         bcs     L6E83
-        jsr     L440D
+        jsr     print_msg
 ; -> $1582 g`..cl`..fa..y...jc.`y..bga.
 msg_6E80:
         .word   $1582
 code_6E82:
         rts
 
-L6E83:  jsr     L440D
+L6E83:  jsr     print_msg
 ; -> $1596 `y..bga.d..f....cda.M...x.d.
 msg_6E86:
         .word   $1596
@@ -8282,7 +8294,7 @@ code_6EA1:
         jsr     L5713
         lda     #$01
         sta     $0B
-        jsr     L440D
+        jsr     print_msg
 ; -> $16EB ......l.T........n...T....x.
 msg_6EE7:
         .word   $16EB
@@ -8321,7 +8333,7 @@ L6F00:  ldx     ptr_block3
         beq     L6F22
         rts
 
-L6F22:  jsr     L440D
+L6F22:  jsr     print_msg
 ; -> $14DF `....e.'.Dc.`.(.f........G.1
 msg_6F25:
         .word   $14DF
@@ -8604,7 +8616,7 @@ L70F2:  lda     #$46
         rts
 
 L710B:  jsr     L5DFD
-        jsr     L440D
+        jsr     print_msg
 ; -> $1650 ..7.;.t`....ea.j.Hba.a...G..
 msg_7111:
         .word   $1650
@@ -8662,7 +8674,9 @@ L71CB:  lda     $024D
         jsr     code_72FC
         jmp     L71E8
 
-L71DB:  lda     $024D
+; LOAD bloc cassette via $0417 + verif $32/$33
+tape_load:
+        lda     $024D
         sta     $6C
         lda     #$01
         sta     $024D
@@ -8692,10 +8706,12 @@ L7204:  lda     #$00
 
 L720A:  jsr     L46E6
         lda     #$2E
-        jsr     L7491
+        jsr     ch_out
         jmp     L471B
 
-L7215:  jsr     L720A
+; SAVE : leader, en-tete 9 o, donnees, checksum EOR
+tape_save:
+        jsr     L720A
         lda     $024D
         sta     $6C
         lda     #$01
@@ -8756,24 +8772,25 @@ L7283:  dey
         clc
         rts
 
-L7293:  jsr     L440D
+L7293:  jsr     print_msg
 ; -> $72AA PREPARE TAPE FOR GAME SAVE..
 msg_7296:
         .word   $72AA
 code_7298:
-        jmp     code_72A0
+        jmp     tape_prompt
 
-L729B:  jsr     L440D
+L729B:  jsr     print_msg
 ; -> $72C5 .REWIND TAPE FOR VERIFICATIO
 msg_729E:
         .word   $72C5
-code_72A0:
-        jsr     L440D
+; invites PREPARE TAPE / REWIND / PRESS ANY KEY
+tape_prompt:
+        jsr     print_msg
 ; -> $72E3 PRESS ANY KEY WHEN READY. .r
 msg_72A3:
         .word   $72E3
 code_72A5:
-        jsr     code_7481
+        jsr     kb_wait
         clc
         rts
 
@@ -8835,7 +8852,8 @@ L733B:  lda     $37
 L7351:  sec
         rts
 
-L7353:  stx     $1E
+; scan clavier VIA ; A = touche bit7=presente, sinon bit7=0
+kb_scan:stx     $1E
         sty     $1F
         lda     #$FF
         sta     $0303
@@ -8963,19 +8981,21 @@ L7472:  sta     $0301
         rts
 
         .byte   "`"
-code_7481:
-        jsr     L7353
-        bpl     code_7481
+; attente bloquante d'une touche (BPL) ; retour & $7F
+kb_wait:jsr     kb_scan
+        bpl     kb_wait
         and     #$7F
         rts
 
-L7489:  pha
+; affiche CR ($0D) via ch_out
+cr_out: pha
         lda     #$0D
-        jsr     L7491
+        jsr     ch_out
         pla
         rts
 
-L7491:  pha
+; filtres $0B/$0C/$0D/$C4 (capitales) puis rendu
+ch_out: pha
         lda     $0C
         and     $0B
         bne     L749A
@@ -8985,7 +9005,7 @@ L7491:  pha
 L749A:  lda     $0D
         bne     L74BB
         pla
-        jsr     L75F6
+        jsr     ch_put
         pha
         lda     $C4
         bne     L74A9
@@ -9001,7 +9021,7 @@ L74A9:  pla
 
 L74B3:  pha
         lda     #$48
-        jsr     L75F6
+        jsr     ch_put
         pla
         rts
 
@@ -9016,7 +9036,7 @@ L74BB:  pla
         cmp     #$0D
         bne     L74D1
         lda     #$20
-        jsr     L75B4
+        jsr     glyph_out
         jmp     L74E7
 
 L74D1:  cmp     #$08
@@ -9026,7 +9046,7 @@ L74D1:  cmp     #$08
         cmp     #$7B
         bcs     L74DF
         and     #$5F
-L74DF:  jsr     L75B4
+L74DF:  jsr     glyph_out
         jsr     L75A6
         bne     L74F2
 L74E7:  jsr     L7514
@@ -9035,7 +9055,7 @@ L74E7:  jsr     L7514
         lda     #$28
         sta     $04
 L74F2:  lda     #$2B
-        jsr     L75B4
+        jsr     glyph_out
         pla
         tax
         pla
@@ -9044,7 +9064,7 @@ L74F2:  lda     #$2B
         rts
 
 L74FD:  lda     #$20
-        jsr     L75B4
+        jsr     glyph_out
         jsr     L75AB
         bne     L74F2
         lda     #$28
@@ -9143,7 +9163,9 @@ L75AB:  dec     L0000
         cmp     #$29
         rts
 
-L75B4:  ldx     L0000
+; rend un caractere en hires $A000 (font ($0403), ORA $40)
+glyph_out:
+        ldx     L0000
         ldy     $01
 L75B8:  stx     L75E0
         sty     L75E1
@@ -9179,7 +9201,8 @@ L75F0:  iny
         bne     L75DB
         rts
 
-L75F6:  sta     $02
+; sortie ecran : gere CR, scroll, pause bas d'ecran via kb_scan
+ch_put: sta     $02
         pha
         txa
         pha
@@ -9198,14 +9221,16 @@ L7607:  lda     #$20
 L7613:  lda     $02
         cmp     #$0D
         bne     L7653
-L7619:  lda     #$00
+; pause 'press any key' : bip $771A, attente relachement+pression
+pause_key:
+        lda     #$00
         sta     $0F
         jsr     L771A
         lda     $11
         cmp     #$0F
         bne     L763B
         ldx     #$0A
-L7628:  jsr     L7353
+L7628:  jsr     kb_scan
         bmi     L7640
         lda     #$64
         sta     $03
@@ -9218,7 +9243,7 @@ L7631:  dec     $03
 L763B:  inc     $11
         jmp     L7645
 
-L7640:  jsr     L7353
+L7640:  jsr     kb_scan
         bpl     L7640
 L7645:  jsr     L7694
         lda     #$80
@@ -9254,7 +9279,7 @@ L767E:  cmp     #$2E
 L7684:  jsr     L76ED
         sta     $0F
         jsr     L76DF
-        beq     L7619
+        beq     pause_key
 L768E:  pla
         tay
         pla
@@ -9359,7 +9384,9 @@ L7736:  lda     $030D
 L7745:  pla
         rts
 
-L7747:  lda     #$00
+; remplit $A000-$BFDF de $40
+hires_clear:
+        lda     #$00
         sta     L7756
         lda     #$A0
         sta     L7757
@@ -9384,9 +9411,11 @@ L7772:  sta     $BF3F,y
         bne     L7772
         rts
 
-L7779:  lda     #$1E
+; boucle principale du jeu (atteinte via JMP vec_15)
+game_main:
+        lda     #$1E
         sta     $BFDF
-        jsr     L7747
+        jsr     hires_clear
         lda     #$00
         sta     $10
         sta     $0F

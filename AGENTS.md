@@ -42,6 +42,10 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
   correction = patch du script + régénération + re-vérification.
 - **Avant chaque commit : `scripts/check_disasm.py` doit sortir exit 0**
   (`RÉSULTAT: PROPRE`).
+- **Documenter les routines via `ROUTINE_DOCS` dans `scripts/disasm.py`**
+  (nom + résumé une ligne → labels/commentaires régénérés dans le listing),
+  jamais en éditant `block4.asm`. Détails longs → `docs/block4-analysis.md`
+  (référencés par adresse).
 - **Aucun test sim65 sur un build non byte-identique.**
 - Ne pas créer de nouveaux fichiers `.md` sauf demande explicite.
 - `tools/cc65/` (toolchain vendue, ~350 Mo) est gitignoré et le reste.

@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from disasm import ROUTINE_DOCS
 from opcodes6502 import BRANCH, JMP_ABS, JMP_IND, JSR, PRINT_MSG, ilen
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -224,6 +225,43 @@ def main() -> int:
     for pc in null_ptr[:8]:
         print(f"   TODO pointeur nul @ ${pc:04X}")
     if ptr_bad:
+        errors += 1
+
+    # --- H. documentation des routines (ROUTINE_DOCS) ---
+    info_names: dict[str, list[int]] = {}
+    for line in INFO.read_text().splitlines():
+        m = re.match(r'RANGE \{ START \$(....); END \$(....); TYPE \w+; NAME "([^"]+)"', line)
+        if m:
+            info_names.setdefault(m.group(3), []).append(int(m.group(1), 16))
+            continue
+        m = re.match(r'LABEL \{ NAME "([^"]+)"; ADDR \$(....);', line)
+        if m:
+            info_names.setdefault(m.group(1), []).append(int(m.group(2), 16))
+    doc_bad: list[str] = []
+    seen_names: set[str] = set()
+    for addr, (name, doc) in sorted(ROUTINE_DOCS.items()):
+        tag = f"${addr:04X}"
+        if not (lo <= addr <= hi):
+            doc_bad.append(f"{tag} hors bloc")
+            continue
+        if addr not in starts:
+            doc_bad.append(f"{tag} pas un debut d'instruction")
+        if name is not None:
+            if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name):
+                doc_bad.append(f"{tag} nom invalide: {name}")
+            if name.startswith(("msg_", "code_")) or re.match(r"^L[0-9A-F]{4}$", name):
+                doc_bad.append(f"{tag} nom reserve/auto: {name}")
+            if name in seen_names:
+                doc_bad.append(f"{tag} nom duplique: {name}")
+            seen_names.add(name)
+            if sorted(info_names.get(name, [])) != [addr]:
+                doc_bad.append(f"{tag} label {name} absent ou duplique dans info")
+        if not doc or "\n" in doc or '"' in doc or len(doc) > 160:
+            doc_bad.append(f"{tag} resume invalide (1 ligne, sans guillemet, <=160c)")
+    print(f"H. routines documentees: {len(ROUTINE_DOCS)}, anomalies: {len(doc_bad)}")
+    for b in doc_bad[:12]:
+        print(f"   {b}")
+    if doc_bad:
         errors += 1
 
     print("RÉSULTAT:", "PROPRE" if errors == 0 else f"{errors} catégorie(s) en erreur")

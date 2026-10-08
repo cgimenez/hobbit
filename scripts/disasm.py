@@ -64,6 +64,35 @@ MANUAL_ENTRIES: list[int] = (
 # $6DCE = fcn.00006dce, octet haut du pointeur $165A (JSR $440D en $6DCA).
 SEED_EXCLUDE = {0x6DCE}
 
+# Routines documentées : adresse -> (nom, résumé une ligne).
+# Le nom renomme le label (doit être unique, identifiant ca65 valide) ;
+# le résumé est émis en commentaire da65 avant le label. Règles :
+# - une seule ligne, sans guillemet `"`, <= 160 caractères ;
+# - l'adresse doit être un début d'instruction (vérifié par check_disasm.py).
+# Détails longs -> docs/block4-analysis.md (référencé par adresse).
+ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
+    # nom None = garde le nom existant (VECTORS), ajoute seulement le résumé.
+    0x2C35: (None, "init : copies boot, pile, RAZ vars, prompt '> LOOK.', boucle d'input"),
+    0x2DC8: ("init_vars", "RAZ variables ($97.., $AF, $CC/$CD) puis JMP main $7779"),
+    0x3097: ("boot_copy", "copie $1B1A->$91D0 (1366 o) ; $6C = compteur"),
+    0x30BB: ("boot_copyback", "recopie inverse ($8C)->($8A), meme gabarit"),
+    0x440D: ("print_msg", "affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)"),
+    0x44BE: ("msgptr_inc", "INC $6A (+ $6B si retenue) ; avance le pointeur message"),
+    0x4737: ("fetch_retaddr", "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"),
+    0x71DB: ("tape_load", "LOAD bloc cassette via $0417 + verif $32/$33"),
+    0x7215: ("tape_save", "SAVE : leader, en-tete 9 o, donnees, checksum EOR"),
+    0x72A0: ("tape_prompt", "invites PREPARE TAPE / REWIND / PRESS ANY KEY"),
+    0x7353: ("kb_scan", "scan clavier VIA ; A = touche bit7=presente, sinon bit7=0"),
+    0x7481: ("kb_wait", "attente bloquante d'une touche (BPL) ; retour & $7F"),
+    0x7489: ("cr_out", "affiche CR ($0D) via ch_out"),
+    0x7491: ("ch_out", "filtres $0B/$0C/$0D/$C4 (capitales) puis rendu"),
+    0x75B4: ("glyph_out", "rend un caractere en hires $A000 (font ($0403), ORA $40)"),
+    0x75F6: ("ch_put", "sortie ecran : gere CR, scroll, pause bas d'ecran via kb_scan"),
+    0x7619: ("pause_key", "pause 'press any key' : bip $771A, attente relachement+pression"),
+    0x7747: ("hires_clear", "remplit $A000-$BFDF de $40"),
+    0x7779: ("game_main", "boucle principale du jeu (atteinte via JMP vec_15)"),
+}
+
 # Points d'entrée de la table de vecteurs en $2C05 (16 entrées JMP).
 VECTORS = {
     0x2C00: "autorun",
@@ -194,6 +223,11 @@ def msg_preview(raw: bytes, addr: int, n: int = 28) -> str:
     return "".join(out).replace('"', "'")
 
 
+def sanitize_comment(doc: str) -> str:
+    """Sanitise un résumé ROUTINE_DOCS pour da65 (une ligne, sans guillemet)."""
+    return doc.replace('"', "'")
+
+
 def descend(raw: bytes, lo: int, hi: int, entries: list[int]):
     """Descente récursive. Renvoie (code_bytes, ptrs, starts, ext, conflicts)."""
 
@@ -309,12 +343,20 @@ def build_info(raw: bytes, code_bytes: set[int], ptrs: dict[int, int],
     if cur is not None:
         code_ranges.append(cur)
     named = {**VECTORS, **ROM_LABELS}
+    for addr, (name, _doc) in ROUTINE_DOCS.items():
+        if name is not None:
+            named[addr] = name
     used: set[int] = set()
+    range_starts = {a for a, _b in code_ranges}
     for a, b in code_ranges:
         name = named.get(a, f"code_{a:04X}")
         if a in named:
             used.add(a)
-        lines.append(f'RANGE {{ START ${a:04X}; END ${b:04X}; TYPE CODE; NAME "{name}"; }};')
+        rng = f'RANGE {{ START ${a:04X}; END ${b:04X}; TYPE CODE; NAME "{name}";'
+        doc = ROUTINE_DOCS.get(a, (None, None))[1]
+        if a in ROUTINE_DOCS and doc:
+            rng += f' COMMENT "{sanitize_comment(doc)}";'
+        lines.append(rng + " };")
     for p in sorted(ptrs):
         msg = ptrs[p]
         preview = msg_preview(raw, msg)
@@ -322,6 +364,15 @@ def build_info(raw: bytes, code_bytes: set[int], ptrs: dict[int, int],
         lines.append(f"RANGE {{ START ${p:04X}; END ${p + 1:04X}; TYPE WORDTABLE; }};")
         lines.append(f'LABEL {{ NAME "msg_{p:04X}"; ADDR ${p:04X}; COMMENT "{comment}"; }};')
         used.add(p)
+    for addr, (name, doc) in sorted(ROUTINE_DOCS.items()):
+        if not (lo <= addr <= hi):
+            continue
+        if addr in range_starts:
+            continue  # déjà nommé+commenté via RANGE (LABEL ferait doublon)
+        label = name if name is not None else named.get(addr, f"code_{addr:04X}")
+        lines.append(f'LABEL {{ NAME "{label}"; ADDR ${addr:04X}; '
+                     f'COMMENT "{sanitize_comment(doc)}"; }};')
+        used.add(addr)
     marked = set(code_bytes) | ptr_addrs
     cur = None
     pending: list[list[int]] = []
