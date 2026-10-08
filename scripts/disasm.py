@@ -213,6 +213,75 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x7779: ("game_main", "boucle principale du jeu (atteinte via JMP vec_15)"),
 }
 
+# Zéro-page nommée : adresse -> (nom, résumé une ligne).
+# Rôles établis par recoupement exhaustif des usages bloc 4 (cf.
+# docs/block4-analysis.md, section zéro-page) : le nom remplace l'opérande
+# numérique via un LABEL da65 (l'octet haut se rend `nom+1`). Règles :
+# - une seule adresse nommée par paire (le haut suit en `+1`) ;
+# - même règles que ROUTINE_DOCS (identifiant unique, 1 ligne <= 160c).
+# Les adresses multi-rôles ou non élucidées restent numériques.
+ZP_NAMES: dict[int, tuple[str, str]] = {
+    # Sortie texte (renderer $44xx + video $74xx-$77xx).
+    0x04: ("col", "colonnes restantes (RAZ $28/ligne ; test wrap cpx, conso glyph_out)"),
+    0x0B: ("outen", "1=sortie autorisee (init input, annonces PNJ, fin events)"),
+    0x0C: ("phase", "0=sonde, 1=execution (actions L506B, parser, print_msg, ch_out)"),
+    0x0D: ("raw", "1=mode brut (espace forcee, limite col, capitales L74BB)"),
+    0x0E: ("cap", "1=capitaliser la prochaine lettre (pose sur point)"),
+    0x0F: ("sppend", "espace en attente avant le prochain mot (word_space)"),
+    0x11: ("crcnt", "CR depuis derniere pause (mod 16 ; relu en $39D3)"),
+    0x12: ("passok", "sonde reussie (1=passer a l'exec ; cf. L506B/act_probe)"),
+    # Operandes de commande (parser L359B, VM L5048/L50AC, $FF=absent).
+    0x13: ("wid", "id mot/direction (parser, exit_ptr, move, VM)"),
+    0x15: ("arg1", "operande objet 1 ($FF=absent ; match identite $C5)"),
+    0x16: ("arg2", "operande objet 2 ($FF=absent)"),
+    # Enregistrements d'objets (deref ($..),y ; swap L57A1).
+    0x17: ("orec", "enregistrement objet 1 (pointeur ; hi $18)"),
+    0x19: ("orec2", "enregistrement objet 2 (pointeur ; hi $1A)"),
+    0xC6: ("crec", "enregistrement courant (contexte/compteurs ; hi $C7 ; base $1B1A)"),
+    # Moteur de messages (render_text, tokens, pile $466F/$0200).
+    0x5C: ("adr", "adresse etagee (message imbrique, mot ; hi $5D)"),
+    0x6F: ("tidx", "index texte (curseur Y sauvegarde du renderer)"),
+    0x70: ("nest", "niveau d'imbrication du rendu (0=simple)"),
+    0x71: ("wptr", "pointeur de mot/nom (tok_objw, L626B ; hi $72)"),
+    0x76: ("msgstk", "index pile messages $466F (RAZ a chaque print_msg)"),
+    0xAD: ("svA", "A sauvegarde (routines pile $0200)"),
+    0xAE: ("svX", "X sauvegarde (routines pile $0200)"),
+    0xAF: ("rstk", "index pile retours $0200 (push $46E9/$4702, pop $471E/$4737)"),
+    # Mouvement (exit_ptr, code_4141, move_flags, cond_eval).
+    0x73: ("direct", "1=direct/sans controles (=bit7 xmode)"),
+    0x74: ("variant", "variante (=bit6 xmode ; move_flags)"),
+    0x77: ("xaux", "octet auxiliaire de sortie (nibbles +5/+7 ; bit6->$7F)"),
+    0x78: ("xmode", "octet mode de sortie (nibbles +1/+3 ; b7 direct, b6 variante)"),
+    0xDC: ("cond1", "tampon condition 1 (6 o $DC-$E1)"),
+    0xE2: ("cond2", "tampon condition 2 (6 o $E2-$E7)"),
+    0xE8: ("svptr", "ptr sauvegarde (contexte move ; hi $E9)"),
+    0xF8: ("exitp", "curseur table des sorties ($26DA+wid*8 ; hi $F9)"),
+    # Pointeurs de travail universels.
+    0x7A: ("ptr3", "3e pointeur de travail (hi $7B)"),
+    0x88: ("ptr2", "pointeur secondaire, balayages de tables (hi $89)"),
+    0x8A: ("ptr", "pointeur de travail universel (hi $8B)"),
+    # Monde (entites, events, tirage).
+    0x8F: ("key", "cle de dispatch (table $709F, evt_lookup)"),
+    0x93: ("noise", "pointeur source d'entropie (bruit ($93),y ; hi $94)"),
+    0xBE: ("exploc", "lieu attendu par l'evenement (copie de key ; grille ploc)"),
+    0xC5: ("obj", "objet/entite courant (id ; $FF=personne ; lieu via L57BB)"),
+    0xC8: ("ploc", "lieu du joueur (cf. code_5235)"),
+    0xC9: ("eloc", "lieu de l'entite (visibilite : eloc==ploc)"),
+    0xCE: ("once", "verrou one-shot (pose, teste+consomme)"),
+    # Octets hauts des paires (da65 ne rend pas `nom+1` : nommage explicite).
+    0x18: ("orec_hi", "haut de orec"),
+    0x1A: ("orec2_hi", "haut de orec2"),
+    0x5D: ("adr_hi", "haut de adr"),
+    0x72: ("wptr_hi", "haut de wptr"),
+    0x7B: ("ptr3_hi", "haut de ptr3"),
+    0x89: ("ptr2_hi", "haut de ptr2"),
+    0x8B: ("ptr_hi", "haut de ptr"),
+    0x94: ("noise_hi", "haut de noise"),
+    0xC7: ("crec_hi", "haut de crec"),
+    0xE9: ("svptr_hi", "haut de svptr"),
+    0xF9: ("exitp_hi", "haut de exitp"),
+}
+
 # Points d'entrée de la table de vecteurs en $2C05 (16 entrées JMP).
 VECTORS = {
     0x2C00: "autorun",
@@ -462,7 +531,8 @@ def build_info(raw: bytes, code_bytes: set[int], ptrs: dict[int, int],
                 cur = None
     if cur is not None:
         code_ranges.append(cur)
-    named = {**VECTORS, **ROM_LABELS}
+    named = {**VECTORS, **ROM_LABELS,
+             **{a: n for a, (n, _d) in ZP_NAMES.items()}}
     for addr, (name, _doc) in ROUTINE_DOCS.items():
         if name is not None:
             named[addr] = name
@@ -513,7 +583,12 @@ def build_info(raw: bytes, code_bytes: set[int], ptrs: dict[int, int],
         lines.append(f"RANGE {{ START ${ga:04X}; END ${gb:04X}; TYPE {kind}; }};")
     for addr, name in named.items():
         if addr not in used:
-            lines.append(f'LABEL {{ NAME "{name}"; ADDR ${addr:04X}; }};')
+            doc = ZP_NAMES.get(addr, (None, None))[1]
+            if doc:
+                lines.append(f'LABEL {{ NAME "{name}"; ADDR ${addr:04X}; '
+                             f'COMMENT "{sanitize_comment(doc)}"; }};')
+            else:
+                lines.append(f'LABEL {{ NAME "{name}"; ADDR ${addr:04X}; }};')
     return "\n".join(lines) + "\n"
 
 

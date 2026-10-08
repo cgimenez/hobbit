@@ -12,7 +12,58 @@
         .setcpu "6502"
 
 L0000           := $0000
+col             := $0004                        ; colonnes restantes (RAZ $28/ligne ; test wrap cpx, conso glyph_out)
+outen           := $000B                        ; 1=sortie autorisee (init input, annonces PNJ, fin events)
+phase           := $000C                        ; 0=sonde, 1=execution (actions L506B, parser, print_msg, ch_out)
+raw             := $000D                        ; 1=mode brut (espace forcee, limite col, capitales L74BB)
+cap             := $000E                        ; 1=capitaliser la prochaine lettre (pose sur point)
+sppend          := $000F                        ; espace en attente avant le prochain mot (word_space)
+crcnt           := $0011                        ; CR depuis derniere pause (mod 16 ; relu en $39D3)
+passok          := $0012                        ; sonde reussie (1=passer a l'exec ; cf. L506B/act_probe)
+wid             := $0013                        ; id mot/direction (parser, exit_ptr, move, VM)
+arg1            := $0015                        ; operande objet 1 ($FF=absent ; match identite $C5)
+arg2            := $0016                        ; operande objet 2 ($FF=absent)
+orec            := $0017                        ; enregistrement objet 1 (pointeur ; hi $18)
+orec_hi         := $0018                        ; haut de orec
+orec2           := $0019                        ; enregistrement objet 2 (pointeur ; hi $1A)
+orec2_hi        := $001A                        ; haut de orec2
+adr             := $005C                        ; adresse etagee (message imbrique, mot ; hi $5D)
+adr_hi          := $005D                        ; haut de adr
 L006A           := $006A
+tidx            := $006F                        ; index texte (curseur Y sauvegarde du renderer)
+nest            := $0070                        ; niveau d'imbrication du rendu (0=simple)
+wptr            := $0071                        ; pointeur de mot/nom (tok_objw, L626B ; hi $72)
+wptr_hi         := $0072                        ; haut de wptr
+direct          := $0073                        ; 1=direct/sans controles (=bit7 xmode)
+variant         := $0074                        ; variante (=bit6 xmode ; move_flags)
+msgstk          := $0076                        ; index pile messages $466F (RAZ a chaque print_msg)
+xaux            := $0077                        ; octet auxiliaire de sortie (nibbles +5/+7 ; bit6->$7F)
+xmode           := $0078                        ; octet mode de sortie (nibbles +1/+3 ; b7 direct, b6 variante)
+ptr3            := $007A                        ; 3e pointeur de travail (hi $7B)
+ptr3_hi         := $007B                        ; haut de ptr3
+ptr2            := $0088                        ; pointeur secondaire, balayages de tables (hi $89)
+ptr2_hi         := $0089                        ; haut de ptr2
+ptr             := $008A                        ; pointeur de travail universel (hi $8B)
+ptr_hi          := $008B                        ; haut de ptr
+key             := $008F                        ; cle de dispatch (table $709F, evt_lookup)
+noise           := $0093                        ; pointeur source d'entropie (bruit ($93),y ; hi $94)
+noise_hi        := $0094                        ; haut de noise
+svA             := $00AD                        ; A sauvegarde (routines pile $0200)
+svX             := $00AE                        ; X sauvegarde (routines pile $0200)
+rstk            := $00AF                        ; index pile retours $0200 (push $46E9/$4702, pop $471E/$4737)
+exploc          := $00BE                        ; lieu attendu par l'evenement (copie de key ; grille ploc)
+obj             := $00C5                        ; objet/entite courant (id ; $FF=personne ; lieu via L57BB)
+crec            := $00C6                        ; enregistrement courant (contexte/compteurs ; hi $C7 ; base $1B1A)
+crec_hi         := $00C7                        ; haut de crec
+ploc            := $00C8                        ; lieu du joueur (cf. code_5235)
+eloc            := $00C9                        ; lieu de l'entite (visibilite : eloc==ploc)
+once            := $00CE                        ; verrou one-shot (pose, teste+consomme)
+cond1           := $00DC                        ; tampon condition 1 (6 o $DC-$E1)
+cond2           := $00E2                        ; tampon condition 2 (6 o $E2-$E7)
+svptr           := $00E8                        ; ptr sauvegarde (contexte move ; hi $E9)
+svptr_hi        := $00E9                        ; haut de svptr
+exitp           := $00F8                        ; curseur table des sorties ($26DA+wid*8 ; hi $F9)
+exitp_hi        := $00F9                        ; haut de exitp
 L0405           := $0405
 L0408           := $0408
 L040B           := $040B
@@ -100,14 +151,14 @@ L2C5B:  sta     L47E2,x
         sta     $C4
         sta     $0A
         lda     #$01
-        sta     $0B
-        sta     $0C
+        sta     outen
+        sta     phase
         lda     $65
         cmp     #$FF
         bne     L2C99
         jsr     code_4D84
         lda     #$01
-        sta     $0D
+        sta     raw
         ldx     #$00
 L2C7E:  lda     L308F,x
         jsr     putchar
@@ -136,10 +187,10 @@ L2CAC:  jsr     L2ED5
         bne     L2CB6
         jmp     L2D9F
 
-L2CB6:  lda     $5D
+L2CB6:  lda     adr_hi
         sta     L4783,y
         iny
-        lda     $5C
+        lda     adr
         sta     L4783,y
         iny
         lda     $5B
@@ -147,24 +198,24 @@ L2CB6:  lda     $5D
         bne     L2CAC
 L2CC8:  lda     #$00
         sta     $5F
-        sta     $11
+        sta     crcnt
 L2CCE:  lda     #$00
         sta     $65
         sta     $90
         sta     $D2
         sta     $D1
         lda     #$27
-        sta     $88
+        sta     ptr2
         lda     #$49
-        sta     $89
+        sta     ptr2_hi
         jsr     code_3111
         bne     L2D45
         lda     $5F
         pha
         lda     #$17
-        sta     $88
+        sta     ptr2
         lda     #$4A
-        sta     $89
+        sta     ptr2_hi
         jsr     L3065
         lda     $65
         sta     $B0
@@ -175,22 +226,22 @@ L2CFB:  lda     #$00
         jsr     L357C
         bne     L2D55
         lda     #$01
-        sta     $0C
+        sta     phase
         jsr     L417C
         jsr     L4B37
 L2D0E:  lda     $57
         pha
         lda     $7E
         pha
-        lda     $E8
+        lda     svptr
         pha
-        lda     $E9
+        lda     svptr_hi
         pha
         jsr     world_tick
         pla
-        sta     $E9
+        sta     svptr_hi
         pla
-        sta     $E8
+        sta     svptr
         pla
         sta     $7E
         pla
@@ -212,7 +263,7 @@ L2D42:  jmp     L2C99
 L2D45:  cmp     #$02
         beq     L2D42
         lda     #$01
-        sta     $0D
+        sta     raw
         jsr     print_msg
 ; -> $1177 .. ?..c..........qtj..`.c '.
 msg_2D50:
@@ -249,7 +300,7 @@ L2D7F:  lda     $F2
         lda     $F3
         sta     L4670
         lda     #$00
-        sta     $0D
+        sta     raw
         sta     $7E
         jsr     print_msg
 ; -> $117C .c..........qtj..`.c '... '.
@@ -263,7 +314,7 @@ L2D97:  jsr     L3A0B
         jmp     L2D2D
 
 L2D9F:  lda     #$01
-        sta     $0D
+        sta     raw
         jsr     print_msg
 ; -> $116B qtj..`.. ' ... ?..c.........
 msg_2DA6:
@@ -291,7 +342,7 @@ init_vars:
 L2DCC:  sta     $97,x
         dex
         bpl     L2DCC
-        sta     $AF
+        sta     rstk
         sta     $CC
         sta     $CD
         cld
@@ -310,8 +361,8 @@ L2DEA:  lda     #$30
         lda     #$75
         sta     $62
         lda     #$01
-        sta     $0D
-        sta     $0C
+        sta     raw
+        sta     phase
         lda     #$3E
         jsr     putchar
         lda     #$20
@@ -472,12 +523,12 @@ L2EFF:  lda     $67
 L2F26:  lda     #$C0
 L2F28:  pha
         lda     #$00
-        sta     $5C
-        sta     $5D
+        sta     adr
+        sta     adr_hi
         pla
 L2F30:  sta     $5B
-        ora     $5D
-        sta     $5D
+        ora     adr_hi
+        sta     adr_hi
         pla
         tay
         lda     $5B
@@ -536,10 +587,10 @@ L2F78:  ldy     #$00
         lda     $63
         sec
         sbc     #$00
-        sta     $5C
+        sta     adr
         lda     $64
         sbc     #$05
-        sta     $5D
+        sta     adr_hi
         pla
         tay
         lda     $5B
@@ -670,20 +721,20 @@ L305E:  pla
 
 L3065:  jsr     L46E6
         lda     #$27
-        sta     $8A
+        sta     ptr
         lda     #$49
-        sta     $8B
+        sta     ptr_hi
         lda     $65
         sta     $6C
         ldy     #$00
 L3076:  ldx     #$18
-L3078:  lda     ($8A),y
-        sta     ($88),y
+L3078:  lda     (ptr),y
+        sta     (ptr2),y
         iny
         dex
         bne     L3078
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         dey
         and     #$40
         bne     L3076
@@ -701,13 +752,13 @@ boot_copy:
         ldx     #$00
 L309D:  ldy     #$00
 L309F:  lda     L30F9,x
-        sta     $88,y
+        sta     ptr2,y
         inx
         iny
         cpy     #$06
         bne     L309F
 L30AB:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         sta     ($8C),y
         jsr     L30DF
         bne     L30AB
@@ -722,33 +773,33 @@ boot_copyback:
         ldx     #$00
 L30C1:  ldy     #$00
 L30C3:  lda     L30F9,x
-        sta     $88,y
+        sta     ptr2,y
         inx
         iny
         cpy     #$06
         bne     L30C3
 L30CF:  ldy     #$00
         lda     ($8C),y
-        sta     ($8A),y
+        sta     (ptr),y
         jsr     L30DF
         bne     L30CF
         dec     $6C
         bne     L30C1
         rts
 
-L30DF:  inc     $8A
+L30DF:  inc     ptr
         bne     L30E5
-        inc     $8B
+        inc     ptr_hi
 L30E5:  inc     $8C
         bne     L30EB
         inc     $8D
-L30EB:  lda     $88
+L30EB:  lda     ptr2
         sec
         sbc     #$01
-        sta     $88
+        sta     ptr2
         bcs     L30F6
-        dec     $89
-L30F6:  ora     $89
+        dec     ptr2_hi
+L30F6:  ora     ptr2_hi
         rts
 
 L30F9:  .byte   $56,$05,$1A,$1B,$D0,$91,$F1,$02
@@ -838,9 +889,9 @@ L3196:  lda     $6E
         cmp     #$01
         bne     L31A6
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         ora     #$80
-        sta     ($88),y
+        sta     (ptr2),y
         lda     $6E
 L31A6:  cmp     #$02
         bne     L31B0
@@ -903,9 +954,9 @@ L3211:  inx
         bne     L31F6
 L3219:  jsr     L4702
         lda     #$0F
-        sta     $88
+        sta     ptr2
         lda     #$49
-        sta     $89
+        sta     ptr2_hi
         lda     $65
         sta     $6C
         lda     $57
@@ -917,10 +968,10 @@ L3234:  lda     $6C
         beq     L324C
         jsr     L34CB
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$7F
         dey
-        ora     ($88),y
+        ora     (ptr2),y
         bne     L3249
         jsr     L34D0
 L3249:  jmp     L3234
@@ -934,22 +985,22 @@ L3259:  lda     $6C
         beq     L3289
         jsr     L34A7
         ldy     #$12
-        lda     ($88),y
+        lda     (ptr2),y
         iny
-        ora     ($88),y
+        ora     (ptr2),y
         bne     L3259
         ldy     #$00
-        lda     ($88),y
-        cmp     ($8A),y
+        lda     (ptr2),y
+        cmp     (ptr),y
         bne     L3259
         iny
-        lda     ($88),y
-        cmp     ($8A),y
+        lda     (ptr2),y
+        cmp     (ptr),y
         bne     L3259
         ldy     #$0E
-        lda     ($8A),y
+        lda     (ptr),y
         iny
-        ora     ($8A),y
+        ora     (ptr),y
         beq     L3259
         ldy     #$0E
         jsr     L3516
@@ -999,9 +1050,9 @@ L32C3:  jsr     L3485
         pla
         sta     $6D
         sta     $9F
-        lda     $88
+        lda     ptr2
         sta     $A0
-        lda     $89
+        lda     ptr2_hi
         sta     $A1
         lda     $65
         sta     $A2
@@ -1024,9 +1075,9 @@ L32EF:  lda     #$30
         lda     $A2
         sta     $65
         lda     $A0
-        sta     $88
+        sta     ptr2
         lda     $A1
-        sta     $89
+        sta     ptr2_hi
         jmp     code_3172
 
 L3314:  jsr     L3474
@@ -1045,9 +1096,9 @@ L332C:  lda     $5B
         pha
         lda     $6D
         pha
-        lda     $5C
+        lda     adr
         pha
-        lda     $5D
+        lda     adr_hi
         pha
         lda     $5F
         pha
@@ -1063,9 +1114,9 @@ L333B:  jsr     L3485
         pla
         sta     $5F
         pla
-        sta     $5D
+        sta     adr_hi
         pla
-        sta     $5C
+        sta     adr
         pla
         sta     $6D
         pla
@@ -1075,9 +1126,9 @@ L333B:  jsr     L3485
 L3360:  jsr     L353E
         pla
         pla
-        sta     $5D
+        sta     adr_hi
         pla
-        sta     $5C
+        sta     adr
         pla
         pla
         ldx     $02
@@ -1127,9 +1178,9 @@ L33BF:  jsr     L340B
         jsr     L3485
         jmp     L33B0
 
-L33C8:  lda     $5C
+L33C8:  lda     adr
         sta     $A7
-        lda     $5D
+        lda     adr_hi
         sta     $A8
 L33D0:  lda     #$50
         sta     $5B
@@ -1141,7 +1192,7 @@ L33D0:  lda     #$50
         bne     L3400
         jsr     L34BD
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         pha
         jsr     L356E
         pla
@@ -1151,7 +1202,7 @@ L33D0:  lda     #$50
 L33F4:  jsr     L3466
         ldy     #$01
         lda     #$40
-        sta     ($88),y
+        sta     (ptr2),y
 L33FD:  jmp     L3135
 
 L3400:  jsr     L3471
@@ -1172,10 +1223,10 @@ L340D:  lda     $A3,x
         beq     L341F
         jmp     L3552
 
-L341F:  lda     $5D
+L341F:  lda     adr_hi
         sta     $A3,x
         dex
-        lda     $5C
+        lda     adr
         sta     $A3,x
         rts
 
@@ -1207,7 +1258,7 @@ L3451:  tya
         tay
         ldx     #$00
 L3457:  lda     $A3,x
-        sta     ($88),y
+        sta     (ptr2),y
         inx
         iny
         cpx     #$0A
@@ -1230,7 +1281,7 @@ L3474:  lda     #$00
 
 L3479:  ldy     #$00
         lda     #$00
-L347D:  sta     ($88),y
+L347D:  sta     (ptr2),y
         iny
         cpy     #$1A
         bne     L347D
@@ -1242,55 +1293,55 @@ L3485:  ldx     $5F
         sta     $5A
         lda     L4783,x
         and     #$0F
-        sta     $5D
+        sta     adr_hi
         lda     L4783,x
         and     #$F0
         sta     $5B
         inx
         lda     L4783,x
-        sta     $5C
+        sta     adr
         inx
         stx     $5F
         lda     $5B
         rts
 
 L34A7:  dec     $6C
-L34A9:  lda     $88
-        sta     $8A
-        lda     $89
-        sta     $8B
+L34A9:  lda     ptr2
+        sta     ptr
+        lda     ptr2_hi
+        sta     ptr_hi
 L34B1:  jsr     L34BD
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$40
         bne     L34B1
         rts
 
-L34BD:  lda     $88
+L34BD:  lda     ptr2
         sec
         sbc     #$18
-        sta     $88
-        lda     $89
+        sta     ptr2
+        lda     ptr2_hi
         sbc     #$00
-        sta     $89
+        sta     ptr2_hi
         rts
 
 L34CB:  dec     $6C
         jmp     L355A
 
 L34D0:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$7F
-        ora     ($88),y
-        sta     ($88),y
+        ora     (ptr2),y
+        sta     (ptr2),y
         dey
-        lda     ($8A),y
-        sta     ($88),y
+        lda     (ptr),y
+        sta     (ptr2),y
         jsr     L34BD
         ldy     #$04
-        lda     ($88),y
+        lda     (ptr2),y
         iny
-        ora     ($88),y
+        ora     (ptr2),y
         php
         jsr     L356E
         plp
@@ -1304,7 +1355,7 @@ L34F1:  lda     $6D
 
 L34F8:  ldy     #$08
         ldx     #$00
-L34FC:  lda     ($88),y
+L34FC:  lda     (ptr2),y
         sta     $A7,x
         iny
         inx
@@ -1314,7 +1365,7 @@ L34FC:  lda     ($88),y
 L3509           := * + 1
         ldx     #$00
 L350A:  lda     $A7,x
-        sta     ($88),y
+        sta     (ptr2),y
         iny
         inx
         cpx     #$06
@@ -1322,9 +1373,9 @@ L350A:  lda     $A7,x
         ldy     #$04
 L3516:  jsr     L352E
         ldy     #$02
-        lda     ($88),y
+        lda     (ptr2),y
         iny
-        ora     ($88),y
+        ora     (ptr2),y
         beq     L3523
         rts
 
@@ -1339,8 +1390,8 @@ L352E:  ldx     #$0A
         jmp     L3535
 
 L3533:  ldx     #$02
-L3535:  lda     ($8A),y
-        sta     ($88),y
+L3535:  lda     (ptr),y
+        sta     (ptr2),y
         iny
         dex
         bne     L3535
@@ -1352,11 +1403,11 @@ L353E:  lda     $6D
         ldx     #$00
 L3546:  txa
         tay
-        lda     $5C
-        sta     ($88),y
+        lda     adr
+        sta     (ptr2),y
         iny
-        lda     $5D
-        sta     ($88),y
+        lda     adr_hi
+        sta     (ptr2),y
         rts
 
 L3552:  pla
@@ -1366,24 +1417,24 @@ L3554:  jmp     L2D45
         lda     #$01
         rts
 
-L355A:  lda     $88
-        sta     $8A
-        lda     $89
-        sta     $8B
+L355A:  lda     ptr2
+        sta     ptr
+        lda     ptr2_hi
+        sta     ptr_hi
 L3562:  jsr     L356E
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$40
         bne     L3562
         rts
 
-L356E:  lda     $88
+L356E:  lda     ptr2
         clc
         adc     #$18
-        sta     $88
-        lda     $89
+        sta     ptr2
+        lda     ptr2_hi
         adc     #$00
-        sta     $89
+        sta     ptr2_hi
         rts
 
 L357C:  jsr     L359B
@@ -1400,7 +1451,7 @@ L358A:  lda     #$03
         rts
 
 L358F:  lda     #$00
-        sta     $0D
+        sta     raw
         ldx     #$10
 L3595:  sta     $D7,x
         dex
@@ -1408,8 +1459,8 @@ L3595:  sta     $D7,x
         rts
 
 L359B:  lda     #$FF
-        sta     $16
-        sta     $15
+        sta     arg2
+        sta     arg1
         jsr     L358F
         jsr     L3790
         bne     L35AE
@@ -1418,13 +1469,13 @@ L359B:  lda     #$FF
         rts
 
 L35AE:  lda     $6C
-        sta     $13
+        sta     wid
         sta     $14
         jsr     move_flags
         jsr     L3674
         lda     #$00
-        sta     $0C
-        lda     $78
+        sta     phase
+        lda     xmode
         and     #$0C
         beq     L35E1
         lda     $EC
@@ -1454,7 +1505,7 @@ L35E4:  jsr     L38E5
         rts
 
 L35F0:  lda     $F0
-        sta     $15
+        sta     arg1
         jsr     L3690
         jsr     L36BB
         bne     L3622
@@ -1471,7 +1522,7 @@ L360A:  beq     L35E4
         bne     L3613
         rts
 
-L3613:  lda     $15
+L3613:  lda     arg1
         sta     $F0
         inc     $DA
         jmp     L35E4
@@ -1487,11 +1538,11 @@ L3622:  jsr     L3948
         rts
 
 L362E:  lda     $F1
-        sta     $16
+        sta     arg2
         lda     #$00
         rts
 
-L3635:  lda     $16
+L3635:  lda     arg2
         sta     $F1
         inc     $DB
         jmp     L3622
@@ -1499,24 +1550,24 @@ L3635:  lda     $16
 L363E:  jsr     L4702
 L3641:  jsr     L356E
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$40
         beq     L366E
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
-        lda     $88
+        sta     ptr_hi
+        lda     ptr2
         clc
         adc     #$08
-        sta     $7A
-        lda     $89
+        sta     ptr3
+        lda     ptr2_hi
         adc     #$00
-        sta     $7B
+        sta     ptr3_hi
 L3661:  jsr     L53C3
         cmp     #$FF
         beq     L3641
-        cmp     $15
+        cmp     arg1
         bne     L3661
         lda     #$01
 L366E:  tax
@@ -1528,45 +1579,45 @@ L3674:  lda     $7E
         beq     L3679
         rts
 
-L3679:  lda     $77
+L3679:  lda     xaux
         lsr     a
         lsr     a
         jsr     L36A5
-        lda     $73
+        lda     direct
         beq     L3687
         jsr     code_54E9
-L3687:  lda     $8A
-        sta     $E8
-        lda     $8B
-        sta     $E9
+L3687:  lda     ptr
+        sta     svptr
+        lda     ptr_hi
+        sta     svptr_hi
         rts
 
-L3690:  lda     $77
+L3690:  lda     xaux
         jsr     L36A5
-        lda     $74
+        lda     variant
         beq     L369C
         jsr     code_54E9
-L369C:  lda     $8A
+L369C:  lda     ptr
         sta     $EA
-        lda     $8B
+        lda     ptr_hi
         sta     $EB
         rts
 
 L36A5:  and     #$03
         beq     L36B2
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
         rts
 
 L36B2:  lda     #$62
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
         rts
 
-L36BB:  lda     $78
+L36BB:  lda     xmode
         and     #$04
         bne     L36C2
         rts
@@ -1576,7 +1627,7 @@ L36C2:  lda     $D8
         beq     L36C9
         rts
 
-L36C9:  lda     $78
+L36C9:  lda     xmode
         and     #$02
         bne     L36D2
         lda     #$01
@@ -1586,51 +1637,51 @@ L36D2:  lda     #$00
         rts
 
 L36D5:  jsr     L4B37
-        lda     $12
+        lda     passok
         rts
 
 ; resout $13 (L43CB), evalue cond $15/$16, execute, ret A
 move_core:
-        lda     $E8
+        lda     svptr
         pha
-        lda     $E9
+        lda     svptr_hi
         pha
-        lda     $F8
+        lda     exitp
         pha
-        lda     $F9
+        lda     exitp_hi
         pha
         jsr     L46E6
-        lda     $13
+        lda     wid
         jsr     exit_ptr
         jsr     L358F
         jsr     code_4141
         jsr     move_flags
-        ldx     $15
-        lda     $73
+        ldx     arg1
+        lda     direct
         jsr     cond_eval
         beq     L370B
         ldy     #$05
-L3703:  lda     ($8A),y
-        sta     $DC,y
+L3703:  lda     (ptr),y
+        sta     cond1,y
         dey
         bpl     L3703
-L370B:  ldx     $16
-        lda     $74
+L370B:  ldx     arg2
+        lda     variant
         jsr     cond_eval
         beq     L371E
         ldy     #$05
-L3716:  lda     ($8A),y
-        sta     $E2,y
+L3716:  lda     (ptr),y
+        sta     cond2,y
         dey
         bpl     L3716
 L371E:  jsr     L3679
         lda     #$00
-        sta     $0C
-        lda     $78
+        sta     phase
+        lda     xmode
         and     #$0C
         bne     L3733
         jsr     L4B37
-        lda     $12
+        lda     passok
         jmp     L3743
 
 L3733:  lda     #$01
@@ -1643,15 +1694,15 @@ L3733:  lda     #$01
 L3741:  lda     #$01
 L3743:  tax
         lda     #$01
-        sta     $0C
+        sta     phase
         pla
-        sta     $F9
+        sta     exitp_hi
         pla
-        sta     $F8
+        sta     exitp
         pla
-        sta     $E9
+        sta     svptr_hi
         pla
-        sta     $E8
+        sta     svptr
         jsr     L471B
         txa
         rts
@@ -1676,10 +1727,10 @@ L3769:  txa
 
 ; derive $73/$74/$80 depuis $78 (bits 7/6, sinon residus)
 move_flags:
-        lda     $77
+        lda     xaux
         and     #$40
         sta     $7F
-        lda     $78
+        lda     xmode
         tax
         and     #$01
         sta     $80
@@ -1687,23 +1738,23 @@ move_flags:
         and     #$80
         beq     L3784
         lda     #$01
-L3784:  sta     $73
+L3784:  sta     direct
         txa
         and     #$40
         beq     L378D
         lda     #$01
-L378D:  sta     $74
+L378D:  sta     variant
         rts
 
 L3790:  ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$80
         sta     $EC
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$7F
         sta     $F3
         dey
-        lda     ($88),y
+        lda     (ptr2),y
         sta     $F2
         ldx     #$03
         lda     #$00
@@ -1724,33 +1775,33 @@ L37A7:  sta     $F4,x
         lda     #$00
         sta     $79
         lda     #$E2
-        sta     $F8
+        sta     exitp
         lda     #$26
-        sta     $F9
+        sta     exitp_hi
         lda     #$01
         sta     $6C
         lda     #$F2
-        sta     $7A
+        sta     ptr3
         lda     #$00
-        sta     $7B
-L37DE:  lda     $F8
+        sta     ptr3_hi
+L37DE:  lda     exitp
         sta     $7C
-        lda     $F9
+        lda     exitp_hi
         sta     $7D
         jsr     code_433A
         beq     L3804
-        lda     $F8
+        lda     exitp
         clc
         adc     #$08
-        sta     $F8
-        lda     $F9
+        sta     exitp
+        lda     exitp_hi
         adc     #$00
-        sta     $F9
+        sta     exitp_hi
         inc     $6C
         ldy     #$00
-        lda     ($F8),y
+        lda     (exitp),y
         iny
-        ora     ($F8),y
+        ora     (exitp),y
         bne     L37DE
         rts
 
@@ -1773,30 +1824,30 @@ L381C:  jsr     code_4141
         lda     $F4
         ora     $F5
         bne     L382A
-        lda     $77
+        lda     xaux
         jmp     L384A
 
 L382A:  lda     $F4
         ldy     #$0E
-        cmp     ($88),y
+        cmp     (ptr2),y
         bne     L3839
         iny
         lda     $F5
-        cmp     ($88),y
+        cmp     (ptr2),y
         beq     L3846
 L3839:  lda     $F4
         ldy     #$10
-        cmp     ($88),y
+        cmp     (ptr2),y
         bne     L3846
         iny
         lda     $F5
-        cmp     ($88),y
+        cmp     (ptr2),y
 L3846:  bne     L384F
-        lda     $78
+        lda     xmode
 L384A:  eor     #$20
         jmp     L3851
 
-L384F:  lda     $78
+L384F:  lda     xmode
 L3851:  and     #$20
         beq     L3860
         lda     #$08
@@ -1819,11 +1870,11 @@ L3868:  ldy     $EE
         bne     L3882
         ldx     #$05
 L387B:  lda     $97,x
-        sta     $DC,x
+        sta     cond1,x
         dex
         bpl     L387B
 L3882:  ldx     #$05
-L3884:  lda     $DC,x
+L3884:  lda     cond1,x
         sta     $82,x
         dex
         bpl     L3884
@@ -1831,7 +1882,7 @@ L3884:  lda     $DC,x
         cmp     #$35
         bne     L389A
         ldx     #$05
-L3893:  lda     $DC,x
+L3893:  lda     cond1,x
         sta     $97,x
         dex
         bpl     L3893
@@ -1841,7 +1892,7 @@ L389A:  ldy     $EF
 L38A0:  pha
         lda     #$06
 L38A3:  pha
-        lda     ($88),y
+        lda     (ptr2),y
         sta     $D7,x
         inx
         iny
@@ -1871,15 +1922,15 @@ L38C9:  dec     $6C
         bpl     L38CE
         rts
 
-L38CE:  lda     ($88),y
+L38CE:  lda     (ptr2),y
         sta     $F4,x
         iny
         inx
-        lda     ($88),y
+        lda     (ptr2),y
         sta     $F4,x
         dey
         dex
-        ora     ($88),y
+        ora     (ptr2),y
         bne     L38DF
         rts
 
@@ -1893,28 +1944,28 @@ L38E4           := * + 2
         jmp     L0000
 
 L38E5:  jsr     L4702
-        lda     $E8
-        sta     $8A
-        lda     $E9
-        sta     $8B
-        lda     $73
+        lda     svptr
+        sta     ptr
+        lda     svptr_hi
+        sta     ptr_hi
+        lda     direct
         cmp     #$01
         beq     L391B
         lda     #$C3
         sta     L38E3
         lda     #$53
         sta     L38E4
-        lda     $77
+        lda     xaux
         ror     a
         ror     a
         and     #$03
         sta     $81
 L3908:  jsr     L3928
         pha
-        lda     $8A
-        sta     $E8
-        lda     $8B
-        sta     $E9
+        lda     ptr
+        sta     svptr
+        lda     ptr_hi
+        sta     svptr_hi
         jsr     L471E
         pla
         cmp     #$FF
@@ -1927,20 +1978,20 @@ L391B:  lda     #$F8
         jmp     L3908
 
 L3928:  lda     #$DC
-        sta     $7A
+        sta     ptr3
         lda     #$00
-        sta     $7B
+        sta     ptr3_hi
         jsr     L38E2
         cmp     #$FF
         bne     L3938
         rts
 
-L3938:  sta     $15
+L3938:  sta     arg1
         lda     $D7
         ora     #$02
         sta     $D7
         jsr     code_4B07
-        lda     $12
+        lda     passok
         beq     L3928
         rts
 
@@ -1948,26 +1999,26 @@ L3948:  jsr     L4702
         lda     #$00
         sta     $80
         lda     $EA
-        sta     $8A
+        sta     ptr
         lda     $EB
-        sta     $8B
-        lda     $74
+        sta     ptr_hi
+        lda     variant
         cmp     #$01
         beq     L3986
         lda     #$C3
         sta     L38E3
         lda     #$53
         sta     L38E4
-        lda     $77
+        lda     xaux
         and     #$03
         sta     $81
 L396D:  jsr     L3993
         pha
-        lda     $8A
+        lda     ptr
         sta     $EA
-        lda     $8B
+        lda     ptr_hi
         sta     $EB
-        lda     $78
+        lda     xmode
         and     #$01
         sta     $80
         jsr     L471E
@@ -1982,15 +2033,15 @@ L3986:  lda     #$F8
         jmp     L396D
 
 L3993:  lda     #$E2
-        sta     $7A
+        sta     ptr3
         lda     #$00
-        sta     $7B
+        sta     ptr3_hi
         jsr     L38E2
         cmp     #$FF
         bne     L39A3
         rts
 
-L39A3:  sta     $16
+L39A3:  sta     arg2
         lda     $D8
         ora     #$02
         sta     $D8
@@ -2002,15 +2053,15 @@ L39B1:  jsr     L39B7
         jmp     L4402
 
 L39B7:  lda     #$01
-        sta     $0D
-        sta     $0C
+        sta     raw
+        sta     phase
         rts
 
 L39BE:  sta     $57
         tya
         pha
         ldy     #$17
-L39C4:  lda     ($88),y
+L39C4:  lda     (ptr2),y
         sta     L490F,y
         dey
         bpl     L39C4
@@ -2029,7 +2080,7 @@ L39D3:  jsr     L39BE
         lda     $D7,y
         sta     L466F,x
         jsr     L39B1
-        ldy     $11
+        ldy     crcnt
         lda     #$01
         rts
 
@@ -2073,60 +2124,60 @@ L3A2D:  jsr     L39B7
 
 L3A36:  jsr     code_54E9
         lda     #$01
-        sta     $74
+        sta     variant
         lda     #$E2
-        sta     $7A
+        sta     ptr3
         lda     #$00
-        sta     $7B
+        sta     ptr3_hi
         jsr     L54F8
         cmp     #$FF
         bne     L3A63
         lda     #$02
         sta     $81
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
         lda     #$00
-        sta     $74
+        sta     variant
         jsr     L53C3
         cmp     #$FF
         beq     L3AA0
-L3A63:  sta     $16
+L3A63:  sta     arg2
         jsr     L416A
         lda     #$01
         rts
 
 L3A6B:  jsr     code_54E9
         lda     #$01
-        sta     $73
+        sta     direct
         lda     #$DC
-        sta     $7A
+        sta     ptr3
         lda     #$00
-        sta     $7B
+        sta     ptr3_hi
         jsr     L54F8
         cmp     #$FF
         bne     L3A98
         lda     #$02
         sta     $81
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
         lda     #$00
-        sta     $73
+        sta     direct
         jsr     L53C3
         cmp     #$FF
         beq     L3AA0
-L3A98:  sta     $15
+L3A98:  sta     arg1
         jsr     L416A
         lda     #$01
         rts
 
 L3AA0:  jsr     L39B7
-        lda     $7A
+        lda     ptr3
         sta     L466F
-        lda     $7B
+        lda     ptr3_hi
         sta     L4670
         jsr     L4402
         tax
@@ -2163,14 +2214,14 @@ L3ADF:  ldx     #$00
         jsr     L3B26
         txa
         pha
-        lda     $15
+        lda     arg1
         jsr     L43F3
         pla
         tax
-        lda     $8A
+        lda     ptr
         sta     L466F,x
         inx
-        lda     $8B
+        lda     ptr_hi
         sta     L466F,x
         inx
         jsr     L3B21
@@ -2192,7 +2243,7 @@ L3B26:  lda     #$D0
 L3B28:  sta     L3B34
         sta     L3B58
         ldy     #$03
-        lda     ($F8),y
+        lda     (exitp),y
         and     #$20
 L3B34:  bne     L3B43
         lda     #$00
@@ -2203,15 +2254,15 @@ L3B34:  bne     L3B43
         jmp     L3B52
 
 L3B43:  ldy     #$02
-        lda     ($F8),y
+        lda     (exitp),y
         sta     L466F,x
         inx
         iny
-        lda     ($F8),y
+        lda     (exitp),y
         sta     L466F,x
         inx
 L3B52:  ldy     #$07
-        lda     ($F8),y
+        lda     (exitp),y
         and     #$80
 L3B58:  bne     L3B65
         lda     #$00
@@ -2222,11 +2273,11 @@ L3B58:  bne     L3B65
         rts
 
 L3B65:  ldy     #$04
-        lda     ($F8),y
+        lda     (exitp),y
         sta     L466F,x
         inx
         iny
-        lda     ($F8),y
+        lda     (exitp),y
         sta     L466F,x
         inx
         rts
@@ -2249,10 +2300,10 @@ L3B75:  lda     $F2
         ora     ($60,x)
         ldy     #$0D
         ldx     #$00
-L3B9F:  lda     $5C
+L3B9F:  lda     adr
         cmp     L3BC6,x
         bne     L3BAF
-        lda     $5D
+        lda     adr_hi
         and     #$0F
         cmp     L3BC7,x
         beq     L3BB7
@@ -2299,9 +2350,9 @@ L3C07:  lda     $5A
 L3C17:  lda     #$02
         sta     $6E
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         ora     #$80
-        sta     ($88),y
+        sta     (ptr2),y
         jmp     L3135
 
         lda     $6E
@@ -2327,17 +2378,17 @@ L3C46:  beq     L3C4B
 L3C4B:  jmp     L3449
 
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         bne     L3C6A
         iny
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$0F
         bne     L3C6A
         lda     #$0A
-        sta     ($88),y
+        sta     (ptr2),y
         dey
         lda     #$55
-        sta     ($88),y
+        sta     (ptr2),y
         lda     $6D
         and     #$FD
         sta     $6D
@@ -2348,8 +2399,8 @@ L3C6A:  lda     $5F
 L3C73:  jsr     L3485
         cmp     #$90
         bne     L3C73
-        lda     $5C
-        ora     $5D
+        lda     adr
+        ora     adr_hi
         bne     L3C73
         lda     #$C0
         sta     L4781,x
@@ -2361,24 +2412,24 @@ L3C73:  jsr     L3485
 code_3C8B:
         jmp     L2C3D
 
-        lda     $C5
+        lda     obj
         beq     L3C95
         jmp     L3135
 
 L3C95:  jsr     L46E9
         ldx     #$85
         ldy     #$71
-        lda     $C8
+        lda     ploc
         jsr     L5399
         beq     L3CBF
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         sta     msg_3CB7
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     msg_3CB7+1
         lda     #$01
-        sta     $0D
+        sta     raw
         jsr     print_msg
 ; TODO pointeur $0000
 msg_3CB7:
@@ -2388,7 +2439,7 @@ code_3CB9:
         jmp     L3C07
 
 L3CBF:  lda     #$01
-        sta     $0D
+        sta     raw
         jsr     print_msg
 ; -> $179D  YOU'RE.. FINE.a.} NEEDSa...
 msg_3CC6:
@@ -2402,16 +2453,16 @@ code_3CC8:
 
 L3CD4:  jsr     L46E9
         lda     #$00
-        sta     $0D
+        sta     raw
         jsr     print_msg
 ; -> $178A c.. MASTERED .%fp.W YOU'RE..
 msg_3CDE:
         .word   $178A
 code_3CE0:
         lda     $CC
-        sta     $8A
+        sta     ptr
         lda     $CD
-        sta     $8B
+        sta     ptr_hi
         lda     #$64
         jsr     code_3D14
         beq     L3CF2
@@ -2421,12 +2472,12 @@ L3CF2:  lda     #$0A
         jsr     putchar
         lda     #$2E
         jsr     putchar
-        lda     $8A
+        lda     ptr
         clc
         adc     #$30
         jsr     putchar
         lda     #$00
-        sta     $0E
+        sta     cap
         jsr     print_msg
 ; -> $1798 %fp.W YOU'RE.. FINE.a.} NEED
 msg_3D0E:
@@ -2440,18 +2491,18 @@ code_3D14:
         sta     L3D13
 L3D19:  inx
         sec
-        lda     $8A
+        lda     ptr
         sbc     L3D13
-        sta     $8A
-        lda     $8B
+        sta     ptr
+        lda     ptr_hi
         sbc     #$00
-        sta     $8B
+        sta     ptr_hi
         bcs     L3D19
-        lda     $8A
+        lda     ptr
         adc     L3D13
-        sta     $8A
+        sta     ptr
         bcc     L3D35
-        inc     $8B
+        inc     ptr_hi
 L3D35:  txa
         cpx     #$30
         rts
@@ -2597,7 +2648,7 @@ code_3E5B:
         sta     $91
         inx
         stx     $D1
-        lda     $15
+        lda     arg1
         plp
         php
         bne     L3E8A
@@ -2615,14 +2666,14 @@ L3E8A:  sta     $90
         rts
 
 L3E8E:  lda     $90
-        cmp     $C5
+        cmp     obj
         bne     L3E95
 L3E94:  rts
 
 L3E95:  ldx     #$00
         ldy     #$00
 L3E99:  lda     L48D3,x
-        cmp     $C5
+        cmp     obj
         beq     L3E94
         tya
         clc
@@ -2640,9 +2691,9 @@ L3E99:  lda     L48D3,x
 L3EB2:  lda     $91
         sta     $5F
         lda     #$27
-        sta     $88
+        sta     ptr2
         lda     #$49
-        sta     $89
+        sta     ptr2_hi
         lda     #$00
         sta     $65
         sta     $D3
@@ -2693,13 +2744,13 @@ L3F11:  lda     #$00
         lda     $D3
         sta     $6C
         lda     #$27
-        sta     $88
+        sta     ptr2
         lda     #$49
-        sta     $89
+        sta     ptr2_hi
 L3F26:  inc     $65
         jsr     L356E
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$40
         bne     L3F26
         lda     $65
@@ -2728,14 +2779,14 @@ L3F46:  sta     L48D4,x
         clc
         adc     $D0
         adc     #$E3
-        sta     $8A
+        sta     ptr
         lda     #$00
         adc     #$47
-        sta     $8B
+        sta     ptr_hi
         ldy     #$00
 L3F6C:  ldx     #$18
 L3F6E:  lda     L4927,y
-        sta     ($8A),y
+        sta     (ptr),y
         iny
         dex
         bne     L3F6E
@@ -2748,7 +2799,7 @@ code_3F7F:
         sta     L3F7E
         jsr     L46E6
         lda     $90
-        cmp     $C5
+        cmp     obj
         bne     L3F8E
         jmp     L3EB2
 
@@ -2758,17 +2809,17 @@ L3F8E:  jsr     L4035
         lda     L48D5,x
         sta     $7E
         lda     L48D6,x
-        sta     $E8
+        sta     svptr
         lda     L48D7,x
-        sta     $E9
+        sta     svptr_hi
         jsr     L357C
         bne     L3FD4
         jsr     L36D5
         beq     L3FCA
         ldx     $CF
-        lda     $E8
+        lda     svptr
         sta     L48D6,x
-        lda     $E9
+        lda     svptr_hi
         sta     L48D7,x
         lda     $7E
         sta     L48D5,x
@@ -2794,7 +2845,7 @@ L3FE5:  jsr     L4702
         jsr     fetch_retaddr
 L3FEB:  jsr     L356E
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$40
         beq     L3FFA
         inc     $D0
@@ -2806,8 +2857,8 @@ L3FFA:  lda     #$09
         beq     L4013
         ldy     #$00
 L4005:  ldx     #$18
-L4007:  lda     ($88),y
-        sta     ($8A),y
+L4007:  lda     (ptr2),y
+        sta     (ptr),y
         iny
         dex
         bne     L4007
@@ -2836,9 +2887,9 @@ L402F:  lda     #$00
 
 L4035:  jsr     L3E8E
 L4038:  lda     #$E3
-        sta     $88
+        sta     ptr2
         lda     #$47
-        sta     $89
+        sta     ptr2_hi
         stx     $CF
         tya
         tax
@@ -2852,16 +2903,16 @@ L404E:  ldx     $CF
 
 L4051:  jsr     L46E6
         tax
-        lda     $C5
+        lda     obj
         pha
-        stx     $C5
+        stx     obj
         jsr     L3E95
         bne     L4067
         jsr     L4038
 L4062:  jsr     L3FE5
         bne     L4062
 L4067:  pla
-        sta     $C5
+        sta     obj
         jmp     L471B
 
 L406D:  jsr     vec_11
@@ -2928,35 +2979,35 @@ L40BE:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $0D,$0D,$0D
 code_4141:
         ldy     #$05
-        lda     ($F8),y
+        lda     (exitp),y
         lsr     a
         lsr     a
         lsr     a
         lsr     a
-        sta     $77
+        sta     xaux
         ldy     #$07
-        lda     ($F8),y
+        lda     (exitp),y
         and     #$F0
-        ora     $77
-        sta     $77
+        ora     xaux
+        sta     xaux
         ldy     #$01
-        lda     ($F8),y
+        lda     (exitp),y
         lsr     a
         lsr     a
         lsr     a
         lsr     a
-        sta     $78
+        sta     xmode
         ldy     #$03
-        lda     ($F8),y
+        lda     (exitp),y
         and     #$F0
-        ora     $78
-        sta     $78
+        ora     xmode
+        sta     xmode
         rts
 
 L416A:  lda     #$00
-        sta     $12
+        sta     passok
         lda     #$01
-        sta     $0C
+        sta     phase
         lda     $5E
         bne     L4179
         jsr     L417C
@@ -2970,17 +3021,17 @@ L417C:  tya
         lda     #$01
         sta     $75
         lda     #$00
-        sta     $70
+        sta     nest
         lda     #$01
-        ldx     $12
+        ldx     passok
         beq     L4190
         lda     #$00
-L4190:  sta     $0D
-        lda     $13
+L4190:  sta     raw
+        lda     wid
         jsr     exit_ptr
-        lda     $12
+        lda     passok
         beq     L41A2
-        lda     $C5
+        lda     obj
         bne     L41A2
         jsr     print_cr
 L41A2:  jsr     code_4141
@@ -2990,10 +3041,10 @@ L41A2:  jsr     code_4141
 
 L41AC:  jsr     L454F
         lda     #$B4
-        sta     $5C
+        sta     adr
         lda     #$01
-        sta     $5D
-        lda     $12
+        sta     adr_hi
+        lda     passok
         bne     L41BE
         jsr     word_render
 L41BE:  ldy     #$06
@@ -3001,44 +3052,44 @@ L41BE:  ldy     #$06
         jsr     L4C82
         ldy     #$00
         bcc     L41E0
-        lda     $13
+        lda     wid
         cmp     #$0A
         bcs     L41E0
         lda     #$5F
-        sta     $5C
+        sta     adr
         lda     #$09
-        sta     $5D
+        sta     adr_hi
         jsr     word_render
         iny
         iny
         jmp     L41E3
 
 L41E0:  jsr     L4232
-L41E3:  lda     $78
+L41E3:  lda     xmode
         and     #$08
         beq     L41FE
-        lda     $78
+        lda     xmode
         and     #$20
         beq     L41F2
         jsr     L4232
 L41F2:  ldy     #$04
-        lda     $77
+        lda     xaux
         bpl     L41FB
         jsr     L4232
 L41FB:  jsr     L455B
-L41FE:  lda     $16
+L41FE:  lda     arg2
         cmp     #$FF
         beq     L4221
-        lda     $78
+        lda     xmode
         and     #$04
         beq     L4221
         ldy     #$02
-        lda     $78
+        lda     xmode
         and     #$20
         bne     L4215
         jsr     L4232
 L4215:  ldy     #$04
-        lda     $77
+        lda     xaux
         bmi     L421E
         jsr     L4232
 L421E:  jsr     L4573
@@ -3053,21 +3104,21 @@ L4229:  lda     #$00
         tay
         rts
 
-L4232:  lda     ($F8),y
-        sta     $5C
+L4232:  lda     (exitp),y
+        sta     adr
         iny
-        lda     ($F8),y
+        lda     (exitp),y
         and     #$0F
-        sta     $5D
+        sta     adr_hi
         iny
         jmp     word_render
 
 ; rend un mot du dico packe 5-bit : pluriels S/ES/IES/ING, espace auto, wrap
 word_render:
-        lda     $5D
+        lda     adr_hi
         sta     $5B
         and     #$0F
-        ora     $5C
+        ora     adr
         bne     L424C
         rts
 
@@ -3075,26 +3126,26 @@ L424C:  tya
         pha
         txa
         pha
-        lda     $5D
+        lda     adr_hi
         and     #$0F
-        sta     $5D
+        sta     adr_hi
         lda     #$00
         clc
-        adc     $5C
-        sta     $5C
+        adc     adr
+        sta     adr
         lda     #$05
-        adc     $5D
-        sta     $5D
+        adc     adr_hi
+        sta     adr_hi
         ldy     #$00
         ldx     #$00
-L4267:  lda     ($5C),y
+L4267:  lda     (adr),y
         and     #$1F
         beq     L428D
         clc
         adc     #$60
         sta     L430E,x
         inx
-        lda     ($5C),y
+        lda     (adr),y
         iny
         and     #$80
         beq     L4267
@@ -3104,7 +3155,7 @@ L4267:  lda     ($5C),y
         bne     L428D
         dey
         dey
-        lda     ($5C),y
+        lda     (adr),y
         iny
         iny
         and     #$80
@@ -3117,17 +3168,17 @@ L428D:  lda     $5B
         beq     L42A6
         cmp     #$10
         beq     L42A2
-        lda     $C5
+        lda     obj
         jmp     L42A4
 
-L42A2:  lda     $15
+L42A2:  lda     arg1
 L42A4:  beq     word_space
 L42A6:  ldy     #$01
-        lda     ($5C),y
+        lda     (adr),y
         and     #$80
         beq     word_space
         iny
-        lda     ($5C),y
+        lda     (adr),y
         and     #$E0
         lsr     a
         lsr     a
@@ -3149,10 +3200,10 @@ L42C3:  sta     L430E,x
         bne     L42B9
 ; espace auto ($0D/$0F) + wrap (longueur X vs $04/$05, flag $0E)
 word_space:
-        lda     $0D
+        lda     raw
         pha
         bne     L42D5
-        lda     $0F
+        lda     sppend
 L42D5:  beq     L42DC
         lda     #$20
         jsr     putchar
@@ -3161,18 +3212,18 @@ L42DC:  pla
         cpx     $05
         jmp     L42E6
 
-L42E4:  cpx     $04
+L42E4:  cpx     col
 L42E6:  bcc     L42F1
         beq     L42F1
-        lda     $0E
+        lda     cap
         jsr     print_cr
-        sta     $0E
+        sta     cap
 L42F1:  lda     $5B
         and     #$F0
         cmp     #$70
         bne     L42FD
         lda     #$01
-        sta     $0E
+        sta     cap
 L42FD:  ldy     #$00
 L42FF:  lda     L430E,y
         jsr     putchar
@@ -3219,16 +3270,16 @@ L4365:  php
 
 L436B:  .byte   "N"
 code_436C:
-        lda     ($7A),y
+        lda     (ptr3),y
         iny
-        ora     ($7A),y
+        ora     (ptr3),y
         beq     L4383
-        lda     ($7A),y
+        lda     (ptr3),y
         eor     ($7C),y
         and     #$0F
         bne     L4383
         dey
-        lda     ($7A),y
+        lda     (ptr3),y
         cmp     ($7C),y
         php
         iny
@@ -3238,11 +3289,11 @@ L4383:  php
         plp
         rts
 
-L4387:  lda     ($7A),y
+L4387:  lda     (ptr3),y
         iny
-        ora     ($7A),y
+        ora     (ptr3),y
         beq     L43A4
-        lda     ($7A),y
+        lda     (ptr3),y
         iny
         iny
         eor     ($7C),y
@@ -3251,7 +3302,7 @@ L4387:  lda     ($7A),y
         and     #$0F
         bne     L43A4
         dey
-        lda     ($7A),y
+        lda     (ptr3),y
         iny
         iny
         cmp     ($7C),y
@@ -3263,11 +3314,11 @@ L43A4:  php
         plp
         rts
 
-L43A8:  lda     ($7A),y
+L43A8:  lda     (ptr3),y
         iny
-        ora     ($7A),y
+        ora     (ptr3),y
         beq     L43C7
-        lda     ($7A),y
+        lda     (ptr3),y
         dey
         dey
         eor     ($7C),y
@@ -3276,7 +3327,7 @@ L43A8:  lda     ($7A),y
         and     #$0F
         bne     L43C7
         dey
-        lda     ($7A),y
+        lda     (ptr3),y
         dey
         dey
         cmp     ($7C),y
@@ -3301,35 +3352,35 @@ exit_ptr:
         and     #$F8
         clc
         adc     #$DA
-        sta     $F8
+        sta     exitp
         lda     $6C
         and     #$07
         adc     #$26
-        sta     $F9
+        sta     exitp_hi
         rts
 
 L43E4:  jsr     L530B
-        lda     $8A
+        lda     ptr
         clc
         adc     #$02
-        sta     $8A
+        sta     ptr
         bcc     L43F2
-        inc     $8B
+        inc     ptr_hi
 L43F2:  rts
 
 L43F3:  jsr     L5331
-        lda     $8A
+        lda     ptr
         clc
         adc     #$08
-        sta     $8A
+        sta     ptr
         bcc     L4401
-        inc     $8B
+        inc     ptr_hi
 L4401:  rts
 
 L4402:  lda     $5E
         beq     L440A
         lda     #$00
-        sta     $0C
+        sta     phase
 L440A:  jmp     print_msg
 
 ; affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)
@@ -3347,16 +3398,16 @@ print_msg:
         txa
         pha
         ldy     #$00
-        sty     $76
+        sty     msgstk
         lda     (L006A),y
-        sta     $8A
+        sta     ptr
         jsr     msgptr_inc
         lda     (L006A),y
-        sta     $8B
+        sta     ptr_hi
         jsr     msgptr_inc
-        lda     $0C
+        lda     phase
         bne     L4437
-        sta     $12
+        sta     passok
 L4437:  jsr     render_text
         pla
         tax
@@ -3368,17 +3419,17 @@ L4437:  jsr     render_text
 ; boucle : literaux $20-5F, mots $60-7F ($1117), tokens <$20 ($4641), 2 o si bit7
 render_text:
         ldy     #$00
-        sty     $6F
-L4448:  ldy     $6F
-        lda     ($8A),y
+        sty     tidx
+L4448:  ldy     tidx
+        lda     (ptr),y
         bpl     L4471
         and     #$7F
-        sta     $5D
+        sta     adr_hi
         iny
-        lda     ($8A),y
-        sta     $5C
-        sty     $6F
-        lda     $5D
+        lda     (ptr),y
+        sta     adr
+        sty     tidx
+        lda     adr_hi
         and     #$F0
         cmp     #$30
         beq     text_end
@@ -3387,7 +3438,7 @@ L4448:  ldy     $6F
         cmp     #$60
         beq     text_end
 L4469:  jsr     word_render
-L446C:  inc     $6F
+L446C:  inc     tidx
         jmp     L4448
 
 L4471:  cmp     #$20
@@ -3447,14 +3498,14 @@ L44C4:  rts
 ; token $00 : rend le message empile (L466F/$0200), Z=saute
 tok_nested:
         lda     #$00
-L44C7:  sta     $70
+L44C7:  sta     nest
         jsr     stk_pop
         jsr     L46E9
-        lda     $5C
-        sta     $8A
-        lda     $5D
-        sta     $8B
-        ora     $5C
+        lda     adr
+        sta     ptr
+        lda     adr_hi
+        sta     ptr_hi
+        ora     adr
         beq     L44DE
         jsr     nested_render
 L44DE:  jsr     fetch_retaddr
@@ -3462,14 +3513,14 @@ L44DE:  jsr     fetch_retaddr
         rts
 
 ; depile une adresse L466F ($76) en $5C/$5D
-stk_pop:ldx     $76
+stk_pop:ldx     msgstk
         lda     L466F,x
-        sta     $5C
+        sta     adr
         inx
         lda     L466F,x
-        sta     $5D
+        sta     adr_hi
         inx
-        stx     $76
+        stx     msgstk
         rts
 
 ; token $01 : rend le mot a l'adresse empilee (L466F)
@@ -3480,45 +3531,45 @@ tok_stkword:
 
 ; token $02 : avance ($8A) de $6F + saut relatif (L4507)
 tok_skip:
-        inc     $6F
+        inc     tidx
         jsr     L4507
         lda     #$FF
-        sta     $6F
+        sta     tidx
 ; tokens $05/$0A/$0F/$12 reserves : sans effet (lda #0, saute)
 tok_noop:
         lda     #$00
         rts
 
-L4507:  lda     $6F
+L4507:  lda     tidx
         clc
-        adc     $8A
-        sta     $8A
+        adc     ptr
+        sta     ptr
         bcc     L4512
-        inc     $8B
+        inc     ptr_hi
 L4512:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         bmi     L4522
         clc
-        adc     $8A
-        sta     $8A
+        adc     ptr
+        sta     ptr
         bcc     L4521
-        inc     $8B
+        inc     ptr_hi
 L4521:  rts
 
 L4522:  clc
-        adc     $8A
-        sta     $8A
-        lda     $8B
+        adc     ptr
+        sta     ptr
+        lda     ptr_hi
         adc     #$FF
-        sta     $8B
+        sta     ptr_hi
         rts
 
 ; token $03 : rend le mot pointe par ($71/$72)
 tok_objw:
-        lda     $71
-        sta     $5C
-        lda     $72
-        sta     $5D
+        lda     wptr
+        sta     adr
+        lda     wptr_hi
+        sta     adr_hi
         lda     #$01
         rts
 
@@ -3526,7 +3577,7 @@ tok_objw:
 tok_stkvar:
         jsr     stk_pop
         lda     #$01
-        sta     $70
+        sta     nest
         jsr     code_4683
         lda     #$00
         rts
@@ -3537,8 +3588,8 @@ tok_stkvar:
 ; token $06 : rend le nom de l'objet $C5 via $461B (imbrique $44C7)
 tok_objC5:
         lda     #$00
-        sta     $70
-L454F:  lda     $C5
+        sta     nest
+L454F:  lda     obj
         jsr     obj_lookup
         lda     #$00
         rts
@@ -3546,13 +3597,13 @@ L454F:  lda     $C5
 ; token $07 : rend l'objet $15 (direct $43E4 si $73, sinon $43F3)
 tok_obj15:
         lda     #$01
-        sta     $70
-L455B:  lda     $73
+        sta     nest
+L455B:  lda     direct
         beq     L4564
-        lda     $15
+        lda     arg1
         jmp     L4581
 
-L4564:  lda     $15
+L4564:  lda     arg1
         jmp     L458A
 
 ; token $08 : appel vecteur interne $2C2F avec A=$08
@@ -3564,13 +3615,13 @@ tok_ctrl08:
 ; token $09 : rend l'objet $16 (variante $74)
 tok_obj16:
         lda     #$01
-        sta     $70
-L4573:  lda     $74
+        sta     nest
+L4573:  lda     variant
         beq     L457C
-        lda     $16
+        lda     arg2
         jmp     L4581
 
-L457C:  lda     $16
+L457C:  lda     arg2
         jmp     L458A
 
 L4581:  jsr     L46E9
@@ -3587,89 +3638,89 @@ L4590:  jsr     nested_render
 ; token $0B : rend en recursif (L4444) le message apres avance
 tok_recurse:
         jsr     L46E9
-        inc     $6F
-        lda     $6F
+        inc     tidx
+        lda     tidx
         pha
         jsr     L4507
         jsr     render_text
         pla
-        sta     $6F
+        sta     tidx
         jsr     fetch_retaddr
         lda     #$00
         rts
 
 ; token $0C : pronom his ($0548->$0A48) si $C5, your ($0C12->$1112) sinon
 tok_pronC5:
-        lda     $C5
+        lda     obj
 L45B2:  beq     L45BF
         lda     #$48
-        sta     $5C
+        sta     adr
         lda     #$05
-        sta     $5D
+        sta     adr_hi
         lda     #$01
         rts
 
 L45BF:  lda     #$12
-        sta     $5C
+        sta     adr
         lda     #$0C
-        sta     $5D
+        sta     adr_hi
         lda     #$01
         rts
 
 ; token $0E : idem tok_pronC5 avec $15
 tok_pron15:
-        lda     $15
+        lda     arg1
         jmp     L45B2
 
 ; token $10 : nom objet $C5 ($05B2=is si absent, $0958=someone si $FF)
 tok_nameC5:
-        lda     $C5
+        lda     obj
         pha
         lda     #$00
-L45D4:  sta     $70
+L45D4:  sta     nest
         pla
         pha
         jsr     obj_lookup
         pla
         beq     L45E9
         lda     #$B2
-        sta     $5C
+        sta     adr
         lda     #$05
-        sta     $5D
+        sta     adr_hi
         lda     #$01
         rts
 
 L45E9:  lda     #$BE
-        sta     $5C
+        sta     adr
         lda     #$00
-        sta     $5D
+        sta     adr_hi
         lda     #$01
         rts
 
 ; token $11 : idem avec $15 et variante $70=1
 tok_name15:
-        lda     $15
+        lda     arg1
         pha
         lda     #$01
         jmp     L45D4
 
 ; token $13 : empile L466F ($76) puis nom objet ($45D4)
 tok_nameSTK:
-        ldx     $76
+        ldx     msgstk
         lda     L466F,x
         pha
         inx
-        stx     $76
+        stx     msgstk
         lda     #$01
         jmp     L45D4
 
 ; rend le message imbrique ($5C/$5D) : pile $0200 ($5535)
 nested_render:
         jsr     L4702
-        lda     $8A
-        sta     $88
-        lda     $8B
-        sta     $89
+        lda     ptr
+        sta     ptr2
+        lda     ptr_hi
+        sta     ptr2_hi
         jsr     L5535
         jmp     L471E
 
@@ -3680,9 +3731,9 @@ obj_lookup:
         jmp     L458A
 
 L4622:  lda     #$58
-        sta     $5C
+        sta     adr
         lda     #$09
-        sta     $5D
+        sta     adr_hi
         jmp     word_render
 
 ; octet $60-7F -> mot courant de la table $1117 (the/a/and/you/to/...)
@@ -3693,10 +3744,10 @@ common_lookup:
         rol     a
         tax
         lda     $1117,x
-        sta     $5C
+        sta     adr
         inx
         lda     $1117,x
-        sta     $5D
+        sta     adr_hi
         jmp     L4469
 
 ; table des 32 tokens <$20 : <$14 sous-routines (Z=saute $4241), $14/15/16=fins
@@ -3717,55 +3768,55 @@ L4673:  .byte   $00
 L4674:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00
 code_4683:
-        lda     $5C
+        lda     adr
         pha
-        lda     $5D
+        lda     adr_hi
         pha
-        lda     $70
+        lda     nest
         beq     L4690
         jsr     L469B
 L4690:  pla
         and     #$0F
-        sta     $5D
+        sta     adr_hi
         pla
-        sta     $5C
+        sta     adr
         jmp     word_render
 
-L469B:  lda     $5D
+L469B:  lda     adr_hi
         bpl     L46B1
         and     #$0F
         cmp     #$0C
         bne     L46AC
-        lda     $5C
+        lda     adr
         cmp     #$0F
         bne     L46AC
         rts
 
 L46AC:  lda     #$01
-        sta     $0E
+        sta     cap
         rts
 
-L46B1:  lda     $5D
+L46B1:  lda     adr_hi
         and     #$F0
         lsr     a
         lsr     a
         lsr     a
         tax
-        lda     $0D
+        lda     raw
         ora     $75
         beq     L46CD
         lda     $28C4,x
-        sta     $5C
+        sta     adr
         inx
         lda     $28C4,x
-        sta     $5D
+        sta     adr_hi
         jmp     word_render
 
 L46CD:  lda     $28BC,x
-        sta     $5C
+        sta     adr
         inx
         lda     $28BC,x
-        sta     $5D
+        sta     adr_hi
         jmp     word_render
 
 ; putchar + Z si $0D (token $0D = CR inline, saute $4241)
@@ -3779,63 +3830,63 @@ L46E3:  lda     #$00
         rts
 
 L46E6:  jsr     L4702
-L46E9:  sta     $AD
-        stx     $AE
-        ldx     $AF
-        lda     $8A
+L46E9:  sta     svA
+        stx     svX
+        ldx     rstk
+        lda     ptr
         sta     $0200,x
         inx
-        lda     $8B
+        lda     ptr_hi
         sta     $0200,x
         inx
-        stx     $AF
-        ldx     $AE
-        lda     $AD
+        stx     rstk
+        ldx     svX
+        lda     svA
         rts
 
-L4702:  sta     $AD
-        stx     $AE
-        ldx     $AF
-        lda     $88
+L4702:  sta     svA
+        stx     svX
+        ldx     rstk
+        lda     ptr2
         sta     $0200,x
         inx
-        lda     $89
+        lda     ptr2_hi
         sta     $0200,x
         inx
-        stx     $AF
-        ldx     $AE
-        lda     $AD
+        stx     rstk
+        ldx     svX
+        lda     svA
         rts
 
 L471B:  jsr     fetch_retaddr
-L471E:  sta     $AD
-        stx     $AE
-        ldx     $AF
+L471E:  sta     svA
+        stx     svX
+        ldx     rstk
         dex
         lda     $0200,x
-        sta     $89
+        sta     ptr2_hi
         dex
         lda     $0200,x
-        sta     $88
-        stx     $AF
-        ldx     $AE
-        lda     $AD
+        sta     ptr2
+        stx     rstk
+        ldx     svX
+        lda     svA
         rts
 
 ; copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B
 fetch_retaddr:
-        sta     $AD
-        stx     $AE
-        ldx     $AF
+        sta     svA
+        stx     svX
+        ldx     rstk
         dex
         lda     $0200,x
-        sta     $8B
+        sta     ptr_hi
         dex
         lda     $0200,x
-        sta     $8A
-        stx     $AF
-        ldx     $AE
-        lda     $AD
+        sta     ptr
+        stx     rstk
+        ldx     svX
+        lda     svA
         rts
 
 L4750:  pha
@@ -3855,10 +3906,10 @@ L475F:  pla
         jsr     L5399
         beq     L477E
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         tay
         jsr     vec_init
         jsr     keyin
@@ -4128,21 +4179,21 @@ code_4B07:
         ldx     #$00
         plp
         beq     L4B32
-        lda     $13
+        lda     wid
         ldx     #$AC
         ldy     #$6F
         jsr     L5399
         ldx     #$01
         cmp     #$FF
         bne     L4B32
-        lda     $15
+        lda     arg1
         jsr     L5331
-        lda     $13
+        lda     wid
         jsr     L52EA
         ldx     #$01
         bcs     L4B32
         ldx     #$00
-L4B32:  stx     $12
+L4B32:  stx     passok
         jmp     fetch_retaddr
 
 L4B37:  jsr     L46E9
@@ -4156,7 +4207,7 @@ L4B42:  jsr     L4C82
         bne     L4B57
         jsr     L5349
         bcc     L4B57
-        lda     $16
+        lda     arg2
         jsr     L534B
         bcs     L4B5F
 L4B57:  jsr     print_msg
@@ -4166,48 +4217,48 @@ msg_4B5A:
 code_4B5C:
         jmp     L4BE9
 
-L4B5F:  lda     $73
+L4B5F:  lda     direct
         cmp     #$01
         bne     L4B68
 L4B65:  jmp     L4C20
 
-L4B68:  lda     $15
+L4B68:  lda     arg1
         cmp     #$FF
         beq     L4B65
         jsr     L5331
-        lda     $8A
-        sta     $17
-        lda     $8B
-        sta     $18
-        lda     $15
+        lda     ptr
+        sta     orec
+        lda     ptr_hi
+        sta     orec_hi
+        lda     arg1
         jsr     L4CDF
         bne     L4BE9
-        lda     $16
+        lda     arg2
         cmp     #$FF
         beq     L4BA3
-        lda     $74
+        lda     variant
         cmp     #$01
         bne     L4B8F
         jmp     L4C20
 
-L4B8F:  lda     $16
+L4B8F:  lda     arg2
         jsr     L5331
-        lda     $8A
-        sta     $19
-        lda     $8B
-        sta     $1A
-        lda     $16
+        lda     ptr
+        sta     orec2
+        lda     ptr_hi
+        sta     orec2_hi
+        lda     arg2
         jsr     L4CDF
         bne     L4BE9
-L4BA3:  lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
-        lda     $13
+L4BA3:  lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
+        lda     wid
         jsr     L52EA
         bcc     L4C20
 L4BB2:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         asl     a
         tax
         bcs     L4BC9
@@ -4222,19 +4273,19 @@ L4BC9:  lda     L7114,x
         lda     L7115,x
         sta     L4C65
 L4BD5:  jsr     L4C5D
-        lda     $8A
+        lda     ptr
         clc
         adc     #$02
-        sta     $8A
+        sta     ptr
         bcc     L4BE3
-        inc     $8B
+        inc     ptr_hi
 L4BE3:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L4BB2
-L4BE9:  lda     $0C
+L4BE9:  lda     phase
         cmp     #$01
         bne     L4C1D
-        lda     $C5
+        lda     obj
         cmp     #$00
         bne     code_4BFF
         jsr     L4C82
@@ -4244,43 +4295,43 @@ L4BE9:  lda     $0C
 msg_4BFD:
         .word   $11F6
 code_4BFF:
-        ldx     $13
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
-        lda     $15
+        ldx     wid
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
+        lda     arg1
         jsr     L4C6D
-        ldx     $13
-        lda     $19
-        sta     $8A
-        lda     $1A
-        sta     $8B
-        lda     $16
+        ldx     wid
+        lda     orec2
+        sta     ptr
+        lda     orec2_hi
+        sta     ptr_hi
+        lda     arg2
         jsr     L4C6D
 L4C1D:  jmp     fetch_retaddr
 
-L4C20:  lda     $13
+L4C20:  lda     wid
         ldx     #$AC
         ldy     #$6F
         jsr     L5399
         cmp     #$FF
         beq     L4C51
 L4C2D:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4C64
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4C65
         jsr     L4C5D
-        lda     $8A
+        lda     ptr
         clc
         adc     #$03
-        sta     $8A
+        sta     ptr
         bcc     L4C48
-        inc     $8B
+        inc     ptr_hi
 L4C48:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L4C2D
         jmp     L4BE9
 
@@ -4309,10 +4360,10 @@ L4C65           := * + 2
 
 L4C6D:  pha
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$40
         beq     L4C80
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$08
         bne     L4C80
         pla
@@ -4323,41 +4374,41 @@ L4C80:  pla
 
 L4C82:  jsr     L46E6
         ldy     #$04
-        lda     ($C6),y
+        lda     (crec),y
         and     #$80
         beq     L4CD5
-        ldx     $C6
-        stx     $8A
-        ldy     $C7
-        sty     $8B
+        ldx     crec
+        stx     ptr
+        ldy     crec_hi
+        sty     ptr_hi
         jsr     L54C8
         cmp     #$FF
         bne     L4CA5
         jsr     L5374
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         bmi     L4CD5
 L4CA5:  lda     #$62
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L4CAD:  jsr     L540F
         beq     L4CDA
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     #$01
         bne     L4CAD
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         eor     #$B7
         and     #$5C
         bne     L4CAD
         ldy     #$04
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$80
         beq     L4CAD
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     code_5439
         beq     L4CAD
 L4CD5:  jsr     L471B
@@ -4374,7 +4425,7 @@ L4CDF:  cmp     #$FF
 
 L4CE4:  sta     L4D44
         jsr     L46E9
-        lda     $C5
+        lda     obj
         cmp     #$00
         beq     L4CF8
 L4CF0:  lda     #$00
@@ -4386,13 +4437,13 @@ L4CF2:  php
 L4CF8:  lda     L4D44
         jsr     L5331
         ldy     #$08
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4671
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4672
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         beq     L4CF0
         lda     L4D44
@@ -4400,17 +4451,17 @@ L4CF8:  lda     L4D44
         bcs     L4CF0
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$40
         beq     L4CF0
         lda     $1B21
         and     #$80
         beq     L4CF0
         ldy     #$08
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L466F
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4670
         jsr     print_msg
 ; -> $13C4 .er..qo.#.xu.....l.`..u..''.
@@ -4430,9 +4481,9 @@ L4D4E:  jsr     L46E6
         sta     L4D83
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         ora     #$08
-        sta     ($8A),y
+        sta     (ptr),y
         lda     L4D83
         jsr     L5713
         lda     L4D83
@@ -4441,7 +4492,7 @@ L4D4E:  jsr     L46E6
         beq     L4D74
         ldy     #$00
         tya
-        sta     ($88),y
+        sta     (ptr2),y
 L4D74:  lda     L4D83
         jsr     code_5AF0
         lda     L4D83
@@ -4451,16 +4502,16 @@ L4D74:  lda     L4D83
 L4D83:  .byte   $00
 code_4D84:
         lda     #$1A
-        sta     $C6
+        sta     crec
         lda     #$1B
-        sta     $C7
+        sta     crec_hi
         lda     #$00
-        sta     $C5
+        sta     obj
         sta     $D5
         jmp     L6487
 
-L4D95:  lda     $0C
-        and     $12
+L4D95:  lda     phase
+        and     passok
         bne     L4D9D
         pla
         pla
@@ -4495,7 +4546,7 @@ L4DB7:  pha
 L4DC6:  pha
         jsr     L530B
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$0E
         tax
         lda     $2110,x
@@ -4522,9 +4573,9 @@ msg_4DFC:
         .word   $0000
 code_4DFE:
         ldy     #$08
-        lda     ($8A),y
+        lda     (ptr),y
         iny
-        ora     ($8A),y
+        ora     (ptr),y
         jsr     L4E20
         lda     L4DF5
         jsr     L4750
@@ -4536,10 +4587,10 @@ L4E17:  lda     L4DF5
         jmp     code_57FD
 
 L4E20:  beq     L4E33
-        lda     ($8A),y
+        lda     (ptr),y
         sta     msg_4E30+1
         dey
-        lda     ($8A),y
+        lda     (ptr),y
         sta     msg_4E30
         jsr     print_msg
 ; TODO pointeur $0000
@@ -4549,13 +4600,13 @@ code_4E32:
         rts
 
 L4E33:  jsr     L4702
-        lda     $8A
+        lda     ptr
         clc
         adc     #$02
-        sta     $88
-        lda     $8B
+        sta     ptr2
+        lda     ptr_hi
         adc     #$00
-        sta     $89
+        sta     ptr2_hi
         jsr     L5535
         jmp     L471E
 
@@ -4574,28 +4625,28 @@ world_tick:
         lda     #$00
         sta     L4E58
         lda     #$01
-        sta     $12
-        sta     $0C
+        sta     passok
+        sta     phase
         lda     #$12
-        sta     $88
+        sta     ptr2
         lda     #$2B
-        sta     $89
+        sta     ptr2_hi
 ; balaye $2B12 : cpt--, re-arme, dispatch actB via $7169
 evt_tick:
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     #$FF
         beq     evt_end
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         beq     L4EBE
         sec
         sbc     #$01
-        sta     ($88),y
+        sta     (ptr2),y
         bne     evt_cond
         lda     L4E58
         cmp     #$01
-        sta     ($88),y
+        sta     (ptr2),y
         beq     evt_cond
         lda     #$01
         sta     L4E58
@@ -4605,15 +4656,15 @@ evt_tick:
 ; si cond<>0 et cond>=cpt : dispatch entree+4 (L4EAB)
 evt_cond:
         ldy     #$03
-        lda     ($88),y
+        lda     (ptr2),y
         beq     L4EBE
         ldy     #$01
-        cmp     ($88),y
+        cmp     (ptr2),y
         bcc     L4EBE
         ldy     #$04
 ; patch L4C64/L4C65 depuis $7169+X*2 puis jsr L4C5D
 evt_fire:
-        lda     ($88),y
+        lda     (ptr2),y
         asl     a
         tax
         lda     L7169,x
@@ -4621,17 +4672,17 @@ evt_fire:
         lda     L716A,x
         sta     L4C65
         jsr     L4C5D
-L4EBE:  lda     $88
+L4EBE:  lda     ptr2
         clc
         adc     #$05
-        sta     $88
+        sta     ptr2
         bcc     L4EC9
-        inc     $89
+        inc     ptr2_hi
 L4EC9:  jmp     evt_tick
 
 ; fin de table ($FF) : $0B=1 puis jmp $471B
 evt_end:lda     #$01
-        sta     $0B
+        sta     outen
         jmp     L471B
 
 L4ED3:  .byte   $44
@@ -4640,13 +4691,13 @@ L4ED4:  .byte   $0E
 entity_tick:
         jsr     code_5235
         lda     #$45
-        sta     $88
+        sta     ptr2
         lda     #$2B
-        sta     $89
+        sta     ptr2_hi
 L4EE0:  lda     #$00
         sta     L4ED3
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     #$FF
         bne     L4EF0
         jmp     L5008
@@ -4655,23 +4706,23 @@ L4EF0:  cmp     #$00
         bne     L4EF7
         jmp     L4FFA
 
-L4EF7:  sta     $C5
+L4EF7:  sta     obj
         jsr     L57BB
-        sta     $C9
-        lda     $8A
-        sta     $C6
-        lda     $8B
-        sta     $C7
+        sta     eloc
+        lda     ptr
+        sta     crec
+        lda     ptr_hi
+        sta     crec_hi
         lda     #$00
-        sta     $0B
+        sta     outen
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         jsr     L4702
         pha
         lda     #$1A
-        sta     $88
+        sta     ptr2
         lda     #$1B
-        sta     $89
+        sta     ptr2_hi
         pla
         jsr     L54A9
         php
@@ -4682,7 +4733,7 @@ L4EF7:  sta     $C5
         cmp     #$02
         beq     L4F43
         lda     #$01
-        sta     $0B
+        sta     outen
         lda     L4ED4
         cmp     #$01
         bne     L4F43
@@ -4693,23 +4744,23 @@ msg_4F3D:
         .word   $1406
 code_4F3F:
         lda     #$00
-        sta     $0B
-L4F43:  lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
+        sta     outen
+L4F43:  lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
         jsr     L3E8E
         php
         lda     #$00
         plp
         bne     L4F56
         lda     #$01
-L4F56:  sta     $CE
+L4F56:  sta     once
 L4F58:  ldy     #$02
-        lda     ($88),y
+        lda     (ptr2),y
         sta     $8C
         iny
-        lda     ($88),y
+        lda     (ptr2),y
         sta     $8D
 L4F63:  lda     L4ED3
         cmp     #$06
@@ -4718,27 +4769,27 @@ L4F63:  lda     L4ED3
 
 L4F6D:  ldy     #$00
         lda     $8C
-        sta     $8A
+        sta     ptr
         lda     $8D
-        sta     $8B
+        sta     ptr_hi
         lda     ($8C),y
         and     #$0F
         cmp     #$05
         bcs     L4FBA
-        lda     $CE
+        lda     once
         cmp     #$01
         bne     L4FA5
         lda     ($8C),y
         and     #$40
         bne     L4FA5
         lda     #$00
-        sta     $CE
+        sta     once
         lda     #$01
         jsr     code_3F7F
         beq     L4FA5
         lda     #$01
-        sta     $0C
-        sta     $12
+        sta     phase
+        sta     passok
         jsr     L46E9
         jsr     L5127
         jmp     L4FFA
@@ -4758,21 +4809,21 @@ L4FB7:  jmp     L4FFA
 L4FBA:  cmp     #$0E
         bne     L4FCD
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         iny
-        sta     ($88),y
-        lda     ($8A),y
+        sta     (ptr2),y
+        lda     (ptr),y
         iny
-        sta     ($88),y
+        sta     (ptr2),y
         jmp     L4F58
 
 L4FCD:  cmp     #$0C
         bne     L4FE0
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         jsr     entity_goto
         jmp     L4F58
 
@@ -4789,24 +4840,24 @@ L4FEA:  cmp     #$00
 L4FF4:  lda     #$00
         tax
         jsr     L51DA
-L4FFA:  lda     $88
+L4FFA:  lda     ptr2
         clc
         adc     #$07
-        sta     $88
+        sta     ptr2
         bcc     L5005
-        inc     $89
+        inc     ptr2_hi
 L5005:  jmp     L4EE0
 
 L5008:  lda     #$00
-        sta     $C5
+        sta     obj
         lda     #$01
-        sta     $0B
+        sta     outen
         lda     #$1A
-        sta     $C6
+        sta     crec
         lda     #$1B
-        sta     $C7
+        sta     crec_hi
         lda     $1B2A
-        sta     $C9
+        sta     eloc
         rts
 
 L501E:  lda     #$04
@@ -4826,33 +4877,33 @@ script_step4:
 script_step2:
         jsr     script_adv
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$10
         beq     L503C
         lda     #$02
         jsr     script_adv
 L503C:  ldy     #$02
         lda     $8C
-        sta     ($88),y
+        sta     (ptr2),y
         iny
         lda     $8D
-        sta     ($88),y
+        sta     (ptr2),y
         rts
 
 L5048:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$01
         bne     L506B
         jsr     script_step4
         ldy     #$01
-        lda     ($8A),y
-        sta     $13
+        lda     (ptr),y
+        sta     wid
         iny
-        lda     ($8A),y
-        sta     $15
+        lda     (ptr),y
+        sta     arg1
         iny
-        lda     ($8A),y
-        sta     $16
+        lda     (ptr),y
+        sta     arg2
         jsr     entity_move
         bne     L509A
         jmp     L50EB
@@ -4860,7 +4911,7 @@ L5048:  ldy     #$00
 L506B:  lda     #$03
         jsr     script_step2
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         asl     a
         tax
         lda     L7143,x
@@ -4868,57 +4919,57 @@ L506B:  lda     #$03
         lda     L7144,x
         sta     L4C65
         lda     #$00
-        sta     $0C
-        sta     $12
+        sta     phase
+        sta     passok
         jsr     L4C5D
-        lda     $12
+        lda     passok
         cmp     #$01
         php
         ldx     #$03
         plp
         bne     L50ED
-        sta     $0C
+        sta     phase
         jsr     L4C5D
 L509A:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$20
         bne     L50A5
         jmp     L4FFA
 
 L50A5:  lda     #$00
-        sta     ($8A),y
+        sta     (ptr),y
         jmp     L4FFA
 
 L50AC:  lda     #$02
         jsr     script_step2
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         beq     L50C9
-        sta     $13
+        sta     wid
         lda     #$FF
-        sta     $15
-        sta     $16
+        sta     arg1
+        sta     arg2
         jsr     entity_move
         beq     L50E7
         jmp     L4FFA
 
 L50C9:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$10
         bne     L50D4
         jmp     L4FFA
 
 L50D4:  ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$03
-        sta     ($88),y
+        sta     (ptr2),y
         dey
         txa
-        sta     ($88),y
+        sta     (ptr2),y
         jmp     L4FFA
 
 L50E7:  ldx     #$02
@@ -4926,28 +4977,28 @@ L50E7:  ldx     #$02
 L50EB:  ldx     #$04
 L50ED:  inc     L4ED3
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$10
         bne     L50FB
         jmp     L4F58
 
 L50FB:  txa
         clc
-        adc     $8A
-        sta     $8A
+        adc     ptr
+        sta     ptr
         bcc     L5105
-        inc     $8B
+        inc     ptr_hi
 L5105:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$03
-        sta     ($88),y
+        sta     (ptr2),y
         sta     $8D
         dey
         txa
-        sta     ($88),y
+        sta     (ptr2),y
         sta     $8C
         jmp     L4F63
 
@@ -4958,43 +5009,43 @@ entity_move:
         bne     L5127
         jmp     L51C7
 
-L5127:  lda     $73
+L5127:  lda     direct
         cmp     #$01
         beq     L51A0
-        lda     $13
+        lda     wid
         cmp     #$1E
         bne     L513A
-        lda     $C9
+        lda     eloc
         cmp     $1B2A
         bne     L51A0
-L513A:  lda     $15
+L513A:  lda     arg1
         cmp     #$FF
         beq     L5197
         jsr     L57BB
         sta     $92
         cmp     #$FF
         bne     L5197
-        lda     $C8
-        cmp     $C9
+        lda     ploc
+        cmp     eloc
         beq     L5197
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$10
         tax
-L5156:  lda     ($8A),y
-        cmp     $C8
+L5156:  lda     (ptr),y
+        cmp     ploc
         beq     L5163
         iny
         dex
         bne     L5156
         jmp     L5197
 
-L5163:  lda     $C5
+L5163:  lda     obj
         pha
         lda     #$FF
-        sta     $C5
+        sta     obj
         lda     #$01
-        sta     $0B
+        sta     outen
         jsr     L4702
         lda     L4ED4
         cmp     #$02
@@ -5012,9 +5063,9 @@ code_5187:
         inc     L4ED4
 L518A:  jsr     L471E
         lda     #$00
-        sta     $0B
+        sta     outen
         pla
-        sta     $C5
+        sta     obj
         jmp     L51A0
 
 L5197:  jsr     L4702
@@ -5023,16 +5074,16 @@ L5197:  jsr     L4702
 L51A0:  jsr     L4B37
         lda     #$C9
         sta     L529B
-        lda     $C5
+        lda     obj
         ldx     #$F6
         ldy     #$13
         jsr     say_if_visible
-        lda     $73
+        lda     direct
         cmp     #$01
         beq     L51C5
         lda     #$92
         sta     L529B
-        lda     $15
+        lda     arg1
         ldx     #$FA
         ldy     #$13
         jsr     say_if_visible
@@ -5040,62 +5091,62 @@ L51C5:  lda     #$01
 L51C7:  jmp     fetch_retaddr
 
 L51CA:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$01
-        cmp     ($88),y
+        cmp     (ptr2),y
         bcc     L51D6
-        lda     ($88),y
+        lda     (ptr2),y
 L51D6:  jsr     rand_range
         tax
 L51DA:  ldy     #$01
-        cmp     ($88),y
+        cmp     (ptr2),y
         bcc     L51E3
-        lda     ($88),y
+        lda     (ptr2),y
         tax
 L51E3:  jsr     L46E9
         txa
-        sta     $8A
+        sta     ptr
         asl     a
         clc
-        adc     $8A
+        adc     ptr
         tax
         ldy     #$04
-        lda     ($88),y
-        sta     $8A
+        lda     (ptr2),y
+        sta     ptr
         iny
-        lda     ($88),y
-        sta     $8B
+        lda     (ptr2),y
+        sta     ptr_hi
         inx
         txa
         tay
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$03
-        sta     ($88),y
+        sta     (ptr2),y
         dey
         txa
-        sta     ($88),y
+        sta     (ptr2),y
         jmp     fetch_retaddr
 
 L520D:  sta     L5234
         lda     #$45
-        sta     $88
+        sta     ptr2
         lda     #$2B
-        sta     $89
+        sta     ptr2_hi
 L5218:  ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5234
         beq     L5233
         cmp     #$FF
         beq     L5233
         lda     #$07
         clc
-        adc     $88
-        sta     $88
+        adc     ptr2
+        sta     ptr2
         bcc     L5230
-        inc     $89
+        inc     ptr2_hi
 L5230:  jmp     L5218
 
 L5233:  rts
@@ -5104,7 +5155,7 @@ L5234:  .byte   $E1
 code_5235:
         lda     #$00
         jsr     L57BB
-        sta     $C8
+        sta     ploc
         jsr     L4C82
         lda     #$00
         bcc     L5245
@@ -5121,25 +5172,25 @@ entity_goto:
         txa
         pha
         ldy     #$04
-        lda     ($88),y
+        lda     (ptr2),y
         tax
         iny
-        lda     ($88),y
+        lda     (ptr2),y
         tay
         pla
         jsr     L5399
         cmp     #$FF
         beq     L5276
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$03
-        sta     ($88),y
+        sta     (ptr2),y
         dey
         txa
-        sta     ($88),y
+        sta     (ptr2),y
 L5276:  jmp     L471B
 
 ; message (msg_52C6 patche) si entite au lieu du joueur
@@ -5160,21 +5211,21 @@ say_if_visible:
 L529B           := * + 1
         cmp     L0000
         beq     code_52C8
-        lda     $C8
+        lda     ploc
         cmp     L52C9
         bne     code_52C8
         lda     L5611
         beq     code_52C8
         lda     #$01
-        sta     $0B
+        sta     outen
         lda     L5234
         jsr     L5331
         lda     #$08
         clc
-        adc     $8A
+        adc     ptr
         sta     L466F
         lda     #$00
-        adc     $8B
+        adc     ptr_hi
         sta     L4670
         jsr     print_msg
 ; TODO pointeur $0000
@@ -5185,34 +5236,34 @@ code_52C8:
 
 L52C9:  .byte   $8A
 code_52CA:
-        ldx     $15
+        ldx     arg1
         inx
         bne     L52D1
         inx
         rts
 
 L52D1:  dex
-        lda     $73
+        lda     direct
         bne     L52E0
-        cpx     $C5
+        cpx     obj
         bne     L52DB
         rts
 
-L52DB:  cpx     $16
+L52DB:  cpx     arg2
         bne     L52E0
         rts
 
-L52E0:  lda     $74
+L52E0:  lda     variant
         beq     L52E5
         rts
 
-L52E5:  ldx     $16
-        cpx     $C5
+L52E5:  ldx     arg2
+        cpx     obj
         rts
 
 L52EA:  pha
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         clc
         adc     #$10
         tax
@@ -5221,10 +5272,10 @@ L52EA:  pha
         tay
         txa
         clc
-        adc     $8A
+        adc     ptr
         tax
         tya
-        adc     $8B
+        adc     ptr_hi
         tay
         pla
         jsr     L5394
@@ -5245,19 +5296,19 @@ L5312:  pha
         rol     a
         php
         adc     #$70
-        sta     $8A
+        sta     ptr
         lda     #$00
         adc     #$20
         plp
         adc     #$00
-        sta     $8B
+        sta     ptr_hi
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
-        sta     $8B
-        stx     $8A
+        lda     (ptr),y
+        sta     ptr_hi
+        stx     ptr
         pla
         rts
 
@@ -5267,17 +5318,17 @@ L5331:  ldx     #$62
         php
         pha
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
-        sta     $8B
-        stx     $8A
+        lda     (ptr),y
+        sta     ptr_hi
+        stx     ptr
         pla
         plp
         rts
 
-L5349:  lda     $15
+L5349:  lda     arg1
 L534B:  ldx     #$C5
 L534D:  stx     L536C
         cmp     #$FF
@@ -5292,11 +5343,11 @@ L5356:  jsr     L46E9
 L535F:  jsr     L5331
         tax
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         beq     L5371
 L536C           := * + 1
-        cmp     $C5
+        cmp     obj
         bne     L535F
         sec
         rts
@@ -5306,25 +5357,25 @@ L5371:  txa
         rts
 
 L5374:  pha
-        lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
+        lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
         ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     L530B
         pla
         rts
 
 ; sonde : $0C==1 execute, sinon $12=1 et annule un niveau
 act_probe:
-        lda     $0C
+        lda     phase
         cmp     #$01
         bne     L538D
         rts
 
 L538D:  lda     #$01
-        sta     $12
+        sta     passok
         pla
         pla
         rts
@@ -5336,22 +5387,22 @@ L5399:  pha
         lda     #$03
 L539C:  sta     L53B6
         pla
-        stx     $8A
-        sty     $8B
+        stx     ptr
+        sty     ptr_hi
         sta     $6C
         ldy     #$00
-L53A8:  lda     ($8A),y
+L53A8:  lda     (ptr),y
         cmp     $6C
         beq     L53C0
         cmp     #$FF
         beq     L53C0
-        lda     $8A
+        lda     ptr
         clc
 L53B6           := * + 1
         adc     #$03
-        sta     $8A
+        sta     ptr
         bcc     L53BD
-        inc     $8B
+        inc     ptr_hi
 L53BD:  jmp     L53A8
 
 L53C0:  cmp     #$FF
@@ -5364,7 +5415,7 @@ L53C6:  jsr     L540F
         cmp     $81
         beq     L53E6
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$48
         cmp     #$40
         bne     L53E0
@@ -5374,11 +5425,11 @@ L53C6:  jsr     L540F
 L53E0:  lda     #$00
 L53E2:  cmp     $81
         bne     L53C6
-L53E6:  lda     $88
+L53E6:  lda     ptr2
         clc
         adc     #$08
         sta     $7C
-        lda     $89
+        lda     ptr2_hi
         adc     #$00
         sta     $7D
         jsr     code_433A
@@ -5386,30 +5437,30 @@ L53E6:  lda     $88
         lda     $80
         bne     L5405
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     code_5439
         beq     L53C6
 L5405:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         jsr     L471E
         txa
         rts
 
-L540F:  lda     $8A
+L540F:  lda     ptr
         clc
         adc     #$03
-        sta     $8A
+        sta     ptr
         bcc     L541A
-        inc     $8B
+        inc     ptr_hi
 L541A:  ldy     #$01
-        lda     ($8A),y
-        sta     $88
+        lda     (ptr),y
+        sta     ptr2
         iny
-        lda     ($8A),y
-        sta     $89
+        lda     (ptr),y
+        sta     ptr2_hi
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         rts
 
@@ -5424,10 +5475,10 @@ L5438:  .byte   "F"
 code_5439:
         sta     L5451
         jsr     L46E9
-        lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
+        lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
         jsr     code_5454
         jsr     fetch_retaddr
         lda     L5451
@@ -5439,11 +5490,11 @@ L5453:  .byte   $20
 code_5454:
         jsr     L46E9
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$80
         beq     L5498
         ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L5453
         jsr     L4702
         jsr     L54C8
@@ -5458,10 +5509,10 @@ code_5454:
         cmp     #$FF
         bne     L549D
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         ldy     #$10
-L548D:  lda     ($8A),y
+L548D:  lda     (ptr),y
         cmp     L5453
         beq     L549D
         iny
@@ -5479,28 +5530,28 @@ L549F:  sta     L5451
 L54A9:  sta     L5451
         jsr     L54B2
         jsr     code_5454
-L54B2:  lda     $8A
+L54B2:  lda     ptr
         tax
-        lda     $88
-        sta     $8A
-        stx     $88
-        lda     $8B
+        lda     ptr2
+        sta     ptr
+        stx     ptr2
+        lda     ptr_hi
         tax
-        lda     $89
-        sta     $8B
-        stx     $89
+        lda     ptr2_hi
+        sta     ptr_hi
+        stx     ptr2_hi
         lda     L5451
         rts
 
 L54C8:  jsr     L46E9
 L54CB:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L54E8
         cmp     #$FF
         beq     L54E1
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$28
         bne     L54CB
 L54E1:  jsr     fetch_retaddr
@@ -5510,74 +5561,74 @@ L54E1:  jsr     fetch_retaddr
 L54E8:  .byte   $00
 code_54E9:
         jsr     L5374
-        lda     $8A
+        lda     ptr
         clc
         adc     #$07
-        sta     $8A
+        sta     ptr
         bcc     L54F7
-        inc     $8B
+        inc     ptr_hi
 L54F7:  rts
 
 L54F8:  jsr     L540F
         beq     L5520
         ldy     #$02
         jsr     L46E9
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     L530B
-        lda     $8A
+        lda     ptr
         clc
         adc     #$02
         sta     $7C
-        lda     $8B
+        lda     ptr_hi
         adc     #$00
         sta     $7D
         jsr     fetch_retaddr
         jsr     code_433A
         bne     L54F8
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
 L5520:  rts
 
 L5521:  jsr     L4702
-        lda     $88
+        lda     ptr2
         clc
         adc     #$08
-        sta     $88
+        sta     ptr2
         bcc     L552F
-        inc     $89
+        inc     ptr2_hi
 L552F:  jsr     L5535
         jmp     L471E
 
-L5535:  lda     $70
+L5535:  lda     nest
         bne     L5563
         ldy     #$00
-        lda     ($88),y
-        sta     $5C
+        lda     (ptr2),y
+        sta     adr
         iny
-        lda     ($88),y
-        sta     $5D
+        lda     (ptr2),y
+        sta     adr_hi
         jsr     L469B
         ldy     #$02
-        lda     ($88),y
-        sta     $5C
+        lda     (ptr2),y
+        sta     adr
         iny
-        lda     ($88),y
-        sta     $5D
+        lda     (ptr2),y
+        sta     adr_hi
         jsr     word_render
         ldy     #$04
-        lda     ($88),y
-        sta     $5C
+        lda     (ptr2),y
+        sta     adr
         iny
-        lda     ($88),y
-        sta     $5D
+        lda     (ptr2),y
+        sta     adr_hi
         jsr     word_render
 L5563:  ldy     #$00
-        lda     ($88),y
-        sta     $5C
+        lda     (ptr2),y
+        sta     adr
         iny
-        lda     ($88),y
-        sta     $5D
-        ora     $5C
+        lda     (ptr2),y
+        sta     adr_hi
+        ora     adr
         beq     L5575
         jsr     code_4683
 L5575:  rts
@@ -5587,17 +5638,17 @@ L5576:  sta     L55AC
         lda     #$00
         sta     L55AD
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L5589:  jsr     L542C
         beq     L55A5
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L55AC
         bne     L5589
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$80
         beq     L5589
         inc     L55AD
@@ -5626,20 +5677,20 @@ L55B6:  sta     L55E3
 
 L55C9:  jsr     L46E9
         lda     #$62
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L55D4:  jsr     L542C
         beq     L5607
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L560F
         bne     L55D4
 L55E3           := * + 1
         ldy     #$00
         txa
         clc
-        adc     ($88),y
+        adc     (ptr2),y
         bcs     L560A
         tax
         lda     L55E3
@@ -5648,7 +5699,7 @@ L55E3           := * + 1
         lda     L560F
         pha
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L560F
         jsr     L55C9
         pla
@@ -5665,7 +5716,7 @@ L5610           := * + 1
 L5611           := * + 2
         jmp     (L0000)
 
-L5612:  stx     $8F
+L5612:  stx     key
         ldx     #$01
         stx     L5611
         jsr     L5651
@@ -5675,26 +5726,26 @@ L5612:  stx     $8F
 
 L5622:  lda     $1B2A
         beq     L564B
-        lda     $C5
+        lda     obj
         pha
-        lda     $C6
+        lda     crec
         pha
-        lda     $C7
+        lda     crec_hi
         pha
         lda     #$00
-        sta     $C5
+        sta     obj
         lda     #$1A
-        sta     $C6
+        sta     crec
         lda     #$1B
-        sta     $C7
+        sta     crec_hi
         jsr     L5DCB
         jsr     code_5235
         pla
-        sta     $C7
+        sta     crec_hi
         pla
-        sta     $C6
+        sta     crec
         pla
-        sta     $C5
+        sta     obj
 L564B:  lda     #$00
         sta     L5611
         rts
@@ -5702,22 +5753,22 @@ L564B:  lda     #$00
 L5651:  sta     L5610
         jsr     L46E6
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L565F:  jsr     L542C
         beq     L568A
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5610
         bne     L565F
         ldy     #$10
-        lda     $8F
-        sta     ($88),y
+        lda     key
+        sta     (ptr2),y
         lda     L5610
         pha
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         bne     L5680
         sta     L5611
 L5680:  jsr     L5651
@@ -5731,26 +5782,26 @@ L568D:  sta     L5610
         jsr     L46E6
         jsr     L530B
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L56D6
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L56A5:  jsr     L540F
         beq     L56CB
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     #$01
         bne     L56A5
         ldy     #$10
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5610
         bne     L56A5
         lda     L56D6
         sec
         ldy     #$02
-        sbc     ($88),y
+        sbc     (ptr2),y
         sta     L56D6
         bcc     L56D1
         jmp     L56A5
@@ -5770,15 +5821,15 @@ L56D9:  sta     L570F
         bcc     L56E1
         lda     #$FF
 L56E1:  sta     L5710
-L56E4:  inc     $94
+L56E4:  inc     noise_hi
         bne     L56EA
-        inc     $93
+        inc     noise
 L56EA:  ldy     #$00
         lda     L570E
         clc
-        adc     ($93),y
-        ldy     $8A
-        eor     ($93),y
+        adc     (noise),y
+        ldy     ptr
+        eor     (noise),y
         cmp     L570E
         beq     L56E4
         sta     L570E
@@ -5796,37 +5847,37 @@ L570E:  .byte   $22
 L570F:  .byte   $00
 L5710:  .byte   $00
 code_5711:
-        lda     $15
+        lda     arg1
 L5713:  sta     L5710
         jsr     L46E6
         jsr     L5331
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L570F
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L572B:  jsr     L542C
         beq     L576A
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5710
         bne     L572B
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$02
         beq     L5760
         ldy     #$10
         lda     #$00
-        sta     ($88),y
+        sta     (ptr2),y
         lda     #$01
         lda     #$FF
-        sta     ($88),y
+        sta     (ptr2),y
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$7F
-        sta     ($88),y
+        sta     (ptr2),y
         jsr     L5521
         jsr     print_msg
 ; -> $1522 .....Z.... KILLED....'....`.
@@ -5837,12 +5888,12 @@ code_575D:
 
 L5760:  ldy     #$01
         lda     L570F
-        sta     ($88),y
+        sta     (ptr2),y
         jmp     L572B
 
 L576A:  jmp     L471B
 
-L576D:  lda     $15
+L576D:  lda     arg1
 L576F:  pha
         lda     #$01
         bne     L5777
@@ -5857,7 +5908,7 @@ L5783:  jsr     L540F
         beq     L5790
 L5789           := * + 1
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     $6C
         bne     L5783
 L5790:  jmp     L471E
@@ -5867,18 +5918,18 @@ L5793:  stx     L4C64
         jsr     L579F
         jsr     L4C5D
 L579F:  ldy     #$01
-L57A1:  lda     $17,y
+L57A1:  lda     orec,y
         tax
-        lda     $19,y
-        sta     $17,y
+        lda     orec2,y
+        sta     orec,y
         txa
-        sta     $19,y
+        sta     orec2,y
         dey
         bpl     L57A1
-        lda     $15
-        ldx     $16
-        sta     $16
-        stx     $15
+        lda     arg1
+        ldx     arg2
+        sta     arg2
+        stx     arg1
         rts
 
 L57BB:  cmp     #$FF
@@ -5887,7 +5938,7 @@ L57BB:  cmp     #$FF
 
 L57C0:  jsr     L5331
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$01
         php
         lda     #$FF
@@ -5896,7 +5947,7 @@ L57C0:  jsr     L5331
         rts
 
 L57D0:  ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         rts
 
 L57D5:  jsr     L4702
@@ -5906,10 +5957,10 @@ L57D5:  jsr     L4702
 L57E1:  jsr     L540F
         beq     L57F5
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L57E1
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     L57FB
         bne     L57E1
 L57F5:  ldx     L57FC
@@ -5925,7 +5976,7 @@ msg_5801:
         .word   $13E3
 code_5803:
         ldy     #$10
-        lda     ($C6),y
+        lda     (crec),y
         tax
         lda     #$FF
         jsr     L580F
@@ -5960,22 +6011,22 @@ code_5836:
         sta     $10
         jsr     L46E9
         lda     #$5F
-        sta     $8A
+        sta     ptr
         lda     #$1A
-        sta     $8B
+        sta     ptr_hi
 L5849:  jsr     L542C
         bne     L5851
         jmp     L58E0
 
 L5851:  ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5833
         beq     L585D
         jmp     L5849
 
 L585D:  pha
         dey
-        lda     ($88),y
+        lda     (ptr2),y
         tax
         pla
         pha
@@ -5984,44 +6035,44 @@ L585D:  pha
         cpx     #$01
         bne     L58D6
 L586C:  ldy     #$10
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5832
         beq     L5880
         dex
         beq     L58D6
         iny
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     L5832
         bne     L58D6
-L5880:  lda     $C5
+L5880:  lda     obj
         ldy     #$00
-        cmp     ($8A),y
+        cmp     (ptr),y
         bne     L588F
         lda     #$04
         cmp     L5835
         beq     L58D6
-L588F:  lda     ($8A),y
+L588F:  lda     (ptr),y
         jsr     code_5439
         beq     L58D6
         inc     L5834
         lda     #$00
-        sta     $0E
-        sta     $70
+        sta     cap
+        sta     nest
         jsr     L5521
-        lda     $C5
+        lda     obj
         ldy     #$00
-        cmp     ($8A),y
+        cmp     (ptr),y
         beq     L58DA
         lda     #$2E
         jsr     putchar
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     L58E7
         bcs     L58D6
         lda     L5833
         pha
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L5833
         inc     L5835
         inc     L5835
@@ -6046,7 +6097,7 @@ L58E7:  sta     L5958
         lda     L5958
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$28
         beq     L5951
         lda     L5958
@@ -6055,7 +6106,7 @@ L58E7:  sta     L5958
         beq     L5951
         ldy     #$07
         tax
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$40
         beq     L591C
         lda     L5958
@@ -6068,10 +6119,10 @@ code_5919:
         jmp     code_594A
 
 L591C:  ldy     #$08
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L466F
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$0F
         sta     L4670
         lda     #$B2
@@ -6106,49 +6157,49 @@ code_5959:
         jsr     L46E6
         lda     L5958
         jsr     L530B
-        lda     $8A
+        lda     ptr
         clc
         adc     #$0A
-        sta     $88
-        lda     $8B
+        sta     ptr2
+        lda     ptr_hi
         adc     #$00
-        sta     $89
+        sta     ptr2_hi
 L5972:  ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         beq     code_59CE
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$80
         beq     code_59CE
-        lda     $8A
+        lda     ptr
         clc
         adc     #$08
         sta     L466F
-        lda     $8B
+        lda     ptr_hi
         adc     #$00
         sta     L4670
         ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         jsr     L59E7
         cmp     #$09
         bcc     L59B5
         beq     L59AA
         lda     #$26
-        sta     $5C
+        sta     adr
         lda     #$01
-        sta     $5D
+        sta     adr_hi
         jmp     L59C6
 
 L59AA:  lda     #$4C
-        sta     $5C
+        sta     adr
         lda     #$00
-        sta     $5D
+        sta     adr_hi
         jmp     L59C6
 
-L59B5:  lda     $5C
+L59B5:  lda     adr
         pha
-        lda     $5D
+        lda     adr_hi
         pha
         jsr     print_msg
 ; -> $11EE d`..em.kke...em.(.8.d.n..em.
@@ -6156,23 +6207,23 @@ msg_59BE:
         .word   $11EE
 code_59C0:
         pla
-        sta     $5D
+        sta     adr_hi
         pla
-        sta     $5C
+        sta     adr
 L59C6:  jsr     word_render
         jsr     print_msg
 ; -> $13F1 ..e....n......{..| :.c..a.:.
 msg_59CC:
         .word   $13F1
 code_59CE:
-        lda     $88
+        lda     ptr2
         clc
         adc     #$03
-        sta     $88
+        sta     ptr2
         bcc     L59D9
-        inc     $89
+        inc     ptr2_hi
 L59D9:  ldy     #$00
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     #$FF
         beq     L59E4
         jmp     L5972
@@ -6184,10 +6235,10 @@ L59E7:  pha
         and     #$FE
         tax
         lda     L59F7,x
-        sta     $5C
+        sta     adr
         inx
         lda     L59F7,x
-        sta     $5D
+        sta     adr_hi
 L59F7:  pla
         rts
 
@@ -6201,12 +6252,12 @@ code_5A0D:
         jsr     L46E6
         lda     L5958
         jsr     L530B
-        lda     $8A
+        lda     ptr
         clc
         adc     #$07
-        sta     $8A
+        sta     ptr
         bcc     L5A24
-        inc     $8B
+        inc     ptr_hi
 L5A24:  jsr     L5A43
         beq     L5A40
         jsr     print_msg
@@ -6215,7 +6266,7 @@ msg_5A2C:
         .word   $13FE
 code_5A2E:
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     L59E7
         jsr     word_render
         jsr     L5A43
@@ -6223,41 +6274,41 @@ code_5A2E:
         jsr     print_cr
 L5A40:  jmp     L471B
 
-L5A43:  lda     $8A
+L5A43:  lda     ptr
         clc
         adc     #$03
-        sta     $8A
+        sta     ptr
         bcc     L5A4E
-        inc     $8B
+        inc     ptr_hi
 L5A4E:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         bne     L5A57
         rts
 
 L5A57:  iny
-        lda     ($8A),y
+        lda     (ptr),y
         bne     L5A43
         dey
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L5A43
         rts
 
-L5A62:  lda     $0C
+L5A62:  lda     phase
         cmp     #$01
         bne     L5A6B
         jmp     L417C
 
 L5A6B:  lda     #$00
-        sta     $12
+        sta     passok
         rts
 
-L5A70:  lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+L5A70:  lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$01
         php
         lda     #$80
@@ -6266,7 +6317,7 @@ L5A70:  lda     $17
         rts
 
 L5A85:  ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$20
         php
         lda     #$85
@@ -6275,19 +6326,19 @@ L5A85:  ldy     #$07
 
 L5A90:  pha
         ldy     #$08
-        lda     ($88),y
+        lda     (ptr2),y
         tax
         iny
-        lda     ($88),y
+        lda     (ptr2),y
         tay
         jmp     L5AA7
 
 L5A9D:  pha
         ldy     #$08
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         tay
 L5AA7:  stx     L466F
         sty     L4670
@@ -6323,11 +6374,11 @@ code_5AF0:
         jsr     L5331
         ldy     #$0C
         lda     #$00
-        sta     ($8A),y
+        sta     (ptr),y
         iny
-        sta     ($8A),y
+        sta     (ptr),y
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         ldx     #$89
         ldy     #$01
         and     #$40
@@ -6336,14 +6387,14 @@ code_5AF0:
         ldy     #$02
 L5B0F:  tya
         ldy     #$0B
-        sta     ($8A),y
+        sta     (ptr),y
         dey
         txa
-        sta     ($8A),y
+        sta     (ptr),y
         jmp     fetch_retaddr
 
 L5B1B:  ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$48
         cmp     #$40
         rts
@@ -6355,7 +6406,7 @@ msg_5B27:
         .word   $13E8
 code_5B29:
         lda     #$01
-        sta     $0E
+        sta     cap
         pla
         tax
         pla
@@ -6378,10 +6429,10 @@ code_5B43:
         rts
 
         jsr     act_probe
-        lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
+        lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
         jsr     L54C8
         cmp     #$FF
         beq     L5B94
@@ -6400,12 +6451,12 @@ code_5B66:
         jsr     L5331
         jsr     L5B9B
         ldy     #$08
-        lda     ($8A),y
-        sta     $5C
+        lda     (ptr),y
+        sta     adr
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$0F
-        sta     $5D
+        sta     adr_hi
         jsr     word_render
         lda     #$2E
         jsr     putchar
@@ -6416,17 +6467,17 @@ msg_5B89:
         .word   $13E3
 code_5B8B:
         ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         pla
         jmp     L580F
 
 L5B94:  ldy     #$10
-        lda     ($C6),y
+        lda     (crec),y
         jmp     L4DC6
 
 L5B9B:  ldy     #$04
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$07
         cmp     #$06
         bne     L5BA7
@@ -6468,71 +6519,71 @@ code_5BD3:
         rts
 
 L5BD4:  jsr     L5C2B
-        lda     $C5
+        lda     obj
 L5BD9:  jsr     L5331
-        lda     $15
+        lda     arg1
         ldy     #$01
-        cmp     ($8A),y
+        cmp     (ptr),y
         bne     L5BE7
         jmp     L5A62
 
-L5BE7:  lda     ($8A),y
+L5BE7:  lda     (ptr),y
         cmp     #$FF
         bne     L5BD9
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         jsr     act_probe
 L5BF8:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         bne     L5C07
-L5C00:  lda     $C5
+L5C00:  lda     obj
         ldy     #$01
-        sta     ($8A),y
+        sta     (ptr),y
         rts
 
 L5C07:  jsr     L46E9
         jsr     L5331
         ldy     #$04
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$07
         cmp     $05
         beq     L5C1D
         jsr     fetch_retaddr
         jmp     L5C00
 
-L5C1D:  ldx     $8A
-        ldy     $8B
+L5C1D:  ldx     ptr
+        ldy     ptr_hi
         jsr     fetch_retaddr
-        stx     $8A
-        sty     $8B
+        stx     ptr
+        sty     ptr_hi
         jmp     L5BF8
 
-L5C2B:  lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
-        lda     $15
+L5C2B:  lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
+        lda     arg1
         jsr     L55B3
         ldy     #$03
         clc
-        adc     ($8A),y
+        adc     (ptr),y
         bcc     L5C41
         lda     #$FF
 L5C41:  sta     L5C77
-        lda     $C6
-        sta     $88
-        lda     $C7
-        sta     $89
+        lda     crec
+        sta     ptr2
+        lda     crec_hi
+        sta     ptr2_hi
         ldy     #$03
-        lda     ($88),y
+        lda     (ptr2),y
         sec
         sbc     L5C77
         bcc     code_5C78
         sta     L5C77
-        lda     $C5
+        lda     obj
         jsr     L55B3
         sec
         sbc     L5C77
@@ -6540,7 +6591,7 @@ L5C41:  sta     L5C77
         jsr     L5FBD
         bne     L5C72
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$02
         bne     L5C72
         rts
@@ -6572,12 +6623,12 @@ code_5C87:
 L5C88:  jsr     L46E9
         jsr     L5331
 L5C8E:  ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$FF
         beq     L5CA3
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$20
         bne     L5C8E
         lda     #$01
@@ -6588,7 +6639,7 @@ L5CA3:  php
 
 ; objet $15 : test flags ($64D7/$5C88) puis prise/pose
 act_p14_04:
-        lda     $15
+        lda     arg1
         jsr     L5331
         jsr     L64D7
         bne     act_p14_14
@@ -6596,7 +6647,7 @@ act_p14_04:
 
 ; objet $C5 : test flags ($5C88) puis bascule $46E9
 act_p14_14:
-        lda     $C5
+        lda     obj
         jsr     L5C88
         beq     L5CBE
         rts
@@ -6607,31 +6658,31 @@ L5CBE:  jsr     L576D
 L5CC5:  jmp     L5A62
 
 L5CC8:  ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L5CC5
         jsr     act_probe
         jsr     L46E9
         jsr     L530B
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     fetch_retaddr
         and     #$80
         beq     L5D00
-        lda     $C6
-        sta     $88
-        lda     $C7
-        sta     $89
+        lda     crec
+        sta     ptr2
+        lda     crec_hi
+        sta     ptr2_hi
         ldy     #$10
-        lda     ($88),y
+        lda     (ptr2),y
         pha
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$10
-        sta     ($88),y
+        sta     (ptr2),y
         jsr     L4DB7
         pla
         ldy     #$10
-        sta     ($88),y
+        sta     (ptr2),y
         rts
 
 L5D00:  jsr     print_msg
@@ -6647,23 +6698,23 @@ act_p14_05:
 L5D09:  cmp     #$FF
         beq     L5CC5
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L5CC5
         dey
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     L46E9
         jsr     L5E66
         jsr     fetch_retaddr
         bne     L5CC5
         jsr     act_probe
         ldy     #$00
-        lda     ($8A),y
-        sta     $13
+        lda     (ptr),y
+        sta     wid
         lda     #$FF
-        sta     $15
+        sta     arg1
         jmp     L5D53
 
-        lda     $15
+        lda     arg1
         ldx     #$16
         jsr     L534D
         bcc     L5D3D
@@ -6684,30 +6735,30 @@ code_5D44:
         jsr     rand_range
         clc
         adc     #$01
-        sta     $13
-L5D53:  lda     $C6
-        sta     $88
-        lda     $C7
-        sta     $89
+        sta     wid
+L5D53:  lda     crec
+        sta     ptr2
+        lda     crec_hi
+        sta     ptr2_hi
         ldy     #$01
-        lda     ($88),y
+        lda     (ptr2),y
         cmp     #$FF
         beq     L5D74
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$40
         beq     L5D8A
         ldy     #$01
         lda     #$FF
-        sta     ($88),y
-L5D74:  lda     $C5
+        sta     (ptr2),y
+L5D74:  lda     obj
         jsr     code_55AE
         ldy     #$02
         clc
-        adc     ($88),y
+        adc     (ptr2),y
         sta     L5D43
-        lda     $13
+        lda     wid
         jsr     L57D5
         cmp     #$FF
         bne     L5DAF
@@ -6737,11 +6788,11 @@ code_5DAC:
         jmp     L5FAE
 
 L5DAF:  ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         beq     L5D8A
-        sta     $8F
+        sta     key
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         jsr     L5E66
         tax
         dex
@@ -6754,12 +6805,12 @@ L5DAF:  ldy     #$02
 
 L5DCB:  jsr     act_probe
         ldy     #$10
-        lda     $8F
-        sta     ($88),y
-        lda     $C5
-        ldx     $8F
+        lda     key
+        sta     (ptr2),y
+        lda     obj
+        ldx     key
         jsr     L5612
-        lda     $C5
+        lda     obj
         cmp     #$00
         beq     evt_lookup
         rts
@@ -6768,50 +6819,50 @@ L5DCB:  jsr     act_probe
 evt_lookup:
         ldx     #$9F
         ldy     #$70
-        lda     $8F
+        lda     key
         jsr     L5399
         beq     L5DFD
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4C64
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4C65
         jsr     L4C5D
 L5DFD:  jsr     L4C82
         bcc     L5E03
         rts
 
-L5E03:  lda     $C5
+L5E03:  lda     obj
         php
-        lda     $8F
+        lda     key
         plp
         bne     L5E3B
         ldy     #$00
         lda     ($CA),y
         and     #$40
         beq     L5E18
-        lda     $8F
+        lda     key
         jmp     L4E49
 
 L5E18:  lda     ($CA),y
         ora     #$40
         sta     ($CA),y
-        lda     $8F
+        lda     key
         ldx     #$74
         ldy     #$70
         jsr     L5399
         beq     L5E39
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         clc
         adc     $CC
         sta     $CC
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         adc     $CD
         sta     $CD
-L5E39:  lda     $8F
+L5E39:  lda     key
 L5E3B:  jmp     L4DC6
 
 L5E3E:  jsr     L5E50
@@ -6832,13 +6883,13 @@ code_5E4F:
 
 L5E50:  ldy     #$02
         lda     $CA
-        sta     $8A
+        sta     ptr
         lda     $CB
-        sta     $8B
-        lda     ($8A),y
+        sta     ptr_hi
+        lda     (ptr),y
         sta     L466F
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     L4670
         rts
 
@@ -6846,31 +6897,31 @@ L5E66:  and     #$FF
         beq     L5E8B
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$28
         beq     L5EB4
-        lda     $C5
+        lda     obj
         bne     L5E81
         ldy     #$04
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$80
         bne     L5EB4
 L5E81:  ldy     #$02
         lda     L5D43
         sec
-        sbc     ($8A),y
+        sbc     (ptr),y
         bcs     L5EAE
-L5E8B:  lda     $8F
+L5E8B:  lda     key
         jsr     L530B
-        lda     $8A
+        lda     ptr
         sta     $CA
-        lda     $8B
+        lda     ptr_hi
         sta     $CB
         lda     #$FF
         ldy     #$01
-        cmp     ($8A),y
+        cmp     (ptr),y
         beq     L5EAB
-        lda     $8F
+        lda     key
         jsr     L568D
         sec
         sbc     L5D43
@@ -6889,36 +6940,36 @@ L5EB4:  lda     #$01
 
         jsr     L5BBB
         jsr     act_probe
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$01
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$12
         bne     L5ED5
         lda     #$07
-        sta     $8A
+        sta     ptr
         lda     #$1D
-        sta     $8B
+        sta     ptr_hi
 L5ED5:  ldy     #$01
-        lda     ($C6),y
-        sta     ($8A),y
+        lda     (crec),y
+        sta     (ptr),y
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$02
         bne     L5EE4
         rts
 
 L5EE4:  ldy     #$10
         lda     #$00
-        sta     ($8A),y
+        sta     (ptr),y
         lda     #$08
         clc
-        adc     $8A
+        adc     ptr
         sta     L466F
         lda     #$00
-        adc     $8B
+        adc     ptr_hi
         sta     L4670
         jsr     print_msg
 ; -> $1521 ......Z.... KILLED....'....`
@@ -6927,7 +6978,7 @@ msg_5EFC:
 code_5EFE:
         rts
 
-        lda     $15
+        lda     arg1
         jsr     L5774
         jmp     L5D09
 
@@ -6946,12 +6997,12 @@ L5F11:  txa
         ldx     #$01
         jmp     L5F11
 
-L5F23:  sta     $13
+L5F23:  sta     wid
         jmp     code_5D44
 
         ldy     #$10
-        lda     ($17),y
-        cmp     ($C6),y
+        lda     (orec),y
+        cmp     (crec),y
         beq     L5F3A
         jsr     L5774
         cmp     #$FF
@@ -6967,7 +7018,7 @@ code_5F3F:
 
         jsr     L5C2B
         ldy     #$07
-        lda     ($19),y
+        lda     (orec2),y
         and     #$40
         beq     L5F54
         lda     #$0B
@@ -6978,29 +7029,29 @@ code_5F3F:
 L5F54:  lda     #$0C
         ldx     #$ED
         ldy     #$60
-L5F5A:  sta     $13
+L5F5A:  sta     wid
         jsr     L5793
         lda     #$2A
-        sta     $13
-        lda     $0C
+        sta     wid
+        lda     phase
         cmp     #$01
         beq     L5F6A
         rts
 
-L5F6A:  lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+L5F6A:  lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$01
         lda     #$FF
-        sta     ($8A),y
+        sta     (ptr),y
         lda     #$0B
-        sta     $13
-        lda     $15
+        sta     wid
+        lda     arg1
         jmp     L4C6D
 
         jsr     act_probe
-        lda     $15
+        lda     arg1
         jsr     L520D
         cmp     #$FF
         php
@@ -7010,7 +7061,7 @@ L5F6A:  lda     $17
         lda     $D5
         bne     L5FA0
         ldy     #$06
-        lda     ($88),y
+        lda     (ptr2),y
         beq     L5FA0
         jsr     rand_range
         beq     L5FA4
@@ -7026,7 +7077,7 @@ code_5FA9:
         jmp     L5FA0
 
 L5FAE:  lda     #$00
-        sta     $C5
+        sta     obj
         jsr     print_msg
 ; -> $13D1 ....l.`..u..''..l..l :.... '
 msg_5FB5:
@@ -7035,50 +7086,50 @@ code_5FB7:
         jsr     L3CD4
         jmp     code_3C8B
 
-L5FBD:  lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+L5FBD:  lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         sec
         sbc     #$01
         rts
 
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         jsr     L64D7
         bne     L5FDD
         jmp     L5A9D
 
-L5FDD:  lda     $15
+L5FDD:  lda     arg1
         jsr     L5576
         cmp     #$00
         beq     L5FF5
         jsr     act_probe
         jsr     code_5711
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$FB
-        sta     ($8A),y
+        sta     (ptr),y
         rts
 
 L5FF5:  lda     #$02
         jmp     L5A9D
 
 L5FFA:  jsr     act_probe
-        lda     $19
-        sta     $8A
-        lda     $1A
-        sta     $8B
+        lda     orec2
+        sta     ptr
+        lda     orec2_hi
+        sta     ptr_hi
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         ldy     #$10
-L600C:  lda     ($8A),y
-        cmp     $C9
+L600C:  lda     (ptr),y
+        cmp     eloc
         beq     L6019
         iny
         dex
@@ -7086,7 +7137,7 @@ L600C:  lda     ($8A),y
         jmp     L4C57
 
 L6019:  iny
-        lda     ($8A),y
+        lda     (ptr),y
         dex
         bne     L6021
         lda     #$00
@@ -7098,12 +7149,12 @@ msg_6025:
 code_6027:
         pla
         ldy     #$10
-        sta     ($17),y
+        sta     (orec),y
         tax
         ldy     #$01
         lda     #$FF
-        sta     ($17),y
-        lda     $15
+        sta     (orec),y
+        lda     arg1
         jsr     L5612
         lda     $1B2A
         bne     L6040
@@ -7114,33 +7165,33 @@ L6040:  rts
 ; flags objet ($19) : bits 0-2, dit $11D3 (swept away) / $13D1 (X dead)
 act_p14_13:
         jsr     L5BBB
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$04
-        lda     ($19),y
+        lda     (orec2),y
         and     #$07
         bne     L6057
         jmp     L5A62
 
 L6057:  cmp     #$06
         beq     L5FFA
-        lda     $19
-        sta     $88
-        lda     $1A
-        sta     $89
+        lda     orec2
+        sta     ptr2
+        lda     orec2_hi
+        sta     ptr2_hi
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$20
         beq     L609A
         ldy     #$02
-        lda     ($88),y
+        lda     (ptr2),y
         sec
-        sbc     ($8A),y
+        sbc     (ptr),y
         bcc     L6084
         pha
-        lda     $16
+        lda     arg2
         jsr     code_55AE
         sta     $6C
         pla
@@ -7157,29 +7208,29 @@ code_6089:
 
 L608A:  jsr     act_probe
         ldy     #$10
-        lda     ($88),y
-        sta     ($8A),y
-        lda     $16
+        lda     (ptr2),y
+        sta     (ptr),y
+        lda     arg2
         ldy     #$01
-        sta     ($8A),y
+        sta     (ptr),y
         rts
 
 L609A:  lda     #$05
         jmp     L5A90
 
         jsr     act_probe
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$01
         cmp     #$FF
         beq     act_p14_00
         jsr     L5331
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$FD
-        sta     ($8A),y
+        sta     (ptr),y
         lda     #$01
         bne     L60C4
 ; consomme compteur ($C6)+5, RAZ 16 o ; dit $1525 (gluttony KILLED)
@@ -7188,18 +7239,18 @@ act_p14_00:
         lda     #$0A
 L60C4:  ldy     #$05
         clc
-        adc     ($C6),y
+        adc     (crec),y
         bmi     L60E3
-        sta     ($C6),y
+        sta     (crec),y
         ldy     #$01
         lda     #$FF
-        sta     ($17),y
+        sta     (orec),y
         ldy     #$00
-        lda     ($17),y
+        lda     (orec),y
         tax
         ldy     #$10
 L60DA:  lda     #$00
-        sta     ($17),y
+        sta     (orec),y
         iny
         dex
         bne     L60DA
@@ -7210,49 +7261,49 @@ L60E3:  jsr     print_msg
 msg_60E6:
         .word   $1525
 code_60E8:
-        lda     $C5
+        lda     obj
         jmp     code_4D47
 
 ; deplacement objet (bits $78), ecrit $75/$70/$5C/$5D
 act_p14_01:
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$07
-        lda     ($17),y
+        lda     (orec),y
         and     #$02
         beq     L6100
 L60FD:  jmp     L5A62
 
-L6100:  lda     ($17),y
+L6100:  lda     (orec),y
         and     #$08
         beq     L6109
         jmp     L61C4
 
 L6109:  ldy     #$06
-        lda     ($17),y
+        lda     (orec),y
         beq     L60FD
         lda     #$00
         sta     L6320
-        lda     $16
+        lda     arg2
         cmp     #$FF
         beq     L613E
         ldy     #$05
-        lda     ($19),y
+        lda     (orec2),y
         beq     L60FD
         jsr     L46E9
-        lda     $19
-        sta     $8A
-        lda     $1A
-        sta     $8B
+        lda     orec2
+        sta     ptr
+        lda     orec2_hi
+        sta     ptr_hi
         lda     #$0C
         jsr     L52EA
         jsr     fetch_retaddr
         cmp     #$FF
         beq     L60FD
         ldy     #$05
-        lda     ($19),y
+        lda     (orec2),y
         sta     L6320
 L613E:  jsr     act_probe
         lda     #$15
@@ -7260,37 +7311,37 @@ L613E:  jsr     act_probe
         clc
         adc     L6320
         ldy     #$05
-        adc     ($C6),y
+        adc     (crec),y
         bcc     L6152
         lda     #$FF
 L6152:  ldy     #$06
         sec
-        sbc     ($17),y
+        sbc     (orec),y
         bcc     L617D
         ldy     #$07
-        lda     ($17),y
+        lda     (orec),y
         ora     #$08
-        sta     ($17),y
-        lda     $15
+        sta     (orec),y
+        lda     arg1
         jsr     code_5AF0
         ldy     #$05
-        lda     ($17),y
+        lda     (orec),y
         lsr     a
-        sta     ($17),y
+        sta     (orec),y
         ldy     #$04
-        lda     ($17),y
+        lda     (orec),y
         cmp     #$02
         bcs     L6178
         jsr     code_5711
 L6178:  lda     #$83
         jsr     L5A9D
-L617D:  lda     $16
+L617D:  lda     arg2
         cmp     #$FF
         bne     L6184
         rts
 
 L6184:  ldy     #$07
-        lda     ($19),y
+        lda     (orec2),y
         and     #$08
         beq     L618D
         rts
@@ -7299,66 +7350,66 @@ L618D:  lda     #$15
         jsr     L56D9
         ldy     #$06
         clc
-        adc     ($19),y
+        adc     (orec2),y
         bcc     L619B
         lda     #$FF
 L619B:  lda     #$06
         sec
-        sbc     ($17),y
+        sbc     (orec),y
         bcs     L61A3
         rts
 
 L61A3:  ldy     #$07
-        lda     ($19),y
+        lda     (orec2),y
         ora     #$08
-        sta     ($19),y
-        lda     $16
+        sta     (orec2),y
+        lda     arg2
         jsr     code_5AF0
         ldy     #$05
-        lda     ($19),y
+        lda     (orec2),y
         lsr     a
-        sta     ($19),y
-        lda     $16
+        sta     (orec2),y
+        lda     arg2
         jsr     L5713
-        lda     $19
-        sta     $8A
-        lda     $1A
-        sta     $8B
+        lda     orec2
+        sta     ptr
+        lda     orec2_hi
+        sta     ptr_hi
 L61C4:  lda     #$83
         jmp     L5A9D
 
 ; objet ($17) : bit5 de ($8A)+7 -> 0 ; sinon $5A9D
 act_p14_02:
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         jsr     L64D7
         bne     L61D9
         jmp     L5A9D
 
 L61D9:  jsr     act_probe
 L61DC:  ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$DF
-        sta     ($8A),y
+        sta     (ptr),y
         rts
 
 ; objet $16 : lit bit5 de ($88)+7, branche $5A90
 act_p14_07:
         jsr     L5BBB
-        lda     $16
+        lda     arg2
         jsr     L576F
         cmp     #$FF
         bne     L61F4
         jmp     L5A62
 
-L61F4:  lda     $19
-        sta     $88
-        lda     $1A
-        sta     $89
+L61F4:  lda     orec2
+        sta     ptr2
+        lda     orec2_hi
+        sta     ptr2_hi
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$20
         php
         lda     #$05
@@ -7368,14 +7419,14 @@ L61F4:  lda     $19
 
 L620B:  jsr     act_probe
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         tax
         ldy     #$10
-        sta     ($17),y
+        sta     (orec),y
         lda     #$FF
         ldy     #$01
-        sta     ($17),y
-        lda     $15
+        sta     (orec),y
+        lda     arg1
         jmp     L5612
 
 ; bit5 ($8A)+7 -> 1 ; si id==1 fete $580F (CHEERING CROWD...SUNSET)
@@ -7386,69 +7437,69 @@ act_p14_03:
 
 L622A:  jsr     act_probe
 L622D:  ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         ora     #$20
-        sta     ($8A),y
+        sta     (ptr),y
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$01
         beq     L623E
         rts
 
-L623E:  lda     $15
+L623E:  lda     arg1
         jsr     L58E7
         bcc     L6246
         rts
 
 L6246:  ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         tax
-        lda     $15
+        lda     arg1
         jmp     L580F
 
 L6250:  ldy     #$04
-        lda     $C5
+        lda     obj
         bne     L6262
-        lda     ($17),y
+        lda     (orec),y
         and     #$10
         beq     L6262
-        lda     ($17),y
+        lda     (orec),y
         and     #$EF
-        sta     ($17),y
-L6262:  lda     ($17),y
+        sta     (orec),y
+L6262:  lda     (orec),y
         and     #$70
-        and     ($C6),y
+        and     (crec),y
         bne     L626B
         rts
 
 L626B:  pla
         pla
         lda     #$00
-        sta     $12
+        sta     passok
         rts
 
         jsr     L6250
         lda     #$F6
-        sta     $71
+        sta     wptr
         lda     #$03
-        sta     $72
-        lda     $16
+        sta     wptr_hi
+        lda     arg2
         cmp     #$FF
         beq     L628E
         ldy     #$08
-        lda     ($19),y
-        sta     $71
+        lda     (orec2),y
+        sta     wptr
         iny
-        lda     ($19),y
-        sta     $72
+        lda     (orec2),y
+        sta     wptr_hi
 L628E:  ldy     #$05
-        lda     ($C6),y
+        lda     (crec),y
         sta     L6320
-        lda     $16
+        lda     arg2
         cmp     #$FF
         beq     L62B8
         ldy     #$00
-        lda     ($19),y
+        lda     (orec2),y
         cmp     #$01
         beq     L62A9
         jsr     print_msg
@@ -7459,7 +7510,7 @@ code_62A8:
         rts
 
 L62A9:  ldy     #$05
-        lda     ($19),y
+        lda     (orec2),y
         clc
         adc     L6320
         bcc     L62B5
@@ -7470,7 +7521,7 @@ L62B8:  lda     L6320
         sta     L6320
         jsr     act_probe
         ldy     #$06
-        lda     ($17),y
+        lda     (orec),y
         jsr     L6341
         cmp     L6320
         bcc     L62D6
@@ -7504,17 +7555,17 @@ L62E0:  cmp     L6320
         eor     #$FF
         clc
         ldy     #$05
-        adc     ($17),y
+        adc     (orec),y
         bcc     L630B
-        sta     ($17),y
+        sta     (orec),y
 L630B:  lda     L6321
         lsr     a
         eor     #$FF
         clc
         ldy     #$06
-        adc     ($17),y
+        adc     (orec),y
         bcc     L631A
-        sta     ($17),y
+        sta     (orec),y
 L631A:  jsr     print_msg
 ; TODO pointeur $0000
 msg_631D:
@@ -7530,15 +7581,15 @@ code_6322:
 msg_6325:
         .word   $1212
 code_6327:
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         ora     #$08
-        sta     ($8A),y
-        lda     $15
+        sta     (ptr),y
+        lda     arg1
         jsr     code_4D47
         lda     #$06
         jmp     L5A9D
@@ -7569,13 +7620,13 @@ L635A:  .byte   $00,$16,$13,$05,$13,$FA,$12,$EF
         .byte   $0F,$58
 code_63A4:
         jsr     act_probe
-        lda     $15
+        lda     arg1
         jsr     L5331
         ldy     #$0E
-        lda     ($8A),y
+        lda     (ptr),y
         sta     msg_63C1
         iny
-        lda     ($8A),y
+        lda     (ptr),y
         sta     msg_63C1+1
         ora     msg_63C1
         beq     L63C4
@@ -7591,19 +7642,19 @@ L63C4:  jsr     print_msg
 msg_63C7:
         .word   $13E0
 code_63C9:
-        lda     $8A
-        sta     $88
-        lda     $8B
-        sta     $89
+        lda     ptr
+        sta     ptr2
+        lda     ptr_hi
+        sta     ptr2_hi
         jsr     L5521
         lda     #$2E
         jsr     putchar
         jmp     print_cr
 
-L63DC:  lda     $19
-        sta     $88
-        lda     $1A
-        sta     $89
+L63DC:  lda     orec2
+        sta     ptr2
+        lda     orec2_hi
+        sta     ptr2_hi
         jsr     L5349
         bcs     L63EF
         jsr     print_msg
@@ -7613,13 +7664,13 @@ msg_63EC:
 code_63EE:
         rts
 
-L63EF:  lda     $16
+L63EF:  lda     arg2
         jsr     L55B3
         ldy     #$03
         clc
-        adc     ($8A),y
+        adc     (ptr),y
         sta     $6C
-        lda     ($88),y
+        lda     (ptr2),y
         sec
         sbc     $6C
         bcs     L6408
@@ -7631,26 +7682,26 @@ code_6407:
         rts
 
 L6408:  jsr     act_probe
-        lda     $16
+        lda     arg2
         ldy     #$01
-        sta     ($17),y
+        sta     (orec),y
         ldy     #$10
-        lda     ($88),y
-        sta     ($17),y
+        lda     (ptr2),y
+        sta     (orec),y
         tax
-        lda     $15
+        lda     arg1
         jmp     L5612
 
 L641D:  jsr     L5A70
         beq     L6425
         jmp     L5A9D
 
-L6425:  lda     $19
-        sta     $88
-        lda     $1A
-        sta     $89
+L6425:  lda     orec2
+        sta     ptr2
+        lda     orec2_hi
+        sta     ptr2_hi
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$08
         php
         lda     #$83
@@ -7660,17 +7711,17 @@ L6425:  lda     $19
 
 L643C:  jsr     act_probe
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         ora     #$01
-        sta     ($8A),y
+        sta     (ptr),y
         rts
 
-L6448:  lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+L6448:  lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$01
         php
         lda     #$00
@@ -7680,12 +7731,12 @@ L645C:  jmp     L5A9D
 
 L645F:  jsr     L5A85
         bne     L645C
-        lda     $19
-        sta     $88
-        lda     $1A
-        sta     $89
+        lda     orec2
+        sta     ptr2
+        lda     orec2_hi
+        sta     ptr2_hi
         ldy     #$07
-        lda     ($88),y
+        lda     (ptr2),y
         and     #$08
         php
         lda     #$83
@@ -7695,9 +7746,9 @@ L645F:  jsr     L5A85
 
 L647B:  jsr     act_probe
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$FE
-        sta     ($8A),y
+        sta     (ptr),y
         rts
 
 L6487:  lda     #$00
@@ -7716,13 +7767,13 @@ L6487:  lda     #$00
         sta     $C2
         ldy     #$01
         lda     ($C1),y
-        sta     $88
+        sta     ptr2
         iny
         lda     ($C1),y
-        sta     $89
+        sta     ptr2_hi
         ldy     #$02
 L64AE:  lda     #$00
-        sta     ($88),y
+        sta     (ptr2),y
         dey
         bpl     L64AE
         lda     #$03
@@ -7740,21 +7791,21 @@ L64AE:  lda     #$00
         rts
 
 L64CD:  lda     #$00
-        sta     ($88),y
+        sta     (ptr2),y
         iny
         lda     #$10
-        sta     ($88),y
+        sta     (ptr2),y
         rts
 
 L64D7:  ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$20
         php
         lda     #$05
         plp
         rts
 
-        lda     $15
+        lda     arg1
         cmp     #$13
         beq     L64E9
         rts
@@ -7807,16 +7858,16 @@ act_p14_12:
 ; dispatcher objet $16 (cas $04) -> $65DD/$4C57
 act_p14_08:
         lda     #$04
-L65BC:  cmp     $16
+L65BC:  cmp     arg2
         bne     L65CC
-        lda     $13
+        lda     wid
         cmp     #$25
         bne     L65C9
         jmp     L641D
 
 L65C9:  jmp     L6448
 
-L65CC:  lda     $16
+L65CC:  lda     arg2
         cmp     #$02
         beq     act_p14_06
         cmp     #$04
@@ -7835,32 +7886,32 @@ code_65E2:
         rts
 
         jsr     L4D95
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         jmp     L622D
 
 ; si ($C6)+16==$0F -> $6222 sinon $5A62
 act_p14_10:
-        lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
+        lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
         ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$0F
         beq     L6604
         jmp     L5A62
 
 L6604:  jmp     act_p14_03
 
-        lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
+        lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
         ldy     #$10
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$20
         beq     L661D
         jsr     print_msg
@@ -7870,7 +7921,7 @@ msg_661A:
 code_661C:
         rts
 
-L661D:  lda     $13
+L661D:  lda     wid
         cmp     #$0D
         bne     L6626
         jmp     act_p14_02
@@ -7879,37 +7930,37 @@ L6626:  jmp     act_p14_03
 
         jsr     L576D
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         bne     L6636
         jsr     act_probe
         rts
 
 L6636:  ldy     #$00
-        lda     $13
+        lda     wid
         pha
-        lda     $15
+        lda     arg1
         pha
-        lda     ($8A),y
-        sta     $13
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     (ptr),y
+        sta     wid
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         pha
         ora     #$20
-        sta     ($8A),y
+        sta     (ptr),y
         lda     #$FF
-        sta     $15
+        sta     arg1
         jsr     L5D53
         pla
         ldy     #$07
-        sta     ($17),y
+        sta     (orec),y
         pla
-        sta     $15
+        sta     arg1
         pla
-        sta     $13
+        sta     wid
         rts
 
         jsr     act_probe
@@ -7918,7 +7969,7 @@ L6636:  ldy     #$00
 msg_666C:
         .word   $1494
 code_666E:
-        lda     $C5
+        lda     obj
         pha
         bne     code_6678
         jsr     print_msg
@@ -7943,17 +7994,17 @@ code_6688:
 evt_disarme6:
         jsr     act_probe
         ldy     #$07
-        lda     ($C6),y
+        lda     (crec),y
         ora     #$80
-        sta     ($C6),y
+        sta     (crec),y
         lda     $1CCB
         ora     #$80
         sta     $1CCB
         ldy     #$05
-        lda     ($C6),y
+        lda     (crec),y
         asl     a
         asl     a
-        sta     ($C6),y
+        sta     (crec),y
         lda     #$00
         sta     $2B31
         rts
@@ -7962,18 +8013,18 @@ evt_disarme6:
 evt_arme6:
         jsr     act_probe
         ldy     #$07
-        lda     ($C6),y
+        lda     (crec),y
         and     #$7F
-        sta     ($C6),y
+        sta     (crec),y
         ldy     #$05
-        lda     ($C6),y
+        lda     (crec),y
         lsr     a
         lsr     a
-        sta     ($C6),y
+        sta     (crec),y
         lda     $1CCB
         and     #$7F
         sta     $1CCB
-        lda     $C5
+        lda     obj
         sta     $1CC5
         lda     #$08
         jsr     rand_range
@@ -7985,14 +8036,14 @@ evt_arme6:
 ; dit $1478 (spiders mend the web) + arme e1 (cpt:=id)
 act_p14_11:
         ldy     #$07
-        lda     ($17),y
+        lda     (orec),y
         and     #$08
         bne     L66DF
         rts
 
-L66DF:  lda     ($17),y
+L66DF:  lda     (orec),y
         ora     #$20
-        sta     ($17),y
+        sta     (orec),y
         lda     $2B17
         sta     $2B18
         jsr     print_msg
@@ -8064,8 +8115,8 @@ code_66F0:
         .byte   $1D,$A9,$13,$8D,$A9,$1D,$60
 ; si meme lieu ($C9==$C8) : sonde + dit $143F (hello)
 act_v14_06:
-        lda     $C9
-        cmp     $C8
+        lda     eloc
+        cmp     ploc
         beq     L68D7
         rts
 
@@ -8187,8 +8238,8 @@ code_6961:
 
 ; si meme lieu et !($1B21&$80) : dit $14AB (WHERE'S the thief ?)
 act_v14_03:
-        lda     $C9
-        cmp     $C8
+        lda     eloc
+        cmp     ploc
         beq     L6969
         rts
 
@@ -8208,7 +8259,7 @@ code_6979:
 ; si $C8==$1DE0 : sonde, $4D9E, ror ($14)
 act_v14_05:
         jsr     act_probe
-        lda     $C8
+        lda     ploc
         cmp     $1DE0
         beq     L6985
         rts
@@ -8230,11 +8281,11 @@ code_6997:
 L6998:  jsr     L6250
         jsr     act_probe
         lda     #$0B
-        sta     $13
-        lda     $C5
+        sta     wid
+        lda     obj
         cmp     #$46
         beq     L69BD
-        lda     $15
+        lda     arg1
         cmp     #$3C
         bne     L69B4
 L69AE:  jsr     print_msg
@@ -8248,7 +8299,7 @@ L69B4:  lda     #$08
         jsr     rand_range
         cmp     #$03
         bcc     L69AE
-L69BD:  lda     $15
+L69BD:  lda     arg1
         cmp     #$1A
         beq     L69C8
         lda     #$FF
@@ -8258,15 +8309,15 @@ L69C8:  jsr     print_msg
 msg_69CB:
         .word   $1516
 code_69CD:
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         jsr     L5B1B
         beq     L69DD
         jmp     act_p14_01
 
-L69DD:  lda     $15
+L69DD:  lda     arg1
         jsr     code_4D47
         lda     #$06
         jmp     L5A9D
@@ -8290,7 +8341,7 @@ code_69F4:
 L69FF:  jmp     code_5FB7
 
         jsr     L4D95
-        lda     $C5
+        lda     obj
         beq     L6A0A
         rts
 
@@ -8301,7 +8352,7 @@ msg_6A0D:
 code_6A0F:
         jmp     code_6A6E
 
-        lda     $C5
+        lda     obj
         cmp     #$00
         beq     evt_disarme7
         rts
@@ -8315,7 +8366,7 @@ evt_disarme7:
         rts
 
         ldy     #$10
-        lda     ($17),y
+        lda     (orec),y
         sta     L6A5C
         jsr     L5774
         cmp     #$FF
@@ -8328,16 +8379,16 @@ code_6A37:
         rts
 
 L6A38:  ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         cmp     #$0A
         bne     L6A32
         jsr     act_probe
         ldx     L6A5C
-        lda     $15
+        lda     arg1
         ldy     #$01
-        sta     ($C6),y
+        sta     (crec),y
         jsr     L5612
-        lda     $C5
+        lda     obj
         cmp     #$00
         beq     L6A56
         rts
@@ -8369,7 +8420,7 @@ L6A79:  stx     $1F85
         lda     #$29
         jmp     L5612
 
-        lda     $16
+        lda     arg2
         jsr     L576F
         cmp     #$FF
         bne     L6A92
@@ -8383,7 +8434,7 @@ msg_6A98:
 code_6A9A:
         lda     $1F85
         ldy     #$02
-        cmp     ($8A),y
+        cmp     (ptr),y
         bne     L6AC4
         jsr     L6AE3
         bcs     L6AB9
@@ -8415,14 +8466,14 @@ code_6AC3:
 L6AC4:  jsr     L6AE3
         bcs     L6AB3
         ldy     #$02
-        lda     ($8A),y
+        lda     (ptr),y
         ldy     #$10
-        sta     ($17),y
+        sta     (orec),y
         tax
         lda     #$FF
         ldy     #$01
-        sta     ($17),y
-        lda     $15
+        sta     (orec),y
+        lda     arg1
         jsr     L5612
         jsr     print_msg
 ; -> $134D ..v`..{.......f`..{...g`.^..
@@ -8447,7 +8498,7 @@ evt_arme9b:
         sta     $1C7B
         jmp     evt_print
 
-        lda     $C5
+        lda     obj
         cmp     #$00
         bne     L6B16
         lda     $1B1B
@@ -8462,7 +8513,7 @@ msg_6B13:
 code_6B15:
         rts
 
-L6B16:  lda     $13
+L6B16:  lda     wid
         cmp     #$0D
         bne     L6B1F
         jmp     act_p14_02
@@ -8473,7 +8524,7 @@ L6B1F:  cmp     #$10
 
 L6B26:  rts
 
-        lda     $C5
+        lda     obj
         cmp     #$00
         bne     L6B3D
         lda     $1B1B
@@ -8488,7 +8539,7 @@ msg_6B3A:
 code_6B3C:
         rts
 
-L6B3D:  lda     $13
+L6B3D:  lda     wid
         cmp     #$1E
         bne     L6B46
         jmp     act_p14_05
@@ -8505,7 +8556,7 @@ L6B54:  rts
 
         jsr     act_probe
         ldy     #$07
-        lda     ($C6),y
+        lda     (crec),y
         and     #$80
         beq     evt_arme5
         jsr     print_msg
@@ -8528,7 +8579,7 @@ code_6B71:
 
 ; si $C5==$41 : parcourt ($C1), dit $13E0/$15AB (go...from...to)
 act_p14_09:
-        lda     $C5
+        lda     obj
         cmp     #$41
         beq     L6B7B
         jmp     code_63A4
@@ -8536,10 +8587,10 @@ act_p14_09:
 L6B7B:  jsr     act_probe
         ldy     #$01
         lda     ($C1),y
-        sta     $88
+        sta     ptr2
         iny
         lda     ($C1),y
-        sta     $89
+        sta     ptr2_hi
         iny
         lda     $C3
         bne     L6BA2
@@ -8551,7 +8602,7 @@ L6B90:  tya
         txa
         tay
         pla
-        sta     ($88),y
+        sta     (ptr2),y
         pla
         tay
         iny
@@ -8561,23 +8612,23 @@ L6B90:  tya
 L6BA2:  ldy     #$05
         lda     ($C1),y
         jsr     L43E4
-        lda     $8A
+        lda     ptr
         sta     L4673
-        lda     $8B
+        lda     ptr_hi
         sta     L4674
         ldy     #$00
         lda     ($C1),y
         jsr     L43E4
-        lda     $8A
+        lda     ptr
         sta     L4671
-        lda     $8B
+        lda     ptr_hi
         sta     L4672
         ldy     #$03
         lda     ($C1),y
         jsr     L59E7
-        lda     $5C
+        lda     adr
         sta     L466F
-        lda     $5D
+        lda     adr_hi
         sta     L4670
         jsr     act_msg
 ; -> $15AB ...x.d..d...X..cx. ... '.7 '
@@ -8598,9 +8649,9 @@ L6BE3:  jsr     L4D95
         lda     #$02
         jsr     code_5AF0
         lda     #$1A
-        sta     $88
+        sta     ptr2
         lda     #$1B
-        sta     $89
+        sta     ptr2_hi
         lda     #$02
         jsr     L54A9
         bne     L6C03
@@ -8616,7 +8667,7 @@ code_6C08:
 ; si $1E4B==$C8 et ($1B21&$80) : message patche ($6C2C)
 act_v14_12:
         lda     $1E4B
-        cmp     $C8
+        cmp     ploc
         beq     L6C11
         rts
 
@@ -8643,25 +8694,25 @@ code_6C2E:
 
 ; one-shot ($CE==1) : RAZ $CE, $3F7F, copie $14/$15 en $2A7B
 act_v14_11:
-        lda     $CE
+        lda     once
         cmp     #$01
         beq     L6C3A
         rts
 
 L6C3A:  lda     #$00
-        sta     $CE
+        sta     once
         lda     #$01
         jsr     code_3F7F
         bne     L6C46
         rts
 
 L6C46:  lda     #$00
-        sta     $12
+        sta     passok
         lda     $14
         sta     $2A7B
-        lda     $15
+        lda     arg1
         sta     $2A7C
-        lda     $16
+        lda     arg2
         sta     $2A7D
         lda     #$42
         sta     $2A7A
@@ -8669,7 +8720,7 @@ L6C46:  lda     #$00
 
 ; actB e4 : si $C8==$1D dit $1535 (bog) sinon desarme e4
 evt_act5:
-        lda     $C8
+        lda     ploc
         cmp     #$1D
         beq     L6C6B
         lda     #$00
@@ -8703,7 +8754,7 @@ code_6C8C:
 
 ; si $C8 in {27,2C,29} : sonde + dit $13F6 (X enter)
 act_v14_09:
-        lda     $C8
+        lda     ploc
         cmp     #$27
         beq     L6C9C
         cmp     #$2C
@@ -8713,14 +8764,14 @@ act_v14_09:
         rts
 
 L6C9C:  jsr     act_probe
-        lda     $C8
+        lda     ploc
         cmp     $1B40
         bne     L6CA7
         rts
 
 L6CA7:  sta     $1B40
         lda     #$01
-        sta     $0B
+        sta     outen
         lda     #$38
         sta     L466F
         lda     #$1B
@@ -8734,8 +8785,8 @@ code_6CBD:
 
 ; meme lieu : $153F (dragon : prepare to die) ou $155D (aveugle) si $80
 act_v14_10:
-        lda     $C8
-        cmp     $C9
+        lda     ploc
+        cmp     eloc
         beq     L6CC5
         rts
 
@@ -8757,26 +8808,26 @@ msg_6CD8:
 code_6CDA:
         rts
 
-        lda     $C9
-        cmp     $C8
+        lda     eloc
+        cmp     ploc
         beq     L6CE2
         rts
 
 L6CE2:  jsr     act_probe
         lda     #$1B
-        sta     $13
+        sta     wid
         lda     #$00
-        sta     $15
+        sta     arg1
         lda     #$FF
-        sta     $16
+        sta     arg2
         jsr     L5A62
         jsr     act_p14_00
         jmp     L5FAE
 
 ; si meme lieu : prend l'objet $1FC1 (id $1FB2=41)
 act_v14_07:
-        lda     $C9
-        cmp     $C8
+        lda     eloc
+        cmp     ploc
         beq     L6D01
         rts
 
@@ -8788,28 +8839,28 @@ L6D01:  lda     $1FC1
         rts
 
 L6D0E:  jsr     act_probe
-        lda     $C9
+        lda     eloc
         sta     $1FC1
         lda     #$41
         sta     $1FB2
         lda     #$00
-        sta     $16
+        sta     arg2
         lda     #$26
-        sta     $15
+        sta     arg1
         lda     #$1D
-        sta     $13
+        sta     wid
         lda     #$B1
-        sta     $17
+        sta     orec
         lda     #$1F
-        sta     $18
+        sta     orec_hi
         lda     #$1A
-        sta     $19
+        sta     orec2
         lda     #$1B
-        sta     $1A
+        sta     orec2_hi
         jsr     L5A62
         jmp     L63DC
 
-        lda     $C8
+        lda     ploc
         cmp     #$02
         beq     L6D48
         cmp     #$03
@@ -8838,7 +8889,7 @@ L6D5D:  lda     $2B3F
         lda     $1C7B
         and     #$7F
         sta     $1C7B
-        lda     $C8
+        lda     ploc
         cmp     #$2A
         beq     evt_print
         rts
@@ -8854,7 +8905,7 @@ code_6D77:
 
 ; si $C8==$1E4B : tirage, $16B9 (pocket ?) / $16C8 (my precious)
 act_v14_14:
-        lda     $C8
+        lda     ploc
         cmp     $1E4B
         beq     L6D80
         rts
@@ -8886,16 +8937,16 @@ code_6D9E:
 msg_6DA2:
         .word   $16F0
 code_6DA4:
-        lda     $C8
-        cmp     $BE
+        lda     ploc
+        cmp     exploc
         bne     L6DAB
         rts
 
 L6DAB:  lda     #$02
-        cmp     $BE
+        cmp     exploc
         bne     L6DB3
         lda     #$03
-L6DB3:  cmp     $C8
+L6DB3:  cmp     ploc
         bne     L6DB8
         rts
 
@@ -8905,7 +8956,7 @@ L6DB8:  jmp     code_6D4D
 code_6DBE:
         ora     #$80
         sta     $1C7B
-        lda     $C8
+        lda     ploc
         cmp     #$2A
         beq     L6DCA
         rts
@@ -8936,7 +8987,7 @@ msg_6DEA:
 code_6DEC:
         jmp     L6E35
 
-L6DEF:  lda     $C8
+L6DEF:  lda     ploc
         cmp     #$1E
         bne     L6DF6
         rts
@@ -8956,23 +9007,23 @@ act_v14_13:
         sta     $5F
         ldy     #$00
         lda     ($BF),y
-        sta     $8A
+        sta     ptr
         iny
         lda     ($BF),y
-        sta     $8B
+        sta     ptr_hi
 L6E15:  jsr     L3485
         cmp     #$C0
         beq     L6E29
-        lda     $5C
-        cmp     $8A
+        lda     adr
+        cmp     ptr
         bne     L6E15
-        lda     $5D
-        cmp     $8B
+        lda     adr_hi
+        cmp     ptr_hi
         bne     L6E15
         rts
 
 L6E29:  lda     #$01
-        sta     $0B
+        sta     outen
         jsr     print_msg
 ; -> $15B6 .X..cx. ... '.7 '.kos SEEN,o
 msg_6E30:
@@ -8986,12 +9037,12 @@ L6E35:  lda     $1CC5
         rts
 
 L6E3D:  jsr     L5331
-        lda     $8A
-        sta     $C6
-        lda     $8B
-        sta     $C7
+        lda     ptr
+        sta     crec
+        lda     ptr_hi
+        sta     crec_hi
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$80
         beq     L6E51
         rts
@@ -9011,10 +9062,10 @@ act_v14_08:
 
 L6E61:  jsr     act_probe
         lda     #$01
-        sta     $0B
+        sta     outen
         jsr     L5374
         ldy     #$00
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$80
         bne     L6E74
         rts
@@ -9037,13 +9088,13 @@ msg_6E86:
 code_6E88:
         jmp     L5FAE
 
-        lda     $C8
+        lda     ploc
         cmp     #$05
         beq     L6E92
         rts
 
 L6E92:  jsr     act_probe
-        lda     $C5
+        lda     obj
         cmp     #$47
         beq     L6EA1
         jsr     act_msg
@@ -9083,7 +9134,7 @@ code_6EA6:
         lda     #$48
         jsr     L5713
         lda     #$01
-        sta     $0B
+        sta     outen
         jsr     print_msg
 ; -> $16EB ......l.T........n...T....x.
 msg_6EE7:
@@ -9094,9 +9145,9 @@ code_6EE9:
         rts
 
 L6EEF:  lda     #$03
-        sta     ($88),y
+        sta     (ptr2),y
         iny
-        sta     ($88),y
+        sta     (ptr2),y
         rts
 
 L6EF7:  lda     ptr_block3
@@ -9109,16 +9160,16 @@ L6F00:  ldx     ptr_block3
         lda     #$05
         jsr     L5399
         ldy     #$01
-        lda     ($8A),y
-        sta     $88
+        lda     (ptr),y
+        sta     ptr2
         iny
-        lda     ($8A),y
-        sta     $89
+        lda     (ptr),y
+        sta     ptr2_hi
         ldy     #$00
         lda     #$01
         rts
 
-        lda     $C8
+        lda     ploc
         cmp     #$1A
         beq     L6F22
         rts
@@ -9142,22 +9193,22 @@ code_6F27:
         sta     $1BF4
         rts
 
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
-        lda     $16
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
+        lda     arg2
         cmp     #$17
         beq     L6F75
         cmp     #$18
         beq     L6F7E
 L6F56:  ldy     #$07
-        lda     ($19),y
+        lda     (orec2),y
         and     #$02
         bne     L6F61
         jmp     L5A62
 
-L6F61:  lda     ($8A),y
+L6F61:  lda     (ptr),y
         and     #$04
         php
         lda     #$82
@@ -9177,21 +9228,21 @@ L6F75:  ldx     #$E2
 L6F7E:  ldx     #$F6
         ldy     #$1D
         lda     #$16
-L6F84:  stx     $19
-        sty     $1A
-        sta     $16
+L6F84:  stx     orec2
+        sty     orec2_hi
+        sta     arg2
         ldy     #$01
         lda     #$FF
-        sta     ($19),y
+        sta     (orec2),y
         jmp     L6F56
 
         jsr     act_probe
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
         ldy     #$07
-        lda     ($8A),y
+        lda     (ptr),y
         and     #$20
         beq     L6FA9
         jmp     L61DC
@@ -9406,8 +9457,8 @@ L70F2:  lda     #$46
 
 ; $BE:=$8F + cpt e8 := id (cles $02/$03)
 evt_arme8:
-        lda     $8F
-        sta     $BE
+        lda     key
+        sta     exploc
         lda     $2B3A
         sta     $2B3B
         rts
@@ -9493,10 +9544,10 @@ L71E8:  php
 L71F1:  sec
         rts
 
-L71F3:  lda     $8A
+L71F3:  lda     ptr
         cmp     $32
         bne     L71F1
-        lda     $8B
+        lda     ptr_hi
         cmp     $33
         bne     L71F1
 L71FF:  clc
@@ -9529,14 +9580,14 @@ tape_save:
         sta     $3C
         lda     #$24
         sta     $3F
-        lda     $8A
+        lda     ptr
         sta     $37
         clc
-        adc     $88
+        adc     ptr2
         sta     $39
-        lda     $8B
+        lda     ptr_hi
         sta     $38
-        adc     $89
+        adc     ptr2_hi
         sta     $3A
         jsr     L0411
         jsr     L040B
@@ -9800,13 +9851,13 @@ cr_out: pha
 
 ; filtres $0B/$0C/$0D/$C4 (capitales) puis rendu
 ch_out: pha
-        lda     $0C
-        and     $0B
+        lda     phase
+        and     outen
         bne     L749A
         pla
         rts
 
-L749A:  lda     $0D
+L749A:  lda     raw
         bne     L74BB
         pla
         jsr     ch_put
@@ -9857,7 +9908,7 @@ L74E7:  jsr     L7514
         lda     #$00
         sta     L0000
         lda     #$28
-        sta     $04
+        sta     col
 L74F2:  lda     #$2B
         jsr     glyph_out
         pla
@@ -9875,7 +9926,7 @@ L74FD:  lda     #$20
         sta     L0000
         jsr     L7558
         lda     #$01
-        sta     $04
+        sta     col
         bne     L74F2
 L7514:  pha
         lda     #$00
@@ -9958,12 +10009,12 @@ L759A:  lda     $20
 L75A5:  rts
 
 L75A6:  inc     L0000
-        dec     $04
+        dec     col
         rts
 
 L75AB:  dec     L0000
-        inc     $04
-        lda     $04
+        inc     col
+        lda     col
         cmp     #$29
         rts
 
@@ -10012,7 +10063,7 @@ ch_put: sta     $02
         pha
         tya
         pha
-        lda     $0F
+        lda     sppend
         bne     L7613
         lda     $10
         beq     L7613
@@ -10028,9 +10079,9 @@ L7613:  lda     $02
 ; toutes les 16 CR ($11) : touche (10 essais timeout) + relachement, sinon $11++
 pause_key:
         lda     #$00
-        sta     $0F
+        sta     sppend
         jsr     L771A
-        lda     $11
+        lda     crcnt
         cmp     #$0F
         bne     L763B
         ldx     #$0A
@@ -10044,7 +10095,7 @@ L7631:  dec     $03
         bpl     L7628
         jmp     L7645
 
-L763B:  inc     $11
+L763B:  inc     crcnt
         jmp     L7645
 
 L7640:  jsr     kb_scan
@@ -10068,7 +10119,7 @@ L7662:  cmp     #$41
         cmp     #$5B
         bcs     L766C
         ora     #$20
-L766C:  ldx     $0E
+L766C:  ldx     cap
         beq     L767E
         cmp     #$61
         bcc     L767E
@@ -10076,12 +10127,12 @@ L766C:  ldx     $0E
         bcs     L767E
         and     #$5F
         ldx     #$00
-        stx     $0E
+        stx     cap
 L767E:  cmp     #$2E
         bne     L7684
-        inc     $0E
+        inc     cap
 L7684:  jsr     L76ED
-        sta     $0F
+        sta     sppend
         jsr     L76DF
         beq     pause_key
 L768E:  pla
@@ -10222,11 +10273,11 @@ game_main:
         jsr     hires_clear
         lda     #$00
         sta     $10
-        sta     $0F
+        sta     sppend
         lda     #$01
-        sta     $0E
+        sta     cap
         lda     #$28
-        sta     $04
+        sta     col
         sta     $05
         lda     #$E8
         sta     L0000

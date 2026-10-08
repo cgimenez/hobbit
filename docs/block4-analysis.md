@@ -89,9 +89,37 @@ explique la présence des patchs ROM décrits dans
 
 ## Variables (zéro-page / page 2)
 
-- `$0B`/`$0C` : autorisation de sortie (putchar) ; `$0D` : flag d'affichage.
+51 adresses nommées via `ZP_NAMES` (`scripts/disasm.py` → LABEL da65,
+octet haut en `nom_hi`), rôles établis par recoupement exhaustif des usages
+bloc 4 (contexte par routine, valeurs aux `sta`, patterns push/pop et
+`($..),y`). Groupes :
+- Sortie texte : `col` ($04, colonnes restantes, RAZ $28/ligne),
+  `outen` ($0B), `phase` ($0C, 0=sonde/1=exec), `raw` ($0D, mode brut +
+  capitales), `cap` ($0E, capitaliser la suivante), `sppend` ($0F),
+  `crcnt` ($11, CR mod 16), `passok` ($12, sonde réussie).
+- Commande : `wid` ($13, mot/direction), `arg1`/`arg2` ($15/$16,
+  $FF=absent), `obj` ($C5, id courant), `orec`/`orec2` ($17/$19, pointeurs
+  d'enregistrements, swap `L57A1`), `crec` ($C6, enregistrement courant,
+  base $1B1A), `ploc`/`eloc` ($C8/$C9, lieux joueur/entité),
+  `once` ($CE, one-shot).
+- Messages : `adr` ($5C, adresse étagée), `tidx` ($6F), `nest` ($70),
+  `wptr` ($71), `msgstk` ($76, pile $466F), `svA`/`svX` ($AD/$AE),
+  `rstk` ($AF, pile retours $0200).
+- Mouvement : `direct` ($73, =bit7 `xmode`), `variant` ($74, =bit6),
+  `xaux`/`xmode` ($77/$78, nibbles de la sortie), `cond1`/`cond2`
+  ($DC/$E2, 6 o), `svptr` ($E8, ptr sauvé), `exitp` ($F8,
+  `$26DA+wid*8`).
+- Travail : `ptr` ($8A, universel), `ptr2` ($88, balayages), `ptr3` ($7A).
+- Monde : `key` ($8F, dispatch $709F), `noise` ($93, entropie),
+  `exploc` ($BE, lieu attendu).
+- Non nommés (multi-rôles ou non élucidés) : `$00`–`$03`/`$08`–`$0A`/`$10`
+  (curseurs video), `$05` (largeur texte ET comparande `L5C07`), `$44`
+  (octet de table, pas une variable), `$6A`/`$6B` (retour print_msg ET
+  scratch parser), `$6C` (temporaire parser), `$75`/`$7F`/`$80` (bits
+  sorties, sens fin inconnu), `$7E` (compteur boucles + temporaire),
+  `$8C`/`$8D` (PC script VM ET curseur boot), `$C4` (filtre S→SH ?),
+  `$D5`, `$BF`, zones parser `$5x`-`$Dx`, bandeau `$Ex`-`$Fx`, I/O `$1x`-`$3x`.
 - `$32`/`$33` : adresse de chargement renvoyée par le loader ; `$37`/`$38` : pointeur d'écriture.
-- `$56`, `$57`, `$5F`, `$65`, `$7E`, `$88`/`$89`, `$8A`/`$8B`, `$C4` : état du jeu.
 - `$024D` : mode cassette (fast/slow) ; `$0300`–`$030F` : VIA.
 
 ## Entrées/sorties (chemins observés sous harnais sim65)

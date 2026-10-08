@@ -16,7 +16,9 @@
   (**111** : socle + 30 actions + 27 moteur de messages + 20 événements
   `evt_*` (`evt_tick`/`evt_fire`, stubs `evt_armeN`, `evt_lookup`…) ; nom +
   résumé → labels/commentaires régénérés ; checker H : début d'instruction,
-  nom unique/valide). Ne jamais éditer le listing à la main.
+  nom unique/valide). Zéro-page nommée via `ZP_NAMES` (**51** : 40 bases +
+  11 `_hi`, da65 ne rendant pas `nom+1` ; checker H : adresse < $100, nom
+  unique, label présent dans info). Ne jamais éditer le listing à la main.
 - Conflit `$6DCF` résolu : `JSR $440D` en `$6DCA` (cible d'un `BEQ`, idiome
   print-and-return vers `RTS`) confirmé ; seed `fcn.00006dce` exclu
   (chevauchait le pointeur `$165A`) ; routine orpheline `$6DD0` ajoutée
@@ -211,8 +213,8 @@
 
 ## Prochaine étape
 
-Moteur de messages et armement `$2B12` décodés (`docs/block4-analysis.md`).
-Reste : nommer la zéro-page, bloc 2 et bloc 3.
+Moteur de messages, armement `$2B12` et zéro-page décodés
+(`docs/block4-analysis.md`). Reste : bloc 2 et bloc 3.
 
 ## Points ouverts et limites harnais (non bloquants)
 
