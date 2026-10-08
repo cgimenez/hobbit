@@ -4,17 +4,19 @@
 
 - `disasm/block4.asm` fiabilisé : **16 890 o de code**, 99 sites
   `JSR $440D` (115 pointeurs inline `$440D`/`$5B24`), **0 conflit**,
-  `scripts/check_disasm.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
-  Round-trip ca65 prouvé (byte-identique, `scripts/rebuild.py`). Arbre
-  propre, tout commité.
+   `scripts/check_disasm.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
+   Round-trip ca65 prouvé (byte-identique, `scripts/rebuild.py`). Arbre
+   propre, tout commité.
 - Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
   (seeds r2 validés + 77 `MANUAL_ENTRIES` dont 16 vecteurs + 61 orphelins
   dispatch-indirect : 30 actions `L7014`/`L7143` + voisines règle D + token
   `$456F` + stubs d'armement `$65A5`/`$70B5` (en zones données, trahis par
   scan binaire des `STA $2Bxx`) ; `SEED_EXCLUDE={0x6DCE}`).
 - Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
-  (**111** : socle + 30 actions + 27 moteur de messages + 20 événements
-  `evt_*` (`evt_tick`/`evt_fire`, stubs `evt_armeN`, `evt_lookup`…) ; nom +
+  (**121** : socle + 30 actions + 27 moteur de messages + 20 événements
+  `evt_*` (`evt_tick`/`evt_fire`, stubs `evt_armeN`, `evt_lookup`…) + 10
+  moteur vectoriel (`vec_image`/`vec_line`/`vec_fill`/`vec_pos`/`vec_skip`/
+  `vec_setup`/`vec_testpx`/`vec_plot`/`vec_addr`, `img_show`) ; nom +
   résumé → labels/commentaires régénérés ; checker H : début d'instruction,
   nom unique/valide). Zéro-page nommée via `ZP_NAMES` (**51** : 40 bases +
   11 `_hi`, da65 ne rendant pas `nom+1` ; checker H : adresse < $100, nom
@@ -213,8 +215,26 @@
 
 ## Prochaine étape
 
-Moteur de messages, armement `$2B12` et zéro-page décodés
-(`docs/block4-analysis.md`). Reste : bloc 2 et bloc 3.
+Moteur de messages, armement `$2B12`, zéro-page et bloc 3 décodés
+(`docs/block4-analysis.md`). Reste : bloc 2.
+
+## Bloc 3 : illustrations vectorielles élucidées (sous sim65)
+
+- Table `$7AC0` : 13 entrées `[clé,mot]` (`$FF` en `$7AE7`, lookup `L5399`
+  pas de 3) ; 13 flux `$00`-terminés tuilés `$7AE8`→`$91AF` (zéro ASCII
+  long : que du dessin) ; chaque image = `[mode,$08,x,y]` + commandes
+  (`$08` curseur, `$20` skip→`$FF`, bit6 fill, bit7 ligne 2 o).
+- Moteur bloc 4 (`vec_init` `$77D4`, 10 routines `vec_*`/`img_show`
+  documentées) : setup (efface hires, couleurs), dispatch, plot pixel par
+  pixel (`L7A0F`) — lignes puis fills, ~33 M cycles/image (d'où la lenteur
+  du rendu).
+- Preuve : pilote sim65 (reset sur driver `$E800`, `vec_init` + dump hires
+  via `shim_kb`, `-x 600M`) → 13 frames → 13 illustrations distinctes et
+  cohérentes (artefacts `/tmp`, pilote non promu dans le repo).
+- Cas notés : image `$0D` contient l'image `$15` (+29 o de tête, composite
+  confirmé visuellement) ; clé `$05` absente de la table → `L6EF7` poke en
+  `$0805`/`$0806` (bloc 2, sans lecteur bloc 4 : ouvert) ; clés
+  plausiblement = ids de lieux (à confirmer en jeu).
 
 ## Points ouverts et limites harnais (non bloquants)
 
@@ -222,7 +242,8 @@ Moteur de messages, armement `$2B12` et zéro-page décodés
    slots `.word` remplis à l'exécution → `TODO` dans le listing.
 2. Pointeurs vers le bloc 2 (`$1370`, `$165A`, …) : zone message non analysée.
 3. `STA $6A5C` (auto-modification) : octet gardé en donnée, code dès `$6A5E`.
-4. Rôles de `vec_init`, `vec_06`, `vec_07` à confirmer.
+4. Rôles de `vec_06`, `vec_07` à confirmer (`vec_init` établi : entrée
+   du renderer d'illustrations → `vec_image` `$77D4`).
 5. SAVE/LOAD non testés : les vecteurs cassette (`$0405-$0417`) pointent
    vers la ROM 1.0, morte sous sim65 → tout `SAVE`/`LOAD` plantera (stubs
    à prévoir si on teste ces chemins).

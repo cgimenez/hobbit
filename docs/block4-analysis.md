@@ -239,6 +239,39 @@ données comme la table d'actions étendue `$7020`, 30 mots). Restent intirés
 par le ticker : `$6915` (tip aléatoire `$1485`, `actB` des `cond=0`), `$6F2A`
 (flags web — le re-mend différé ne part jamais : à confirmer en jeu).
 
+## Bloc 3 : illustrations vectorielles (`$7AC0`–`$91B1`, 5 874 o)
+
+Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
+`[clé,mot]`, `$FF` en `$7AE7`, lookup `L5399` pas de 3) + 13 flux d'octets
+`$00`-terminés, tuilés sans trou (`$7AE8`→`$91AF`, double `$00` en `$809E`,
+`$00 $CB` final). Zéro texte ASCII ≥24 o : tout est dessin.
+
+- Moteur (`vec_init` `$77D4`, X/Y = adresse image) : `vec_setup` (`$7990`,
+  octet mode = couleurs : bas = encre, haut = papier) efface hires
+  `$A000`–`$B3FF` (`$40`) + 2 aplats ; puis dispatch d'octets : `$00` fin,
+  `$08` `vec_pos` (curseur `$30`/`$31`, 2 o), `$20` `vec_skip` (saute
+  jusqu'à `$FF`, repris en ligne), bit6 `vec_fill` (remplissage), bit7
+  `vec_line` (segment, 2 o), sinon avance. Chaque image commence par
+  `[mode,$08,x,y]`. Lignes puis fills : le fill boucle pixel par pixel
+  (`vec_plot` `$7A0F` via `($38/$39)`+masque `L7A5F`) — **d'où la lenteur**
+  (~33 M cycles/image sous sim65).
+- Usages bloc 4 : `img_show` (`$4750`, depuis `code_4DF6`) — lookup clé,
+  `vec_init`, `keyin` (tourne-page) ; `L6EF7` (clé `$05`, depuis `L64AE`/
+  `code_6EE9`) — lit `(ptr)+1/+2` comme **pointeur de données** et y poke
+  2 octets (`$00/$10` ou `$03/$03`).
+- Clés : `$01 $06 $0B $25 $26 $07 $0D $15 $20 $19 $29 $1A $27` (modes
+  `$05 $02 $01 $13 $04 $14 $03 $01 $04 $04 $05 $01 $56`) — plausiblement des
+  ids de lieux (à confirmer en jeu : image de la clé == lieu ?).
+- Cas notés : l'image `$0D` (`$8766`) **contient** l'image `$15`
+  (`$8783`–`$887B`) précédée de 29 o (rendus comparés : composite réel,
+  pas d'artefact) ; la clé `$05` est **absente** de la table → `L5399`
+  s'arrête au `$FF` (`$7AE7`) et `L6EF7` poke en `$0805`/`$0806` (bloc 2,
+  sans lecteur bloc 4 — patch intentionnel, table patchée à l'exécution,
+  ou chemin mort : ouvert).
+- Validation : pilote sim65 (reset détourné sur driver `$E800` : `vec_init`
+  + `shim_kb` pour dumper, 13 cibles) → 13 frames hires → 13 illustrations
+  distinctes et cohérentes (visages, scènes, dragon). Coût : `-x 600M`.
+
 ## Outillage
 
 - `scripts/disasm.py` : **descente récursive** (entries `$2C00`, `$2C35`, 16
@@ -252,7 +285,8 @@ par le ticker : `$6915` (tip aléatoire `$1485`, `actB` des `cond=0`), `$6F2A`
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 890 o de code**, 99 sites
-  `$440D` (115 inline `$440D`/`$5B24`), 111 routines documentées, 0 conflit.
+  `$440D` (115 inline `$440D`/`$5B24`), 121 routines documentées (dont 10
+  `vec_*`/`img_show` du moteur d'illustrations), 0 conflit.
 
 Régénérer et vérifier :
 

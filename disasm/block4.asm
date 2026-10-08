@@ -91,7 +91,7 @@ ptr_block3:
         .byte   $C0
 L2C04:  .byte   $7A
 vec_init:
-        jmp     code_77D4
+        jmp     vec_image
 
 vec_01: jmp     code_71A8
 
@@ -3889,7 +3889,9 @@ fetch_retaddr:
         lda     svA
         rts
 
-L4750:  pha
+; illustration de la cle A (table $7AC0) : vec_init + keyin, Z si absente
+img_show:
+        pha
         lda     ptr_block3
         ora     L2C04
         beq     L475D
@@ -4578,7 +4580,7 @@ code_4DFE:
         ora     (ptr),y
         jsr     L4E20
         lda     L4DF5
-        jsr     L4750
+        jsr     img_show
         jsr     print_cr
         lda     L4DF5
         jsr     code_5959
@@ -10312,13 +10314,14 @@ L77B6:  dex
 
 L77CA:  .byte   "aZDZa"
 L77CF:  .byte   "aVHVa"
-code_77D4:
+; dessine une illustration (($28/$29)) : setup L7990 puis boucle dispatch
+vec_image:
         stx     $28
         sty     $29
         pha
         ldy     #$00
         lda     ($28),y
-        jsr     L7990
+        jsr     vec_setup
         jsr     L781D
 L77E3:  ldy     #$00
         lda     ($28),y
@@ -10336,16 +10339,16 @@ L77E3:  ldy     #$00
 L77FD:  jsr     L781D
         jmp     L77E3
 
-L7803:  jsr     L78C9
+L7803:  jsr     vec_pos
         jmp     L77FD
 
-L7809:  jsr     L78E4
+L7809:  jsr     vec_line
         jmp     L77FD
 
-L780F:  jsr     L7824
+L780F:  jsr     vec_fill
         jmp     L77FD
 
-L7815:  jsr     L78DA
+L7815:  jsr     vec_skip
         jmp     L77FD
 
 L781B:  pla
@@ -10356,7 +10359,9 @@ L781D:  inc     $28
         inc     $29
 L7823:  rts
 
-L7824:  tsx
+; remplissage ($40) : balayage L79FB/L7A0F sur compteurs $32-$36
+vec_fill:
+        tsx
         stx     $32
         lda     $30
         sta     $33
@@ -10369,25 +10374,25 @@ L7824:  tsx
         jsr     L781D
         lda     ($28),y
         sta     $31
-L783F:  jsr     L79FB
+L783F:  jsr     vec_testpx
         bne     L7851
 L7844:  lda     $30
         beq     L7851
         dec     $30
-        jsr     L79FB
+        jsr     vec_testpx
         beq     L7844
         inc     $30
 L7851:  lda     #$00
         sta     $35
         sta     $36
-L7857:  jsr     L7A0F
+L7857:  jsr     vec_plot
         lda     $31
         cmp     #$7F
         bne     L7863
         jmp     L7881
 
 L7863:  inc     $31
-        jsr     L79FB
+        jsr     vec_testpx
         bne     L787B
         lda     $35
         bne     L787F
@@ -10407,7 +10412,7 @@ L7881:  lda     $31
         jmp     L78A6
 
 L7888:  dec     $31
-        jsr     L79FB
+        jsr     vec_testpx
         bne     L78A0
         lda     $36
         bne     L78A4
@@ -10424,7 +10429,7 @@ L78A0:  lda     #$00
 L78A4:  inc     $31
 L78A6:  inc     $30
         beq     L78B2
-        jsr     L79FB
+        jsr     vec_testpx
         bne     L78B2
         jmp     L7857
 
@@ -10443,7 +10448,8 @@ L78C0:  lda     $33
         sta     $31
         rts
 
-L78C9:  jsr     L781D
+; $08 : pose le curseur $30/$31 (2 o)
+vec_pos:jsr     L781D
         ldy     #$00
         lda     ($28),y
         sta     $30
@@ -10452,13 +10458,17 @@ L78C9:  jsr     L781D
         sta     $31
         rts
 
-L78DA:  jsr     L781D
+; $20 : saute jusqu'a $FF (repris comme L78E4)
+vec_skip:
+        jsr     L781D
         lda     ($28),y
         cmp     #$FF
-        bne     L78DA
+        bne     vec_skip
         rts
 
-L78E4:  lda     ($28),y
+; bit7 : segment (2 o : flags+longueur, pas) ; pixel par pixel (lent)
+vec_line:
+        lda     ($28),y
         and     #$01
         sta     $2A
         lda     ($28),y
@@ -10488,7 +10498,7 @@ L78E4:  lda     ($28),y
         bne     L7954
         lda     $2D
         sta     $2F
-L791C:  jsr     L7A0F
+L791C:  jsr     vec_plot
         lda     $2C
         bne     L792A
         inc     $30
@@ -10525,7 +10535,7 @@ L794F:  dec     $2E
 
 L7954:  lda     $2D
         sta     $2F
-L7958:  jsr     L7A0F
+L7958:  jsr     vec_plot
         lda     $2B
         bne     L7966
         inc     $31
@@ -10560,7 +10570,9 @@ L798B:  dec     $2E
         bpl     L7958
         rts
 
-L7990:  pha
+; efface hires $A000-$B3FF ($40) + aplats depuis l'octet mode
+vec_setup:
+        pha
         lda     #$A0
         sta     L79AD
         sta     L79C4
@@ -10621,29 +10633,35 @@ L79E4           := * + 2
         bne     L79E2
         rts
 
-L79FB:  lda     $30
+; teste le pixel ($30/$31) : $FF si hors bande $0E-$F2
+vec_testpx:
+        lda     $30
         cmp     #$0E
         bcc     L7A0C
         cmp     #$F2
         bcs     L7A0C
-        jsr     L7A22
+        jsr     vec_addr
         and     L7A5F,x
         rts
 
 L7A0C:  lda     #$FF
         rts
 
-L7A0F:  lda     $30
+; allume le pixel ($30/$31) via ($38/$39)+masque L7A5F
+vec_plot:
+        lda     $30
         cmp     #$0E
         bcc     L7A21
         cmp     #$F2
         bcs     L7A21
-        jsr     L7A22
+        jsr     vec_addr
         ora     L7A5F,x
         sta     ($38),y
 L7A21:  rts
 
-L7A22:  lda     #$02
+; adresse+masque du pixel ($30/$31) : X=$7F-$31, Y=$37
+vec_addr:
+        lda     #$02
         sta     $38
         lda     #$A0
         sta     $39

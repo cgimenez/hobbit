@@ -211,6 +211,19 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x7619: ("pause_key", "toutes les 16 CR ($11) : touche (10 essais timeout) + relachement, sinon $11++"),
     0x7747: ("hires_clear", "remplit $A000-$BFDF de $40"),
     0x7779: ("game_main", "boucle principale du jeu (atteinte via JMP vec_15)"),
+    # Moteur d'illustrations vectorielles (consomme le bloc 3 : table $7AC0
+    # [cle,mot] x13 + flux d'octets $00-termine ; valide par rendu sim65 des
+    # 13 images via un pilote vec_init + dump hires).
+    0x4750: ("img_show", "illustration de la cle A (table $7AC0) : vec_init + keyin, Z si absente"),
+    0x77D4: ("vec_image", "dessine une illustration (($28/$29)) : setup L7990 puis boucle dispatch"),
+    0x7824: ("vec_fill", "remplissage ($40) : balayage L79FB/L7A0F sur compteurs $32-$36"),
+    0x78C9: ("vec_pos", "$08 : pose le curseur $30/$31 (2 o)"),
+    0x78DA: ("vec_skip", "$20 : saute jusqu'a $FF (repris comme L78E4)"),
+    0x78E4: ("vec_line", "bit7 : segment (2 o : flags+longueur, pas) ; pixel par pixel (lent)"),
+    0x7990: ("vec_setup", "efface hires $A000-$B3FF ($40) + aplats depuis l'octet mode"),
+    0x79FB: ("vec_testpx", "teste le pixel ($30/$31) : $FF si hors bande $0E-$F2"),
+    0x7A0F: ("vec_plot", "allume le pixel ($30/$31) via ($38/$39)+masque L7A5F"),
+    0x7A22: ("vec_addr", "adresse+masque du pixel ($30/$31) : X=$7F-$31, Y=$37"),
 }
 
 # Zéro-page nommée : adresse -> (nom, résumé une ligne).

@@ -93,5 +93,6 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
   `docs/tape-archive-hobbit-1982-analysis.md`, `docs/tap-format.md`.
 - Pistes : AnimTalk (parser, via harnais) ; AnimAction (PNJ autonomes :
   l'init recopie une table `$28E6`+ vers le workspace haut — base de données
-  jeu probable) ; nommer la zéro-page ; bloc 2 (messages `$1370`/`$165A`/…)
-  et bloc 3.
+  jeu probable) ; zéro-page nommée (51 `ZP_NAMES`) ; bloc 3 élucidé
+  (13 illustrations vectorielles, table `$7AC0`, moteur `vec_*`) ; reste le
+  bloc 2 (messages `$1370`/`$165A`/…, dico `$1117`, scripts `$29xx`).
