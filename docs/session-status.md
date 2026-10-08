@@ -4,9 +4,14 @@
 
 - `disasm/block4.asm` fiabilisé : **15 692 o de code (78 %)**, 79 sites
   `JSR $440D`, **0 conflit**, `scripts/check_disasm.py` → **RÉSULTAT: PROPRE
-  (exit 0)** depuis le commit `c6bdde3` + travail ci-dessous (à committer).
+  (exit 0, sections A–H)**. Round-trip ca65 prouvé (byte-identique,
+  `scripts/rebuild.py`). Arbre propre, tout commité.
 - Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
   (seeds r2 validés + 24 `MANUAL_ENTRIES` + `SEED_EXCLUDE={0x6DCE}`).
+- Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
+  (19 amorcées : `print_msg`, `kb_scan`, `glyph_out`, `tape_load/save`,
+  `boot_copy`… ; nom + résumé → labels/commentaires régénérés ; checker H
+  : adresse=start, nom unique/valide). Ne jamais éditer le listing à la main.
 - Conflit `$6DCF` résolu : `JSR $440D` en `$6DCA` (cible d'un `BEQ`, idiome
   print-and-return vers `RTS`) confirmé ; seed `fcn.00006dce` exclu
   (chevauchait le pointeur `$165A`) ; routine orpheline `$6DD0` ajoutée
@@ -74,7 +79,11 @@ bloc 2 et bloc 3.
 ## Conventions établies
 
 - `JSR $440D` + mot inline = adresse du message ; reprise à JSR+5.
-- Queue `$440D` : `JSR $4737` / `JMP ($6A)`, helper `$44BE` (`INC $6A`).
+  Mécanique exacte (`print_msg`) : PLA de l'adresse de retour (+1) en
+  `$6A/$6B`, lit le pointeur message en `($8A)` via `($6A)`+`$44BE`
+  (`msgptr_inc` : `INC $6A`), rend le texte (`$4444`+), puis `JSR $4737`
+  (`fetch_retaddr` : adresse empilée → `$8A/$8B`) et `JMP ($6A)` reprend
+  l'appelant.
 - Base image : `data/hobbit.bin` chargée à `$0400` ; bloc 4 = `$2C00-$7A80`.
 - Pas d'appels ROM directs dans le bloc 4 (vecteurs `$0405-$0417` du bloc 1,
   patchés selon ROM 1.0/1.1).
