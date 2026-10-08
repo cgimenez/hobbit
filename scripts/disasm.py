@@ -86,6 +86,8 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x511C: ("entity_move", "mouvement entite ($13/$15/$16), message si visible"),
     0x5249: ("entity_goto", "positionne PC entite depuis ($8A)+1..2"),
     0x5279: ("say_if_visible", "message (msg_52C6 patche) si entite au lieu du joueur"),
+    0x36DB: ("move_core", "resout $13 (L43CB), evalue cond $15/$16, execute, ret A"),
+    0x43CB: ("exit_ptr", "($F8) = $26DA + $13*8 (entrees 8 o)"),
     0x4737: ("fetch_retaddr", "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"),
     0x71DB: ("tape_load", "LOAD bloc cassette via $0417 + verif $32/$33"),
     0x7215: ("tape_save", "SAVE : leader, en-tete 9 o, donnees, checksum EOR"),

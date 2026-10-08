@@ -1589,7 +1589,9 @@ L36D5:  jsr     L4B37
         lda     $12
         rts
 
-L36DB:  lda     $E8
+; resout $13 (L43CB), evalue cond $15/$16, execute, ret A
+move_core:
+        lda     $E8
         pha
         lda     $E9
         pha
@@ -1599,7 +1601,7 @@ L36DB:  lda     $E8
         pha
         jsr     L46E6
         lda     $13
-        jsr     L43CB
+        jsr     exit_ptr
         jsr     L358F
         jsr     code_4141
         jsr     L3770
@@ -2971,7 +2973,7 @@ L417C:  tya
         lda     #$00
 L4190:  sta     $0D
         lda     $13
-        jsr     L43CB
+        jsr     exit_ptr
         lda     $12
         beq     L41A2
         lda     $C5
@@ -3280,7 +3282,9 @@ L43C7:  php
         plp
         rts
 
-L43CB:  rol     a
+; ($F8) = $26DA + $13*8 (entrees 8 o)
+exit_ptr:
+        rol     a
         rol     $6C
         rol     a
         rol     $6C
@@ -4887,7 +4891,7 @@ L5105:  ldy     #$00
 ; mouvement entite ($13/$15/$16), message si visible
 entity_move:
         jsr     L46E9
-        jsr     L36DB
+        jsr     move_core
         bne     L5127
         jmp     L51C7
 

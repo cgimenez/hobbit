@@ -291,6 +291,8 @@ LABEL { NAME "msg_72A3"; ADDR $72A3; COMMENT "-> $72E3 PRESS ANY KEY WHEN READY.
 LABEL { NAME "start"; ADDR $2C35; COMMENT "init : copies boot, pile, RAZ vars, prompt '> LOOK.', boucle d'input"; };
 LABEL { NAME "init_vars"; ADDR $2DC8; COMMENT "RAZ variables ($97.., $AF, $CC/$CD) puis JMP main $7779"; };
 LABEL { NAME "boot_copyback"; ADDR $30BB; COMMENT "recopie inverse ($8C)->($8A), meme gabarit"; };
+LABEL { NAME "move_core"; ADDR $36DB; COMMENT "resout $13 (L43CB), evalue cond $15/$16, execute, ret A"; };
+LABEL { NAME "exit_ptr"; ADDR $43CB; COMMENT "($F8) = $26DA + $13*8 (entrees 8 o)"; };
 LABEL { NAME "print_msg"; ADDR $440D; COMMENT "affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)"; };
 LABEL { NAME "msgptr_inc"; ADDR $44BE; COMMENT "INC $6A (+ $6B si retenue) ; avance le pointeur message"; };
 LABEL { NAME "fetch_retaddr"; ADDR $4737; COMMENT "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"; };

@@ -103,7 +103,19 @@
   test lieu/flags, `L4B37`, message via `say_if_visible` (`L5279`, **seulement
   si entité au lieu du joueur `$C8`** — règle de visibilité).
   Programme `$3E` décodé : `02 1D 03 00 / 02 10 05 FF / 04 24 14 13 / …`
-  (tentatives de mouvement, `$13` = param direction/dest à mapper).
+  (tentatives de mouvement).
+- `$13` = **id de direction/mot** (prouvé par MEM sur commandes joueur :
+  `NORTH→01 SOUTH→02 EAST→03 WEST→04`, boucle 11 mots `L5F11`+`L57D5`) ;
+  `exit_ptr` (`L43CB`, recalculé à la main) : `($F8) = $26DA + $13*8`
+  (entrées 8 o : directions = `[d0 d1 00 00 00 00 AD 04]`, ex. E=`35 03…`) ;
+  consommé par `move_core` (`L36DB`, joueur et PNJ) qui en extrait `$77/$78`
+  (`code_4141`, nibbles) puis évalue `$15/$16` (`L3759` : `$FF`=absent, sinon
+  avance `$8A` et copie 6 o vers `$DC/$E2` = slots de conditions, sémantique
+  exacte à confirmer ; `$73` = acteur probable, 1=joueur, à confirmer).
+  `$13=$1E` = cas spécial (sans contrôle lieu). Anomalie notée : `NE` accepté
+  (`YOU CANNOT GO NORTHEAST.`) mais `$13` final inchangé — chemin diagonal
+  à élucider ; `$13 ∈ {$04,$0E,$10,$13,$1D,$24}` des scripts ≠ directions
+  (autre sous-espace : objets/lieux ?).
 - Les 6 pointeurs `$440D` nuls (`TODO`) élucidés : **idiome général** —
   slot `.word` rempli juste avant `JSR print_msg` (constantes `$13DC/$13E0`,
   lookup `L5399`, table `L6359,x`, calculé, ou `STX/STY` de `L5279` pour
