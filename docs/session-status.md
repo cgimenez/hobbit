@@ -259,10 +259,13 @@ priorité à l'observation via tickdiff (pas de SAVE/LOAD).
 **tickdiff** (`scripts/tickdiff.c` → `build/sim/tickdiff`, + shim
 `dump_mem` 4 régions) : superviseur C, sim65 vivant par pipes, un
 ordre = un tick = INSERT direct en SQLite (`--db/--name`, plus
-aucun `ticks.log`/`snap*.bin`). Protocole durci : `-t 300` +
-touche sacrificielle (ligne vide) après chaque sortie longue —
-sans ça, `pause_key` mange le début de l'ordre suivant
-(`SOUTH`→`UTH`, `NORTH`→`RTH`).
+aucun `ticks.log`/`snap*.bin`). Protocole durci : `-t 300 -s 500`
+(tassement anti-rafales) + touche sacrificielle (ligne vide) après
+chaque sortie longue — sans ça, `pause_key` mange le début de
+l'ordre suivant (`SOUTH`→`UTH`, `NORTH`→`RTH`).
+**Couverture vraie : 2,5 %** (91/3623 o) — l'ancien 77 % était un
+artefact (run `r1` : baseline de zéros → 2779 deltas poubelle au
+tick 1, run supprimé de la DB). Vierges : 835 o (`vierges`).
 Runs joués : R1 300×WAIT, R2 objets, R3 mouvement (diffs seuls),
 R4 1463×WAIT (stop limite 2G cycles, pas un crash),
 R5 exploration (`r5.txt`, 18 ordres : EXAMINE/OPEN/TALK/EAST/NORTH,
@@ -292,8 +295,9 @@ Premier gain : `morts` trouve 2 extinctions manquées — e3
 `L7143` = 19 entrées (0–18 : sentinelle + 15 + 3 inédites ;
 labels `act_v14_ii` = entrée−1 : `act_v14_15`=`$6E8B` mange,
 `act_v14_16`=`$6CDB`, `act_v14_17`=`$6EA7` mort programmée).
-Prochaines pistes : triggers d'armement events, `n`/`s6`,
-ZP inconnus, géo SW/SE/N, Gandalf (R7/R8/R9).
+Prochaines pistes : **sortie de clairière TROUVÉE (`RUN SOUTH`
+→ `$09` Rivendell, voir aventure)** ; triggers d'armement events,
+`n`/`s6`, ZP inconnus, nord `$06` (porte rock), Gandalf (R8/R9).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 

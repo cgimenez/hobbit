@@ -112,7 +112,7 @@ description (tokens runtime). `+0` vaut aussi `$02 $03 $05 $08`
 | `$23` | `$1F37` | `$01` | `$FF` | `$F6` | `$29` |
 | `$24` | `$1F49` | `$01` | `$20` | `$8B` | `$16` |
 | `$25` | `$1F5B` | `$01` | `$FF` | `$F0` | `$01` |
-| `$26` | `$1FB1` | `$01` | `$FF` | `$7B` | `$00` |
+| `$26` | `$1FB1` | `$01` | `$FF` | `$7B` | `$00` (lunch : donné par Elrond `$09`, porté `$00`) |
 | `$27` | `$1FC5` | `$02` | `$FF` | `$E6` | — |
 | `$28` | `$1FDA` | `$01` | `$FF` | `$DC` | `$2F` (= record nul : nulle part ?) |
 | `$29` | `$1F75` | `$01` | `$FF` | `$5E` | `$43` |
@@ -359,12 +359,16 @@ LOAD : prompt (`vec_05` PRESS ANY KEY) + `vec_02` + écriture directe en
 bas (pas de `boot_copyback` : les dest sont les adresses basses) ;
 échec → `TAPE LOADING ERROR` + reboot input (`JMP $2C3D`).
 
-## 7. Résultats harnais (tickdiff : R1 300×WAIT, R2 objets, R3
-mouvement, R4 1463×WAIT, R5/R6 informées — `build/sim/ticks_r*/ticks.log`)
+## 7. Résultats harnais (tickdiff direct-SQLite : R2–R7, F1–F4,
+repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
 
 - **Commandes sans effet = 0 octet** : `GET MAP` (déjà portée),
-  `OPEN DOOR` (déjà ouverte) → aucun tick monde. Seules les commandes
-  qui réussissent tickent (+ `WAIT`, `LOOK`, `INVENTORY`).
+  `OPEN DOOR` (déjà ouverte), impasses certaines (tunnel :
+  `SOUTH`/`WEST`), verbes rejetés (`LOCK`, `PULL`, `SHOW`,
+  `FOLLOW X`, `EXAMINE <PNJ>`, `GET KEY`…). Nuance : mots
+  inconnus / ordres manglés tickent quand même (~15 deltas,
+  monde tourne) — 0 delta ≠ preuve de non-tick hors impasse ;
+  seules les commandes qui réussissent *changent le récit*.
 - **Porteur `+1` confirmé** : `$00`=joueur, `$FF`=personne, sinon id
   entité. Carte `$03` : `$3E`→`$00` (donnée au boot),
   `$00`→`$FF` (DROP), `$FF`→`$00` (GET), `$00`→`$3E` (Gandalf la
@@ -404,15 +408,25 @@ mouvement, R4 1463×WAIT, R5/R6 informées — `build/sim/ticks_r*/ticks.log`)
   exact du compteur : ouvert — `n` innocent).
   Gollum (`$44`) actif, dormants jamais réveillés (`id` `$00` +
   PC figés 1463+ ticks).
-- **Mort joueur (R5/R6, narratif + deltas)** : dans la clairière,
-  le hideous mange le joueur → `act_v14_15` (`L7143[15]` :
-  `ploc==5`, `obj==$47` → `$162B`/`$1615`), `e9.id` `$47`→`$00`
-  (**gloutonnerie tue aussi le troll**), reboot restaure tout
-  (`$00`→`$47`, PC `$D0` ; e10 `$48` intact). Attaque :
-  `WHICH TROLL ?` si générique (0 tick), `You attack the vicious
-  troll. But the effort is wasted.` (20 deltas, sans effet).
-  Clé `$04` = `the large key` portée par le hideous (porteur
-  `$47` confirmé narratif). Score : `You have mastered 2.5%…`.
+- **Mort joueur (R5/R6/F3/F4, narratif + deltas)** : dans la clairière,
+  le hideous mange le joueur au **~3e tick monde de présence**
+  (8 approches testées : KILL ×2, TALK, GIVE ×2, THROW AT, HIDE,
+  WAIT — toutes mortes ; f3e : NORTH, WAIT, WAIT-mort+reboot) →
+  `act_v14_15` (`$6E8B` : `ploc==5`, `obj==$47` → `$162B`/
+  `$1615`), `e9.id` `$47`→`$00` (**gloutonnerie tue aussi le
+  troll**), reboot restaure tout (`$00`→`$47`, PC `$D0` ; e10
+  `$48` intact). Attaque : `WHICH TROLL ?` si générique (0 tick),
+  `You attack the vicious troll. But the effort is wasted.` (20
+  deltas, sans effet). Clé `$04` = `the large key` portée par le
+  hideous (porteur `$47` confirmé narratif). Score : `You have
+  mastered 2.5%…`.
+- **Sortie de clairière (F4)** : `RUN SOUTH` (28 deltas) → ploc
+  `$05`→`$09` (**Rivendell**, vivant, ticks suivants calmes) ;
+  `SOUTH` seul/SW/SE/N/`UP`/`DOWN`/`GO SOUTH` = sur place ou 0.
+  Rivendell : Elrond + `gives some lunch` = **clé `$26`**
+  (porteur `$FF`→`$00`, eloc `$00`→`$09`). `EAST` terre
+  morne→clairière aussi (2 sorties → `$05`). `$06` visité :
+  record `$06` `b0` `$84`→`$C4` (premier bit jamais vu avant).
 - **Events `$2B12` : TOUS `cpt=0`, donc `evt_tick` les saute**
   (`beq L4EBE`) — 1463 WAIT + R2/R3 + R5/R6 (combat, mort) :
   aucun changement. Pas de contradiction avec le driver décodé

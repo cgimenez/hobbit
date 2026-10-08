@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <sys/select.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <sqlite3.h>
 
 #define NREG 4
@@ -84,6 +85,7 @@ static int G_seen[NREG] = {0};   /* 1 = au moins un dump recu */
 static long G_frames = 0;
 static int G_rfd = -1;
 static long G_timeout_ms = 300;
+static long G_settle_ms = 0;   /* delai de tassement apres le silence (-s) */
 
 /* lit jusqu'au silence (fin de tick) ; rend 0 si l'enfant est parti */
 static int wait_quiet(void) {
@@ -140,6 +142,7 @@ int main(int argc, char **argv) {
     const char *simfile = NULL, *cmdfile = NULL;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-t") && i + 1 < argc) timeout_ms = atol(argv[++i]);
+        else if (!strcmp(argv[i], "-s") && i + 1 < argc) G_settle_ms = atol(argv[++i]);
         else if (!strcmp(argv[i], "--db") && i + 1 < argc) dbpath = argv[++i];
         else if (!strcmp(argv[i], "--name") && i + 1 < argc) runname = argv[++i];
         else if (!simfile) simfile = argv[i];
@@ -335,6 +338,14 @@ int main(int argc, char **argv) {
         char cmd[256];
         snprintf(cmd, sizeof cmd, "%.*s", (int)(sn > 0 ? sn - 1 : 0), send);
         alive = wait_quiet();
+        if (alive && G_settle_ms > 0) {
+            /* tassement : sim65 emet par rafales, le 1er silence peut
+               preceder la fin de pagination (pause_key mangerait l'ordre) */
+            struct timespec ts = { G_settle_ms / 1000,
+                                   (G_settle_ms % 1000) * 1000000L };
+            nanosleep(&ts, 0);
+            alive = wait_quiet();
+        }
         /* ticks + deltas + etat ZP */
         sqlite3_bind_int64(st_tick, 1, run_id);
         sqlite3_bind_int64(st_tick, 2, ticks);

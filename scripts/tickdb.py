@@ -342,8 +342,14 @@ def main(argv: list[str]) -> int:
             print(f"{r[0]}: {r[1]} ticks, {r[2]} deltas")
         return 0
     if c == "query":
-        for row in connect().execute(" ".join(argv[2:])):
-            print(row)
+        cx = connect()
+        cur = cx.execute(" ".join(argv[2:]))
+        if cur.description:
+            for row in cur:
+                print(row)
+        else:
+            cx.commit()
+            print(f"({cur.rowcount} lignes)")
         return 0
     print(__doc__)
     return 1

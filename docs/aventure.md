@@ -18,14 +18,29 @@ Conventions : `> COMMANDE.` = écho jeu ; tick = commande réussie.
   dreary hills ahead`, porte verte ronde à l'ouest, sorties
   est/nord/nord-est. Gandalf+Thorin suivent (`enters`).
   Contenu : `nothing` (au LOOK d'arrivée).
-- `$05` clairière des trolls (au nord de la terre morne) : `You are
-  in the trolls clearing`, sorties sud-ouest/sud-est/nord.
-  `the hideous troll` (porte `the large key` = clé `$04`) +
-  `the vicious troll`. À l'entrée : `The hideous troll says "
-  Blimey, looks at this !! Can yer cook 'em? ".` +
-  `The vicious troll says " Yer can try, but he wouldn't make
-  above a mouthfull ".` Mortel : le hideous finit par manger le
-  joueur (voir R6).
+- `$05` clairière des trolls (au nord de la terre morne — et à
+l'est aussi : `EAST` y mène également) : `You are in the trolls
+clearing`, sorties sud-ouest/sud-est/nord.
+`the hideous troll` (porte `the large key` = clé `$04`) +
+`the vicious troll`. À l'entrée : `The hideous troll says "
+Blimey, looks at this !! Can yer cook 'em? ".` +
+`The vicious troll says " Yer can try, but he wouldn't make
+above a mouthfull ".` Mortel : le hideous mange le joueur au
+~3e tick monde de présence (implacable : KILL/TALK/GIVE/THROW/
+HIDE/WAIT testés, tous morts). **Sortie : `RUN SOUTH`** (pas
+`SOUTH` seul, qui reste sur place) **→ `$09`**.
+- `$06` hidden path (au nord-est de la terre morne) : `You are in
+a hidden path with trolls foot prints`, `to the north there is
+the heavy rock door`, sortie sud, `nothing`. SANS trolls (safe).
+`EXAMINE ROCK` → `You examine/see the heavy rock door.` ;
+`PUSH ROCK` → `You push.` (sans effet visible) ; `BREAK ROCK`
+→ `You strike the heavy rock door.` (tient, contrairement à la
+porte verte) ; `OPEN ROCK`/`NORTH` rejetés (0 tick).
+- `$09` Rivendell (au sud de la clairière, par `RUN SOUTH`) :
+`You are in Rivendell`, sorties est/ouest, `Elrond.` (+ Thorin
+suit). `Elrond says " Hello ".` + **`Elrond gives some lunch
+to you.`** (clé `$26` : porteur `$FF`→`$00`, eloc `$00`→`$09` =
+le lunch).
 
 ## Vocabulaire parser (sondes 63+19+8 verbes, réponses lues)
 
@@ -103,6 +118,25 @@ adventure`. Deltas : e9.id `$47`→`$00` (tick 9), reboot restaure
 `$1615`) ; tueur partagé `code_4D47` (aussi `act_v14_17`).
 Leçon : attaque vouée à l'échec, le troll mange le joueur
 (et en meurt — gloutonnerie), reboot restaure tout.
+
+## Séance 4 — F1/F2 fuzz + F3 survie + F4 sortie (informée, DB)
+
+F1 (tunnel) : `CLOSE CHEST` ✓, `GIVE MAP TO THORIN` ✓ (26),
+`PUSH CHEST` ✓, `OPEN DOOR` ✓ ; rejetés : LOCK/UNLOCK (coffre
+et porte), `EXAMINE THORIN/GANDALF` (PNJ non examinables),
+`SHOW`, `PULL/BREAK CHEST`, `FOLLOW X`. `GET MAP` déjà porté = 0.
+F2 (géo) : `EAST` terre morne→clairière (aussi `NORTH`) ;
+`NORTHEAST`→`$06` ; `GIVE MAP TO HIDEOUS` accepté (`You give…`
+mais porteur→`$FF` = DROP déguisé, mort ensuite) ; `THROW MAP`
+seul, `GET/TAKE/STEAL KEY`, `HIDE` rejetés.
+F3 (survie, 8 approches) : `KILL HIDEOUS` (même « defense too
+strong »), `TALK TO HIDEOUS`, `GIVE MAP TO VICIOUS`,
+`THROW MAP AT HIDEOUS` (`You throw…`, 16) — **tout meurt au
+~3e tick monde** (f3e : NORTH, WAIT, WAIT-mort+reboot). Mort =
+présence pure, pilotée script (ACT 16/17), inévitable sur place.
+F4 (sortie) : `UP`/`DOWN`/`GO SOUTH` = 0 ; `RUN SOUTH` (28) →
+**`$09` Rivendell, vivant**. `TAKE/STEAL/GET (LARGE) KEY` = 0
+(clé portée = invisible).
 
 ## Questions ouvertes (jeu)
 
