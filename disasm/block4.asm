@@ -1,12 +1,13 @@
 ; ============================================================
 ; The Hobbit (Oric, 1982) - bloc 4 ($2C00-$7A80)
-; Listing généré par scripts/disasm.py (radare2 + da65)
+; Listing généré par scripts/disasm.py (descente récursive + da65)
 ; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.
-; ATTENTION : découpage code/données heuristique, à réviser.
+; Convention : JSR $440D + pointeur inline (2 octets, adresse du
+; message) ; reprise du code à JSR+5.
 ; ============================================================
 
 ; da65 V2.19 - N/A
-; Created:    2026-10-08 12:35:32
+; Created:    2026-10-08 13:08:19
 ; Input file: /tmp/hobbit_block4.bin
 ; Page:       1
 
@@ -14,8 +15,6 @@
         .setcpu "6502"
 
 L0000           := $0000
-L0020           := $0020
-L0065           := $0065
 L006A           := $006A
 L0405           := $0405
 L0408           := $0408
@@ -24,9 +23,6 @@ L040E           := $040E
 L0411           := $0411
 L0414           := $0414
 L0417           := $0417
-L0810           := $0810
-L2020           := $2020
-L2065           := $2065
 PUTBYTE_10      := $E5C6
 READBYTE_10     := $E630
 PUTBYTE_11      := $E65E
@@ -47,7 +43,7 @@ ptr_block3:
         .byte   $C0
 L2C04:  .byte   $7A
 vec_init:
-        jmp     L77D4
+        jmp     code_77D4
 
 vec_01: jmp     code_71A8
 
@@ -57,7 +53,7 @@ vec_03: jmp     L7215
 
 vec_04: jmp     L71CB
 
-vec_05: jmp     L72A0
+vec_05: jmp     code_72A0
 
 vec_06: jmp     L7293
 
@@ -71,7 +67,7 @@ vec_10: jmp     L7201
 
 vec_11: jmp     L7353
 
-keyin:  jmp     L7481
+keyin:  jmp     code_7481
 
 print_cr:
         jmp     L7489
@@ -80,7 +76,7 @@ putchar:jmp     L7491
 
 main:   jmp     L7779
 
-start:  jsr     L3097
+start:  jsr     code_3097
         ldx     #$FF
         txs
         bne     L2C49
@@ -93,7 +89,7 @@ L2C3D:  jsr     keyin
 L2C49:  lda     #$01
 L2C4B:  sta     $56
         lda     #$FF
-        sta     L0065
+        sta     $65
         jsr     L30BB
         jsr     L2DC8
         ldx     #$C8
@@ -108,10 +104,10 @@ L2C5B:  sta     L47E2,x
         lda     #$01
         sta     $0B
         sta     $0C
-        lda     L0065
+        lda     $65
         cmp     #$FF
         bne     L2C99
-        jsr     L4D84
+        jsr     code_4D84
         lda     #$01
         sta     $0D
         ldx     #$00
@@ -155,7 +151,7 @@ L2CC8:  lda     #$00
         sta     $5F
         sta     $11
 L2CCE:  lda     #$00
-        sta     L0065
+        sta     $65
         sta     $90
         sta     $D2
         sta     $D1
@@ -163,7 +159,7 @@ L2CCE:  lda     #$00
         sta     $88
         lda     #$49
         sta     $89
-        jsr     L3111
+        jsr     code_3111
         bne     L2D45
         lda     $5F
         pha
@@ -172,7 +168,7 @@ L2CCE:  lda     #$00
         lda     #$4A
         sta     $89
         jsr     L3065
-        lda     L0065
+        lda     $65
         sta     $B0
         lda     #$00
         sta     $7E
@@ -184,7 +180,7 @@ L2CFB:  lda     #$00
         sta     $0C
         jsr     L417C
         jsr     L4B37
-        lda     $57
+L2D0E:  lda     $57
         pha
         lda     $7E
         pha
@@ -209,7 +205,6 @@ L2D2D:  jsr     L355A
         pla
         sta     $5F
         ldy     $5F
-L2D3A           := * + 1
         lda     L4783,y
         and     #$F0
         cmp     #$C0
@@ -221,11 +216,13 @@ L2D45:  cmp     #$02
         lda     #$01
         sta     $0D
         jsr     L440D
-        .byte   $77
-        ora     ($4C),y
-L2D55           := * + 2
-        sta     $A52C,y
-        .byte   $57
+; -> $1177 .. ?..c..........qtj..`.c '.
+msg_2D50:
+        .word   $1177
+code_2D52:
+        jmp     L2C99
+
+L2D55:  lda     $57
         pha
         lda     #$00
         sta     $57
@@ -244,7 +241,7 @@ L2D64:  pla
 
 L2D73:  lda     $79
         beq     L2D7F
-        jsr     code_3B75
+        jsr     L3B75
 L2D7A:  pla
         pla
         jmp     L2C99
@@ -257,23 +254,24 @@ L2D7F:  lda     $F2
         sta     $0D
         sta     $7E
         jsr     L440D
-        .byte   $7C
-        ora     ($4C),y
-L2D97           := * + 2
-        asl     $202D
-        .byte   $0B
-        .byte   $3A
+; -> $117C .c..........qtj..`.c '... '.
+msg_2D92:
+        .word   $117C
+code_2D94:
+        jmp     L2D0E
+
+L2D97:  jsr     L3A0B
         bne     L2D7A
         jmp     L2D2D
 
-L2D9F:  .byte   $A9,$01,$85,$0D
-        .byte   " "
-        .byte   $0D
-        .byte   "Dk"
-code_2DA7:
-        ora     ($A6),y
-        rts
-
+L2D9F:  lda     #$01
+        sta     $0D
+        jsr     L440D
+; -> $116B qtj..`.. ' ... ?..c.........
+msg_2DA6:
+        .word   $116B
+code_2DA8:
+        ldx     $60
 L2DAA:  lda     L40BE,x
         cmp     #$0D
         beq     L2DBD
@@ -339,12 +337,20 @@ L2E24:  cmp     #$08
         cpx     #$00
         beq     L2E0F
         jsr     putchar
-        .byte   $CA,$BD,$BE,$40,$C9,$22,$D0,$D8
-        .byte   $A5,$B8,$49,$01,$85,$B8,$4C,$0F
-        .byte   $2E
-L2E40:  .byte   $C9,$40,$B0,$24,$C9
-L2E45:  .byte   $22,$D0,$10,$A5,$B8
-code_2E4A:
+        dex
+        lda     L40BE,x
+        cmp     #$22
+        bne     L2E0F
+        lda     $B8
+        eor     #$01
+        sta     $B8
+        jmp     L2E0F
+
+L2E40:  cmp     #$40
+        bcs     L2E68
+        cmp     #$22
+        bne     L2E58
+        lda     $B8
         eor     #$01
         sta     $B8
         bne     L2E53
@@ -352,7 +358,7 @@ code_2E4A:
 L2E53:  lda     #$22
         jmp     L2E68
 
-        cmp     #$20
+L2E58:  cmp     #$20
         beq     L2E68
         cmp     #$0D
         beq     L2E76
@@ -667,7 +673,7 @@ L3065:  jsr     L46E6
         sta     $8A
         lda     #$49
         sta     $8B
-        lda     L0065
+        lda     $65
         sta     $6C
         ldy     #$00
 L3076:  ldx     #$18
@@ -685,16 +691,11 @@ L3078:  lda     ($8A),y
         bne     L3076
         jmp     L471B
 
-L308F:
-L3090           := * + 1
-L3091           := * + 2
-        rol     L4C20,x
-        .byte   $4F
-        .byte   "OK"
-code_3095:
-L3097           := * + 2
-        rol     $A90D
-        .byte   $04
+L308F:  .byte   "> "
+L3091:  .byte   "LOOK."
+        .byte   $0D
+code_3097:
+        lda     #$04
         sta     $6C
         ldx     #$00
 L309D:  ldy     #$00
@@ -747,23 +748,11 @@ L30EB:  lda     $88
 L30F6:  ora     $89
         rts
 
-L30F9:  lsr     $05,x
-        .byte   $1A
-        .byte   $1B
-code_30FD:
-        bne     L3090
-        sbc     ($02),y
-        cpy     $2628
-        .byte   $97
-        iny
-        ora     $1A
-        and     ($17,x)
-        txs
-        clc
-        brk
-        ldx     $DF00,y
-        .byte   $9F
-L3111:  jsr     L3474
+L30F9:  .byte   $56,$05,$1A,$1B,$D0,$91,$F1,$02
+        .byte   $CC,$28,$26,$97,$C8,$05,$1A,$21
+        .byte   $17,$9A,$18,$00,$BE,$00,$DF,$9F
+code_3111:
+        jsr     L3474
         lda     #$FF
         sta     $6D
         lda     #$C0
@@ -802,26 +791,29 @@ L3158           := * + 1
 L3159           := * + 2
         jmp     (L315A)
 
-L315A:  sta     $7D32,y
-        .byte   $33
-        .byte   $8F,$32,$F3,$32
-code_3162:
-        sbc     #$32
-        iny
-        .byte   $33
-        .byte   $BF,$33
-code_3168:
-        bcc     L319D
-        .byte   $74
-        .byte   $33
+L315A:  .byte   $99
+        .byte   "2}3"
+        .byte   $8F
+        .byte   "2"
+        .byte   $F3
+        .byte   "2"
+        .byte   $E9
+        .byte   "2"
+        .byte   $C8
+        .byte   "3"
+        .byte   $BF
+        .byte   "3"
+        .byte   $90
+        .byte   "3t3"
         .byte   $9B
-        .byte   $3B
-        lda     L7232,y
-L3172           := * + 1
-        and     ($A5),y
-        adc     $0229
+        .byte   ";"
+        .byte   $B9
+        .byte   "2r1"
+code_3172:
+        lda     $6D
+        and     #$02
         beq     L3196
-        lda     L0065
+        lda     $65
         bne     L3196
         lda     $57
         bne     L3196
@@ -842,7 +834,6 @@ L3193:  lda     #$01
 L3196:  lda     $6E
         cmp     #$01
         bne     L31A6
-L319D           := * + 1
         ldy     #$01
         lda     ($88),y
         ora     #$80
@@ -853,7 +844,7 @@ L31A6:  cmp     #$02
         lda     $5B
         cmp     #$A0
         beq     L31B2
-L31B0:  inc     L0065
+L31B0:  inc     $65
 L31B2:  jsr     L356E
         lda     $5B
         cmp     #$A0
@@ -912,7 +903,7 @@ L3219:  jsr     L4702
         sta     $88
         lda     #$49
         sta     $89
-        lda     L0065
+        lda     $65
         sta     $6C
         lda     $57
         beq     L3231
@@ -931,24 +922,43 @@ L3234:  lda     $6C
         jsr     L34D0
 L3249:  jmp     L3234
 
-L324C:  lda     L0065
+L324C:  lda     $65
         sta     $6C
         jsr     L471E
         jsr     L4702
         jsr     L34A7
-        lda     $6C
+L3259:  lda     $6C
         beq     L3289
-        .byte   $20,$A7,$34,$A0,$12,$B1,$88,$C8
-        .byte   $11,$88,$D0,$F0,$A0,$00,$B1,$88
-        .byte   $D1,$8A,$D0,$E8,$C8,$B1,$88,$D1
-        .byte   $8A,$D0,$E1,$A0,$0E,$B1,$8A,$C8
-        .byte   $11,$8A,$F0,$D8,$A0,$0E,$20,$16
-        .byte   $35,$4C,$59,$32
-L3289:  .byte   $20,$1E,$47,$A9,$00,$60
-code_328F:
+        jsr     L34A7
+        ldy     #$12
+        lda     ($88),y
+        iny
+        ora     ($88),y
+        bne     L3259
+        ldy     #$00
+        lda     ($88),y
+        cmp     ($8A),y
+        bne     L3259
+        iny
+        lda     ($88),y
+        cmp     ($8A),y
+        bne     L3259
+        ldy     #$0E
+        lda     ($8A),y
+        iny
+        ora     ($8A),y
+        beq     L3259
+        ldy     #$0E
+        jsr     L3516
+        jmp     L3259
+
+L3289:  jsr     L471E
+        lda     #$00
+        rts
+
         lda     $6D
         and     #$02
-        bne     L32EF
+        bne     code_32EF
         ldx     #$00
         stx     $5B
         lda     $6D
@@ -967,37 +977,15 @@ L32AB:  lda     $6D
         jsr     L3546
         jmp     L3135
 
-        lda     $6D
-        and     #$F7
-        sta     $6D
-        pha
-        lda     $5B
-        pha
-L32C3:  jsr     L3485
-        cmp     #$A0
-        beq     L32C3
-        ldx     $5F
-        dex
-        dex
-        stx     $5F
-        stx     $9E
-        pla
-        sta     $5B
-        pla
-        sta     $6D
-        sta     $9F
-        lda     $88
-        sta     $A0
-        lda     $89
-        sta     $A1
-        lda     L0065
-        sta     $A2
-        jmp     L3172
-
-        lda     $6D
-        and     #$FE
-        sta     $6D
-L32EF:  lda     #$30
+        .byte   $A5,$6D,$29,$F7,$85,$6D,$48,$A5
+        .byte   $5B,$48,$20,$85,$34,$C9,$A0,$F0
+        .byte   $F9,$A6,$5F,$CA,$CA,$86,$5F,$86
+        .byte   $9E,$68,$85,$5B,$68,$85,$6D,$85
+        .byte   $9F,$A5,$88,$85,$A0,$A5,$89,$85
+        .byte   $A1,$A5,$65,$85,$A2,$4C,$72,$31
+        .byte   $A5,$6D,$29,$FE,$85,$6D
+code_32EF:
+        lda     #$30
         sta     $5B
         lda     $6D
         and     #$08
@@ -1009,12 +997,12 @@ L32EF:  lda     #$30
         lda     $9F
         sta     $6D
         lda     $A2
-        sta     L0065
+        sta     $65
         lda     $A0
         sta     $88
         lda     $A1
         sta     $89
-        jmp     L3172
+        jmp     code_3172
 
 L3314:  jsr     L3474
         lda     $6D
@@ -1025,7 +1013,7 @@ L3314:  jsr     L3474
 L3320:  lda     $6D
         and     #$08
         beq     L332C
-L3326:  jsr     code_353E
+L3326:  jsr     L353E
         jmp     L3135
 
 L332C:  lda     $5B
@@ -1038,9 +1026,7 @@ L332C:  lda     $5B
         pha
         lda     $5F
         pha
-L333B:
-L333C           := * + 1
-        jsr     L3485
+L333B:  jsr     L3485
         cmp     #$00
         beq     L333B
         lda     $6D
@@ -1061,7 +1047,7 @@ L333C           := * + 1
         sta     $5B
         jmp     L3326
 
-L3360:  jsr     code_353E
+L3360:  jsr     L353E
         pla
         pla
         sta     $5D
@@ -1069,9 +1055,10 @@ L3360:  jsr     code_353E
         sta     $5C
         pla
         pla
-        .byte   $A6,$02
-        .byte   " F5L51"
-code_3374:
+        ldx     $02
+        jsr     L3546
+        jmp     L3135
+
         lda     $6D
         and     #$EF
         sta     $6D
@@ -1083,7 +1070,7 @@ code_3374:
         lda     $5A
         cmp     #$A0
         bne     L338C
-        jmp     L32EF
+        jmp     code_32EF
 
 L338C:  lda     #$70
         sta     $5B
@@ -1136,7 +1123,7 @@ L33D0:  lda     #$50
         bne     L33F4
         jsr     L356E
         jsr     L3479
-L33F4:  jsr     code_3466
+L33F4:  jsr     L3466
         ldy     #$01
         lda     #$40
         sta     ($88),y
@@ -1179,7 +1166,7 @@ L3435:  ldx     #$00
 
 L343A:  lda     $6D
         and     #$40
-        bne     code_3466
+        bne     L3466
         lda     $6D
         and     #$80
         bne     L3449
@@ -1189,11 +1176,23 @@ L3449:  lda     $6D
         and     #$7F
         sta     $6D
         ldx     #$0E
-L3451:  .byte   $98,$48,$8A,$A8,$A2,$00,$B5,$A3
-        .byte   $91,$88,$E8,$C8,$E0,$0A,$D0,$F6
-        .byte   $68,$A8,$A9,$00,$60
-code_3466:
-        lda     $6D
+L3451:  tya
+        pha
+        txa
+        tay
+        ldx     #$00
+L3457:  lda     $A3,x
+        sta     ($88),y
+        inx
+        iny
+        cpx     #$0A
+        bne     L3457
+        pla
+        tay
+        lda     #$00
+        rts
+
+L3466:  lda     $6D
         and     #$BF
         sta     $6D
         ldx     #$04
@@ -1296,12 +1295,12 @@ L350A:  lda     $A7,x
         cpx     #$06
         bne     L350A
         ldy     #$04
-        jsr     L352E
+L3516:  jsr     L352E
         ldy     #$02
         lda     ($88),y
         iny
         ora     ($88),y
-L3520:  beq     L3523
+        beq     L3523
         rts
 
 L3523:  ldy     #$02
@@ -1320,9 +1319,9 @@ L3535:  lda     ($8A),y
         iny
         dex
         bne     L3535
-        .byte   $60
-code_353E:
-        lda     $6D
+        rts
+
+L353E:  lda     $6D
         and     #$FD
         sta     $6D
         ldx     #$00
@@ -1482,7 +1481,7 @@ L3641:  jsr     L356E
         sta     $8A
         lda     #$1A
         sta     $8B
-L3654:  lda     $88
+        lda     $88
         clc
         adc     #$08
         sta     $7A
@@ -1510,7 +1509,7 @@ L3679:  lda     $77
         jsr     L36A5
         lda     $73
         beq     L3687
-        jsr     L54E9
+        jsr     code_54E9
 L3687:  lda     $8A
         sta     $E8
         lda     $8B
@@ -1521,7 +1520,7 @@ L3690:  lda     $77
         jsr     L36A5
         lda     $74
         beq     L369C
-        jsr     L54E9
+        jsr     code_54E9
 L369C:  lda     $8A
         sta     $EA
         lda     $8B
@@ -1577,7 +1576,7 @@ L36DB:  lda     $E8
         lda     $13
         jsr     L43CB
         jsr     L358F
-        jsr     L4141
+        jsr     code_4141
         jsr     L3770
         ldx     $15
         lda     $73
@@ -1707,7 +1706,7 @@ L37DE:  lda     $F8
         sta     $7C
         lda     $F9
         sta     $7D
-        jsr     L433A
+        jsr     code_433A
         beq     L3804
         lda     $F8
         clc
@@ -1739,7 +1738,7 @@ L380F:  lda     $F4,x
         sta     $F6,x
         dex
         bpl     L380F
-L381C:  jsr     L4141
+L381C:  jsr     code_4141
         lda     $F4
         ora     $F5
         bne     L382A
@@ -1911,7 +1910,7 @@ L3938:  sta     $15
         sta     $D7
         jsr     code_4B07
         lda     $12
-L3945:  beq     L3928
+        beq     L3928
         rts
 
 L3948:  jsr     L4702
@@ -2019,7 +2018,7 @@ L3A04:  lda     $EF
         ldy     #$0B
         jmp     L39D3
 
-        lda     $DA
+L3A0B:  lda     $DA
         cmp     #$01
         beq     L39EE
         lda     $D7
@@ -2041,13 +2040,12 @@ L3A2D:  jsr     L39B7
         lda     #$00
         rts
 
-L3A36:  jsr     L54E9
+L3A36:  jsr     code_54E9
         lda     #$01
         sta     $74
         lda     #$E2
         sta     $7A
         lda     #$00
-L3A44           := * + 1
         sta     $7B
         jsr     L54F8
         cmp     #$FF
@@ -2068,7 +2066,7 @@ L3A63:  sta     $16
         lda     #$01
         rts
 
-L3A6B:  jsr     L54E9
+L3A6B:  jsr     code_54E9
         lda     #$01
         sta     $73
         lda     #$DC
@@ -2097,13 +2095,30 @@ L3A98:  sta     $15
 L3AA0:  jsr     L39B7
         lda     $7A
         sta     L466F
-        .byte   $A5,$7B,$8D,$70,$46,$20,$02,$44
-        .byte   $AA,$11,$A9,$01,$60
-L3AB5:  .byte   $A2,$00,$A5,$F2,$9D,$6F,$46,$E8
-        .byte   $A5,$F3,$9D,$6F,$46,$E8,$20,$26
-        .byte   $3B,$A5,$DA,$D0,$08,$20,$B1,$39
-        .byte   $B8,$11,$A9,$01,$60,$A5,$EE,$20
-        .byte   $BE,$39,$20,$B1,$39,$9C
+        lda     $7B
+        sta     L4670
+        jsr     L4402
+        tax
+        ora     ($A9),y
+        ora     ($60,x)
+L3AB5:  ldx     #$00
+        lda     $F2
+        sta     L466F,x
+        inx
+        lda     $F3
+        sta     L466F,x
+        inx
+        jsr     L3B26
+        lda     $DA
+        bne     L3AD2
+        jsr     L39B1
+        clv
+        ora     ($A9),y
+        ora     ($60,x)
+L3AD2:  lda     $EE
+        jsr     L39BE
+        jsr     L39B1
+        .byte   $9C
 code_3ADB:
         ora     ($A9),y
         ora     ($60,x)
@@ -2182,9 +2197,10 @@ L3B65:  ldy     #$04
         iny
         lda     ($F8),y
         sta     L466F,x
-        .byte   $E8,$60
-code_3B75:
-        lda     $F2
+        inx
+        rts
+
+L3B75:  lda     $F2
         sta     L466F
         lda     $F3
         sta     L4670
@@ -2215,7 +2231,7 @@ L3BAF:  inx
         bne     L3B9F
         jmp     L311C
 
-L3BB7:  lda     code_3BE0,x
+L3BB7:  lda     L3BE0,x
         sta     L3BC4
         lda     L3BE1,x
         sta     L3BC5
@@ -2223,43 +2239,16 @@ L3BC4           := * + 1
 L3BC5           := * + 2
         jmp     L0000
 
-L3BC6:  brk
-L3BC7:  brk
-        sta     L0000
-        .byte   $A3
-        .byte   $03
-code_3BCC:
-        lda     $05,x
-        sty     $07
-        .byte   $0B
-        php
-        .byte   $3F
+L3BC6:  .byte   $00
+L3BC7:  .byte   $00,$85,$00,$A3,$03,$B5,$05,$84
+        .byte   $07,$0B,$08,$3F,$07,$3D,$06,$A0
+        .byte   $08,$28,$08,$23,$05,$AA,$08,$C2
         .byte   $07
-code_3BD4:
-        and     $A006,x
-        php
-        plp
-        php
-        .byte   $23
-        ora     $AA
-        php
-        .byte   $C2
-        .byte   $07
-code_3BE0:
-L3BE1           := * + 1
-        lsr     $263C
-        .byte   $3C
-        asl     L333C
-        .byte   $3C
-        and     $31,x
-        .byte   $FA
-        .byte   $3B,$03,$3C,$7F
-code_3BEF:
-        and     L3DD9,x
-        dey
-        .byte   $3C
-        stx     $CE3C
-        .byte   $3C
+L3BE0:  .byte   $4E
+L3BE1:  .byte   $3C,$26,$3C,$0E,$3C,$33,$3C,$35
+        .byte   $31,$FA,$3B,$03,$3C,$7F,$3D,$D9
+        .byte   $3D,$88,$3C,$8E,$3C,$CE,$3C
+code_3BF8:
         and     $203D,y
         php
         bit     $08D0
@@ -2267,7 +2256,7 @@ code_3BEF:
         bne     L3C05
         lda     #$00
 L3C05:  sta     $0A
-L3C07:  lda     $5A
+        lda     $5A
         sta     $5B
         jmp     L3135
 
@@ -2302,7 +2291,7 @@ L3C35:  lda     $82,x
         jmp     L3135
 
 L3C46:  beq     L3C4B
-        jmp     code_3466
+        jmp     L3466
 
 L3C4B:  jmp     L3449
 
@@ -2335,34 +2324,40 @@ L3C73:  jsr     L3485
         sta     L4781,x
         jmp     L3135
 
-        jsr     code_3CD4
-L3C8B:  .byte   $4C,$3D,$2C,$A5,$C5,$F0,$03,$4C
-        .byte   $35,$31,$20,$E9,$46,$A2,$85,$A0
-        .byte   $71,$A5,$C8,$20,$99,$53,$F0,$1C
-        .byte   $A0,$01,$B1,$8A,$8D,$B7,$3C,$C8
-        .byte   $B1,$8A,$8D,$B8,$3C,$A9,$01,$85
-        .byte   $0D,$20,$0D,$44,$00,$00,$20,$37
-        .byte   $47,$4C,$07,$3C,$A9,$01,$85,$0D
-        .byte   $20,$0D,$44,$9D,$17,$20,$37,$47
-        .byte   $4C,$07,$3C,$20,$D4,$3C,$4C,$07
-        .byte   $3C
+        .byte   " "
+        .byte   $D4
+        .byte   "<"
+code_3C8B:
+        jmp     L2C3D
+
+        .byte   $A5,$C5,$F0,$03,$4C,$35,$31,$20
+        .byte   $E9,$46,$A2,$85,$A0,$71,$A5,$C8
+        .byte   $20,$99,$53,$F0,$1C,$A0,$01,$B1
+        .byte   $8A,$8D,$B7,$3C,$C8,$B1,$8A,$8D
+        .byte   $B8,$3C,$A9,$01,$85,$0D,$20,$0D
+        .byte   $44,$00,$00,$20,$37,$47,$4C,$07
+        .byte   $3C,$A9,$01,$85,$0D,$20,$0D,$44
+        .byte   $9D,$17,$20,$37,$47,$4C,$07,$3C
+        .byte   $20,$D4,$3C,$4C,$07,$3C
 code_3CD4:
         jsr     L46E9
         lda     #$00
         sta     $0D
         jsr     L440D
-        txa
-        .byte   $17
+; -> $178A c.. MASTERED .%fp.W YOU'RE..
+msg_3CDE:
+        .word   $178A
+code_3CE0:
         lda     $CC
         sta     $8A
         lda     $CD
         sta     $8B
         lda     #$64
-        jsr     L3D14
+        jsr     code_3D14
         beq     L3CF2
         jsr     putchar
 L3CF2:  lda     #$0A
-        jsr     L3D14
+        jsr     code_3D14
         jsr     putchar
         lda     #$2E
         jsr     putchar
@@ -2373,14 +2368,15 @@ L3CF2:  lda     #$0A
         lda     #$00
         sta     $0E
         jsr     L440D
-        tya
-        .byte   $17
+; -> $1798 %fp.W YOU'RE.. FINE.a.} NEED
+msg_3D0E:
+        .word   $1798
+code_3D10:
         jmp     L4737
 
-L3D13:
-L3D14           := * + 1
-        cmp     $A2,x
-        .byte   $2F
+L3D13:  .byte   $D5
+code_3D14:
+        ldx     #$2F
         sta     L3D13
 L3D19:  inx
         sec
@@ -2400,10 +2396,11 @@ L3D35:  txa
         cpx     #$30
         rts
 
-        jsr     keyin
-        jmp     L3C07
-
-L3D3F:  pla
+        .byte   " ),L"
+        .byte   $07
+        .byte   "<"
+code_3D3F:
+        pla
         clc
         adc     #$01
         sta     L006A
@@ -2430,102 +2427,107 @@ L3D5F:  lda     ($8C),y
         bne     L3D5F
         jmp     (L006A)
 
-L3D6A:  jsr     L3D3F
-        jsr     vec_02
-        bcs     L3D73
-        rts
-
-L3D73:  lda     #$01
-        sta     $0D
-        jsr     L440D
-        rol     $3E
-        jmp     L2C3D
-
-        jsr     L46E6
-        jsr     vec_05
-        jsr     L3D6A
-        clc
-        brk
-        ldx     $2000,y
-        ror     a
-        and     $0556,x
-        .byte   $1A
-        .byte   $1B
-code_3D93:
-        jsr     L3D6A
-        sbc     ($02),y
-        cpy     $2028
-        ror     a
-        and     $05C8,x
-        .byte   $1A
-        and     (L0020,x)
-        ora     $202C,x
-        .byte   $1B
-        .byte   "G"
-code_3DA7:
-        jmp     L3C07
-
-        jsr     L3D3F
-        jsr     vec_03
-        bcs     L3DB3
-        rts
-
-L3DB3:  lda     #$01
-        sta     $0D
-        jsr     L440D
-        .byte   $1A
-        .byte   $1A
-code_3DBC:
-        jsr     keyin
-        pla
-        pla
-        jmp     L3E20
-
-        jsr     L3D3F
-        jsr     vec_04
-        .byte   $B0,$01,$60,$A9,$01,$85,$0D,$20
-        .byte   $0D,$44,$38,$1A,$4C,$BC,$3D
-L3DD9:  .byte   $20,$E6,$46,$20,$17,$2C,$20,$AA
-        .byte   $3D,$18,$00,$BE,$00,$20,$AA,$3D
-        .byte   $56,$05,$1A,$1B,$20,$AA,$3D,$F1
-        .byte   $02,$CC,$28,$20,$AA,$3D,$C8,$05
-        .byte   $1A,$21,$20,$20,$2C,$20,$1A,$2C
-        .byte   $20,$C4,$3D,$18,$00,$BE,$00,$20
-        .byte   $C4,$3D,$56,$05,$1A,$1B,$20,$C4
-        .byte   $3D,$F1,$02,$CC,$28,$20,$C4,$3D
-        .byte   $C8,$05,$1A,$21,$20,$23,$2C
-L3E20:  .byte   $20,$1B,$47,$4C,$07,$3C,$54
-code_3E27:
-        eor     ($50,x)
-        eor     L0020
-        jmp     L414F
-
-        .byte   "D"
-code_3E2F:
-        eor     #$4E
-        .byte   $47
-        jsr     L5245
-        .byte   $52
-        .byte   "OR"
-code_3E38:
-        jsr     L2D3A
-        jsr     L5250
-        eor     $53
-        .byte   $53
-        jsr     L4E41
-        eor     L4B20,y
-        eor     $59
-        jsr     L4F54
-        jsr     L4552
-        .byte   $53
-        .byte   "T"
-code_3E51:
-        eor     ($52,x)
-        .byte   $54
-        jsr     L4147
-        eor     L2E45
+        .byte   " ?= "
+        .byte   $0B
+        .byte   ","
+        .byte   $B0,$01
+        .byte   "`"
+        .byte   $A9,$01,$85,$0D
+        .byte   " "
+        .byte   $0D
+        .byte   "D&>L=, "
+        .byte   $E6
+        .byte   "F "
         .byte   $14
-L3E5B:  cmp     #$00
+        .byte   ", j="
+        .byte   $18,$00,$BE,$00
+        .byte   " j=V"
+        .byte   $05,$1A,$1B
+        .byte   " j="
+        .byte   $F1,$02,$CC
+        .byte   "( j="
+        .byte   $C8,$05,$1A
+        .byte   "! "
+        .byte   $1D
+        .byte   ", "
+        .byte   $1B
+        .byte   "GL"
+        .byte   $07
+        .byte   "< ?= "
+        .byte   $0E
+        .byte   ","
+        .byte   $B0,$01
+        .byte   "`"
+        .byte   $A9,$01,$85,$0D
+        .byte   " "
+        .byte   $0D
+        .byte   "D"
+        .byte   $1A,$1A
+        .byte   " ),hhL > ?= "
+
+        .byte   $11
+        .byte   ","
+        .byte   $B0,$01
+        .byte   "`"
+        .byte   $A9,$01,$85,$0D
+        .byte   " "
+        .byte   $0D
+        .byte   "D8"
+        .byte   $1A
+        .byte   "L"
+        .byte   $BC
+        .byte   "= "
+        .byte   $E6
+        .byte   "F "
+        .byte   $17
+        .byte   ", "
+        .byte   $AA
+        .byte   "="
+        .byte   $18,$00,$BE,$00
+        .byte   " "
+        .byte   $AA
+        .byte   "=V"
+        .byte   $05,$1A,$1B
+        .byte   " "
+        .byte   $AA
+        .byte   "="
+        .byte   $F1,$02,$CC
+        .byte   "( "
+        .byte   $AA
+        .byte   "="
+        .byte   $C8,$05,$1A
+        .byte   "!  , "
+        .byte   $1A
+        .byte   ", "
+        .byte   $C4
+        .byte   "="
+        .byte   $18,$00,$BE,$00
+        .byte   " "
+        .byte   $C4
+        .byte   "=V"
+        .byte   $05,$1A,$1B
+        .byte   " "
+        .byte   $C4
+        .byte   "="
+        .byte   $F1,$02,$CC
+        .byte   "( "
+        .byte   $C4
+        .byte   "="
+        .byte   $C8,$05,$1A
+        .byte   "! #, "
+        .byte   $1B
+        .byte   "GL"
+        .byte   $07
+        .byte   "<TAPE LOADING ERROR :- PRESS AN"
+
+
+
+        .byte   "Y KEY TO RESTART GAME."
+
+
+        .byte   $14
+code_3E5B:
+        cmp     #$00
         php
         lda     $D2
         beq     L3E88
@@ -2555,12 +2557,12 @@ L3E8A:  sta     $90
 
 L3E8E:  lda     $90
         cmp     $C5
-        bne     code_3E95
-L3E94:  .byte   "`"
-code_3E95:
-        ldx     #$00
+        bne     L3E95
+L3E94:  rts
+
+L3E95:  ldx     #$00
         ldy     #$00
-L3E99:  lda     code_48D3,x
+L3E99:  lda     L48D3,x
         cmp     $C5
         beq     L3E94
         tya
@@ -2583,20 +2585,20 @@ L3EB2:  lda     $91
         lda     #$49
         sta     $89
         lda     #$00
-        sta     L0065
+        sta     $65
         sta     $D3
-L3EC4:  jsr     L3111
+L3EC4:  jsr     code_3111
         beq     L3ED0
         cmp     #$02
         beq     L3ED0
         jmp     L3FCF
 
-L3ED0:  lda     L0065
+L3ED0:  lda     $65
         clc
         adc     $D3
         sta     $D3
         lda     #$00
-        sta     L0065
+        sta     $65
         ldx     $5F
         lda     L4783,x
         and     #$F0
@@ -2607,7 +2609,7 @@ L3ED0:  lda     L0065
         lda     #$0A
         sta     $D0
         ldx     #$00
-L3EF1:  lda     code_48D3,x
+L3EF1:  lda     L48D3,x
         beq     L3F0A
         lda     $D0
         sec
@@ -2628,20 +2630,20 @@ L3F0A:  lda     $D0
 L3F11:  lda     #$00
         sta     L48D5,x
         sta     $D4
-        sta     L0065
+        sta     $65
         lda     $D3
         sta     $6C
         lda     #$27
         sta     $88
         lda     #$49
         sta     $89
-L3F26:  inc     L0065
+L3F26:  inc     $65
         jsr     L356E
         ldy     #$01
         lda     ($88),y
         and     #$40
         bne     L3F26
-        lda     L0065
+        lda     $65
         cmp     $D0
         bcs     L3F3F
         sta     $D4
@@ -2653,7 +2655,7 @@ L3F3F:  lda     $D4
 
 L3F46:  sta     L48D4,x
         lda     $90
-        sta     code_48D3,x
+        sta     L48D3,x
         lda     #$00
         sta     $90
         lda     #$0A
@@ -2682,8 +2684,9 @@ L3F6E:  lda     L4927,y
         bne     L3F6C
         jmp     L3F8E
 
-L3F7E:  dex
-L3F7F:  sta     L3F7E
+L3F7E:  .byte   $CA
+code_3F7F:
+        sta     L3F7E
         jsr     L46E6
         lda     $90
         cmp     $C5
@@ -2711,20 +2714,24 @@ L3F8E:  jsr     L4035
         lda     $7E
         sta     L48D5,x
         bne     L3FC5
-        jsr     code_3FE5
+        jsr     L3FE5
 L3FC5:  lda     #$01
         jmp     L471B
 
-L3FCA:  jsr     code_3FE5
+L3FCA:  jsr     L3FE5
         bne     L3FCA
 L3FCF:  lda     #$00
         jmp     L471B
 
 L3FD4:  lda     $7E
-        .byte   $F0,$F2,$A6,$CF,$A9,$00,$9D,$D5
-        .byte   $48,$20,$E5,$3F,$4C,$8E,$3F
-code_3FE5:
-        jsr     L4702
+        beq     L3FCA
+        ldx     $CF
+        lda     #$00
+        sta     L48D5,x
+        jsr     L3FE5
+        jmp     L3F8E
+
+L3FE5:  jsr     L4702
         jsr     L4737
 L3FEB:  jsr     L356E
         ldy     #$01
@@ -2758,14 +2765,14 @@ L401B:  txa
         tay
 L4020:  cpy     #$32
         beq     L402F
-        lda     code_48D3,y
-        sta     code_48D3,x
+        lda     L48D3,y
+        sta     L48D3,x
         inx
         iny
         jmp     L4020
 
 L402F:  lda     #$00
-        sta     code_48D3,x
+        sta     L48D3,x
         rts
 
 L4035:  jsr     L3E8E
@@ -2789,10 +2796,10 @@ L4051:  jsr     L46E6
         lda     $C5
         pha
         stx     $C5
-        jsr     code_3E95
+        jsr     L3E95
         bne     L4067
         jsr     L4038
-L4062:  jsr     code_3FE5
+L4062:  jsr     L3FE5
         bne     L4062
 L4067:  pla
         sta     $C5
@@ -2841,111 +2848,37 @@ L40B1:  lda     #$08
         dex
         jmp     L40AC
 
-L40BA:  .byte   "W"
-code_40BB:
-        eor     ($49,x)
+L40BA:  .byte   $57,$41,$49
 L40BD:  .byte   $54
-L40BE:  brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        ora     ($87,x)
-        sec
-        brk
-        brk
-        .byte   $44
-        and     (L0000),y
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        .byte   $5C
-        and     L0000
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        brk
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        sbc     $3F,x
-        .byte   $33
-        .byte   "848"
-code_4116:
-        brk
-        .byte   $37
-        .byte   "'"
-code_4119:
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L2020
-        jsr     L0020
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        ora     $0D0D
-L4141:  ldy     #$05
+L40BE:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$01,$87,$38,$00
+        .byte   $00,$44,$31,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$5C,$25,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$20,$20,$20
+        .byte   $20,$20,$20,$20,$20,$20,$20,$20
+        .byte   $20,$20,$20,$20,$20,$20,$20,$00
+        .byte   $20,$20,$20,$20,$20,$20,$20,$20
+        .byte   $20,$20,$20,$20,$20,$20,$20,$20
+        .byte   $20,$20,$F5,$3F,$33,$38,$34,$38
+        .byte   $00,$37,$27,$20,$20,$20,$20,$20
+        .byte   $20,$20,$20,$20,$20,$20,$20,$20
+        .byte   $20,$20,$20,$20,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $0D,$0D,$0D
+code_4141:
+        ldy     #$05
         lda     ($F8),y
         lsr     a
         lsr     a
-L4147:  lsr     a
+        lsr     a
         lsr     a
         sta     $77
         ldy     #$07
-L414D:  lda     ($F8),y
-L414F:  and     #$F0
+        lda     ($F8),y
+        and     #$F0
         ora     $77
-L4154           := * + 1
         sta     $77
         ldy     #$01
         lda     ($F8),y
@@ -2991,7 +2924,7 @@ L4190:  sta     $0D
         lda     $C5
         bne     L41A2
         jsr     print_cr
-L41A2:  jsr     L4141
+L41A2:  jsr     code_4141
         and     #$10
         beq     L41AC
         jmp     L4229
@@ -3049,7 +2982,7 @@ L4215:  ldy     #$04
         lda     $77
         bmi     L421E
         jsr     L4232
-L421E:  jsr     L4573
+L421E:  jsr     code_4573
 L4221:  lda     #$2E
         jsr     putchar
         jsr     print_cr
@@ -3189,53 +3122,22 @@ L42FF:  lda     L430E,y
         tay
         rts
 
-L430E:  brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        ldy     $FAC7
-        iny
-        .byte   $1A
-        cmp     #$00
-        brk
-        brk
-        brk
-        brk
-        brk
-        ora     $CC
-L4322:  .byte   $53
-        brk
-        brk
-        brk
-        eor     $53
-        brk
-        brk
-        eor     #$45
-        .byte   $53
-        brk
-        php
-        eor     #$45
-        .byte   $53
-        .byte   "D"
-code_4333:
-        brk
-        brk
-        brk
-        eor     #$4E
-        .byte   $47
-        brk
-L433A:  sty     L436B
+L430E:  .byte   $00,$00,$00,$00,$00,$00,$AC,$C7
+        .byte   $FA,$C8,$1A,$C9,$00,$00,$00,$00
+        .byte   $00,$00,$05,$CC
+L4322:  .byte   $53,$00,$00,$00,$45,$53,$00,$00
+        .byte   $49,$45,$53,$00,$08,$49,$45,$53
+        .byte   $44,$00,$00,$00,$49,$4E,$47,$00
+code_433A:
+        sty     L436B
         ldy     #$00
-L4341           := * + 2
-        jsr     L436C
+        jsr     code_436C
         bne     L4365
         lda     #$01
         sta     $79
-        jsr     L436C
+        jsr     code_436C
         bne     L4357
-        jsr     L436C
+        jsr     code_436C
         bne     L4357
         ldx     #$00
         jmp     L4365
@@ -3252,9 +3154,9 @@ L4365:  php
         plp
         rts
 
-L436B:
-L436C           := * + 1
-        lsr     $7AB1
+L436B:  .byte   "N"
+code_436C:
+        lda     ($7A),y
         iny
         ora     ($7A),y
         beq     L4383
@@ -3359,17 +3261,9 @@ L43F3:  jsr     L5331
         inc     $8B
 L4401:  rts
 
-L4402:
-L4403           := * + 1
-        lda     $5E
-L4404:
-L4405           := * + 1
+L4402:  lda     $5E
         beq     L440A
-L4406:
-L4407           := * + 1
         lda     #$00
-L4408:
-L4409           := * + 1
         sta     $0C
 L440A:  jmp     L440D
 
@@ -3389,7 +3283,7 @@ L440D:  jsr     L46E9
         sty     $76
         lda     (L006A),y
         sta     $8A
-L4427:  jsr     L44BE
+        jsr     L44BE
         lda     (L006A),y
         sta     $8B
         jsr     L44BE
@@ -3413,7 +3307,7 @@ L4448:  ldy     $6F
         sta     $5D
         iny
         lda     ($8A),y
-L4455:  sta     $5C
+        sta     $5C
         sty     $6F
         lda     $5D
         and     #$F0
@@ -3478,22 +3372,20 @@ L44C4:  rts
 
         lda     #$00
 L44C7:  sta     $70
-        jsr     code_44E4
+        jsr     L44E4
         jsr     L46E9
         lda     $5C
         sta     $8A
         lda     $5D
         sta     $8B
-        .byte   $05
-        .byte   "\"
-        .byte   $F0,$03
-        .byte   " "
-        .byte   $0A
-        .byte   "F 7G"
-        .byte   $A9,$00
-        .byte   "`"
-code_44E4:
-        ldx     $76
+        ora     $5C
+        beq     L44DE
+        jsr     L460A
+L44DE:  jsr     L4737
+        lda     #$00
+        rts
+
+L44E4:  ldx     $76
         lda     L466F,x
         sta     $5C
         inx
@@ -3503,7 +3395,7 @@ code_44E4:
         stx     $76
         rts
 
-        jsr     code_44E4
+        jsr     L44E4
         lda     #$01
         rts
 
@@ -3545,10 +3437,10 @@ L4522:  clc
         lda     #$01
         rts
 
-        jsr     code_44E4
+        jsr     L44E4
         lda     #$01
         sta     $70
-        jsr     L4683
+        jsr     code_4683
         lda     #$00
         rts
 
@@ -3558,7 +3450,6 @@ L4522:  clc
         lda     #$00
         sta     $70
 L454F:  lda     $C5
-L4552           := * + 1
         jsr     L461B
         lda     #$00
         rts
@@ -3573,13 +3464,10 @@ L455B:  lda     $73
 L4564:  lda     $15
         jmp     L458A
 
-        jsr     putchar
-        lda     #$00
-        rts
-
-        lda     #$01
-        sta     $70
-L4573:  lda     $74
+        .byte   $20,$2F,$2C,$A9,$00,$60,$A9,$01
+        .byte   $85,$70
+code_4573:
+        lda     $74
         beq     L457C
         lda     $16
         jmp     L4581
@@ -3587,35 +3475,31 @@ L4573:  lda     $74
 L457C:  lda     $16
         jmp     L458A
 
-L4581:  .byte   " "
-        .byte   $E9
-        .byte   "F "
-        .byte   $E4
-        .byte   "CL"
-        .byte   $90
-        .byte   "E"
-L458A:  .byte   " "
-        .byte   $E9
-        .byte   "F "
-        .byte   $F3
-        .byte   "C "
-        .byte   $0A
-        .byte   "F 7G"
-        .byte   $A9,$00
-        .byte   "`"
-code_4599:
-        jsr     L46E9
-        inc     $6F
-        lda     $6F
-        pha
-        jsr     L4507
-        jsr     L4444
-        pla
-        sta     $6F
+L4581:  jsr     L46E9
+        jsr     L43E4
+        jmp     L4590
+
+L458A:  jsr     L46E9
+        jsr     L43F3
+L4590:  jsr     L460A
         jsr     L4737
         lda     #$00
         rts
 
+        .byte   " "
+        .byte   $E9
+        .byte   "F"
+        .byte   $E6
+        .byte   "o"
+        .byte   $A5
+        .byte   "oH "
+        .byte   $07
+        .byte   "E DDh"
+        .byte   $85
+        .byte   "o 7G"
+        .byte   $A9,$00
+        .byte   "`"
+code_45B0:
         lda     $C5
 L45B2:  beq     L45BF
         lda     #$48
@@ -3671,7 +3555,7 @@ L45E9:  lda     #$BE
         lda     #$01
         jmp     L45D4
 
-        jsr     L4702
+L460A:  jsr     L4702
         lda     $8A
         sta     $88
         lda     $8B
@@ -3689,53 +3573,35 @@ L4622:  lda     #$58
         sta     $5D
         jmp     L4241
 
-L462D:  .byte   $38,$E9,$60,$18,$2A,$AA,$BD,$17
-        .byte   $11,$85,$5C,$E8,$BD,$17,$11,$85
-        .byte   $5D,$4C,$69,$44
-L4641:  .byte   $C5,$44,$F5,$44,$FB,$44
-code_4647:
-        rol     L3945
-        eor     $04
-        eor     $4B
-        eor     $57
-        eor     $69
-        eor     $6F
-        eor     $04
-        eor     $99
-        eor     $B0
-        eor     $DB
-        lsr     $CA
-        eor     $04
-        eor     $CF
-        eor     $F4
-        eor     $04
-        eor     $FC
-        eor     $A8
-        .byte   $44
-        .byte   $A3,$44
-code_466D:
-L466F           := * + 2
-        lda     a:$44,x
-L4670:  brk
-L4671:  brk
-L4672:  brk
-L4673:  brk
-L4674:  brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-L4683:  lda     $5C
+L462D:  sec
+        sbc     #$60
+        clc
+        rol     a
+        tax
+        lda     $1117,x
+        sta     $5C
+        inx
+        lda     $1117,x
+        sta     $5D
+        jmp     L4469
+
+L4641:  cmp     $44
+        sbc     $44,x
+        .byte   $FB,$44,$2E,$45,$39,$45,$04,$45
+        .byte   $4B,$45,$57,$45,$69,$45,$6F,$45
+        .byte   $04,$45,$99,$45,$B0,$45,$DB,$46
+        .byte   $CA,$45,$04,$45,$CF,$45,$F4,$45
+        .byte   $04,$45,$FC,$45,$A8,$44,$A3,$44
+        .byte   $BD,$44
+L466F:  .byte   $00
+L4670:  .byte   $00
+L4671:  .byte   $00
+L4672:  .byte   $00
+L4673:  .byte   $00
+L4674:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00
+code_4683:
+        lda     $5C
         pha
         lda     $5D
         pha
@@ -3828,7 +3694,6 @@ L471E:  sta     $AD
         stx     $AE
         ldx     $AF
         dex
-L4727           := * + 2
         lda     $0200,x
         sta     $89
         dex
@@ -3851,7 +3716,7 @@ L4737:  sta     $AD
         stx     $AF
         ldx     $AE
         lda     $AD
-L474F:  rts
+        rts
 
 L4750:  pha
         lda     ptr_block3
@@ -3888,381 +3753,118 @@ L4783:  .byte   $1A,$1A,$1A,$1A,$1A,$1A,$1A,$1A
         .byte   $1A,$1A,$1A,$1A,$1A,$1A,$1A,$1A
         .byte   $1A,$1A,$1A,$1A,$1A,$1A,$1A,$1A
         .byte   $1A,$1A,$1A,$1A,$1A,$1A,$1A,$1A
-        .byte   $1A,$1A,$1A,$1A,$1A
-code_47C0:
-        .byte   $1A
-        cli
-L47C3           := * + 1
-        jsr     L5327
-        eor     $42,x
-        .byte   $53
-        .byte   "'"
-code_47C9:
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-L47D3           := * + 1
-        eor     #$4E
-        .byte   $43
-        jmp     L4455
+        .byte   $1A,$1A,$1A,$1A,$1A,$1A
+        .byte   "X "
+L47C3:  .byte   "'SUBS'"
+        .byte   $0D
+        .byte   "        I"
 
-        eor     L0020
-        .byte   $44
-        .byte   ":S"
-code_47DD:
-        eor     $42,x
-        .byte   $53
-L47E2           := * + 2
-        rol     L414D
-        .byte   $43
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        rol     L5250
-        eor     #$4E
-        .byte   $54
-        .byte   "X"
-code_47F4:
-        jsr     L4427
-        eor     ($54,x)
-        eor     ($27,x)
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        eor     #$4E
-        .byte   $43
-        jmp     L4455
+L47D3:  .byte   "NCLUDE D:SUBS.M"
 
-        eor     L0020
-        .byte   $44
-        .byte   ":D"
-code_480F:
-        eor     ($54,x)
-        eor     ($2E,x)
-        eor     L4341
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        rol     L5250
-        eor     #$4E
-        .byte   $54
-        .byte   "X"
-code_4826:
-        jsr     L5327
-        eor     $42,x
-        .byte   $52
-        .byte   "O"
-code_482D:
-        lsr     $2745
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        eor     #$4E
-        .byte   $43
-        jmp     L4455
+L47E2:  .byte   "AC"
+        .byte   $0D
+        .byte   "        .PRINTX 'DATA'"
 
-        eor     L0020
-        .byte   $44
-        .byte   ":S"
-code_4844:
-        eor     $42,x
-        .byte   $52
-        .byte   "O"
-code_4848:
-        lsr     L2E45
-        eor     L4341
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        rol     L5250
-        eor     #$4E
-        .byte   $54
-        cli
-        jsr     L5327
-        eor     $42,x
-        .byte   $52
-        .byte   "TWO'"
-code_4868:
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        eor     #$4E
-        .byte   $43
-        jmp     L4455
 
-        eor     L0020
-        .byte   $44
-        .byte   ":S"
-code_487C:
-        eor     $42,x
-        .byte   $52
-        .byte   "TWO"
-code_4882:
-        rol     L414D
-        .byte   $43
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        rol     L5250
-        eor     #$4E
-        .byte   $54
-        .byte   "X"
-code_4896:
-        jsr     L4727
-        eor     $4E
-        eor     $52
-        .byte   $27
-        ora     L2020
-        jsr     L2020
-L48A4:  jsr     L2020
-        eor     #$4E
-        .byte   $43
-        jmp     L4455
+        .byte   $0D
+        .byte   "        INCLUDE D:DATA.MAC"
 
-        eor     L0020
-        .byte   $44
-        .byte   ":G"
-code_48B2:
-        eor     $4E
-        eor     $52
-        rol     L414D
-        .byte   $43
-        ora     L2020
-        jsr     L2020
-        jsr     L2020
-        rol     L5250
-        eor     #$4E
-        .byte   $54
-        .byte   "X"
-code_48CA:
-        jsr     L4727
-        eor     $4E
-        eor     $52
-        .byte   $32
-        .byte   "'"
-code_48D3:
-        brk
-L48D4:  brk
-L48D5:  brk
-L48D6:  brk
-L48D7:  brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-L4905:  brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-L490F:  jsr     L2020
-        eor     #$4E
-        .byte   $43
-        jmp     L4455
 
-        eor     L0020
-        .byte   $44
-        .byte   ":"
-code_491C:
-        eor     ($43,x)
-        .byte   $54
-        eor     #$4F
-        lsr     L4D2E
-        eor     ($43,x)
-L4927           := * + 1
-        ora     L2020
-        jsr     L2020
-L492C:  jsr     L2020
-        rol     L5250
-        eor     #$4E
-        .byte   $54
-        .byte   "X"
-code_4936:
-        jsr     L4727
-        eor     $4E
-        eor     ($43,x)
-        .byte   $54
-        .byte   "'"
-code_493F:
-        ora     $0C50
-        .byte   $03
-        .byte   ":"
-code_4944:
-        and     L3A44,x
-        eor     ($44,x)
-        lsr     $4F,x
-        .byte   $52
-        eor     #$43
-        ora     a:$0A
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        .byte   $2F
-        pha
-        .byte   $3F
-        .byte   "Co"
-code_4997:
-        adc     L616D
-        ror     $2064
-        adc     $72
-        .byte   $72
-        .byte   "or"
-code_49A2:
-        brk
-        .byte   $3F
-        lsr     $69
-        jmp     (L2065)
 
-        ror     L746F
-        jsr     code_6F66
-        adc     $6E,x
-        .byte   $64
-        brk
-        .byte   $3F
-        .byte   "C"
-code_49B5:
-        adc     ($6E,x)
-        .byte   $27
-        .byte   "t"
-code_49B9:
-        jsr     L6E65
-        .byte   $74
-        adc     $72
-        jsr     code_6966
-        jmp     (L0065)
+        .byte   $0D
+        .byte   "        .PRINTX 'SUBRONE'"
 
-        ror     $7FE6,x
-        iny
-        cmp     L4C93
-        .byte   $23
-        .byte   $C3
-code_49CE:
-        ldy     $48
-        and     ($73,x)
-        pha
-        .byte   $C3
-        ldx     $2148,y
+
+
+        .byte   $0D
+        .byte   "        INCLUDE D:SUBRONE.MAC"
+
+
+
+        .byte   $0D
+        .byte   "        .PRINTX 'SUBRTWO'"
+
+
+
+        .byte   $0D
+        .byte   "        INCLUDE D:SUBRTWO.MAC"
+
+
+
+        .byte   $0D
+        .byte   "        .PRINTX 'GENER'"
+
+
+        .byte   $0D
+        .byte   "        INCLUDE D:GENER.MAC"
+
+
+
+        .byte   $0D
+        .byte   "        .PRINTX 'GENER2'"
+
+
+L48D3:  .byte   $00
+L48D4:  .byte   $00
+L48D5:  .byte   $00
+L48D6:  .byte   $00
+L48D7:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00
+L4905:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00
+L490F:  .byte   "   INCLUDE D:ACTION.MAC"
+
+
+        .byte   $0D
+L4927:  .byte   "        .PRINTX 'GENACT'"
+
+
+        .byte   $0D
+        .byte   "P"
+        .byte   $0C,$03
+        .byte   ":=D:ADVORIC"
+
+        .byte   $0D,$0A,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $00,$00,$00,$00
+        .byte   "/H?Command error"
+
+        .byte   $00
+        .byte   "?File not found"
+
+        .byte   $00
+        .byte   "?Can't enter file"
+
+
+        .byte   $00
+        .byte   "~"
+        .byte   $E6,$7F,$C8,$CD,$93
+        .byte   "L#"
+        .byte   $C3,$A4
+        .byte   "H!sH"
+        .byte   $C3,$BE
+        .byte   "H!"
         .byte   $82
-        pha
-        .byte   $C3
-        ldx     $2148,y
+        .byte   "H"
+        .byte   $C3,$BE
+        .byte   "H!"
         .byte   $92
-        pha
-        cmp     L48A4
-        .byte   $C3
-        .byte   $DF
-code_49E4:
-        pha
-        .byte   $22
-        .byte   $04
+        .byte   "H"
+        .byte   $CD,$A4
+        .byte   "H"
+        .byte   $C3,$DF
+        .byte   "H"
+        .byte   $22,$04
         .byte   "C*"
         .byte   $06,$00
         .byte   "+"
@@ -4401,7 +4003,7 @@ code_49E4:
         .byte   "I:"
 code_4B07:
         jsr     L46E9
-        jsr     L52CA
+        jsr     code_52CA
         php
         ldx     #$00
         plp
@@ -4412,7 +4014,7 @@ code_4B07:
         jsr     L5399
         ldx     #$01
         cmp     #$FF
-L4B20:  bne     L4B32
+        bne     L4B32
         lda     $15
         jsr     L5331
         lda     $13
@@ -4424,7 +4026,7 @@ L4B32:  stx     $12
         jmp     L4737
 
 L4B37:  jsr     L46E9
-        jsr     L52CA
+        jsr     code_52CA
         bne     L4B42
         jmp     L4C51
 
@@ -4438,7 +4040,10 @@ L4B42:  jsr     L4C82
         jsr     L534B
         bcs     L4B5F
 L4B57:  jsr     L440D
-        ldy     #$13
+; -> $13A0 ql.`u.`......}... ...*......
+msg_4B5A:
+        .word   $13A0
+code_4B5C:
         jmp     L4BE9
 
 L4B5F:  lda     $73
@@ -4511,12 +4116,15 @@ L4BE9:  lda     $0C
         bne     L4C1D
         lda     $C5
         cmp     #$00
-        bne     L4BFF
+        bne     code_4BFF
         jsr     L4C82
-        bcc     L4BFF
+        bcc     code_4BFF
         jsr     L440D
-        inc     $11,x
-L4BFF:  ldx     $13
+; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
+msg_4BFD:
+        .word   $11F6
+code_4BFF:
+        ldx     $13
         lda     $17
         sta     $8A
         lda     $18
@@ -4560,8 +4168,9 @@ L4C51:  jsr     L4C57
         jmp     L4C1D
 
 L4C57:  jsr     L440D
-        .byte   $9B
-        .byte   $13
+; -> $139B qot.qql.`u.`......}... ...*.
+msg_4C5A:
+        .word   $139B
 code_4C5C:
         rts
 
@@ -4600,7 +4209,7 @@ L4C82:  jsr     L46E6
         ldx     $C6
         stx     $8A
         ldy     $C7
-L4C93:  sty     $8B
+        sty     $8B
         jsr     L54C8
         cmp     #$FF
         bne     L4CA5
@@ -4629,7 +4238,7 @@ L4CAD:  jsr     L540F
         beq     L4CAD
         ldy     #$00
         lda     ($8A),y
-        jsr     L5439
+        jsr     code_5439
         beq     L4CAD
 L4CD5:  jsr     L471B
         clc
@@ -4677,7 +4286,6 @@ L4CF8:  lda     L4D44
         lda     $1B21
         and     #$80
         beq     L4CF0
-L4D2E           := * + 1
         ldy     #$08
         lda     ($8A),y
         sta     L466F
@@ -4685,7 +4293,10 @@ L4D2E           := * + 1
         lda     ($8A),y
         sta     L4670
         jsr     L440D
-        cpy     $13
+; -> $13C4 .er..qo.#.xu.....l.`..u..''.
+msg_4D3D:
+        .word   $13C4
+code_4D3F:
         lda     #$01
         jmp     L4CF2
 
@@ -4713,13 +4324,14 @@ L4D4E:  jsr     L46E6
         tya
         sta     ($88),y
 L4D74:  lda     L4D83
-        jsr     L5AF0
+        jsr     code_5AF0
         lda     L4D83
         jsr     L4051
         jmp     L471B
 
-L4D83:  brk
-L4D84:  lda     #$1A
+L4D83:  .byte   $00
+code_4D84:
+        lda     #$1A
         sta     $C6
         lda     #$1B
         sta     $C7
@@ -4749,15 +4361,14 @@ L4D9E:  pla
         pha
         jmp     L440D
 
-        lda     #$2E
-        jsr     putchar
-        jmp     print_cr
-
-L4DB7:  pha
+        .byte   $A9
+        .byte   ". /,L,,"
+code_4DB7:
+        pha
         lda     #$E0
-        sta     L4DFC
+        sta     msg_4DFC
         lda     #$13
-        sta     L4DFD
+        sta     msg_4DFC+1
         pla
         jmp     L4DE9
 
@@ -4773,46 +4384,48 @@ L4DC6:  pha
         lda     $2110,x
         sta     $13DD
         lda     #$DC
-        sta     L4DFC
+        sta     msg_4DFC
         lda     #$13
-        sta     L4DFD
+        sta     msg_4DFC+1
         pla
 L4DE9:  sta     L4DF5
         jsr     L46E6
-        jsr     L4DF6
+        jsr     code_4DF6
         jmp     L471B
 
 L4DF5:  .byte   $22
-L4DF6:  jsr     L530B
+code_4DF6:
+        jsr     L530B
         jsr     L440D
-L4DFC:  brk
-L4DFD:  brk
+; TODO pointeur $0000
+msg_4DFC:
+        .word   $0000
+code_4DFE:
         ldy     #$08
         lda     ($8A),y
         iny
         ora     ($8A),y
-        jsr     code_4E20
+        jsr     L4E20
         lda     L4DF5
         jsr     L4750
         jsr     print_cr
         lda     L4DF5
-        jsr     L5959
-        .byte   $AD,$F5
-        .byte   "M "
-        .byte   $0D
-        .byte   "ZL"
-        .byte   $FD
-        .byte   "W"
-code_4E20:
-        beq     L4E33
+        jsr     code_5959
+L4E17:  lda     L4DF5
+        jsr     L5A0D
+        jmp     L57FD
+
+L4E20:  beq     L4E33
         lda     ($8A),y
-        sta     L4E31
+        sta     msg_4E30+1
         dey
         lda     ($8A),y
-        sta     L4E30
+        sta     msg_4E30
         jsr     L440D
-L4E30:  brk
-L4E31:  brk
+; TODO pointeur $0000
+msg_4E30:
+        .word   $0000
+code_4E32:
         rts
 
 L4E33:  jsr     L4702
@@ -4822,21 +4435,21 @@ L4E33:  jsr     L4702
         sta     $88
         lda     $8B
         adc     #$00
-L4E41:  sta     $89
+        sta     $89
         jsr     L5535
         jmp     L471E
 
-L4E49:  .byte   $8D,$F5
-        .byte   "M "
-        .byte   $0B
-        .byte   "S 3N ,,L"
-        .byte   $17
-        .byte   "N"
+L4E49:  sta     L4DF5
+        jsr     L530B
+        jsr     L4E33
+        jsr     print_cr
+        jmp     L4E17
+
 L4E58:  .byte   $1A
 code_4E59:
         jsr     L46E6
         jsr     code_69E7
-        jsr     L4ED5
+        jsr     code_4ED5
         lda     #$00
         sta     L4E58
         lda     #$01
@@ -4893,30 +4506,66 @@ L4ECC:  lda     #$01
         sta     $0B
         jmp     L471B
 
-L4ED3:  .byte   "D"
-code_4ED4:
-L4ED5           := * + 1
-        asl     L3520
-        .byte   $52
+L4ED3:  .byte   $44
+L4ED4:  .byte   $0E
+code_4ED5:
+        jsr     code_5235
         lda     #$45
         sta     $88
         lda     #$2B
         sta     $89
-        .byte   $A9,$00,$8D,$D3,$4E,$A0,$00,$B1
-        .byte   $88,$C9,$FF,$D0,$03,$4C,$08,$50
-        .byte   $C9,$00,$D0,$03,$4C,$FA,$4F,$85
-        .byte   $C5,$20,$BB,$57,$85,$C9,$A5,$8A
-        .byte   $85,$C6,$A5,$8B,$85,$C7,$A9,$00
-        .byte   $85,$0B,$A0,$00,$B1,$88,$20,$02
-        .byte   $47,$48,$A9,$1A,$85,$88,$A9,$1B
-        .byte   $85,$89,$68,$20,$A9,$54,$08,$20
-        .byte   $1E,$47,$28,$F0,$1E,$AD,$D4,$4E
-        .byte   $C9,$02,$F0,$17,$A9,$01,$85,$0B
-        .byte   $AD,$D4,$4E,$C9,$01,$D0,$0C,$EE
-        .byte   $D4,$4E,$20,$0D,$44,$06,$14,$A9
-        .byte   $00,$85,$0B
-code_4F43:
-        lda     $C6
+L4EE0:  lda     #$00
+        sta     L4ED3
+        ldy     #$00
+        lda     ($88),y
+        cmp     #$FF
+        bne     L4EF0
+        jmp     L5008
+
+L4EF0:  cmp     #$00
+        bne     L4EF7
+        jmp     L4FFA
+
+L4EF7:  sta     $C5
+        jsr     L57BB
+        sta     $C9
+        lda     $8A
+        sta     $C6
+        lda     $8B
+        sta     $C7
+        lda     #$00
+        sta     $0B
+        ldy     #$00
+        lda     ($88),y
+        jsr     L4702
+        pha
+        lda     #$1A
+        sta     $88
+        lda     #$1B
+        sta     $89
+        pla
+        jsr     L54A9
+        php
+        jsr     L471E
+        plp
+        beq     L4F43
+        lda     L4ED4
+        cmp     #$02
+        beq     L4F43
+        lda     #$01
+        sta     $0B
+        lda     L4ED4
+        cmp     #$01
+        bne     L4F43
+        inc     L4ED4
+        jsr     L440D
+; -> $1406 c..a.:...j..p.A`..}...`..}..
+msg_4F3D:
+        .word   $1406
+code_4F3F:
+        lda     #$00
+        sta     $0B
+L4F43:  lda     $C6
         sta     $8A
         lda     $C7
         sta     $8B
@@ -4925,7 +4574,7 @@ code_4F43:
         lda     #$00
         plp
         bne     L4F56
-L4F54:  lda     #$01
+        lda     #$01
 L4F56:  sta     $CE
 L4F58:  ldy     #$02
         lda     ($88),y
@@ -4956,7 +4605,7 @@ L4F6D:  ldy     #$00
         lda     #$00
         sta     $CE
         lda     #$01
-        jsr     L3F7F
+        jsr     code_3F7F
         beq     L4FA5
         lda     #$01
         sta     $0C
@@ -4975,22 +4624,63 @@ L4FA5:  ldy     #$00
 L4FB2:  bcs     L4FB7
         jmp     L5048
 
-L4FB7:  .byte   $4C,$FA,$4F
-L4FBA:  .byte   $C9,$0E,$D0,$0F,$A0,$01,$B1,$8A
-        .byte   $C8,$91,$88,$B1,$8A,$C8,$91,$88
-        .byte   $4C,$58,$4F,$C9,$0C,$D0,$0F,$A0
-        .byte   $01,$B1,$8A,$AA,$A0,$00,$B1,$88
-        .byte   $20,$49,$52,$4C,$58,$4F,$C9,$0F
-        .byte   $D0,$06,$20,$CA,$51,$4C,$58,$4F
-        .byte   $C9,$00,$D0,$06,$20,$1E,$50,$4C
-        .byte   $63,$4F,$A9,$00,$AA,$20,$DA,$51
-L4FFA:  .byte   $A5,$88,$18,$69,$07,$85,$88,$90
-        .byte   $02,$E6,$89,$4C,$E0,$4E,$A9,$00
-        .byte   $85,$C5,$A9,$01,$85,$0B,$A9,$1A
-        .byte   $85,$C6,$A9,$1B,$85,$C7,$AD,$2A
-        .byte   $1B,$85,$C9,$60
-code_501E:
-        lda     #$04
+L4FB7:  jmp     L4FFA
+
+L4FBA:  cmp     #$0E
+        bne     L4FCD
+        ldy     #$01
+        lda     ($8A),y
+        iny
+        sta     ($88),y
+        lda     ($8A),y
+        iny
+        sta     ($88),y
+        jmp     L4F58
+
+L4FCD:  cmp     #$0C
+        bne     L4FE0
+        ldy     #$01
+        lda     ($8A),y
+        tax
+        ldy     #$00
+        lda     ($88),y
+        jsr     L5249
+        jmp     L4F58
+
+L4FE0:  cmp     #$0F
+        bne     L4FEA
+        jsr     L51CA
+        jmp     L4F58
+
+L4FEA:  cmp     #$00
+        bne     L4FF4
+        jsr     L501E
+        jmp     L4F63
+
+L4FF4:  lda     #$00
+        tax
+        jsr     L51DA
+L4FFA:  lda     $88
+        clc
+        adc     #$07
+        sta     $88
+        bcc     L5005
+        inc     $89
+L5005:  jmp     L4EE0
+
+L5008:  lda     #$00
+        sta     $C5
+        lda     #$01
+        sta     $0B
+        lda     #$1A
+        sta     $C6
+        lda     #$1B
+        sta     $C7
+        lda     $1B2A
+        sta     $C9
+        rts
+
+L501E:  lda     #$04
 L5020:  clc
         adc     $8C
         sta     $8C
@@ -5046,7 +4736,7 @@ L506B:  lda     #$03
         sta     $0C
         sta     $12
         jsr     L4C5D
-L508B:  lda     $12
+        lda     $12
         cmp     #$01
         php
         ldx     #$03
@@ -5169,7 +4859,7 @@ L5163:  lda     $C5
         lda     #$01
         sta     $0B
         jsr     L4702
-        lda     code_4ED4
+        lda     L4ED4
         cmp     #$02
         beq     L518A
         cmp     #$01
@@ -5178,8 +4868,11 @@ L5163:  lda     $C5
         jmp     L518A
 
 L5182:  jsr     L440D
-        asl     $14
-        inc     code_4ED4
+; -> $1406 c..a.:...j..p.A`..}...`..}..
+msg_5185:
+        .word   $1406
+code_5187:
+        inc     L4ED4
 L518A:  jsr     L471E
         lda     #$00
         sta     $0B
@@ -5196,7 +4889,7 @@ L51A0:  jsr     L4B37
         lda     $C5
         ldx     #$F6
         ldy     #$13
-        jsr     code_5279
+        jsr     L5279
         lda     $73
         cmp     #$01
         beq     L51C5
@@ -5205,19 +4898,19 @@ L51A0:  jsr     L4B37
         lda     $15
         ldx     #$FA
         ldy     #$13
-        jsr     code_5279
+        jsr     L5279
 L51C5:  lda     #$01
 L51C7:  jmp     L4737
 
-        ldy     #$01
+L51CA:  ldy     #$01
         lda     ($8A),y
         ldy     #$01
         cmp     ($88),y
         bcc     L51D6
         lda     ($88),y
-L51D6:  jsr     L56D7
+L51D6:  jsr     code_56D7
         tax
-        ldy     #$01
+L51DA:  ldy     #$01
         cmp     ($88),y
         bcc     L51E3
         lda     ($88),y
@@ -5270,52 +4963,67 @@ L5230:  jmp     L5218
 
 L5233:  rts
 
-L5234:
-L5235           := * + 1
-        sbc     ($A9,x)
-        brk
+L5234:  .byte   $E1
+code_5235:
+        lda     #$00
         jsr     L57BB
         sta     $C8
         jsr     L4C82
         lda     #$00
         bcc     L5245
         lda     #$01
-L5245:  sta     code_4ED4
+L5245:  sta     L4ED4
         rts
 
 L5249:  jsr     L46E6
         jsr     L520D
-L5250           := * + 1
         cmp     #$FF
         beq     L5276
-        .byte   $8A,$48,$A0,$04,$B1,$88,$AA,$C8
-        .byte   $B1,$88,$A8,$68,$20,$99,$53,$C9
-        .byte   $FF,$F0,$10,$A0,$01,$B1,$8A,$AA
-        .byte   $C8,$B1,$8A,$A0,$03,$91,$88,$88
-        .byte   $8A,$91,$88
-L5276:  .byte   $4C,$1B,$47
-code_5279:
+        txa
+        pha
+        ldy     #$04
+        lda     ($88),y
+        tax
+        iny
+        lda     ($88),y
+        tay
+        pla
+        jsr     L5399
         cmp     #$FF
-        beq     L52C8
+        beq     L5276
+        ldy     #$01
+        lda     ($8A),y
+        tax
+        iny
+        lda     ($8A),y
+        ldy     #$03
+        sta     ($88),y
+        dey
+        txa
+        sta     ($88),y
+L5276:  jmp     L471B
+
+L5279:  cmp     #$FF
+        beq     code_52C8
         cmp     #$00
-        beq     L52C8
-        stx     L52C6
-        sty     L52C7
+        beq     code_52C8
+        stx     msg_52C6
+        sty     msg_52C6+1
         sta     L5234
-        lda     code_4ED4
+        lda     L4ED4
         cmp     #$02
-        beq     L52C8
+        beq     code_52C8
         lda     L5234
         jsr     L57BB
         sta     L52C9
 L529B           := * + 1
         cmp     L0000
-        beq     L52C8
+        beq     code_52C8
         lda     $C8
         cmp     L52C9
-        bne     L52C8
+        bne     code_52C8
         lda     L5611
-        beq     L52C8
+        beq     code_52C8
         lda     #$01
         sta     $0B
         lda     L5234
@@ -5328,12 +5036,15 @@ L529B           := * + 1
         adc     $8B
         sta     L4670
         jsr     L440D
-L52C6:  brk
-L52C7:  brk
-L52C8:  rts
+; TODO pointeur $0000
+msg_52C6:
+        .word   $0000
+code_52C8:
+        rts
 
-L52C9:  txa
-L52CA:  ldx     $15
+L52C9:  .byte   $8A
+code_52CA:
+        ldx     $15
         inx
         bne     L52D1
         inx
@@ -5401,7 +5112,7 @@ L5312:  pha
         sta     $8B
         ldy     #$00
         lda     ($8A),y
-L5327:  tax
+        tax
         iny
         lda     ($8A),y
         sta     $8B
@@ -5418,7 +5129,6 @@ L5331:  ldx     #$62
         lda     ($8A),y
         tax
         iny
-L5341           := * + 1
         lda     ($8A),y
         sta     $8B
         stx     $8A
@@ -5528,13 +5238,13 @@ L53E6:  lda     $88
         lda     $89
         adc     #$00
         sta     $7D
-        jsr     L433A
+        jsr     code_433A
         bne     L53C6
         lda     $80
         bne     L5405
         ldy     #$00
         lda     ($8A),y
-        jsr     L5439
+        jsr     code_5439
         beq     L53C6
 L5405:  ldy     #$00
         lda     ($8A),y
@@ -5567,19 +5277,24 @@ L542C:  sta     L5438
         plp
         rts
 
-L5438:
-L5439           := * + 1
-        lsr     $8D
-        eor     ($54),y
-        .byte   $20,$E9,$46,$A5,$C6,$85,$8A,$A5
-        .byte   $C7,$85,$8B,$20,$54,$54,$20,$37
-        .byte   $47,$AD,$51,$54,$60
-code_5451:
-        php
-L5452:
-L5453           := * + 1
-        cpy     #$20
-L5454:  jsr     L46E9
+L5438:  .byte   "F"
+code_5439:
+        sta     L5451
+        jsr     L46E9
+        lda     $C6
+        sta     $8A
+        lda     $C7
+        sta     $8B
+        jsr     code_5454
+        jsr     L4737
+        lda     L5451
+        rts
+
+L5451:  .byte   $08
+L5452:  .byte   $C0
+L5453:  .byte   $20
+code_5454:
+        jsr     L46E9
         ldy     #$07
         lda     ($88),y
         and     #$80
@@ -5592,7 +5307,7 @@ L5454:  jsr     L46E9
         sta     L5452
         jsr     L4737
         lda     L5452
-        cmp     code_5451
+        cmp     L5451
         beq     L549D
         jsr     L54C8
         cmp     L5452
@@ -5613,14 +5328,14 @@ L5498:  lda     #$00
         jmp     L549F
 
 L549D:  lda     #$01
-L549F:  sta     code_5451
+L549F:  sta     L5451
         jsr     L4737
-        lda     code_5451
+        lda     L5451
         rts
 
-        sta     code_5451
+L54A9:  sta     L5451
         jsr     L54B2
-        jsr     L5454
+        jsr     code_5454
 L54B2:  lda     $8A
         tax
         lda     $88
@@ -5631,7 +5346,7 @@ L54B2:  lda     $8A
         lda     $89
         sta     $8B
         stx     $89
-        lda     code_5451
+        lda     L5451
         rts
 
 L54C8:  jsr     L46E9
@@ -5649,8 +5364,9 @@ L54E1:  jsr     L4737
         lda     L54E8
         rts
 
-L54E8:  brk
-L54E9:  jsr     L5374
+L54E8:  .byte   $00
+code_54E9:
+        jsr     L5374
         lda     $8A
         clc
         adc     #$07
@@ -5673,7 +5389,7 @@ L54F8:  jsr     L540F
         adc     #$00
         sta     $7D
         jsr     L4737
-        jsr     L433A
+        jsr     code_433A
         bne     L54F8
         ldy     #$02
         lda     ($8A),y
@@ -5720,13 +5436,13 @@ L5563:  ldy     #$00
         sta     $5D
         ora     $5C
         beq     L5575
-        jsr     L4683
+        jsr     code_4683
 L5575:  rts
 
 L5576:  sta     L55AC
         jsr     L46E6
         lda     #$00
-        sta     code_55AD
+        sta     L55AD
         lda     #$5F
         sta     $8A
         lda     #$1A
@@ -5741,17 +5457,17 @@ L5589:  jsr     L542C
         lda     ($88),y
         and     #$80
         beq     L5589
-        inc     code_55AD
+        inc     L55AD
         jmp     L5589
 
 L55A5:  jsr     L471B
-        lda     code_55AD
+        lda     L55AD
         rts
 
-L55AC:  .byte   "c"
-code_55AD:
-        brk
-L55AE:  pha
+L55AC:  .byte   $63
+L55AD:  .byte   $00
+code_55AE:
+        pha
         lda     #$02
         bne     L55B6
 L55B3:  pha
@@ -5829,7 +5545,7 @@ L5622:  lda     $1B2A
         lda     #$1B
         sta     $C7
         jsr     L5DCB
-        jsr     L5235
+        jsr     code_5235
         pla
         sta     $C7
         pla
@@ -5902,11 +5618,10 @@ L56CB:  lda     L56D6
 L56D1:  lda     #$00
         jmp     L471B
 
-L56D6:
-L56D7           := * + 1
-        cpy     #$29
-        .byte   $7F
-L56D9:  sta     code_570F
+L56D6:  .byte   $C0
+code_56D7:
+        and     #$7F
+L56D9:  sta     L570F
         asl     a
         bcc     L56E1
         lda     #$FF
@@ -5930,20 +5645,20 @@ L56FE:  cmp     L5710
         jmp     L56FE
 
 L5709:  sec
-        sbc     code_570F
+        sbc     L570F
         rts
 
 L570E:  .byte   $22
-code_570F:
-        brk
-L5710:  brk
-L5711:  lda     $15
+L570F:  .byte   $00
+L5710:  .byte   $00
+code_5711:
+        lda     $15
 L5713:  sta     L5710
         jsr     L46E6
         jsr     L5331
         ldy     #$01
         lda     ($8A),y
-        sta     code_570F
+        sta     L570F
         lda     #$5F
         sta     $8A
         lda     #$1A
@@ -5970,20 +5685,20 @@ L572B:  jsr     L542C
         sta     ($88),y
         jsr     L5521
         jsr     L440D
-        .byte   $22
-        ora     $4C,x
-        .byte   $2B
-        .byte   $57
+; -> $1522 .....Z.... KILLED....'....`.
+msg_575B:
+        .word   $1522
+code_575D:
+        jmp     L572B
+
 L5760:  ldy     #$01
-        lda     code_570F
+        lda     L570F
         sta     ($88),y
         jmp     L572B
 
-L576A:  .byte   "L"
-        .byte   $1B
-        .byte   "G"
-code_576D:
-        lda     $15
+L576A:  jmp     L471B
+
+L576D:  lda     $15
 L576F:  pha
         lda     #$01
         bne     L5777
@@ -5993,7 +5708,7 @@ L5777:  sta     L5789
         pla
         jsr     L4702
         sta     $6C
-        jsr     L54E9
+        jsr     code_54E9
 L5783:  jsr     L540F
         beq     L5790
 L5789           := * + 1
@@ -6043,7 +5758,7 @@ L57D0:  ldy     #$10
 L57D5:  jsr     L4702
         sta     L57FB
         stx     L57FC
-        jsr     L54E9
+        jsr     code_54E9
 L57E1:  jsr     L540F
         beq     L57F5
         ldy     #$02
@@ -6059,33 +5774,43 @@ L57F5:  ldx     L57FC
 L57FB:
 L57FC           := * + 1
         cpy     #$20
-        .byte   $48,$20,$0D,$44,$E3,$13,$A0,$10
-        .byte   $B1,$C6,$AA,$A9,$FF,$20,$0F,$58
-        .byte   $68,$60
-code_580F:
-        stx     code_5832
+L57FD:  pha
+        jsr     L440D
+; -> $13E3 .l :.... '. '...e....n......
+msg_5801:
+        .word   $13E3
+code_5803:
+        ldy     #$10
+        lda     ($C6),y
+        tax
+        lda     #$FF
+        jsr     L580F
+        pla
+        rts
+
+L580F:  stx     L5832
         sta     L5833
         jsr     L4702
         lda     #$00
         sta     L5834
         lda     #$04
         sta     L5835
-        jsr     L5836
+        jsr     code_5836
         lda     L5834
-        bne     L582F
+        bne     code_582F
         jsr     L440D
-        .byte   $1B
-        .byte   $17
-L582F:  jmp     L471E
+; -> $171B      .`...a CHEERING CROWDf 
+msg_582D:
+        .word   $171B
+code_582F:
+        jmp     L471E
 
-code_5832:
-        brk
-L5833:
-L5834           := * + 1
-L5835           := * + 2
-        jmp     L5341
-
-L5836:  lda     $10
+L5832:  .byte   $00
+L5833:  .byte   "L"
+L5834:  .byte   "A"
+L5835:  .byte   "S"
+code_5836:
+        lda     $10
         pha
         lda     L5835
         sta     $10
@@ -6116,13 +5841,13 @@ L585D:  pha
         bne     L58D6
 L586C:  ldy     #$10
         lda     ($88),y
-        cmp     code_5832
+        cmp     L5832
         beq     L5880
         dex
         beq     L58D6
         iny
         lda     ($88),y
-        cmp     code_5832
+        cmp     L5832
         bne     L58D6
 L5880:  lda     $C5
         ldy     #$00
@@ -6132,7 +5857,7 @@ L5880:  lda     $C5
         cmp     L5835
         beq     L58D6
 L588F:  lda     ($8A),y
-        jsr     L5439
+        jsr     code_5439
         beq     L58D6
         inc     L5834
         lda     #$00
@@ -6156,7 +5881,7 @@ L588F:  lda     ($8A),y
         sta     L5833
         inc     L5835
         inc     L5835
-        jsr     L5836
+        jsr     code_5836
         dec     L5835
         dec     L5835
         pla
@@ -6192,8 +5917,11 @@ L58E7:  sta     L5958
         lda     L5958
         sta     L466F
         jsr     L440D
-        bne     L592A
-        jmp     L594A
+; -> $11D0 .r.bk...7...em..d...rm.....r
+msg_5917:
+        .word   $11D0
+code_5919:
+        jmp     code_594A
 
 L591C:  ldy     #$08
         lda     ($8A),y
@@ -6201,7 +5929,6 @@ L591C:  ldy     #$08
         iny
         lda     ($8A),y
         and     #$0F
-L592A           := * + 2
         sta     L4670
         lda     #$B2
         sta     L4671
@@ -6215,9 +5942,11 @@ L592A           := * + 2
         sta     L4672
 L5942:  jsr     code_5B9B
         jsr     L440D
-        .byte   $BF
-        .byte   $13
-L594A:  clc
+; -> $13BF ......er..qo.#.xu.....l.`..u
+msg_5948:
+        .word   $13BF
+code_594A:
+        clc
 L594B:  php
         jsr     L4737
         plp
@@ -6227,8 +5956,9 @@ L5951:  jsr     print_cr
         sec
         jmp     L594B
 
-L5958:  brk
-L5959:  sta     L5958
+L5958:  .byte   $00
+code_5959:
+        sta     L5958
         jsr     L46E6
         lda     L5958
         jsr     L530B
@@ -6241,12 +5971,12 @@ L5959:  sta     L5958
         sta     $89
 L5972:  ldy     #$01
         lda     ($88),y
-        beq     L59CE
+        beq     code_59CE
         jsr     L5331
         ldy     #$07
         lda     ($8A),y
         and     #$80
-        beq     L59CE
+        beq     code_59CE
         lda     $8A
         clc
         adc     #$08
@@ -6277,14 +6007,21 @@ L59B5:  lda     $5C
         lda     $5D
         pha
         jsr     L440D
-        inc     L6811
+; -> $11EE d`..em.kke...em.(.8.d.n..em.
+msg_59BE:
+        .word   $11EE
+code_59C0:
+        pla
         sta     $5D
         pla
         sta     $5C
 L59C6:  jsr     L4241
         jsr     L440D
-        sbc     ($13),y
-L59CE:  lda     $88
+; -> $13F1 ..e....n......{..| :.c..a.:.
+msg_59CC:
+        .word   $13F1
+code_59CE:
+        lda     $88
         clc
         adc     #$03
         sta     $88
@@ -6313,14 +6050,11 @@ L59F7:  pla
         lsr     $07
         jmp     (L3509)
 
-        .byte   $03,$C2,$0B,$4B,$07,$54,$07
-code_5A05:
-        adc     ($09),y
-        .byte   $7A
-        ora     #$42
-        .byte   $0B
+        .byte   $03,$C2,$0B,$4B,$07,$54,$07,$71
+        .byte   $09,$7A,$09,$42,$0B
+code_5A0B:
         inc     $02,x
-        sta     L5958
+L5A0D:  sta     L5958
         jsr     L46E6
         lda     L5958
         jsr     L530B
@@ -6333,14 +6067,16 @@ code_5A05:
 L5A24:  jsr     L5A43
         beq     L5A40
         jsr     L440D
-L5A2E           := * + 2
-        inc     $A013,x
-        brk
+; -> $13FE .{..| :.c..a.:...j..p.A`..}.
+msg_5A2C:
+        .word   $13FE
+code_5A2E:
+        ldy     #$00
         lda     ($8A),y
         jsr     L59E7
         jsr     L4241
         jsr     L5A43
-        bne     L5A2E
+        bne     code_5A2E
         jsr     print_cr
 L5A40:  jmp     L471B
 
@@ -6417,14 +6153,16 @@ L5AA7:  stx     L466F
         rol     a
         and     #$FE
 L5AB3:  tax
-        lda     code_5AD0,x
+        lda     L5AD0,x
         sta     L4671
         inx
-        lda     code_5AD0,x
+        lda     L5AD0,x
         sta     L4672
         jsr     L440D
-        .byte   $97
-        .byte   $13
+; -> $1397 .e..qot.qql.`u.`......}... .
+msg_5AC4:
+        .word   $1397
+code_5AC6:
         rts
 
 L5AC7:  rol     a
@@ -6433,32 +6171,12 @@ L5AC7:  rol     a
         adc     #$10
         jmp     L5AB3
 
-code_5AD0:
-        and     $0B,x
-        brk
-        brk
-        adc     $03
-        brk
-        brk
-        .byte   $72
-        .byte   $07,$12,$02,$9C,$02
-code_5ADE:
-        brk
-        brk
-        eor     $06
-        brk
-        brk
-        .byte   $6B
-        .byte   $04,$89
-code_5AE7:
-        ora     ($7D,x)
-        .byte   $07
-        .byte   $8B,$07,$80
-code_5AED:
-        brk
-        brk
-        brk
-L5AF0:  jsr     L46E9
+L5AD0:  .byte   $35,$0B,$00,$00,$65,$03,$00,$00
+        .byte   $72,$07,$12,$02,$9C,$02,$00,$00
+        .byte   $45,$06,$00,$00,$6B,$04,$89,$01
+        .byte   $7D,$07,$8B,$07,$80,$00,$00,$00
+code_5AF0:
+        jsr     L46E9
         jsr     L5331
         ldy     #$0C
         lda     #$00
@@ -6481,15 +6199,17 @@ L5B0F:  tya
         sta     ($8A),y
         jmp     L4737
 
-L5B1B:  ldy     #$07
+        ldy     #$07
         lda     ($8A),y
         and     #$48
         cmp     #$40
         rts
 
 L5B24:  jsr     L440D
-        inx
-        .byte   $13
+; -> $13E8 ... '. '...e....n......{..| 
+msg_5B27:
+        .word   $13E8
+code_5B29:
         lda     #$01
         sta     $0E
         pla
@@ -6507,33 +6227,23 @@ L5B24:  jsr     L440D
         jmp     L440D
 
         jsr     L440D
-        inc     L6013
-        jsr     L5386
-        lda     $C6
-        sta     $8A
-        lda     $C7
-        sta     $8B
-        jsr     L54C8
-        cmp     #$FF
-        beq     L5B94
-        pha
-        lda     #$80
-        sta     $13DD
-        lda     #$00
-        sta     $13DE
-        jsr     L440D
-        .byte   $DC
-        .byte   $13
-        pla
-        pha
-        jsr     L5331
-        jsr     code_5B9B
-        .byte   $A0,$08,$B1,$8A,$85,$5C,$C8,$B1
-        .byte   $8A,$29,$0F,$85,$5D,$20,$41,$42
-        .byte   $A9,$2E,$20,$2F,$2C,$20,$2C,$2C
-        .byte   $20,$0D,$44,$E3,$13,$A0,$10,$B1
-        .byte   $8A,$AA,$68,$4C,$0F,$58
-L5B94:  .byte   $A0,$10,$B1,$C6,$4C,$C6,$4D
+; -> $13EE  '...e....n......{..| :.c..a
+msg_5B41:
+        .word   $13EE
+code_5B43:
+        rts
+
+        .byte   $20,$86,$53,$A5,$C6,$85,$8A,$A5
+        .byte   $C7,$85,$8B,$20,$C8,$54,$C9,$FF
+        .byte   $F0,$3E,$48,$A9,$80,$8D,$DD,$13
+        .byte   $A9,$00,$8D,$DE,$13,$20,$0D,$44
+        .byte   $DC,$13,$68,$48,$20,$31,$53,$20
+        .byte   $9B,$5B,$A0,$08,$B1,$8A,$85,$5C
+        .byte   $C8,$B1,$8A,$29,$0F,$85,$5D,$20
+        .byte   $41,$42,$A9,$2E,$20,$2F,$2C,$20
+        .byte   $2C,$2C,$20,$0D,$44,$E3,$13,$A0
+        .byte   $10,$B1,$8A,$AA,$68,$4C,$0F,$58
+        .byte   $A0,$10,$B1,$C6,$4C,$C6,$4D
 code_5B9B:
         ldy     #$04
         lda     ($8A),y
@@ -6544,13 +6254,15 @@ code_5B9B:
 L5BA7:  rol     a
         rol     a
         adc     #$A4
-        sta     L5BB8
+        sta     msg_5BB8
         lda     #$00
         adc     #$13
-        sta     L5BB9
+        sta     msg_5BB8+1
         jsr     L440D
-L5BB8:  brk
-L5BB9:  brk
+; TODO pointeur $0000
+msg_5BB8:
+        .word   $0000
+code_5BBA:
         rts
 
 L5BBB:  jsr     L5349
@@ -6560,57 +6272,27 @@ L5BBB:  jsr     L5349
 L5BC1:  pla
         pla
         jsr     L440D
-        iny
-        ora     ($60),y
-        jsr     L5349
-        bcc     L5BD4
-        jsr     L440D
-        inx
-        ora     ($60),y
-L5BD4:  jsr     L5C2B
-        lda     $C5
-L5BD9:  jsr     L5331
-        lda     $15
-        ldy     #$01
-        cmp     ($8A),y
-        bne     L5BE7
-        jmp     L5A62
-
-L5BE7:  lda     ($8A),y
-        cmp     #$FF
-        bne     L5BD9
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
-        jsr     L5386
-L5BF8:  ldy     #$01
-        lda     ($8A),y
-        cmp     #$FF
-        bne     L5C07
-L5C00:  lda     $C5
-        ldy     #$01
-        sta     ($8A),y
+; -> $11C8 .jrk..r..r.bk...7...em..d...
+msg_5BC6:
+        .word   $11C8
+code_5BC8:
         rts
 
-L5C07:  jsr     L46E9
-        jsr     L5331
-        ldy     #$04
-        lda     ($8A),y
-        and     #$07
-        cmp     $05
-        beq     L5C1D
-        jsr     L4737
-        jmp     L5C00
-
-L5C1D:  ldx     $8A
-        ldy     $8B
-        jsr     L4737
-        stx     $8A
-        sty     $8B
-        jmp     L5BF8
-
-L5C2B:  lda     $17
+        .byte   $20,$49,$53,$90,$06,$20,$0D,$44
+        .byte   $E8,$11,$60,$20,$2B,$5C,$A5,$C5
+        .byte   $20,$31,$53,$A5,$15,$A0,$01,$D1
+        .byte   $8A,$D0,$03,$4C,$62,$5A,$B1,$8A
+        .byte   $C9,$FF,$D0,$EC,$A5,$17,$85,$8A
+        .byte   $A5,$18,$85,$8B,$20,$86,$53,$A0
+        .byte   $01,$B1,$8A,$C9,$FF,$D0,$07,$A5
+        .byte   $C5,$A0,$01,$91,$8A,$60,$20,$E9
+        .byte   $46,$20,$31,$53,$A0,$04,$B1,$8A
+        .byte   $29,$07,$C5,$05,$F0,$06,$20,$37
+        .byte   $47,$4C,$00,$5C,$A6,$8A,$A4,$8B
+        .byte   $20,$37,$47,$86,$8A,$84,$8B,$4C
+        .byte   $F8,$5B
+code_5C2B:
+        lda     $17
         sta     $8A
         lda     $18
         sta     $8B
@@ -6630,7 +6312,7 @@ L5C41:  sta     L5C77
         lda     ($88),y
         sec
         sbc     L5C77
-        bcc     L5C78
+        bcc     code_5C78
         sta     L5C77
         lda     $C5
         jsr     L55B3
@@ -6649,18 +6331,26 @@ L5C72:  pla
         pla
         jmp     L5A62
 
-L5C77:  brk
-L5C78:  pla
+L5C77:  .byte   $00
+code_5C78:
+        pla
         pla
         jsr     L440D
-        .byte   $DB
-        ora     ($60),y
+; -> $11DB .em..d...rm.....r..d`..em.kk
+msg_5C7D:
+        .word   $11DB
+code_5C7F:
+        rts
+
 L5C80:  pla
         pla
         jsr     L440D
-        .byte   $E3
-code_5C86:
-        ora     ($60),y
+; -> $11E3 .rm.....r..d`..em.kke...em.(
+msg_5C85:
+        .word   $11E3
+code_5C87:
+        rts
+
 L5C88:  jsr     L46E9
         jsr     L5331
 L5C8E:  ldy     #$01
@@ -6680,7 +6370,7 @@ L5CA3:  php
 
         lda     $15
         jsr     L5331
-        jsr     code_64D7
+        jsr     L64D7
         bne     L5CB6
         jmp     L5A9D
 
@@ -6689,7 +6379,7 @@ L5CB6:  lda     $C5
         beq     L5CBE
         rts
 
-L5CBE:  jsr     code_576D
+L5CBE:  jsr     L576D
         cmp     #$FF
         bne     L5CC8
 L5CC5:  jmp     L5A62
@@ -6716,17 +6406,20 @@ L5CC8:  ldy     #$02
         lda     ($8A),y
         ldy     #$10
         sta     ($88),y
-        jsr     L4DB7
+        jsr     code_4DB7
         pla
         ldy     #$10
         sta     ($88),y
         rts
 
 L5D00:  jsr     L440D
-        inc     $11,x
+; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
+msg_5D03:
+        .word   $11F6
+code_5D05:
         rts
 
-        jsr     code_576D
+        jsr     L576D
 L5D09:  cmp     #$FF
         beq     L5CC5
         ldy     #$02
@@ -6744,16 +6437,21 @@ L5D09:  cmp     #$FF
         sta     $13
         lda     #$FF
         sta     $15
-        jmp     code_5D53
+        jmp     L5D53
 
         .byte   $A5,$15,$A2,$16,$20,$4D,$53,$90
         .byte   $03,$4C,$D4,$5B,$20,$0D,$44,$91
         .byte   $13,$60
 L5D43:  .byte   $04
-L5D44:  .byte   $20,$82,$4C,$90,$0A,$A9,$09,$20
-        .byte   $D7,$56,$18,$69,$01,$85,$13
-code_5D53:
-        lda     $C6
+code_5D44:
+        jsr     L4C82
+        bcc     L5D53
+        lda     #$09
+        jsr     code_56D7
+        clc
+        adc     #$01
+        sta     $13
+L5D53:  lda     $C6
         sta     $88
         lda     $C7
         sta     $89
@@ -6770,7 +6468,7 @@ code_5D53:
         lda     #$FF
         sta     ($88),y
 L5D74:  lda     $C5
-        jsr     L55AE
+        jsr     code_55AE
         ldy     #$02
         clc
         adc     ($88),y
@@ -6791,10 +6489,17 @@ L5D92:  jsr     L5386
         sta     $1B1A,y
         beq     L5DA7
         jsr     L440D
-        .byte   $57
-        ora     ($60),y
+; -> $1157 h..b.K....h..b.-....qtj..`..
+msg_5DA4:
+        .word   $1157
+code_5DA6:
+        rts
+
 L5DA7:  jsr     L440D
-        adc     ($11,x)
+; -> $1161 h..b.-....qtj..`.. ' ... ?..
+msg_5DAA:
+        .word   $1161
+code_5DAC:
         jmp     L5FAE
 
 L5DAF:  ldy     #$02
@@ -6875,11 +6580,18 @@ L5E3B:  jmp     L4DC6
 
 L5E3E:  jsr     L5E50
         jsr     L440D
-        .byte   $FA
-        ora     ($60),y
+; -> $11FA .em.(.8.d.n..em.k.8.d.n.i...
+msg_5E44:
+        .word   $11FA
+code_5E46:
+        rts
+
 L5E47:  jsr     L5E50
         jsr     L440D
-        asl     $12
+; -> $1206 .em.k.8.d.n.i......z....... 
+msg_5E4D:
+        .word   $1206
+code_5E4F:
         rts
 
 L5E50:  ldy     #$02
@@ -6939,7 +6651,7 @@ L5EB1:  lda     #$02
 L5EB4:  lda     #$01
         rts
 
-L5EB7:  jsr     L5BBB
+        jsr     L5BBB
         jsr     L5386
         lda     $17
         sta     $8A
@@ -6973,7 +6685,10 @@ L5EE4:  ldy     #$10
         adc     $8B
         sta     L4670
         jsr     L440D
-        and     ($15,x)
+; -> $1521 ......Z.... KILLED....'....`
+msg_5EFC:
+        .word   $1521
+code_5EFE:
         rts
 
         lda     $15
@@ -6981,7 +6696,7 @@ L5EE4:  ldy     #$10
         jmp     L5D09
 
 L5F07:  lda     #$0A
-        jsr     L56D7
+        jsr     code_56D7
         cmp     #$00
         beq     L5F07
         tax
@@ -6996,7 +6711,7 @@ L5F11:  txa
         jmp     L5F11
 
 L5F23:  sta     $13
-        jmp     L5D44
+        jmp     code_5D44
 
         ldy     #$10
         lda     ($17),y
@@ -7008,10 +6723,13 @@ L5F23:  sta     $13
         jmp     L5D09
 
 L5F3A:  jsr     L440D
-        cmp     #$13
+; -> $13C9 qo.#.xu.....l.`..u..''..l..l
+msg_5F3D:
+        .word   $13C9
+code_5F3F:
         rts
 
-        jsr     L5C2B
+        jsr     code_5C2B
         ldy     #$07
         lda     ($19),y
         and     #$40
@@ -7058,22 +6776,28 @@ L5F6A:  lda     $17
         ldy     #$06
         lda     ($88),y
         beq     L5FA0
-        jsr     L56D7
+        jsr     code_56D7
         beq     L5FA4
-L5FA0:  jsr     L3E5B
+L5FA0:  jsr     code_3E5B
         rts
 
 L5FA4:  jsr     L440D
-        ldx     $A915,y
-        brk
+; -> $15BE ... '.7 '.kos SEEN,os.....s.
+msg_5FA7:
+        .word   $15BE
+code_5FA9:
+        lda     #$00
         jmp     L5FA0
 
 L5FAE:  lda     #$00
         sta     $C5
         jsr     L440D
-        cmp     ($13),y
-L5FB7:  jsr     code_3CD4
-        jmp     L3C8B
+; -> $13D1 ....l.`..u..''..l..l :.... '
+msg_5FB5:
+        .word   $13D1
+code_5FB7:
+        jsr     code_3CD4
+        jmp     code_3C8B
 
 L5FBD:  lda     $17
         sta     $8A
@@ -7089,7 +6813,7 @@ L5FBD:  lda     $17
         sta     $8A
         lda     $18
         sta     $8B
-        jsr     code_64D7
+        jsr     L64D7
         bne     L5FDD
         jmp     L5A9D
 
@@ -7098,7 +6822,7 @@ L5FDD:  lda     $15
         cmp     #$00
         beq     L5FF5
         jsr     L5386
-        jsr     L5711
+        jsr     code_5711
         ldy     #$07
         lda     ($8A),y
         and     #$FB
@@ -7121,7 +6845,7 @@ L600C:  lda     ($8A),y
         cmp     $C9
         beq     L6019
         iny
-L6013:  dex
+        dex
         bne     L600C
 L6016:  jmp     L4C57
 
@@ -7132,8 +6856,11 @@ L6019:  iny
         lda     #$00
 L6021:  pha
         jsr     L440D
-        .byte   $D3
-        ora     ($68),y
+; -> $11D3 bk...7...em..d...rm.....r..d
+msg_6025:
+        .word   $11D3
+code_6027:
+        pla
         ldy     #$10
         sta     ($17),y
         tax
@@ -7176,7 +6903,7 @@ L6057:  cmp     #$06
         bcc     L6084
         pha
         lda     $16
-        jsr     L55AE
+        jsr     code_55AE
         sta     $6C
         pla
         sec
@@ -7184,7 +6911,10 @@ L6057:  cmp     #$06
         beq     L6084
         bcs     L608A
 L6084:  jsr     L440D
-        sbc     ($11),y
+; -> $11F1 .em.kke...em.(.8.d.n..em.k.8
+msg_6087:
+        .word   $11F1
+code_6089:
         rts
 
 L608A:  jsr     L5386
@@ -7196,8 +6926,9 @@ L608A:  jsr     L5386
         sta     ($8A),y
         rts
 
-L609A:  .byte   $A9,$05,$4C,$90,$5A
-code_609F:
+L609A:  lda     #$05
+        jmp     L5A90
+
         jsr     L5386
         lda     $17
         sta     $8A
@@ -7235,11 +6966,14 @@ L60DA:  lda     #$00
         rts
 
 L60E3:  jsr     L440D
-        and     $15
+; -> $1525 ..Z.... KILLED....'....`.f`y
+msg_60E6:
+        .word   $1525
+code_60E8:
         lda     $C5
         jmp     L4D47
 
-L60ED:  lda     $17
+        lda     $17
         sta     $8A
         lda     $18
         sta     $8B
@@ -7296,16 +7030,16 @@ L6152:  ldy     #$06
         ora     #$08
         sta     ($17),y
         lda     $15
-        jsr     L5AF0
+        jsr     code_5AF0
         ldy     #$05
         lda     ($17),y
         lsr     a
         sta     ($17),y
-L616D:  ldy     #$04
+        ldy     #$04
         lda     ($17),y
         cmp     #$02
         bcs     L6178
-        jsr     L5711
+        jsr     code_5711
 L6178:  lda     #$83
         jsr     L5A9D
 L617D:  lda     $16
@@ -7337,7 +7071,7 @@ L61A3:  ldy     #$07
         ora     #$08
         sta     ($19),y
         lda     $16
-        jsr     L5AF0
+        jsr     code_5AF0
         ldy     #$05
         lda     ($19),y
         lsr     a
@@ -7355,7 +7089,7 @@ L61C4:  lda     #$83
         sta     $8A
         lda     $18
         sta     $8B
-        jsr     code_64D7
+        jsr     L64D7
         bne     L61D9
         jmp     L5A9D
 
@@ -7422,7 +7156,7 @@ L6246:  ldy     #$10
         lda     ($8A),y
         tax
         lda     $15
-        jmp     code_580F
+        jmp     L580F
 
 L6250:  ldy     #$04
         lda     $C5
@@ -7470,8 +7204,10 @@ L628E:  ldy     #$05
         cmp     #$01
         beq     L62A9
         jsr     L440D
-        .byte   $3F
-        .byte   $13
+; -> $133F co..i..k...Qb...v`..{.......
+msg_62A6:
+        .word   $133F
+code_62A8:
         rts
 
 L62A9:  ldy     #$05
@@ -7491,7 +7227,10 @@ L62B8:  lda     L6320
         cmp     L6320
         bcc     L62D6
         jsr     L440D
-        bmi     L62E8
+; -> $1330 h`.Ae......em..co..i..k...Qb
+msg_62D3:
+        .word   $1330
+code_62D5:
         rts
 
 L62D6:  sta     L6321
@@ -7500,16 +7239,16 @@ L62D6:  sta     L6321
         bcc     L62E0
         lda     #$FF
 L62E0:  cmp     L6320
-        bcc     L6322
+        bcc     code_6322
         lda     L6320
-L62E8:  sec
+        sec
         sbc     L6321
         asl     a
         tax
         lda     L6359,x
-        sta     L631D
+        sta     msg_631D
         lda     L635A,x
-        sta     L631E
+        sta     msg_631D+1
         txa
         lsr     a
         lsr     a
@@ -7529,16 +7268,19 @@ L630B:  lda     L6321
         bcc     L631A
         sta     ($17),y
 L631A:  jsr     L440D
-L631D:  brk
-L631E:  brk
+; TODO pointeur $0000
+msg_631D:
+        .word   $0000
+code_631F:
         rts
 
-L6320:  brk
-L6321:  brk
-L6322:  .byte   " "
-        .byte   $0D
-        .byte   "D"
-        .byte   $12,$12
+L6320:  .byte   $00
+L6321:  .byte   $00
+code_6322:
+        jsr     L440D
+; -> $1212 i......z....... VIOLENT.....
+msg_6325:
+        .word   $1212
 code_6327:
         lda     $17
         sta     $8A
@@ -7567,68 +7309,96 @@ L6341:  sta     L635A
 L6357:  lda     #$00
 L6359:  rts
 
-L635A:  brk
-        asl     $13,x
-        ora     $13
-        .byte   $FA
-        .byte   $12,$EF,$12,$E3,$12
-code_6365:
-        dec     $BC12
-        .byte   $12
-        .byte   $AB,$12,$94,$12,$86,$12,$71,$12
-        .byte   $64,$12,$52,$12,$48,$12,$31,$12
-        .byte   $20,$12,$20,$86,$53,$20,$0D,$44
-        .byte   $CD,$11,$A5,$C5,$20,$76,$55,$C9
-        .byte   $00,$D0,$06,$20,$0D,$44,$1B,$17
-        .byte   $60,$A5,$C6,$85,$8A,$A5,$C7,$85
-        .byte   $8B,$A0,$10,$B1,$8A,$AA,$A5,$C5
-        .byte   $4C,$0F,$58,$20,$86,$53,$A5,$15
-        .byte   $20,$31,$53,$A0,$0E,$B1,$8A,$8D
-        .byte   $C1,$63,$C8,$B1,$8A,$8D,$C2,$63
-        .byte   $0D,$C1,$63,$F0,$06,$20,$0D,$44
-        .byte   $00,$00,$60,$20,$0D,$44,$E0,$13
-        .byte   $A5,$8A,$85,$88,$A5,$8B,$85,$89
-        .byte   $20,$21,$55,$A9,$2E,$20,$2F,$2C
-        .byte   $4C,$2C,$2C
-L63DC:  .byte   $A5,$19,$85,$88,$A5,$1A,$85,$89
-        .byte   $20,$49,$53,$B0,$06,$20,$0D,$44
-        .byte   $C8,$11,$60,$A5,$16,$20,$B3,$55
-        .byte   $A0,$03,$18,$71,$8A,$85,$6C,$B1
-        .byte   $88,$38,$E5,$6C,$B0,$06,$20,$0D
-        .byte   $44,$E3,$11,$60,$20,$86,$53,$A5
-        .byte   $16,$A0,$01,$91,$17,$A0,$10,$B1
-        .byte   $88,$91,$17,$AA,$A5,$15,$4C,$12
-        .byte   $56,$20,$70,$5A,$F0,$03,$4C,$9D
-        .byte   $5A,$A5,$19,$85,$88,$A5,$1A,$85
-        .byte   $89,$A0,$07,$B1,$88,$29,$08,$08
-        .byte   $A9,$83,$28,$F0,$03,$4C,$90,$5A
-        .byte   $20,$86,$53,$A0,$07,$B1,$8A,$09
-        .byte   $01,$91,$8A,$60,$A5,$17,$85,$8A
-        .byte   $A5,$18,$85,$8B,$A0,$07,$B1,$8A
-        .byte   $29,$01,$08,$A9,$00,$28,$D0,$03
-        .byte   $4C,$9D,$5A,$20,$85,$5A,$D0,$F8
-        .byte   $A5,$19,$85,$88,$A5,$1A,$85,$89
-        .byte   $A0,$07,$B1,$88,$29,$08,$08,$A9
-        .byte   $83,$28,$F0,$03,$4C,$90,$5A,$20
-        .byte   $86,$53,$A0,$07
+L635A:  .byte   $00,$16,$13,$05,$13,$FA,$12,$EF
+        .byte   $12,$E3,$12,$CE,$12,$BC,$12,$AB
+        .byte   $12,$94,$12,$86,$12,$71,$12,$64
+        .byte   $12,$52,$12,$48,$12,$31,$12,$20
+        .byte   $12,$20,$86,$53,$20,$0D,$44,$CD
+        .byte   $11,$A5,$C5,$20,$76,$55,$C9,$00
+        .byte   $D0,$06,$20,$0D,$44,$1B,$17,$60
+        .byte   $A5,$C6,$85,$8A,$A5,$C7,$85,$8B
+        .byte   $A0,$10,$B1,$8A,$AA,$A5,$C5,$4C
+        .byte   $0F,$58,$20,$86,$53,$A5,$15,$20
+        .byte   $31,$53,$A0,$0E,$B1,$8A,$8D,$C1
+        .byte   $63,$C8,$B1,$8A,$8D,$C2,$63,$0D
+        .byte   $C1,$63,$F0,$06,$20,$0D,$44,$00
+        .byte   $00,$60,$20,$0D,$44,$E0,$13,$A5
+        .byte   $8A,$85,$88,$A5,$8B,$85,$89,$20
+        .byte   $21,$55,$A9,$2E,$20,$2F,$2C,$4C
+        .byte   $2C,$2C,$A5,$19,$85,$88,$A5,$1A
+        .byte   $85,$89,$20,$49,$53,$B0,$06,$20
+        .byte   $0D,$44,$C8,$11,$60,$A5,$16,$20
+        .byte   $B3,$55,$A0,$03,$18,$71,$8A,$85
+        .byte   $6C,$B1,$88,$38,$E5,$6C,$B0,$06
+        .byte   $20,$0D,$44,$E3,$11,$60,$20,$86
+        .byte   $53,$A5,$16,$A0,$01,$91,$17,$A0
+        .byte   $10,$B1,$88,$91,$17,$AA,$A5,$15
+        .byte   $4C,$12,$56,$20,$70,$5A,$F0,$03
+        .byte   $4C,$9D,$5A,$A5,$19,$85,$88,$A5
+        .byte   $1A,$85,$89,$A0,$07,$B1,$88,$29
+        .byte   $08,$08,$A9,$83,$28,$F0,$03,$4C
+        .byte   $90,$5A,$20,$86,$53,$A0,$07,$B1
+        .byte   $8A,$09,$01,$91,$8A,$60,$A5,$17
+        .byte   $85,$8A,$A5,$18,$85,$8B,$A0,$07
+        .byte   $B1,$8A,$29,$01,$08,$A9,$00,$28
+        .byte   $D0,$03,$4C,$9D,$5A,$20,$85,$5A
+        .byte   $D0,$F8,$A5,$19,$85,$88,$A5,$1A
+        .byte   $85,$89,$A0,$07,$B1,$88,$29,$08
+        .byte   $08,$A9,$83,$28,$F0,$03,$4C,$90
+        .byte   $5A,$20,$86,$53,$A0,$07
 code_6480:
         lda     ($8A),y
         and     #$FE
         sta     ($8A),y
         rts
 
-L6487:  .byte   $A9,$00,$85,$C3,$A9,$04,$20,$D7
-        .byte   $56,$0A,$85,$6C,$0A,$18,$65,$6C
-        .byte   $69,$26,$85,$C1,$A9,$00,$69,$71
-        .byte   $85,$C2,$A0,$01,$B1,$C1,$85,$88
-        .byte   $C8,$B1,$C1,$85,$89,$A0,$02,$A9
-        .byte   $00,$91,$88,$88,$10,$F9,$A9,$03
-        .byte   $20,$D7,$56,$0A,$0A,$18,$69,$16
-        .byte   $85,$BF,$A9,$00,$69,$71,$85,$C0
-        .byte   $20,$F7,$6E,$D0,$01,$60,$A9,$00
-        .byte   $91,$88,$C8,$A9,$10,$91,$88,$60
-code_64D7:
-        ldy     #$07
+L6487:  lda     #$00
+        sta     $C3
+        lda     #$04
+        jsr     code_56D7
+        asl     a
+        sta     $6C
+        asl     a
+        clc
+        adc     $6C
+        adc     #$26
+        sta     $C1
+        lda     #$00
+        adc     #$71
+        sta     $C2
+        ldy     #$01
+        lda     ($C1),y
+        sta     $88
+        iny
+        lda     ($C1),y
+        sta     $89
+        ldy     #$02
+L64AE:  lda     #$00
+        sta     ($88),y
+        dey
+        bpl     L64AE
+        lda     #$03
+        jsr     code_56D7
+        asl     a
+        asl     a
+        clc
+        adc     #$16
+        sta     $BF
+        lda     #$00
+        adc     #$71
+        sta     $C0
+        jsr     L6EF7
+        bne     L64CD
+        rts
+
+L64CD:  lda     #$00
+        sta     ($88),y
+        iny
+        lda     #$10
+        sta     ($88),y
+        rts
+
+L64D7:  ldy     #$07
         lda     ($8A),y
         and     #$20
         php
@@ -7699,12 +7469,35 @@ L64F4:  lda     #$02
         .byte   $68,$85,$13,$60,$20,$86,$53,$20
         .byte   $0D,$44,$94,$14,$A5,$C5,$48,$D0
         .byte   $05,$20,$0D,$44,$81,$11,$68,$4C
-        .byte   $47,$4D,$AD,$CB,$1C,$29,$80,$F0
-        .byte   $06,$20,$0D,$44,$54,$14,$60,$20
-        .byte   $86,$53,$A0,$07,$B1,$C6,$09,$80
-        .byte   $91,$C6,$AD,$CB,$1C,$09,$80,$8D
-        .byte   $CB,$1C,$A0,$05,$B1,$C6,$0A,$0A
-        .byte   $91,$C6,$A9,$00,$8D,$31,$2B,$60
+        .byte   $47,$4D
+code_667C:
+        lda     $1CCB
+        and     #$80
+        beq     L6689
+        jsr     L440D
+; -> $1454 .j WEARING...e....`.k......c
+msg_6686:
+        .word   $1454
+code_6688:
+        rts
+
+L6689:  jsr     L5386
+        ldy     #$07
+        lda     ($C6),y
+        ora     #$80
+        sta     ($C6),y
+        lda     $1CCB
+        ora     #$80
+        sta     $1CCB
+        ldy     #$05
+        lda     ($C6),y
+        asl     a
+        asl     a
+        sta     ($C6),y
+        lda     #$00
+        sta     $2B31
+        rts
+
         .byte   $20,$86,$53,$A0,$07,$B1,$C6,$29
         .byte   $7F,$91,$C6,$A0,$05,$B1,$C6,$4A
         .byte   $4A,$91,$C6,$AD,$CB,$1C,$29,$7F
@@ -7749,50 +7542,50 @@ L64F4:  lda     #$02
         .byte   $16,$85,$16,$86,$15,$4C,$62,$5A
         .byte   $20,$BD,$5F,$D0,$F0,$A0,$07,$B1
         .byte   $17,$29,$02,$D0,$E8,$A5,$16,$20
-        .byte   $76,$55,$C9,$00,$F0,$06,$20
-L6811:  .byte   $0D,$44,$60,$14,$60,$A0,$07,$B1
-        .byte   $17,$29,$08,$D0,$0D,$B1,$17,$29
-        .byte   $40,$D0,$CB,$A5,$16,$20,$4B,$53
-        .byte   $90,$C4,$20,$86,$53,$20,$49,$53
-        .byte   $A5,$16,$A0,$01,$91,$17,$B0,$13
-        .byte   $A9,$00,$85,$0C,$20,$C9,$5B,$A5
-        .byte   $12,$08,$A9,$01,$85,$0C,$85,$12
-        .byte   $28,$F0,$07,$A5,$C5,$A0,$01,$91
-        .byte   $19,$60,$A9,$FF,$D0,$F7,$A2,$E3
-        .byte   $A0,$67,$4C,$93,$57,$A5,$C5,$C9
-        .byte   $3C,$F0,$03,$4C,$62,$5A,$20,$86
-        .byte   $53,$4C,$45,$4D,$A0,$01,$A5,$15
-        .byte   $D1,$C6,$F0,$03,$4C,$62,$5A,$20
-        .byte   $31,$53,$20,$D7,$64,$D0,$03,$4C
-        .byte   $9D,$5A,$20,$86,$53,$A0,$01,$A9
-        .byte   $FF,$91,$C6,$60,$A9,$00,$8D,$58
-        .byte   $4E,$AD,$1B,$1B,$C9,$13,$D0,$05
-        .byte   $20,$0D,$44,$0C,$17,$A9,$22,$8D
-        .byte   $94,$1D,$AA,$A9,$13,$20,$12,$56
-        .byte   $A9,$20,$8D,$94,$1D,$AD,$8B,$1D
-        .byte   $29,$DF,$09,$04,$8D,$8B,$1D,$A9
-        .byte   $00,$85,$0B,$A9,$13,$20,$13,$57
-        .byte   $A9,$01,$85,$0B,$A9,$20,$8D,$B8
-        .byte   $1D,$A9,$13,$8D,$A9,$1D,$60,$A5
-        .byte   $C9,$C5,$C8,$F0,$01,$60,$20,$86
-        .byte   $53,$20,$24,$5B,$3F,$14,$60,$20
-        .byte   $86,$53,$A9,$02,$20,$D7,$56,$C9
-        .byte   $00,$D0,$06,$20,$24,$5B,$32,$14
-        .byte   $60,$C9,$01,$D0,$06,$20,$24,$5B
-        .byte   $3B,$14,$60,$20,$24,$5B,$3F,$14
-        .byte   $60,$60,$AD,$F3,$1C,$29,$DF,$8D
-        .byte   $F3,$1C,$60,$20,$86,$53,$20,$24
-        .byte   $5B,$41,$14,$60,$20,$86,$53
-L6918:  .byte   $A9,$0A,$20,$D7,$56,$C9,$08,$90
-        .byte   $06,$20,$24,$5B,$85,$14,$60,$20
-        .byte   $24,$5B,$23,$14,$60,$20,$86,$53
-        .byte   $20,$24,$5B,$27,$14,$60,$20,$86
-        .byte   $53,$A9,$08,$20,$D7,$56,$C9,$05
-        .byte   $90,$01,$60,$C9,$03,$90,$06,$20
-        .byte   $9E,$4D,$D6,$14,$60,$C9,$03,$D0
-        .byte   $01,$60,$C9,$00,$D0,$06,$20,$9E
-        .byte   $4D,$C7,$14,$60,$20,$24,$5B,$3B
-        .byte   $14,$60,$A5,$C9,$C5,$C8
+        .byte   $76,$55,$C9,$00,$F0,$06,$20,$0D
+        .byte   $44,$60,$14,$60,$A0,$07,$B1,$17
+        .byte   $29,$08,$D0,$0D,$B1,$17,$29,$40
+        .byte   $D0,$CB,$A5,$16,$20,$4B,$53,$90
+        .byte   $C4,$20,$86,$53,$20,$49,$53,$A5
+        .byte   $16,$A0,$01,$91,$17,$B0,$13,$A9
+        .byte   $00,$85,$0C,$20,$C9,$5B,$A5,$12
+        .byte   $08,$A9,$01,$85,$0C,$85,$12,$28
+        .byte   $F0,$07,$A5,$C5,$A0,$01,$91,$19
+        .byte   $60,$A9,$FF,$D0,$F7,$A2,$E3,$A0
+        .byte   $67,$4C,$93,$57,$A5,$C5,$C9,$3C
+        .byte   $F0,$03,$4C,$62,$5A,$20,$86,$53
+        .byte   $4C,$45,$4D,$A0,$01,$A5,$15,$D1
+        .byte   $C6,$F0,$03,$4C,$62,$5A,$20,$31
+        .byte   $53,$20,$D7,$64,$D0,$03,$4C,$9D
+        .byte   $5A,$20,$86,$53,$A0,$01,$A9,$FF
+        .byte   $91,$C6,$60,$A9,$00,$8D,$58,$4E
+        .byte   $AD,$1B,$1B,$C9,$13,$D0,$05,$20
+        .byte   $0D,$44,$0C,$17,$A9,$22,$8D,$94
+        .byte   $1D,$AA,$A9,$13,$20,$12,$56,$A9
+        .byte   $20,$8D,$94,$1D,$AD,$8B,$1D,$29
+        .byte   $DF,$09,$04,$8D,$8B,$1D,$A9,$00
+        .byte   $85,$0B,$A9,$13,$20,$13,$57,$A9
+        .byte   $01,$85,$0B,$A9,$20,$8D,$B8,$1D
+        .byte   $A9,$13,$8D,$A9,$1D,$60,$A5,$C9
+        .byte   $C5,$C8,$F0,$01,$60,$20,$86,$53
+        .byte   $20,$24,$5B,$3F,$14,$60,$20,$86
+        .byte   $53,$A9,$02,$20,$D7,$56,$C9,$00
+        .byte   $D0,$06,$20,$24,$5B,$32,$14,$60
+        .byte   $C9,$01,$D0,$06,$20,$24,$5B,$3B
+        .byte   $14,$60,$20,$24,$5B,$3F,$14,$60
+        .byte   $60,$AD,$F3,$1C,$29,$DF,$8D,$F3
+        .byte   $1C,$60,$20,$86,$53,$20,$24,$5B
+        .byte   $41,$14,$60,$20,$86,$53,$A9,$0A
+        .byte   $20,$D7,$56,$C9,$08,$90,$06,$20
+        .byte   $24,$5B,$85,$14,$60,$20,$24,$5B
+        .byte   $23,$14,$60,$20,$86,$53,$20,$24
+        .byte   $5B,$27,$14,$60,$20,$86,$53,$A9
+        .byte   $08,$20,$D7,$56,$C9,$05,$90,$01
+        .byte   $60,$C9,$03,$90,$06,$20,$9E,$4D
+        .byte   $D6,$14,$60,$C9,$03,$D0,$01,$60
+        .byte   $C9,$00,$D0,$06,$20,$9E,$4D,$C7
+        .byte   $14,$60,$20,$24,$5B,$3B,$14,$60
+        .byte   $A5,$C9,$C5,$C8
 code_6966:
         beq     L6969
         rts
@@ -7804,11 +7597,8 @@ L6969:  lda     $1B21
 
 L6971:  jsr     L5386
         jsr     L5B24
-        .byte   $AB
-        .byte   $14
-code_6979:
-        rts
-
+        .byte   $AB,$14,$60
+code_697A:
         jsr     L5386
         lda     $C8
         cmp     $1DE0
@@ -7819,50 +7609,18 @@ L6985:  jsr     L4D9E
         ror     $14
         rts
 
-        lda     #$19
-        jsr     L534B
-        bcs     L6998
-        jsr     L440D
-        .byte   $03
-        ora     $60,x
-L6998:  jsr     L6250
-        jsr     L5386
-        lda     #$0B
-        sta     $13
-        lda     $C5
-        cmp     #$46
-        beq     L69BD
-        lda     $15
-        cmp     #$3C
-        bne     L69B4
-L69AE:  jsr     L440D
-        ora     #$15
-        rts
-
-L69B4:  lda     #$08
-        jsr     L56D7
-        cmp     #$03
-        bcc     L69AE
-L69BD:  lda     $15
-        cmp     #$1A
-        beq     L69C8
-        lda     #$FF
-        sta     $1E74
-L69C8:  jsr     L440D
-        asl     $15,x
-        lda     $17
-        sta     $8A
-        lda     $18
-        sta     $8B
-        jsr     L5B1B
-        beq     L69DD
-        jmp     L60ED
-
-L69DD:  lda     $15
-        jsr     L4D47
-        lda     #$06
-        jmp     L5A9D
-
+        .byte   $A9,$19,$20,$4B,$53,$B0,$06,$20
+        .byte   $0D,$44,$03,$15,$60,$20,$50,$62
+        .byte   $20,$86,$53,$A9,$0B,$85,$13,$A5
+        .byte   $C5,$C9,$46,$F0,$15,$A5,$15,$C9
+        .byte   $3C,$D0,$06,$20,$0D,$44,$09,$15
+        .byte   $60,$A9,$08,$20,$D7,$56,$C9,$03
+        .byte   $90,$F1,$A5,$15,$C9,$1A,$F0,$05
+        .byte   $A9,$FF,$8D,$74,$1E,$20,$0D,$44
+        .byte   $16,$15,$A5,$17,$85,$8A,$A5,$18
+        .byte   $85,$8B,$20,$1B,$5B,$F0,$03,$4C
+        .byte   $ED,$60,$A5,$15,$20,$47,$4D,$A9
+        .byte   $06,$4C,$9D,$5A
 code_69E7:
         lda     $1F38
         cmp     #$25
@@ -7870,8 +7628,9 @@ code_69E7:
         rts
 
 L69EF:  jsr     L440D
-        .byte   $22
-        .byte   $17
+; -> $1722 ...a CHEERING CROWDf DWARVES
+msg_69F2:
+        .word   $1722
 code_69F4:
         lda     $CC
         clc
@@ -7879,48 +7638,39 @@ code_69F4:
         sta     $CC
         bcc     L69FF
         inc     $CD
-L69FF:  jmp     L5FB7
+L69FF:  jmp     code_5FB7
 
-        jsr     L4D95
-        lda     $C5
-        beq     L6A0A
-        rts
-
-L6A0A:  jsr     L440D
-        .byte   $80
-        .byte   $13,$4C,$6E,$6A,$A5,$C5,$C9,$00
-        .byte   $F0,$01,$60,$A9,$01,$85,$C4,$AD
-        .byte   $35,$2B,$8D,$36,$2B,$60,$A0,$10
-        .byte   $B1,$17,$8D,$5C,$6A,$20,$74,$57
-        .byte   $C9,$FF,$D0,$06,$20,$0D,$44,$E1
-        .byte   $16,$60,$A0,$00,$B1,$8A,$C9,$0A
-        .byte   $D0,$F2,$20,$86,$53,$AE,$5C,$6A
-        .byte   $A5,$15,$A0,$01,$91,$C6,$20,$12
-        .byte   $56,$A5,$C5,$C9,$00,$F0,$01,$60
-        .byte   $AD,$5C,$6A,$4C,$C6,$4D,$4E,$60
-        .byte   $20,$86,$53,$AD,$76,$1F,$C9,$12
-        .byte   $F0,$01,$60,$20,$0D,$44,$70,$13
-        .byte   $AD,$85,$1F,$A2,$42,$C9,$42,$D0
-        .byte   $02,$A2,$43,$8E,$85,$1F,$A9,$FF
-        .byte   $8D,$76,$1F,$A9,$29,$4C,$12,$56
-        .byte   $A5,$16,$20,$6F,$57,$C9,$FF,$D0
-        .byte   $03,$4C,$62,$5A,$20,$86,$53,$20
-        .byte   $0D,$44,$46,$13,$AD,$85,$1F,$A0
-        .byte   $02,$D1,$8A,$D0,$21,$20,$E3,$6A
-        .byte   $B0,$11,$20,$E3,$6A,$B0,$06,$20
-        .byte   $0D,$44,$67,$13,$60,$20,$0D,$44
-        .byte   $55,$13,$60,$A9,$12,$8D,$76,$1F
-        .byte   $20,$0D,$44,$61,$13,$60,$20,$E3
-        .byte   $6A,$B0,$EA,$A0,$02,$B1,$8A,$A0
-        .byte   $10,$91,$17,$AA,$A9,$FF,$A0,$01
-        .byte   $91,$17,$A5,$15,$20,$12,$56,$20
-        .byte   $0D,$44,$4D,$13,$60
-code_6AE3:
-        lda     #$64
-        jsr     L56D7
-        cmp     #$32
-        rts
-
+        .byte   $20,$95,$4D,$A5,$C5,$F0,$01,$60
+        .byte   $20,$0D,$44,$80,$13,$4C,$6E,$6A
+        .byte   $A5,$C5,$C9,$00,$F0,$01,$60,$A9
+        .byte   $01,$85,$C4,$AD,$35,$2B,$8D,$36
+        .byte   $2B,$60,$A0,$10,$B1,$17,$8D,$5C
+        .byte   $6A,$20,$74,$57,$C9,$FF,$D0,$06
+        .byte   $20,$0D,$44,$E1,$16,$60,$A0,$00
+        .byte   $B1,$8A,$C9,$0A,$D0,$F2,$20,$86
+        .byte   $53,$AE,$5C,$6A,$A5,$15,$A0,$01
+        .byte   $91,$C6,$20,$12,$56,$A5,$C5,$C9
+        .byte   $00,$F0,$01,$60,$AD,$5C,$6A,$4C
+        .byte   $C6,$4D,$4E,$60,$20,$86,$53,$AD
+        .byte   $76,$1F,$C9,$12,$F0,$01,$60,$20
+        .byte   $0D,$44,$70,$13,$AD,$85,$1F,$A2
+        .byte   $42,$C9,$42,$D0,$02,$A2,$43,$8E
+        .byte   $85,$1F,$A9,$FF,$8D,$76,$1F,$A9
+        .byte   $29,$4C,$12,$56,$A5,$16,$20,$6F
+        .byte   $57,$C9,$FF,$D0,$03,$4C,$62,$5A
+        .byte   $20,$86,$53,$20,$0D,$44,$46,$13
+        .byte   $AD,$85,$1F,$A0,$02,$D1,$8A,$D0
+        .byte   $21,$20,$E3,$6A,$B0,$11,$20,$E3
+        .byte   $6A,$B0,$06,$20,$0D,$44,$67,$13
+        .byte   $60,$20,$0D,$44,$55,$13,$60,$A9
+        .byte   $12,$8D,$76,$1F,$20,$0D,$44,$61
+        .byte   $13,$60,$20,$E3,$6A,$B0,$EA,$A0
+        .byte   $02,$B1,$8A,$A0,$10,$91,$17,$AA
+        .byte   $A9,$FF,$A0,$01,$91,$17,$A5,$15
+        .byte   $20,$12,$56,$20,$0D,$44,$4D,$13
+        .byte   $60,$A9,$64,$20,$D7,$56,$C9,$32
+        .byte   $60
+code_6AEB:
         jsr     L4D95
         lda     #$06
         sta     $2B40
@@ -7928,92 +7678,102 @@ code_6AE3:
         and     #$7F
         ora     #$01
         sta     $1C7B
-        jmp     L6D72
+        jmp     code_6D72
 
-        lda     $C5
-        cmp     #$00
-        bne     L6B16
-        .byte   $AD,$1B,$1B,$C9,$FF,$F0,$03,$4C
-        .byte   $62,$5A,$20,$0D,$44,$FD,$14,$60
-L6B16:  .byte   $A5,$13,$C9,$0D,$D0,$03,$4C,$C9
-        .byte   $61,$C9,$10,$D0,$03,$4C,$22,$62
-        .byte   $60,$A5,$C5,$C9,$00,$D0,$10,$AD
-        .byte   $1B,$1B,$C9,$FF,$F0,$03,$4C,$62
-        .byte   $5A,$20,$0D,$44,$FD,$14,$60,$A5
-        .byte   $13,$C9,$1E,$D0,$03,$4C,$06,$5D
-        .byte   $C9,$0C,$D0,$03,$4C,$ED,$60,$C9
-        .byte   $18,$D0,$03,$4C,$A9,$5C,$60,$20
-        .byte   $86,$53,$A0,$07,$B1,$C6,$29,$80
-        .byte   $F0,$06,$20,$0D,$44,$D4,$13,$60
-        .byte   $AD,$2B,$2B,$8D,$2C,$2B,$20,$0D
-        .byte   $44,$8B,$16,$60,$A5,$C5,$C9,$41
-        .byte   $F0,$03,$4C,$A4,$63,$20,$86,$53
-        .byte   $A0,$01,$B1,$C1,$85,$88,$C8,$B1
-        .byte   $C1,$85,$89,$C8,$A5,$C3,$D0,$14
-        .byte   $A2,$00,$98,$48,$B1,$C1,$48,$8A
-        .byte   $A8,$68,$91,$88,$68,$A8,$C8,$E8
-        .byte   $E0,$03,$D0,$EE,$A0,$05,$B1,$C1
-        .byte   $20,$E4,$43,$A5,$8A,$8D,$73,$46
-        .byte   $A5,$8B,$8D,$74,$46,$A0,$00,$B1
-        .byte   $C1,$20,$E4,$43,$A5,$8A,$8D,$71
-        .byte   $46,$A5,$8B,$8D,$72,$46,$A0,$03
-        .byte   $B1,$C1,$20,$E7,$59,$A5,$5C,$8D
-        .byte   $6F,$46,$A5,$5D,$8D,$70,$46,$20
-        .byte   $24,$5B,$AB,$15,$60,$AD,$51,$1D
-        .byte   $29,$08,$D0,$01,$60,$20,$95,$4D
-        .byte   $AD,$9D,$1B,$09,$08,$8D,$9D,$1B
-        .byte   $A9,$02,$20,$F0,$5A,$A9,$1A,$85
-        .byte   $88,$A9,$1B,$85,$89,$A9,$02,$20
-        .byte   $A9,$54,$D0,$01,$60,$20,$0D,$44
-        .byte   $EB,$14,$60,$AD,$4B,$1E,$C5,$C8
-        .byte   $F0,$01,$60,$AD,$21,$1B,$29,$80
-        .byte   $D0,$01,$60,$20,$86,$53,$A0,$02
-        .byte   $B1,$BF,$8D,$2C,$6C,$C8,$B1,$BF
-        .byte   $8D,$2D,$6C,$20,$24,$5B,$00,$00
-        .byte   $A9,$01,$85,$D5,$60
-L6C33:  .byte   $A5,$CE,$C9,$01,$F0,$01,$60,$A9
-        .byte   $00,$85,$CE,$A9,$01,$20,$7F,$3F
-        .byte   $D0,$01,$60,$A9,$00,$85,$12,$A5
-        .byte   $14,$8D,$7B,$2A,$A5,$15,$8D,$7C
-        .byte   $2A,$A5,$16,$8D,$7D,$2A,$A9,$42
-        .byte   $8D,$7A,$2A,$60,$A5,$C8,$C9,$1D
-        .byte   $F0,$06,$A9,$00,$8D,$27,$2B,$60
-        .byte   $20,$0D,$44,$35,$15,$AD,$27,$2B
-        .byte   $F0,$01,$60,$4C,$AE,$5F
-L6C79:  .byte   $AD,$26,$1D,$29,$DF,$8D,$26,$1D
-        .byte   $20,$EF,$6D,$F0,$01,$60,$20,$0D
-        .byte   $44,$1C,$14,$60,$A5,$C8,$C9,$27
-        .byte   $F0,$09,$C9,$2C,$F0,$05,$C9,$29
-        .byte   $F0,$01,$60,$20,$86,$53,$A5,$C8
-        .byte   $CD,$40,$1B,$D0,$01,$60,$8D,$40
-        .byte   $1B,$A9,$01,$85,$0B,$A9,$38,$8D
-        .byte   $6F,$46,$A9,$1B,$8D,$70,$46,$20
-        .byte   $0D,$44,$F6,$13,$60,$A5,$C8,$C5
-        .byte   $C9,$F0,$01,$60,$20,$86,$53,$AD
-        .byte   $21,$1B,$29,$80,$F0,$06,$20,$0D
-        .byte   $44,$3F,$15,$60,$20,$0D,$44,$5D
-        .byte   $15,$60,$A5,$C9,$C5,$C8,$F0,$01
-        .byte   $60,$20,$86,$53,$A9,$1B,$85,$13
-        .byte   $A9,$00,$85,$15,$A9,$FF,$85,$16
-        .byte   $20,$62,$5A,$20,$BF,$60,$4C,$AE
-        .byte   $5F,$A5,$C9,$C5,$C8,$F0,$01,$60
-        .byte   $AD,$C1,$1F,$F0,$08,$AD,$B2,$1F
-        .byte   $C9,$41,$F0,$01,$60,$20,$86,$53
-        .byte   $A5,$C9,$8D,$C1,$1F,$A9,$41,$8D
-        .byte   $B2,$1F,$A9,$00,$85,$16,$A9,$26
-        .byte   $85,$15,$A9,$1D,$85,$13,$A9,$B1
-        .byte   $85,$17,$A9,$1F,$85,$18,$A9,$1A
-        .byte   $85,$19,$A9,$1B,$85,$1A,$20,$62
-        .byte   $5A,$4C,$DC,$63
-L6D3D:  .byte   $A5,$C8,$C9,$02,$F0,$05,$C9,$03
-        .byte   $F0,$01,$60,$20,$0D,$44,$F0,$16
-L6D4D:  .byte   $20,$0D,$44,$FF,$16,$4C,$AE,$5F
+        .byte   $A5,$C5,$C9,$00,$D0,$10,$AD,$1B
+        .byte   $1B,$C9,$FF,$F0,$03,$4C,$62,$5A
+        .byte   $20,$0D,$44,$FD,$14,$60,$A5,$13
+        .byte   $C9,$0D,$D0,$03,$4C,$C9,$61,$C9
+        .byte   $10,$D0,$03,$4C,$22,$62,$60,$A5
+        .byte   $C5,$C9,$00,$D0,$10,$AD,$1B,$1B
+        .byte   $C9,$FF,$F0,$03,$4C,$62,$5A,$20
+        .byte   $0D,$44,$FD,$14,$60,$A5,$13,$C9
+        .byte   $1E,$D0,$03,$4C,$06,$5D,$C9,$0C
+        .byte   $D0,$03,$4C,$ED,$60,$C9,$18,$D0
+        .byte   $03,$4C,$A9,$5C,$60,$20,$86,$53
+        .byte   $A0,$07,$B1,$C6,$29,$80,$F0,$06
+        .byte   $20,$0D,$44,$D4,$13,$60,$AD,$2B
+        .byte   $2B,$8D,$2C,$2B,$20,$0D,$44,$8B
+        .byte   $16,$60,$A5,$C5,$C9,$41,$F0,$03
+        .byte   $4C,$A4,$63,$20,$86,$53,$A0,$01
+        .byte   $B1,$C1,$85,$88,$C8,$B1,$C1,$85
+        .byte   $89,$C8,$A5,$C3,$D0,$14,$A2,$00
+        .byte   $98,$48,$B1,$C1,$48,$8A,$A8,$68
+        .byte   $91,$88,$68,$A8,$C8,$E8,$E0,$03
+        .byte   $D0,$EE,$A0,$05,$B1,$C1,$20,$E4
+        .byte   $43,$A5,$8A,$8D,$73,$46,$A5,$8B
+        .byte   $8D,$74,$46,$A0,$00,$B1,$C1,$20
+        .byte   $E4,$43,$A5,$8A,$8D,$71,$46,$A5
+        .byte   $8B,$8D,$72,$46,$A0,$03,$B1,$C1
+        .byte   $20,$E7,$59,$A5,$5C,$8D,$6F,$46
+        .byte   $A5,$5D,$8D,$70,$46,$20,$24,$5B
+        .byte   $AB,$15,$60,$AD,$51,$1D,$29,$08
+        .byte   $D0,$01,$60,$20,$95,$4D,$AD,$9D
+        .byte   $1B,$09,$08,$8D,$9D,$1B,$A9,$02
+        .byte   $20,$F0,$5A,$A9,$1A,$85,$88,$A9
+        .byte   $1B,$85,$89,$A9,$02,$20,$A9,$54
+        .byte   $D0,$01,$60,$20,$0D,$44,$EB,$14
+        .byte   $60,$AD,$4B,$1E,$C5,$C8,$F0,$01
+        .byte   $60,$AD,$21,$1B,$29,$80,$D0,$01
+        .byte   $60,$20,$86,$53,$A0,$02,$B1,$BF
+        .byte   $8D,$2C,$6C,$C8,$B1,$BF,$8D,$2D
+        .byte   $6C,$20,$24,$5B,$00,$00,$A9,$01
+        .byte   $85,$D5,$60,$A5,$CE,$C9,$01,$F0
+        .byte   $01,$60,$A9,$00,$85,$CE,$A9,$01
+        .byte   $20,$7F,$3F,$D0,$01,$60,$A9,$00
+        .byte   $85,$12,$A5,$14,$8D,$7B,$2A,$A5
+        .byte   $15,$8D,$7C,$2A,$A5,$16,$8D,$7D
+        .byte   $2A,$A9,$42,$8D,$7A,$2A,$60,$A5
+        .byte   $C8,$C9,$1D,$F0,$06,$A9,$00,$8D
+        .byte   $27,$2B,$60,$20,$0D,$44,$35,$15
+        .byte   $AD,$27,$2B,$F0,$01,$60,$4C,$AE
+        .byte   $5F,$AD,$26,$1D,$29,$DF,$8D,$26
+        .byte   $1D,$20,$EF,$6D,$F0,$01,$60,$20
+        .byte   $0D,$44,$1C,$14,$60,$A5,$C8,$C9
+        .byte   $27,$F0,$09,$C9,$2C,$F0,$05,$C9
+        .byte   $29,$F0,$01,$60,$20,$86,$53,$A5
+        .byte   $C8,$CD,$40,$1B,$D0,$01,$60,$8D
+        .byte   $40,$1B,$A9,$01,$85,$0B,$A9,$38
+        .byte   $8D,$6F,$46,$A9,$1B,$8D,$70,$46
+        .byte   $20,$0D,$44,$F6,$13,$60,$A5,$C8
+        .byte   $C5,$C9,$F0,$01,$60,$20,$86,$53
+        .byte   $AD,$21,$1B,$29,$80,$F0,$06,$20
+        .byte   $0D,$44,$3F,$15,$60,$20,$0D,$44
+        .byte   $5D,$15,$60,$A5,$C9,$C5,$C8,$F0
+        .byte   $01,$60,$20,$86,$53,$A9,$1B,$85
+        .byte   $13,$A9,$00,$85,$15,$A9,$FF,$85
+        .byte   $16,$20,$62,$5A,$20,$BF,$60,$4C
+        .byte   $AE,$5F,$A5,$C9,$C5,$C8,$F0,$01
+        .byte   $60,$AD,$C1,$1F,$F0,$08,$AD,$B2
+        .byte   $1F,$C9,$41,$F0,$01,$60,$20,$86
+        .byte   $53,$A5,$C9,$8D,$C1,$1F,$A9,$41
+        .byte   $8D,$B2,$1F,$A9,$00,$85,$16,$A9
+        .byte   $26,$85,$15,$A9,$1D,$85,$13,$A9
+        .byte   $B1,$85,$17,$A9,$1F,$85,$18,$A9
+        .byte   $1A,$85,$19,$A9,$1B,$85,$1A,$20
+        .byte   $62,$5A,$4C,$DC,$63,$A5,$C8,$C9
+        .byte   $02,$F0,$05,$C9,$03,$F0,$01,$60
+        .byte   $20,$0D,$44,$F0,$16
+code_6D4D:
+        jsr     L440D
+; -> $16FF .T....x.Lb...c|....`..f`.^..
+msg_6D50:
+        .word   $16FF
+code_6D52:
+        jmp     L5FAE
+
         .byte   $AD,$7B,$1C,$29,$20,$F0,$01,$60
         .byte   $AD,$3F,$2B,$8D,$40,$2B,$AD,$7B
         .byte   $1C,$29,$7F,$8D,$7B,$1C,$A5,$C8
         .byte   $C9,$2A,$F0,$01,$60
-L6D72:  .byte   $20,$0D,$44,$85,$16,$60
-code_6D78:
+code_6D72:
+        jsr     L440D
+; -> $1685 `.a.].`..}..f.Z.....e`...q..
+msg_6D75:
+        .word   $1685
+code_6D77:
+        rts
+
         lda     $C8
         cmp     $1E4B
         beq     L6D80
@@ -8021,7 +7781,7 @@ code_6D78:
 
 L6D80:  jsr     L5386
         lda     #$08
-        jsr     L56D7
+        jsr     code_56D7
         cmp     #$04
         bcc     L6D92
 L6D8C:  jsr     L5B24
@@ -8033,7 +7793,10 @@ L6D92:  lda     #$44
         iny
         asl     $60,x
         jsr     L440D
-        beq     L6DBA
+; -> $16F0 .l.T........n...T....x.Lb...
+msg_6DA2:
+        .word   $16F0
+code_6DA4:
         lda     $C8
         cmp     $BE
         bne     L6DAB
@@ -8047,11 +7810,10 @@ L6DB3:  cmp     $C8
         bne     L6DB8
         rts
 
-L6DB8:
-L6DBA           := * + 2
-        jmp     L6D4D
+L6DB8:  jmp     code_6D4D
 
-        lda     $1C7B
+        .byte   $AD,$7B,$1C
+code_6DBE:
         ora     #$80
         sta     $1C7B
         lda     $C8
@@ -8060,20 +7822,30 @@ L6DBA           := * + 2
         rts
 
 L6DCA:  jsr     L440D
-        .byte   $5A
-        asl     $60,x
+; -> $165A ..ea.j.Hba.a...G....x`...c|.
+msg_6DCD:
+        .word   $165A
+code_6DCF:
+        rts
+
         lda     $1D26
         ora     #$20
         sta     $1D26
         jsr     L6DEF
-        bne     L6DE2
+        bne     code_6DE2
         jsr     L440D
-        ora     $14,x
-L6DE2:  jsr     L6DEF
-        bne     L6DEC
+; -> $1415 `..}...`..}....lc. WHAT'Sp ?
+msg_6DE0:
+        .word   $1415
+code_6DE2:
+        jsr     L6DEF
+        bne     code_6DEC
         jsr     L440D
-        sbc     $14,x
-L6DEC:  jmp     L6E35
+; -> $14F5 ...G.1..co.@...jr`.i`.......
+msg_6DEA:
+        .word   $14F5
+code_6DEC:
+        jmp     L6E35
 
 L6DEF:  lda     $C8
         cmp     #$1E
@@ -8111,27 +7883,40 @@ L6E15:  jsr     L3485
 L6E29:  lda     #$01
         sta     $0B
         jsr     L440D
-        ldx     $15,y
+; -> $15B6 .X..cx. ... '.7 '.kos SEEN,o
+msg_6E30:
+        .word   $15B6
+code_6E32:
         jmp     L5FAE
 
 L6E35:  lda     $1CC5
         cmp     #$FF
-        .byte   $D0,$01,$60,$20,$31,$53,$A5,$8A
-        .byte   $85,$C6,$A5,$8B,$85,$C7,$A0,$07
-        .byte   $B1,$8A,$29,$80,$F0,$01,$60,$4C
-        .byte   $7C,$66
-code_6E54:
+        bne     L6E3D
+        rts
+
+L6E3D:  jsr     L5331
+        lda     $8A
+        sta     $C6
+        lda     $8B
+        sta     $C7
+        ldy     #$07
+        lda     ($8A),y
+        and     #$80
+        beq     L6E51
+        rts
+
+L6E51:  jmp     code_667C
+
         lda     #$00
         sta     $C4
         rts
 
-L6E59:  lda     $1F47
+        lda     $1F47
         cmp     #$29
         bne     L6E61
         rts
 
 L6E61:  jsr     L5386
-L6E65           := * + 1
         lda     #$01
         sta     $0B
         jsr     L5374
@@ -8142,17 +7927,23 @@ L6E65           := * + 1
         rts
 
 L6E74:  lda     #$64
-        jsr     L56D7
+        jsr     code_56D7
         cmp     #$50
         bcs     L6E83
         jsr     L440D
-        .byte   $82
-        ora     $60,x
+; -> $1582 g`..cl`..fa..y...jc.`y..bga.
+msg_6E80:
+        .word   $1582
+code_6E82:
+        rts
+
 L6E83:  jsr     L440D
-        stx     $15,y
+; -> $1596 `y..bga.d..f....cda.M...x.d.
+msg_6E86:
+        .word   $1596
+code_6E88:
         jmp     L5FAE
 
-code_6E8B:
         lda     $C8
         cmp     #$05
         beq     L6E92
@@ -8161,52 +7952,33 @@ code_6E8B:
 L6E92:  jsr     L5386
         lda     $C5
         cmp     #$47
-        beq     L6EA1
+        beq     code_6EA1
         jsr     L5B24
-        .byte   $2B
-        asl     $60,x
-L6EA1:  jsr     L5B24
+        .byte   "+"
+        .byte   $16
+        .byte   "`"
+code_6EA1:
+        jsr     L5B24
         ora     $16,x
-        .byte   $60
-code_6EA7:
-        jsr     L5386
-        lda     #$47
-        jsr     L4D47
-        lda     #$48
-        jsr     L4D47
-        lda     $1F94
-        and     #$7F
-        sta     $1F94
-        lda     $1FA6
-        and     #$7F
-        sta     $1FA6
-        lda     #$45
-        sta     $2154
-        lda     #$16
-        sta     $2155
-        lda     $214C
-        and     #$BF
-        sta     $214C
-        lda     #$47
-        jsr     L5713
-        lda     #$48
-        jsr     L5713
-        lda     #$01
-        sta     $0B
-        jsr     L440D
-        .byte   $EB
-        asl     L0020,x
-        .byte   $F7
-        ror     $01D0
         rts
 
+        .byte   $20,$86,$53,$A9,$47,$20,$47,$4D
+        .byte   $A9,$48,$20,$47,$4D,$AD,$94,$1F
+        .byte   $29,$7F,$8D,$94,$1F,$AD,$A6,$1F
+        .byte   $29,$7F,$8D,$A6,$1F,$A9,$45,$8D
+        .byte   $54,$21,$A9,$16,$8D,$55,$21,$AD
+        .byte   $4C,$21,$29,$BF,$8D,$4C,$21,$A9
+        .byte   $47,$20,$13,$57,$A9,$48,$20,$13
+        .byte   $57,$A9,$01,$85,$0B,$20,$0D,$44
+        .byte   $EB,$16,$20,$F7,$6E,$D0,$01,$60
+code_6EEF:
         lda     #$03
         sta     ($88),y
         iny
         sta     ($88),y
         rts
 
-        lda     ptr_block3
+L6EF7:  lda     ptr_block3
         ora     L2C04
         bne     L6F00
         rts
@@ -8231,16 +8003,28 @@ L6F00:  ldx     ptr_block3
         rts
 
 L6F22:  jsr     L440D
-        .byte   $DF
-        .byte   $14,$4C,$AE,$5F,$AD,$F0,$1B,$29
-        .byte   $D7,$8D,$F0,$1B,$AD,$EE,$1B,$0A
-        .byte   $8D,$EE,$1B,$A9,$8F,$8D,$F3,$1B
-        .byte   $A9,$09,$8D,$F4,$1B,$60,$A5,$17
-        .byte   $85,$8A,$A5,$18,$85,$8B,$A5,$16
-        .byte   $C9,$17,$F0,$23,$C9,$18,$F0,$28
-L6F56:  .byte   $A0,$07,$B1,$19,$29,$02,$D0,$03
-        .byte   $4C,$62,$5A,$B1,$8A,$29,$04,$08
-code_6F66:
+; -> $14DF `....e.'.Dc.`.(.f........G.1
+msg_6F25:
+        .word   $14DF
+code_6F27:
+        jmp     L5FAE
+
+        .byte   $AD,$F0,$1B,$29,$D7,$8D,$F0,$1B
+        .byte   $AD,$EE,$1B,$0A,$8D,$EE,$1B,$A9
+        .byte   $8F,$8D,$F3,$1B,$A9,$09,$8D,$F4
+        .byte   $1B,$60,$A5,$17,$85,$8A,$A5,$18
+        .byte   $85,$8B,$A5,$16,$C9,$17,$F0,$23
+        .byte   $C9,$18,$F0,$28
+code_6F56:
+        ldy     #$07
+        lda     ($19),y
+        and     #$02
+        bne     L6F61
+        jmp     L5A62
+
+L6F61:  lda     ($8A),y
+        and     #$04
+        php
         lda     #$82
         plp
         beq     L6F6E
@@ -8253,18 +8037,17 @@ L6F6E:  ldx     #$41
         ldx     #$E2
         ldy     #$1D
         lda     #$15
-        jmp     L6F84
+        jmp     code_6F84
 
-        ldx     #$F6
-        ldy     #$1D
-        lda     #$16
-L6F84:  stx     $19
+        .byte   $A2,$F6,$A0,$1D,$A9,$16
+code_6F84:
+        stx     $19
         sty     $1A
         sta     $16
         ldy     #$01
         lda     #$FF
         sta     ($19),y
-        jmp     L6F56
+        jmp     code_6F56
 
         jsr     L5386
         lda     $17
@@ -8279,47 +8062,48 @@ L6F84:  stx     $19
 
 L6FA9:  jmp     L622D
 
-        ora     ($44,x)
-        eor     L4402,x
-        eor     L4403,x
-        eor     L4404,x
-        eor     L4405,x
-        eor     L4406,x
-        eor     L4407,x
-        eor     L4408,x
-        eor     L4409,x
-        eor     L440A,x
-        eor     $C913,x
-        .byte   $5B
-        asl     L5EB7
+        .byte   $01
+        .byte   "D]"
+        .byte   $02
+        .byte   "D]"
+        .byte   $03
+        .byte   "D]"
+        .byte   $04
+        .byte   "D]"
+        .byte   $05
+        .byte   "D]"
+        .byte   $06
+        .byte   "D]"
+        .byte   $07
+        .byte   "D]"
+        .byte   $08
+        .byte   "D]"
+        .byte   $09
+        .byte   "D]"
+        .byte   $0A
+        .byte   "D]"
+        .byte   $13,$C9
+        .byte   "["
+        .byte   $0E,$B7
+        .byte   "^"
         .byte   $0B
         .byte   "rb"
         .byte   $17
         .byte   "D["
         .byte   $1A
         .byte   "{c"
-        .byte   $1C
-code_6FDA:
-        ldy     $63
-        ora     L63DC,x
-        .byte   $1F
+        .byte   $1C,$A4
+        .byte   "c"
+        .byte   $1D,$DC
+        .byte   "c"
+        .byte   $1F,$FF
+        .byte   "^ "
         .byte   $FF
-code_6FE1:
-        lsr     $FF20,x
-        lsr     $0724,x
-        .byte   $5F
-        .byte   "'"
-code_6FE9:
-        plp
-        .byte   $5F
-        rol     a
-        rti
+        .byte   "^$"
+        .byte   $07
+        .byte   "_'(_*@_0`g"
 
-        .byte   "_"
-code_6FEE:
-        bmi     L7050
-        .byte   $67
-        brk
+        .byte   $00
         .byte   "5R3"
         .byte   $CA
         .byte   "g."
@@ -8382,91 +8166,83 @@ L7015:  .byte   $FF,$BF
         .byte   $86
         .byte   "j"
         .byte   $E3
-        .byte   "g^jUk"
-L7050:  .byte   "rb"
+        .byte   "g^jUkrb"
         .byte   $DB
-        .byte   "k"
-code_7054:
-        eor     ($60,x)
-        .byte   $44
-        .byte   "o"
-code_7058:
-        cmp     $245F
-        ror     a
-        sbc     ($66),y
+        .byte   "kA`Do"
+        .byte   $CD
+        .byte   "_$j"
+        .byte   $F1
+        .byte   "f"
         .byte   $9F
-        rts
-
+        .byte   "`"
         .byte   $12
-code_7061:
-        ror     a
-        inc     $FA64,x
-        .byte   $64
-        .byte   "'k"
-code_7068:
-        brk
-        .byte   $6B
-        .byte   $93,$6F
-code_706C:
-        and     ($5D),y
-        .byte   $02
-        ror     a
-        ora     #$65
-        ldx     $045F
-        ora     $0700,y
-        .byte   $32
-        brk
-        .byte   $0B
-        ora     $1600,y
-        ora     $0D00,y
-        .byte   $4B
-        brk
-        eor     ($32,x)
-        brk
-        .byte   $1B
-        ora     $1C00,y
-        ora     $1F00,y
-        .byte   $32
-        brk
-        .byte   $22
+        .byte   "j"
+        .byte   $FE
         .byte   "d"
-code_7091:
-        brk
-        rol     $19
-        brk
-        rol     a
-        ora     $2B00,y
-        .byte   $32
-        brk
-        and     #$C8
-        brk
-        .byte   $FF
-        asl     $B5,x
-        bvs     L70BD
-        .byte   $CB
-        bvs     L70C3
-        .byte   $D2
-        bvs     L70CA
+        .byte   $FA
+        .byte   "d'k"
+        .byte   $00
+        .byte   "k"
+        .byte   $93
+        .byte   "o1]"
+        .byte   $02
+        .byte   "j"
+        .byte   $09
+        .byte   "e"
+        .byte   $AE
+        .byte   "_"
+        .byte   $04,$19,$00,$07
+        .byte   "2"
+        .byte   $00,$0B,$19,$00,$16,$19,$00,$0D
+        .byte   "K"
+        .byte   $00
+        .byte   "A2"
+        .byte   $00,$1B,$19,$00,$1C,$19,$00,$1F
+        .byte   "2"
+        .byte   $00,$22
+        .byte   "d"
+        .byte   $00
+        .byte   "&"
+        .byte   $19,$00
+        .byte   "*"
+        .byte   $19,$00
+        .byte   "+2"
+        .byte   $00
+        .byte   ")"
+        .byte   $C8,$00,$FF,$16,$B5
+        .byte   "p"
+        .byte   $1A,$CB
+        .byte   "p"
+        .byte   $1D,$D2
+        .byte   "p!"
         .byte   $03
-        adc     ($02),y
-        sed
-        bvs     L70B2
-        sed
-        bvs     L70D2
-L70B2:  .byte   $D9,$70,$FF,$AD,$C5,$1D,$29,$08
-        .byte   $F0,$01,$60
-L70BD:  .byte   $A9,$42,$8D,$61,$2B,$AD
-L70C3:  .byte   $C5,$1D,$09,$80,$8D,$C5,$1D
-L70CA:  .byte   $60
+        .byte   "q"
+        .byte   $02,$F8
+        .byte   "p"
+        .byte   $03,$F8
+        .byte   "p "
+        .byte   $D9
+        .byte   "p"
+        .byte   $FF,$AD,$C5,$1D
+        .byte   ")"
+        .byte   $08,$F0,$01
+        .byte   "`"
+        .byte   $A9
+        .byte   "B"
+        .byte   $8D
+        .byte   "a+"
+        .byte   $AD,$C5,$1D,$09,$80,$8D,$C5,$1D
+        .byte   "`"
 code_70CB:
         lda     $2B1C
         sta     $2B1D
         rts
 
-L70D2:  lda     $2B26
-        sta     $2B27
-        rts
-
+        .byte   $AD
+        .byte   "&+"
+        .byte   $8D
+        .byte   "'+`"
+code_70D9:
         lda     #$03
         sta     $2B40
         lda     $1B37
@@ -8496,80 +8272,35 @@ L70F2:  lda     #$46
 
 L710B:  jsr     L5DFD
         jsr     L440D
-        bvc     L7129
+; -> $1650 ..7.;.t`....ea.j.Hba.a...G..
+msg_7111:
+        .word   $1650
+code_7113:
 L7114           := * + 1
 L7115           := * + 2
         jmp     L5FAE
 
-        .byte   $32
-        .byte   $07
-        iny
-        ora     $92,x
-        asl     $97
-        .byte   $16,$32,$07,$C8,$15,$92,$06,$97
-        .byte   $16,$16,$A2,$23
-L7129:  .byte   $01,$00,$31,$18,$B6,$23,$03
-code_7130:
-        brk
-        ora     $8815,y
-        .byte   $23
-        .byte   $04
-code_7136:
-        brk
-        .byte   $14
-        .byte   $22
-        .byte   "r"
-code_713A:
-        bit     $03
-        brk
-        .byte   $23
-        asl     a
-        txs
-        and     ($03,x)
-        brk
+        .byte   $32,$07,$C8,$15,$92,$06,$97,$16
+        .byte   $32,$07,$C8,$15,$92,$06,$97,$16
+        .byte   $16,$A2,$23,$01,$00,$31,$18,$B6
+        .byte   $23,$03,$00,$19,$15,$88,$23,$04
+        .byte   $00,$14,$22,$72,$24,$03,$00,$23
+        .byte   $0A,$9A,$21,$03,$00
 L7143:  .byte   $0B
-L7144:  .byte   $FF
-code_7145:
-        and     $E069
-        pla
-        .byte   $0C
-        adc     #$62
-        adc     #$36
-        adc     #$7A
-        adc     #$D0
-        pla
-        .byte   $FA
-        jmp     (L6E59)
-
-        sta     $BE6C
-        jmp     (L6C33)
-
-        ora     #$6C
-        sbc     L786D,y
-        adc     code_6E8B
-        .byte   $DB
-        jmp     (code_6EA7)
-
-L7169:
-L716A           := * + 1
-        ora     $69,x
-        sta     $2A68
-        .byte   $6F
-        .byte   $1B,$6F,$03
-code_7172:
-        adc     #$5F
-        jmp     (L6C79)
-
-        bne     L71E6
-        and     $6E,x
-        .byte   $54
-        ror     L6D3D
-        .byte   $9F,$6D,$55,$6D,$BB,$6D,$06,$AC
-        .byte   $17,$09,$B9,$17,$0D,$CC,$17,$42
-        .byte   $EF,$17,$1F,$FE,$17,$20,$0E,$18
-        .byte   $2A,$2D,$18,$2E,$37,$18,$29,$4B
-        .byte   $18,$1A,$63,$18,$05,$72,$18,$FF
-        .byte   $FF
+L7144:  .byte   $FF,$2D,$69,$E0,$68,$0C,$69,$62
+        .byte   $69,$36,$69,$7A,$69,$D0,$68,$FA
+        .byte   $6C,$59,$6E,$8D,$6C,$BE,$6C,$33
+        .byte   $6C,$09,$6C,$F9,$6D,$78,$6D,$8B
+        .byte   $6E,$DB,$6C,$A7,$6E
+L7169:  .byte   $15
+L716A:  .byte   $69,$8D,$68,$2A,$6F,$1B,$6F,$03
+        .byte   $69,$5F,$6C,$79,$6C,$D0,$6D,$35
+        .byte   $6E,$54,$6E,$3D,$6D,$9F,$6D,$55
+        .byte   $6D,$BB,$6D,$06,$AC,$17,$09,$B9
+        .byte   $17,$0D,$CC,$17,$42,$EF,$17,$1F
+        .byte   $FE,$17,$20,$0E,$18,$2A,$2D,$18
+        .byte   $2E,$37,$18,$29,$4B,$18,$1A,$63
+        .byte   $18,$05,$72,$18,$FF,$FF
 code_71A8:
         lda     $0A
         bne     L71C8
@@ -8602,7 +8333,6 @@ L71DB:  lda     $024D
         sta     $6C
         lda     #$01
         sta     $024D
-L71E6           := * + 1
         jsr     L0417
 L71E8:  php
         lda     $6C
@@ -8645,7 +8375,7 @@ L7215:  jsr     L720A
         sta     $3B
         sta     $3C
         lda     #$24
-L7232:  sta     $3F
+        sta     $3F
         lda     $8A
         sta     $37
         clc
@@ -8694,40 +8424,33 @@ L7283:  dey
         rts
 
 L7293:  jsr     L440D
-        tax
-        .byte   $72
-        jmp     L72A0
+; -> $72AA PREPARE TAPE FOR GAME SAVE..
+msg_7296:
+        .word   $72AA
+code_7298:
+        jmp     code_72A0
 
 L729B:  jsr     L440D
-        cmp     $72
-L72A0:  jsr     L440D
-        .byte   $E3
-        .byte   $72
-        jsr     L7481
+; -> $72C5 .REWIND TAPE FOR VERIFICATIO
+msg_729E:
+        .word   $72C5
+code_72A0:
+        jsr     L440D
+; -> $72E3 PRESS ANY KEY WHEN READY. .r
+msg_72A3:
+        .word   $72E3
+code_72A5:
+        jsr     code_7481
         clc
         rts
 
-        bvc     L72FE
-        eor     $50
-        eor     ($52,x)
-        eor     L0020
-        .byte   $54
-        eor     ($50,x)
-        eor     L0020
-        lsr     $4F
-        .byte   $52
-        jsr     L4147
-        eor     $2045
-        .byte   $53
-        eor     ($56,x)
-        eor     $14
-        ora     L4552
-        .byte   $57
-        eor     #$4E
-        .byte   $44
-        jsr     L4154
-        bvc     L7316
-        .byte   " FOR VERIFICATION"
+        .byte   "PREPARE TAPE FOR GAME SAVE"
+
+
+
+        .byte   $14,$0D
+        .byte   "REWIND TAPE FOR VERIFICATION"
+
 
 
         .byte   $14
@@ -8736,7 +8459,6 @@ L72A0:  jsr     L440D
 
         .byte   $14
 code_72FC:
-L72FE           := * + 2
         jsr     L720A
         jsr     L0411
         jsr     L0405
@@ -8747,7 +8469,6 @@ L7305:  jsr     L0408
 L730E:  jsr     L0408
         sta     $35,y
         dey
-L7316           := * + 1
         bne     L730E
 L7317:  jsr     L0408
         bne     L7317
@@ -8854,37 +8575,14 @@ L73CA:  ora     #$80
         bne     L73BC
         lda     #$00
         beq     L73BE
-L73D4:  .byte   $37
-        lsr     a
-        eor     $204B
-        eor     $59,x
-        sec
-        lsr     L3654
-        and     L492C,y
-        pha
-        jmp     L5235
+L73D4:  .byte   "7JMK UY8NT69,IHL5RB;.OG0VF4-"
 
-        .byte   "B;"
-code_73E8:
-        rol     L474F
-        bmi     L7443
-        lsr     $34
-        and     L508B
-        eor     $2F
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        brk
-        lda     (L0000),y
-        .byte   $DA
-        brk
-        dey
-        dey
-        cmp     ($8D,x)
+
+
+        .byte   $8B
+        .byte   "PE/"
+        .byte   $00,$00,$00,$00,$00,$00,$00,$00
+        .byte   $B1,$00,$DA,$00,$88,$88,$C1,$8D
         .byte   "XQ2\"
         .byte   $8A
         .byte   "]S"
@@ -8899,18 +8597,14 @@ L7414:  .byte   "&JMK UY*NT^(<IHL%RB:>OG)VF$_"
         .byte   $8B
         .byte   "PE?"
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
-        .byte   $A1,$00,$DA,$00,$88,$FF,$C1
-L7443:  .byte   $8D
+        .byte   $A1,$00,$DA,$00,$88,$FF,$C1,$8D
         .byte   "XQ@|"
-code_7448:
-        txa
-        adc     a:$53,x
-        .byte   $23
-        .byte   "DC"
-code_744F:
-        ldx     #$95
-        .byte   $7B
-        .byte   "W+"
+        .byte   $8A
+        .byte   "}S"
+        .byte   $00
+        .byte   "#DC"
+        .byte   $A2,$95
+        .byte   "{W+"
 code_7454:
         txa
         ora     #$B0
@@ -8925,7 +8619,6 @@ L7464:  sta     $0301
         lda     #$EE
         sta     $030C
         lda     #$CC
-L746F           := * + 1
         sta     $030C
         rts
 
@@ -8936,10 +8629,10 @@ L7472:  sta     $0301
         sta     $030C
         rts
 
-        rts
-
-L7481:  jsr     L7353
-        bpl     L7481
+        .byte   "`"
+code_7481:
+        jsr     L7353
+        bpl     code_7481
         and     #$7F
         rts
 
@@ -8959,7 +8652,7 @@ L7491:  pha
 L749A:  lda     $0D
         bne     L74BB
         pla
-        jsr     code_75F6
+        jsr     L75F6
         pha
         lda     $C4
         bne     L74A9
@@ -8975,7 +8668,7 @@ L74A9:  pla
 
 L74B3:  pha
         lda     #$48
-        jsr     code_75F6
+        jsr     L75F6
         pla
         rts
 
@@ -9033,14 +8726,14 @@ L7514:  pha
         lda     #$B9
         sta     $1F
         lda     #$40
-        sta     L0020
+        sta     $20
         lda     #$BA
         sta     $21
         ldy     #$00
-L7527:  lda     (L0020),y
+L7527:  lda     ($20),y
         sta     ($1E),y
         jsr     L754B
-        lda     L0020
+        lda     $20
         cmp     #$40
         lda     $21
         sbc     #$BF
@@ -9056,7 +8749,7 @@ L7538:  lda     #$40
         pla
         rts
 
-L754B:  inc     L0020
+L754B:  inc     $20
         bne     L7551
         inc     $21
 L7551:  inc     $1E
@@ -9066,7 +8759,7 @@ L7557:  rts
 
 L7558:  pha
         lda     #$3F
-        sta     L0020
+        sta     $20
         lda     #$BF
         sta     $21
         lda     #$FF
@@ -9075,7 +8768,7 @@ L7558:  pha
         sta     $1F
         ldy     #$00
 L756B:  lda     ($1E),y
-        sta     (L0020),y
+        sta     ($20),y
         jsr     L758F
         lda     $1E
         cmp     #$00
@@ -9083,9 +8776,9 @@ L756B:  lda     ($1E),y
         sbc     #$B9
         bcs     L756B
 L757C:  lda     #$40
-        sta     (L0020),y
+        sta     ($20),y
         jsr     L759A
-        lda     L0020
+        lda     $20
         cmp     #$00
         lda     $21
         sbc     #$B9
@@ -9099,10 +8792,10 @@ L758F:  lda     $1E
         sta     $1E
         bcs     L759A
         dec     $1F
-L759A:  lda     L0020
+L759A:  lda     $20
         sec
         sbc     #$01
-        sta     L0020
+        sta     $20
         bcs     L75A5
         dec     $21
 L75A5:  rts
@@ -9119,16 +8812,41 @@ L75AB:  dec     L0000
 
 L75B4:  ldx     L0000
         ldy     $01
-L75B8:  .byte   $8E,$E0,$75,$8C,$E1,$75,$38,$E9
-        .byte   $20,$A0,$00,$84,$21,$0A,$26,$21
-        .byte   $0A,$26,$21,$0A,$26,$21,$18,$6D
-        .byte   $03,$04,$85,$20,$A5,$21,$6D,$04
-        .byte   $04,$85,$21,$B1,$20,$09,$40,$8D
-        .byte   $00,$A0,$AD,$E0,$75,$18,$69,$28
-        .byte   $8D,$E0,$75,$90,$03,$EE,$E1,$75
-        .byte   $C8,$C0,$08,$D0,$E6,$60
-code_75F6:
-        sta     $02
+L75B8:  stx     L75E0
+        sty     L75E1
+        sec
+        sbc     #$20
+        ldy     #$00
+        sty     $21
+        asl     a
+        rol     $21
+        asl     a
+        rol     $21
+        asl     a
+        rol     $21
+        clc
+        adc     $0403
+        sta     $20
+        lda     $21
+        adc     $0404
+        sta     $21
+L75DB:  lda     ($20),y
+        ora     #$40
+L75E0           := * + 1
+L75E1           := * + 2
+        sta     $A000
+        lda     L75E0
+        clc
+        adc     #$28
+        sta     L75E0
+        bcc     L75F0
+        inc     L75E1
+L75F0:  iny
+        cpy     #$08
+        bne     L75DB
+        rts
+
+L75F6:  sta     $02
         pha
         txa
         pha
@@ -9217,12 +8935,12 @@ L7694:  pha
         lda     #$A0
         sta     $1F
         lda     #$40
-        sta     L0020
+        sta     $20
         lda     #$A1
         sta     $21
         ldx     #$17
         ldy     #$FF
-L76A9:  lda     (L0020),y
+L76A9:  lda     ($20),y
         sta     ($1E),y
         dey
         cpy     #$FF
@@ -9349,28 +9067,36 @@ L7779:  lda     #$1E
         lda     #$B7
         sta     $01
         ldx     #$04
-        ldy     #$27
-        lda     L77CF,x
+L779B:  ldy     #$27
+L779D:  lda     L77CF,x
         sta     (L0000),y
         dey
-        lda     code_77CA,x
+        lda     L77CA,x
         sta     (L0000),y
         dey
-        .byte   $10,$F2,$A5,$00,$18,$69,$28,$85
-        .byte   $00,$90,$02,$E6,$01,$CA,$10,$E2
-        .byte   $A9,$00,$85,$00,$A9,$BE,$85,$01
-        .byte   $A9,$80,$85,$08,$A9,$B6,$85,$09
-        .byte   $60
-code_77CA:
-        adc     ($5A,x)
-        .byte   $44
-        .byte   "Z"
-code_77CE:
-L77CF           := * + 1
-        adc     ($61,x)
-        lsr     $48,x
-        lsr     $61,x
-L77D4:  stx     $28
+        bpl     L779D
+        lda     L0000
+        clc
+        adc     #$28
+        sta     L0000
+        bcc     L77B6
+        inc     $01
+L77B6:  dex
+        bpl     L779B
+        lda     #$00
+        sta     L0000
+        lda     #$BE
+        sta     $01
+        lda     #$80
+        sta     $08
+        lda     #$B6
+        sta     $09
+        rts
+
+L77CA:  .byte   "aZDZa"
+L77CF:  .byte   "aVHVa"
+code_77D4:
+        stx     $28
         sty     $29
         pha
         ldy     #$00
@@ -9447,7 +9173,6 @@ L7863:  inc     $31
         jsr     L79FB
         bne     L787B
         lda     $35
-L786D           := * + 1
         bne     L787F
         lda     $30
         pha
@@ -9737,22 +9462,8 @@ L7A56:  dex
         lda     ($38),y
         rts
 
-L7A5F:  jsr     L0810
-L7A62:  .byte   $04
-        .byte   $02
-code_7A64:
-        ora     ($AD,x)
-        .byte   $E3
-        adc     L6918,y
-        plp
-        sta     L79E3
-        bcc     L7A62
-        inc     L79E4
-        lda     L79E4
-        cmp     #$B4
-        bne     L7A62
-        rts
-
-L7A7B:  lda     $30
-        cmp     #$0E
-        bcc     L7A7B
+L7A5F:  .byte   $20,$10,$08,$04,$02,$01,$AD,$E3
+        .byte   $79,$18,$69,$28,$8D,$E3,$79,$90
+        .byte   $F2,$EE,$E4,$79,$AD,$E4,$79,$C9
+        .byte   $B4,$D0,$E8,$60,$A5,$30,$C9,$0E
+        .byte   $90,$FA
