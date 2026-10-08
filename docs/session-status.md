@@ -259,16 +259,27 @@ priorité à l'observation via tickdiff (pas de SAVE/LOAD).
 **tickdiff** (`scripts/tickdiff.c` → `build/sim/tickdiff`, + shim
 `dump_mem` 6 régions) : superviseur C, sim65 vivant par pipes, un
 ordre = un tick = snapshot 3623 o + deltas dans `build/sim/ticks*/`.
-Runs joués : R1 300×WAIT, R2 objets, R3 mouvement (diffs seuls,
-Séance 2 intacte), R4 1463×WAIT (stop limite 2G cycles, pas un
-crash). Résultats → `savegame-memory-map.md` §7 (porteur `+1`
-confirmé, visite pose bit6 `b0`, trolls morts tick 966, dormants
-jamais armés, events immobiles — modèle `cpt--` contredit).
+Runs joués : R1 300×WAIT, R2 objets, R3 mouvement (diffs seuls),
+R4 1463×WAIT (stop limite 2G cycles, pas un crash),
+R5 exploration (`r5.txt`, 18 ordres : EXAMINE/OPEN/TALK/EAST/NORTH,
+mort dans la clairière → reboot), R6 combat (`r6.txt` : KILL
+VICIOUS → attaque vaine + troll mange joueur + reboot).
+Résultats → `savegame-memory-map.md` §7 (cluster `+$xxx` = `eloc`,
+`+0` classé, 961/966 piloté scripts, events tous `cpt=0`,
+gloutonnerie `act_v14_15`, `n` jamais, `s6` quasi-statique).
 Repro 966 : `build/sim/r966.txt` (`\n` + 1000×`WAIT`) → 3 runs
-identiques (`ticks_r4`, `ticks_966a/b`) : précurseurs 960, dragon
-off 961, trolls off 966. Prochaines pistes : compteur exact
-961/966 (PC scripts avant cut ?), driver events (combat ?),
-ZP `$BF`–`$C4`/`$CF`–`$D5`, Séance 2.
+identiques (`ticks_r4`, `ticks_966a/b`) : e9/e10 PC `$2AD0`
+959 ticks puis blocs 5 o, terminal ACT 17 ; dragon 961 (ACT 8).
+Verdict events : bin == runtime, `cpt=0` partout (R4/R5/R6) →
+`evt_tick` saute tout (`beq`) ; l'ancien « e8 armé cpt=3 »
+était une lecture désalignée, corrigée (§3c : e6 `00 00 08 00
+00`, e7 `05 00 09 00 00`, e8 `04 00 0A 03 0B`, e9 `05 00 0C 01
+0D`). Combat n'arme aucun event.
+Deux images : `hobbit_fast.sim` (texte seul, tickdiff) +
+`hires.sim` (`--fast --hires`, OCR) ; cmdfile tickdiff en `\n`
+(1re ligne = touche boot), run brut en `\r` (`tr`).
+Prochaines pistes : triggers d'armement events, `n`/`s6`,
+ZP inconnus, géo SW/SE/N, Gandalf (R7/R8/R9).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 

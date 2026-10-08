@@ -187,8 +187,10 @@ Détail des programmes : `docs/block4-analysis.md` (§ scripts PNJ).
 
 ### 3c. Événements différés `$2B12` (10×5 o `[id,cpt,actA,cond,actB]`, `$FF` en `$2B44`)
 
-`evt_tick` (`$4E75`) : `cpt--`, réarme, puis `evt_cond` dispatche `actB`
-via `$7169` si `cond<>0` et `cond>=cpt`. Armement : `cpt := id`
+`evt_tick` (`$4E75`) : si `cpt==0` → entrée suivante (`beq`,
+désarmé) ; sinon `cpt--`, réarme, puis `evt_cond` dispatche `actB`
+via `$7169` si `cond<>0` et `cond>=cpt` ; à 0 : tir `actA`
+(`L4E58` = flag). Armement : `cpt := id`
 (`LDA $2Bxx / STA $2Bxx+1`), immédiat, `0`=désarme, `e6 := 2+rand(8)`.
 Rôles : `docs/block4-analysis.md` (§ événements).
 
@@ -200,14 +202,10 @@ Rôles : `docs/block4-analysis.md` (§ événements).
 | e3 | `$2B21` | `$02` | 0 | `$04` | 0 | 0 | `$65A5` |
 | e4 | `$2B26` | `$02` | 0 | `$05` | `$02` | `$05` | `$70D2`/`$6C67` (bog, auto-désarmant) |
 | e5 | `$2B2B` | `$04` | 0 | `$06` | `$01` | `$07` | `$6B66` |
-| e6 | `$2B30` | `$08` | 0 | `$00` | `$05` | `$00` | `$66A6`/`$66D2` |
-| e7 | `$2B35` | `$09` | 0 | `$00` | `$04` | `$00` | `$6A20` |
-| e8 | `$2B3A` | `$0A` | `$03` | `$0B` | `$05` | `$00` | `$70F8` |
-| e9 | `$2B3F` | `$0C` | `$01` | `$0D` | — | — | `$6AF0`/`$6D60`/`$70D9` (octets `$2B3F`–`$2B43` : `0C 01 0D ?? ??` — fin de table, relire) |
-
-Note e9 : seuls 3 octets lisibles avant le `$FF` en `$2B44`
-(`$2B3F`=`$0C` `$2B40`=`$01` `$2B41`=`$0D` `$2B42`=`$01` `$2B43`=`$0D`…
-relire au runtime : entrée complète ou partagée ?).
+| e6 | `$2B30` | `$00` | 0 | `$08` | `$00` | `$00` | `$66A6`/`$66D2`, id nul (slot condamné ?) |
+| e7 | `$2B35` | `$05` | 0 | `$09` | `$00` | `$00` | `$6A20` |
+| e8 | `$2B3A` | `$04` | 0 | `$0A` | `$03` | `$0B` | `$70F8` |
+| e9 | `$2B3F` | `$05` | 0 | `$0C` | `$01` | `$0D` | `$6AF0`/`$6D60`/`$70D9` (`$FF` en `$2B44`) |
 
 ### 3d. Entités `$2B45` (17×7 o `[id,n,PC_lo,PC_hi,base_lo,base_hi,s6]`, `$FF` en `$2BBC`)
 
@@ -362,7 +360,7 @@ bas (pas de `boot_copyback` : les dest sont les adresses basses) ;
 échec → `TAPE LOADING ERROR` + reboot input (`JMP $2C3D`).
 
 ## 7. Résultats harnais (tickdiff : R1 300×WAIT, R2 objets, R3
-mouvement, R4 1463×WAIT — `build/sim/ticks_r*/ticks.log`)
+mouvement, R4 1463×WAIT, R5/R6 informées — `build/sim/ticks_r*/ticks.log`)
 
 - **Commandes sans effet = 0 octet** : `GET MAP` (déjà portée),
   `OPEN DOOR` (déjà ouverte) → aucun tick monde. Seules les commandes
@@ -374,40 +372,67 @@ mouvement, R4 1463×WAIT — `build/sim/ticks_r*/ticks.log`)
   lâché). **`+0` (type) : jamais modifié** (tous runs).
 - **Mouvement** : `ploc` `$C8` + `eloc` `$C9` suivent le lieu ;
   `obj` `$C5`/`crec` `$C6`/`$C7` = entité/record rencontrés
-  (`$48` dans la salle des trolls) ; `$CC` `$00`→lieu ; un cluster
-  d'états suit `ploc` (`+$10` clé `$00`, `+$B0`, `+$240`, `+$256`,
-  `+$2C6`, `+$331` : compagnons/objets liés au joueur) ; `+$22E`
-  distinct (`$01`→`$04`→`$01` : salle précédente ?).
+  (`$48` dans la salle des trolls) ; `$CC` `$00`→lieu.
+  **Cluster résolu (statique)** : `+$10` clé `$00`, `+$B0`,
+  `+$22E`, `+$240`, `+$256`, `+$2C6`, `+$331` = **tous des
+  `eloc` (+$10)** des clés `$00` (joueur), `$03` (carte portée),
+  `$3E` (Gandalf suit : `$01`→`$04`→`$01`), `$3F`/`$40`/`$43`
+  (compagnons proches), `$44` (Gollum). `+$22E` « salle
+  précédente » = en fait l'eloc de Gandalf qui suit.
+- **`+0` (type) classé (statique)** : `$01` = localisé (lieu
+  courant en `+$10` = eloc) ; `$02` (11 clés), `$03` (`$08 $09
+  $18 $2A`), `$05` (`$07`), `$08` (`$17`) = **non-localisés**
+  (pas de champ lieu, jamais modifiés tous runs) — régime autre
+  (compteurs ? états globaux ?), sens fin ouvert.
 - **Visite** : entrer dans une salle pose bit6 du `b0` de son record
   (`$84`→`$C4` : record `$04` en terre morne, `$05` au nord).
 - **Ticks 960–966 (soak pur, 3 runs identiques) — les monstres
-  s'éteignent** : précurseurs tick 960 (paires d'états), **tick 961 :
-  dragon `$41` `id`→`$00`**, **tick 966 : trolls `$47`/`$48`
-  `id`→`$00`** (définitif) + porteur `$47`→`$FF` (clé `$04` lâchée)
-  + record `$05` `desc` `$0000`→`$1645` + rafale d'états.
-  Gollum (`$44`) reste actif, dormants (`$42`/`$46`/`$3C`) jamais
-  réveillés. Table events intacte avant/pendant/après → le timer
-  est dans les scripts d'entités (VM), PAS le système d'events
-  (compteur local ? opcode à N itérations ? — cause exacte ouverte).
-- **Dormants `$42`/`$46`/`$3C` : jamais armés** (id `$00` + PC figés
-  sur 1463 ticks). Réveil = déclencheur joueur, pas le temps.
-- **Events `$2B12` : IMMOBILES partout** (1463 WAIT + 12 actions) —
-  `cpt`/`cond`/`actA`/`actB` inchangés, même e8 armé (`cpt=3`).
-  Le modèle « `cpt--` par tick, tir si `cond>=cpt` » est CONTREDIT :
-  driver d'`evt_tick` inconnu (triggers non testés : combat, salles
-  spécifiques). Entrée e9 (`$2B3F`–`$2B43`) : statique
-  (`0C 01 0D 01 0D` = 5 o `[id,cpt,actA,cond,actB]` confirmé par taille).
+  s'éteignent, piloté par scripts** : e9/e10 PC figé à `$2AD0`
+  pendant 959 ticks (attente multi-ticks tête de script `13 10 00
+  D0 2A`), puis marche de blocs 5 o (`03 11 00 04 FF` ×3 +
+  queue), dernier bloc = ACT 17 = mort (`act_v14_17` `$6CDB` =
+  `L7143[17]` : `code_4D47` ×2, RAZ bit7 `$1F94`/`$1FA6`,
+  `desc $2154`=`$1645`, `$214C`&=~`$40`, `L5713` ×2, dit
+  `$16EB`). Dragon e5 : oscillation PC `$2A38`↔`$2A42` puis ACT 8
+  (`$6CFA` = `L7143[8]`) à 961. Table events intacte →
+  countdown dans les opcodes (mécanisme exact du compteur :
+  ouvert — `n` innocent). Gollum (`$44`) actif, dormants jamais
+  réveillés (`id` `$00` + PC figés 1463+ ticks).
+- **Mort joueur (R5/R6, narratif + deltas)** : dans la clairière,
+  le hideous mange le joueur → `act_v14_15` (`L7143[15]` :
+  `ploc==5`, `obj==$47` → `$162B`/`$1615`), `e9.id` `$47`→`$00`
+  (**gloutonnerie tue aussi le troll**), reboot restaure tout
+  (`$00`→`$47`, PC `$D0` ; e10 `$48` intact). Attaque :
+  `WHICH TROLL ?` si générique (0 tick), `You attack the vicious
+  troll. But the effort is wasted.` (20 deltas, sans effet).
+  Clé `$04` = `the large key` portée par le hideous (porteur
+  `$47` confirmé narratif). Score : `You have mastered 2.5%…`.
+- **Events `$2B12` : TOUS `cpt=0`, donc `evt_tick` les saute**
+  (`beq L4EBE`) — 1463 WAIT + R2/R3 + R5/R6 (combat, mort) :
+  aucun changement. Pas de contradiction avec le driver décodé
+  (`cpt--`, tir actA à 0 + actB si `cond>=cpt`, `L4E58` = flag de
+  tir) : il ne s'applique simplement jamais (rien d'armé).
+  Armement = 14 sites gameplay (`cpt := id`, immédiat,
+  `2+rand(8)`) aux déclencheurs non testés (voyages PNJ ?
+  salles ? objets ? — le combat n'arme rien). e6 `id=$00`
+  (slot condamné ?).
 - **Entités** : seuls `PClo`/`PChi` bougent (errance : Gandalf 10 PC
-  distincts ; boucles MOVE+GOTO `$34`/`$36`, `$38`/`$42`…).
-  **`n`/`s6` : jamais modifiés. Tables INDIR : jamais patchées**
+  distincts ; boucles MOVE+GOTO `$34`/`$36`, `$38`/`$42`… ;
+  e6/Gollum cycle 4 états `$2A8F`/`$2AAA`/`$2ABD`…).
+  **`n` : jamais modifié (17 entités, 1000+ ticks). `s6` :
+  quasi-statique** (seul e7 dormant : 3 changements ticks 8–32,
+  les 16 autres jamais). **Tables INDIR : jamais patchées**
   (`$xC` non observé). `base` : fixe.
 - **ZP** : seuls `$CA`/`$CB` bougent par tick (scratch) ;
   `$BF`–`$C4`, `$CD`, `$CF`–`$D5` : statiques partout (rôle inconnu,
   ni tick ni action testée).
 - **Records** : 3 mutations vues (`b0` visite ×2, `desc` tick 966) —
   pas des gabarits inertes.
-- **Reste ouvert** : sens `$BF`–`$C4`/`$CD`/`$CF`–`$D5`, `+0`
-  `$02 $03 $05 $08`, `n`/`s6`, bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/
-  `$2F`, identité `$3C`, noms entités `$3D $3F $40 $43 $45 $49 $4A
-  $4B $4C`, driver events, cause tick 966, `+$22E`, `+$B0` et cie
-  (quel champ de quelle clé ?).
+- **Reste ouvert** : ZP `$BF`–`$C4`/`$CD`/`$CF`–`$D5` (statiques
+  partout), sens fin `+0` `$02 $03 $05 $08`, `n`, `s6` (à quoi
+  servent-ils ?), bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/`$2F`,
+  identité `$3C`, noms entités `$3D $3F $40 $43 $45 $49 $4A $4B
+  $4C`, driver events (`evt_tick` décodé : `cpt--`, tir actA à 0
+  + actB si `cond>=cpt` — mais `cpt` statique en jeu : qui
+  appelle quoi ? `$B0` = nb de `world_tick` par commande ?),
+  compteur exact tête `$2AD0`, dormants (déclencheurs).

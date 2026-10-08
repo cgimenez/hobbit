@@ -1,9 +1,11 @@
 # Journal d'aventure — The Hobbit (Oric), joué sous sim65
 
-Partie **100 % aveugle** : aucune connaissance extérieure mobilisée pour
-décider des coups (ni histoire, ni carte). Les lectures de code existent
-par ailleurs mais ne guident aucun coup — vérification après coup
-uniquement. Mode rapide (`--fast`, `$56=0`, sans images) sauf mention.
+Parties **informées** (depuis 2026-10-08 PM) : fini l'aveugle — coups
+décidés en connaissance des commandes (sonde vocabulaire),
+PNJ et lieux. Deux images : `build/sim/hobbit_fast.sim` (texte seul,
+tickdiff) + `build/sim/hires.sim` (`--fast --hires`, OCR texte).
+Cmdfile tickdiff = lignes `\n` (1re = touche boot, `\n`→`\r` par
+tickdiff) ; run sim65 brut = mêmes octets en `\r` (`rX.cr`).
 
 Conventions : `> COMMANDE.` = écho jeu ; tick = commande réussie.
 
@@ -14,8 +16,35 @@ Conventions : `> COMMANDE.` = écho jeu ; tick = commande réussie.
   (→ terre morne, OK).
 - `$??` terre morne (à l'est du tunnel) : `gloomy empty land with
   dreary hills ahead`, porte verte ronde à l'ouest, sorties
-  est/nord/nord-est (non testées). Gandalf+Thorin suivent (`enters`).
+  est/nord/nord-est. Gandalf+Thorin suivent (`enters`).
   Contenu : `nothing` (au LOOK d'arrivée).
+- `$05` clairière des trolls (au nord de la terre morne) : `You are
+  in the trolls clearing`, sorties sud-ouest/sud-est/nord.
+  `the hideous troll` (porte `the large key` = clé `$04`) +
+  `the vicious troll`. À l'entrée : `The hideous troll says "
+  Blimey, looks at this !! Can yer cook 'em? ".` +
+  `The vicious troll says " Yer can try, but he wouldn't make
+  above a mouthfull ".` Mortel : le hideous finit par manger le
+  joueur (voir R6).
+
+## Vocabulaire parser (sondes 63+19+8 verbes, réponses lues)
+
+Connus : OPEN (`OPEN WHAT ?`), CLOSE/LOCK/UNLOCK (`I SEE NOTHING
+TO X`), GET/TAKE/LIFT/STEAL (=TAKE), DROP/THROW (=THROW),
+GIVE, KILL/ATTACK/HIT (=ATTACK, `ATTACK WHAT ?`), BREAK/SMASH
+(=STRIKE, `I SEE NOTHING TO STRIKE`), EAT, DRINK, LIGHT (`You
+light.`), CLIMB, ENTER, CROSS/SWIM?, DIG, PULL, PUSH (`You
+push.`), FOLLOW (`FOLLOW WHAT ?`), SLEEP (`You sleep.`),
+READ=EXAMINE (`EXAMINE WHAT ?`), SAY=TALK (`TALK TO WHAT ?`),
+TALK (`You talk to Thorin.`), SCORE (`YOU'RE DOING FINE.` /
+`You have mastered X% of this adventure`), HELP, GO (traverse),
+RUN/LEAVE (=partir), WEAR, FILL, EMPTY, TIE, UNTIE, HIDE
+(`WHAT ?`), directions NORTH/SOUTH/EAST/WEST/UP/DOWN +
+N/S/E/W/U/D + NE/NW/SE/SW (`YOU CANNOT GO X.` sinon).
+Inconnus (`I DO NOT KNOW`) : SHUT SHOW FIGHT RUB EXIT SHOUT ASK
+TELL SEARCH STAND WAVE KNOCK FEEL SMELL LISTEN BUY SELL STAY
+MOVE HELLO. Ambiguïtés : `WHICH TROLL ?` (HIDEOUS vs VICIOUS) ;
+`I DO NOT SEE THE X HERE` (absent) ; `TALK TO WHAT ?` (personne).
 
 ## Séance 0 — calibration du mode rapide (2026-10-08)
 
@@ -47,14 +76,38 @@ Gandalf ouvre la porte : `Gandalf opens the round green door.`) ;
 `Gandalf takes the curious map.` (il reprend la carte !).
 Leçon : les PNJ ouvrent/agissent seules — ne pas refaire leurs gestes.
 
-## Séance 2 — (à jouer) cartographie est/nord/nord-est
+## Séance 2 — R5 exploration (informée, `build/sim/r5.txt`)
 
-Depuis la terre morne : `EAST`, `NORTH`, `NORTHEAST` un par un
-(`LOOK` à chaque lieu). Save B1 quand dispo.
+`EXAMINE CHEST` → `You examine the wooden chest. You see the
+wooden chest.` ; `OPEN CHEST` → `You open...` ; `EXAMINE MAP` →
+`There seem to be some symbols on it but you cannot read them.` ;
+`TALK TO GANDALF` → `I DO NOT SEE THE GANDALF HERE` (parti à
+l'est) ; `TALK TO THORIN` → `You talk to Thorin.` (sans réponse
+visible) ; `EAST`/`NORTH` → clairière (voir Carte). `EXAMINE
+TROLL` → mort (47 deltas = mort+reboot, voir R6) : la suite
+(TALK/SOUTH/WEST/SCORE/INVENTORY) s'exécute rebootée au tunnel
+(`YOU CANNOT GO SOUTH/WEST.` ✓ tunnel sans sortie sud/ouest).
+
+## Séance 3 — R6 combat (`build/sim/r6.txt`)
+
+`KILL TROLL` → `WHICH TROLL ?` (désambiguïsation, 0 tick ; idem
+ATTACK/HIT/THROW + nom générique). `KILL VICIOUS` (20 deltas) :
+`You attack the vicious troll. But the effort is wasted. His
+defense is too strong.` + `Thorin sits down and starts singing
+about gold.` Puis (tick suivant, 40 deltas = mort+reboot) : `The
+hideous troll eats you. His foul gluttony has killed the
+hideous troll. You are dead. You have mastered 2.5% of this
+adventure`. Deltas : e9.id `$47`→`$00` (tick 9), reboot restaure
+`$00`→`$47` + PC `$D0` (tick 10) ; e10 (`$48`) intact. Code :
+`act_v14_15` (`L7143[15]`, `ploc==5`, `obj==$47` → `$162B`/
+`$1615`) ; tueur partagé `code_4D47` (aussi `act_v14_17`).
+Leçon : attaque vouée à l'échec, le troll mange le joueur
+(et en meurt — gloutonnerie), reboot restaure tout.
 
 ## Questions ouvertes (jeu)
 
-- Que font Gandalf/Thorin sur plusieurs centaines de ticks ?
-- Lieu 5 (trolls, dialogue `BLIMEY`) : où, quand ?
 - Dormants `$42`/`$46`/`$3C` : déclencheurs en jeu ?
-- Identité des entités rencontrées (noms via `LOOK`) ?
+- Identités `$3D $3F $40 $43 $45 $49 $4A $4B $4C` : rencontres ?
+- Gandalf après son départ est : où le recroiser (FOLLOW/WAIT) ?
+- Nord/sud-ouest/sud-est de la clairière : quoi ?
+- `+0` `$02 $03 $05 $08` : quels objets/lieux ?
