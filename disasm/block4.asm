@@ -186,7 +186,7 @@ L2D0E:  lda     $57
         pha
         lda     $E9
         pha
-        jsr     code_4E59
+        jsr     world_tick
         pla
         sta     $E9
         pla
@@ -4506,10 +4506,11 @@ L4E49:  sta     L4DF5
         jmp     L4E17
 
 L4E58:  .byte   $1A
-code_4E59:
+; apres commande reussie : L46E6, L69E7, VM entites, table $2B12
+world_tick:
         jsr     L46E6
         jsr     L69E7
-        jsr     code_4ED5
+        jsr     entity_tick
         lda     #$00
         sta     L4E58
         lda     #$01
@@ -4568,7 +4569,8 @@ L4ECC:  lda     #$01
 
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
-code_4ED5:
+; VM : entree 7 o $2B45 ([id,?,PC,..]), <=6 opcodes/tick (nibble bas)
+entity_tick:
         jsr     code_5235
         lda     #$45
         sta     $88

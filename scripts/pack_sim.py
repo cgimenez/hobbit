@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Construit l'image sim65 du jeu : hobbit.bin + shims + patchs.
 
-- Assemble harness/shim.s (ca65+ld65, cale a $9200).
-- Patch : JMP $9200 sur $7353 (scan clavier VIA -> shim paravirt).
+- Assemble harness/shim.s (ca65+ld65, cale a $C000).
+- Patch : JMP $C000 sur $7353 (scan clavier VIA -> shim paravirt).
 - Packe au format sim65 (header + load $0400 + reset $2C00 + SPAddr $02).
 
 Artefacts dans /tmp (regenerables). Sortie 0 si OK.
@@ -26,9 +26,9 @@ SHIM_SRC = ROOT / "harness" / "shim.s"
 SHIM_CFG = ROOT / "harness" / "shim.cfg"
 SHIM_ADDR = 0xC000  # zone "ROM" : le jeu n'y ecrit jamais (ROM sur Oric)
 KB_SCAN = 0x7353  # scan clavier VIA -> remplace par JMP shim
-HIBIT_ADDR = 0xC202
+HIBIT_ADDR = 0xC2F2
 TXTSH, TXTSH_END = 0xC300, 0xC300 + 0x460
-VARS, VARS_END = 0xC200, 0xC210
+VARS, VARS_END = 0xC2F0, 0xC300
 # Charset ROM 1.0 (font lue en ($0403) = $FC70 ; limite runtime $FFC0).
 ROM10 = ROOT / "data" / "basic10.rom"
 FONT_LO, FONT_HI = 0xFC70, 0xFFC0
@@ -47,8 +47,8 @@ def main() -> int:
     subprocess.run([str(CA65), "-o", str(OBJ), str(SHIM_SRC)], check=True)
     subprocess.run([str(LD65), "-C", str(SHIM_CFG), "-o", str(SHIM_BIN), str(OBJ)], check=True)
     shim = SHIM_BIN.read_bytes()
-    if len(shim) > 0x200:
-        print(f"shim trop gros : {len(shim)} > 512 octets")
+    if len(shim) > 0x2F0:
+        print(f"shim trop gros : {len(shim)} > 752 octets")
         return 1
 
     img = bytearray(BIN.read_bytes())
@@ -68,7 +68,7 @@ def main() -> int:
         img += bytes(FONT_HI - BASE - len(img))
     img[FONT_LO - BASE:FONT_HI - BASE] = rom[FONT_LO - 0xC000:FONT_HI - 0xC000]
     # Etat initial du shim (sim65 remplit la RAM de $FF : tout expliciter).
-    # Vars $C200-$C20F a zero (KBSTATE=0 = attente d'octet), HIBIT selon
+    # Vars $C2F0-$C2FF a zero (KBSTATE=0 = attente d'octet), HIBIT selon
     # option, miroir texte $C300-$C75F a $FF (== ecran vierge sous sim65
     # -> pas de dump fantome au 1er appel).
     if len(img) < VARS_END - BASE:

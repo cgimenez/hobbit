@@ -24,18 +24,20 @@
   le jeu n'y écrit jamais), patch `JMP $C000` sur `$7353` (scan clavier
   VIA), charge le charset ROM 1.0 (`$FC70-$FFBF`, font lue en `($0403)`),
   packe `/tmp/hobbit.sim` (load `$0400`, reset `$2C00`, SPAddr `$02`).
-- `harness/shim.s` (en `$C000`, 512 o) : `shim_kb` — `PVRead` stdin avec
-  machine à états pressé/relâché (compatible `BPL`/`BMI` des 4 sites
-  d'appel ; EOF → `$00`, le jeu boucle → borner par `sim65 -x`, exit 254
-  = fin de script normale), `PVWrite` d'un dump à chaque changement
-  d'écran (texte `$BB80` + hires `$A000` si `--hires`), X/Y/ZP préservés,
-  pile équilibrée (compter PHA/PLA à la trace : un `PHA` d'entrée oublié
-  = `RTS` fantôme).
-- Layout sim65 : code `$C000`, vars `$C200` (`KBSTATE`, `HIBIT`, …),
-  pile paravirt `$C210`, miroir texte `$C300` (1120 o), miroir hires
-  `$C800` (8192 o), charset ROM 1.0 `$FC70-$FFBF`. Protocole stdout :
+- `harness/shim.s` (en `$C000`, ~600 o, zone CODE `$C000-$C2EF`) :
+  `shim_kb` — `PVRead` stdin avec machine à états pressé/relâché
+  (compatible `BPL`/`BMI` des 4 sites d'appel ; EOF → `$00`, le jeu boucle
+  → borner par `sim65 -x`, exit 254 = fin de script normale), `PVWrite`
+  d'un dump à chaque changement d'écran (texte `$BB80` + hires `$A000`
+  si `--hires`), X/Y/ZP préservés, pile équilibrée (compter PHA/PLA à la
+  trace : un `PHA` d'entrée oublié = `RTS` fantôme).
+- Layout sim65 : code `$C000`, vars `$C2F0` (`KBSTATE`, `HIBIT`, `MEMFLAG`,
+  …), params paravirt `$C2FB-$C2FE`, miroir texte `$C300` (1120 o), miroir
+  hires `$C800` (8192 o), charset ROM 1.0 `$FC70-$FFBF`. Protocole stdout :
   `@@FRAME text\n`+1120 o / `@@FRAME hires\n`+8192 o (captures partielle
-  si timeout en plein dump → ignorées par le décodeur).
+  si timeout en plein dump → ignorées par le décodeur), puis si écran
+  changé : `@@MEM 0000 0100\n`+256 o (ZP) et `@@MEM 2B00 0100\n`+256 o
+  (tables scheduler) — `scripts/decode_mems.py` (diff par trame).
 - `scripts/decode_frames.py` : rend les écrans hires en texte (charset
   ROM, grille 8 px, bit5-gauche ; n'affiche que les lignes non vides).
 - Recette input : `printf '\rLOOK\r' | sim65 -x 150000000 /tmp/hobbit.sim
@@ -85,6 +87,20 @@
   `Gandalf goes east.` → `Gandalf takes the curious map.` (prend des objets
   pour son compte). Plusieurs PNJ agissent sur le même tick (`Gandalf goes
   east.` + `Thorin waits.`) ; `Thorin enters.` suit le joueur.
+- Mécanisme (lu dans le listing + prouvé par dumps MEM) : `world_tick`
+  (`$4E59`, après chaque commande réussie, boucle `$7E` = ticks multiples
+  possibles) → `entity_tick` (`$4ED5`) = **VM à scripts** : table `$2B45`
+  d'entrées 7 o `[id, ?, PC_lo, PC_hi, ?, ?, ?]` (`$FF` termine) ; ≤6 opcodes
+  par entrée et par tick, opcode = nibble bas du script (`$29xx`, bloc 2),
+  PC réécrit dans l'entrée (`L502A`) — vu en MEM : PC Gandalf `$295C→$297A…`
+  (linéaire), autres `$298E↔$29AF` (boucle). Opcodes vus : `$x0` avance,
+  `$x1-3` (`L5048`), `$x4` (`L50AC`), `$xC/$xE/$xF`, défaut `L51DA` (à mapper).
+  Seconde table `$2B12` (5 o, compteurs, actions via table de sauts `$7169`) :
+  dormante au début (compteurs à 0, aucun changement en MEM sur 6 ticks).
+- Sondes : shim dump MEM (`@@MEM 0000 0100` ZP + `@@MEM 2B00 0100` tables,
+  `scripts/decode_mems.py` diff par trame) ; frappes d'écho = seuls
+  `$0000/$0004` bougent ; chaque tick mute `$2B47/$2B4E/$2B55/$2B5C`
+  (PC/entités), `$2B6A/$2B71/$2B94/$2B9B/$2BA2` (état), ZP divers.
 - Traversée nominale : `OPEN DOOR` / `EAST` → `You go east.` / `gloomy
   empty land… exits east north northeast` / Gandalf sur place /
   `Thorin enters.`

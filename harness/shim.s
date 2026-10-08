@@ -1,4 +1,4 @@
-; Shims clavier/ecran pour The Hobbit sous sim65 (adresse $9200).
+; Shims clavier/ecran pour The Hobbit sous sim65 (adresse $C000).
 ;
 ; Patch applique par scripts/pack_sim.py : JMP shim_kb a la place des
 ; 3 premiers octets de $7353 (scan clavier VIA, inutilisable sous sim65).
@@ -14,7 +14,9 @@
 ; A chaque appel, l'ecran texte ($BB80-$BFDF, 1120 o) est compare a son
 ; miroir ; en cas de changement, dump sur stdout (fd 1) :
 ;   "@@FRAME text\n" + 1120 octets bruts. Idem hires ($A000-$BFFF, 8192 o)
-; si HIBIT = 1.
+; si HIBIT = 1. Quand au moins un ecran a change, dump memoire en plus :
+;   "@@MEM 0000 0100\n" + 256 o (zero-page) et "@@MEM 2B00 0100\n" + 256 o
+;   (tables scheduler $2B12/$2B45) — Decode via scripts/decode_mems.py.
 
         .setcpu "6502"
         .segment "CODE"
@@ -23,12 +25,13 @@ PV_READ  = $FFF6
 PV_WRITE = $FFF7
 
 SPADDR   = $02                  ; mot ZP = pile logicielle paravirt
-PVTOP    = $C210
+PVTOP    = $C2FF                ; params paravirt en $C2FB-$C2FE
 
-KEYBUF   = $C200
-KBSTATE  = $C201
-HIBIT    = $C202                ; 1 = dump hires aussi
-RESULT   = $C203
+KEYBUF   = $C2F0
+KBSTATE  = $C2F1
+HIBIT    = $C2F2                ; 1 = dump hires aussi
+RESULT   = $C2F3
+MEMFLAG  = $C2F8                ; 1 = un ecran a change -> dumper la RAM
 
 P_TXT    = $04                  ; ptr ZP (sauvegardes, cf. dump_text)
 P_SH     = $06
@@ -81,10 +84,15 @@ release:
         sta KBSTATE
         sta RESULT
 dodump:
+        lda #0
+        sta MEMFLAG
         jsr dump_text
         lda HIBIT
-        beq restore
+        beq @nomem
         jsr dump_hires
+@nomem: lda MEMFLAG
+        beq restore
+        jsr dump_mem
 restore:
         pla
         tay
@@ -103,7 +111,7 @@ pv_setup:
         rts
 
 ; ---- PVWrite(Buf=P_W(*) , Count=A/X) vers stdout ----
-P_W      = $C204
+P_W      = $C2F4
 pv_write:
         sta P_CNT
         stx P_CNT+1
@@ -123,7 +131,7 @@ pv_write:
         ldx P_CNT+1
         jsr PV_WRITE
         rts
-P_CNT    = $C206
+P_CNT    = $C2F6
 
 ; ---- dump ecran texte si changement ----
 MARK_T: .byte "@@FRAME text", $0A
@@ -164,6 +172,8 @@ dump_text:
         bne @tail
         beq @done               ; identique
 @changed:
+        lda #1
+        sta MEMFLAG
         ; recopie miroir (P_TXT/P_SH ont avance : on les repositionne)
         lda #<TXT
         sta P_TXT
@@ -247,6 +257,8 @@ dump_hires:
         bne @page
         beq @done
 @changed:
+        lda #1
+        sta MEMFLAG
         lda #<HGR
         sta P_TXT
         lda #>HGR
@@ -288,4 +300,38 @@ dump_hires:
         sta P_TXT+1
         pla
         sta P_TXT
+        rts
+
+; ---- dump memoire (seulement si MEMFLAG) ----
+MARK_M1: .byte "@@MEM 0000 0100", $0A
+MARK_M2: .byte "@@MEM 2B00 0100", $0A
+dump_mem:
+        lda #<MARK_M1
+        sta P_W
+        lda #>MARK_M1
+        sta P_W+1
+        lda #16
+        ldx #0
+        jsr pv_write
+        lda #<$0000
+        sta P_W
+        lda #>$0000
+        sta P_W+1
+        lda #<$0100
+        ldx #>$0100
+        jsr pv_write
+        lda #<MARK_M2
+        sta P_W
+        lda #>MARK_M2
+        sta P_W+1
+        lda #16
+        ldx #0
+        jsr pv_write
+        lda #<$2B00
+        sta P_W
+        lda #>$2B00
+        sta P_W+1
+        lda #<$0100
+        ldx #>$0100
+        jsr pv_write
         rts

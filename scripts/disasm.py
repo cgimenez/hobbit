@@ -78,6 +78,8 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x30BB: ("boot_copyback", "recopie inverse ($8C)->($8A), meme gabarit"),
     0x440D: ("print_msg", "affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)"),
     0x44BE: ("msgptr_inc", "INC $6A (+ $6B si retenue) ; avance le pointeur message"),
+    0x4E59: ("world_tick", "apres commande reussie : L46E6, L69E7, VM entites, table $2B12"),
+    0x4ED5: ("entity_tick", "VM : entree 7 o $2B45 ([id,?,PC,..]), <=6 opcodes/tick (nibble bas)"),
     0x4737: ("fetch_retaddr", "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"),
     0x71DB: ("tape_load", "LOAD bloc cassette via $0417 + verif $32/$33"),
     0x7215: ("tape_save", "SAVE : leader, en-tete 9 o, donnees, checksum EOR"),
