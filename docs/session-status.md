@@ -259,7 +259,11 @@ priorité à l'observation via tickdiff (pas de SAVE/LOAD).
 **tickdiff** (`scripts/tickdiff.c` → `build/sim/tickdiff`, + shim
 `dump_mem` 6 régions) : superviseur C, sim65 vivant par pipes, un
 ordre = un tick = snapshot 3623 o + deltas dans `build/sim/ticks*/`.
-R1 calibré : boot ~2779 o, `WAIT` = 15–24 o (scheduler seul).
+Runs joués : R1 300×WAIT, R2 objets, R3 mouvement (diffs seuls,
+Séance 2 intacte), R4 1463×WAIT (stop limite 2G cycles, pas un
+crash). Résultats → `savegame-memory-map.md` §7 (porteur `+1`
+confirmé, visite pose bit6 `b0`, trolls morts tick 966, dormants
+jamais armés, events immobiles — modèle `cpt--` contredit).
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 

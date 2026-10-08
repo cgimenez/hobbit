@@ -361,16 +361,49 @@ LOAD : prompt (`vec_05` PRESS ANY KEY) + `vec_02` + écriture directe en
 bas (pas de `boot_copyback` : les dest sont les adresses basses) ;
 échec → `TAPE LOADING ERROR` + reboot input (`JMP $2C3D`).
 
-## 7. Statuts et ouverts (relève du harnais)
+## 7. Résultats harnais (tickdiff : R1 300×WAIT, R2 objets, R3
+mouvement, R4 1463×WAIT — `build/sim/ticks_r*/ticks.log`)
 
-- Usage en jeu des copies hautes **non observé** (snapshot SAVE /
-  restore LOAD uniquement ?).
-- `$BF`–`$C4`, `$CA`–`$CD`, `$CF`–`$D5` : rôles + valeurs runtime.
-- `+0` d'état ≠ `$01` (`$02 $03 $05 $08`) : sens exact.
-- `n`/`s6` des entrées entités ; entrée e9 (`$2B3F`–`$2B43`) à relire.
-- bit7 `b0`/`b1`, `b1` bit6 (`L363E`), eloc `$2F` (clé `$28`).
-- Identité `$3C` (état `$1B30` pré-existant), `$xC` si rencontré.
-- Elocs non-chambres (`$09`, `$38`/`$3A` = conteneurs ?), eloc `$00`
-  (clés `$15 $16 $26` : nulle part = inventaire ?).
-- Noms des entités `$3D $3F $40 $43 $45 $49 $4A $4B $4C`
-  (via `LOOK` en jeu, aveugle).
+- **Commandes sans effet = 0 octet** : `GET MAP` (déjà portée),
+  `OPEN DOOR` (déjà ouverte) → aucun tick monde. Seules les commandes
+  qui réussissent tickent (+ `WAIT`, `LOOK`, `INVENTORY`).
+- **Porteur `+1` confirmé** : `$00`=joueur, `$FF`=personne, sinon id
+  entité. Carte `$03` : `$3E`→`$00` (donnée au boot),
+  `$00`→`$FF` (DROP), `$FF`→`$00` (GET), `$00`→`$3E` (Gandalf la
+  reprend en terre morne). Clé `$04` : `$47`→`$FF` (troll mort, objet
+  lâché). **`+0` (type) : jamais modifié** (tous runs).
+- **Mouvement** : `ploc` `$C8` + `eloc` `$C9` suivent le lieu ;
+  `obj` `$C5`/`crec` `$C6`/`$C7` = entité/record rencontrés
+  (`$48` dans la salle des trolls) ; `$CC` `$00`→lieu ; un cluster
+  d'états suit `ploc` (`+$10` clé `$00`, `+$B0`, `+$240`, `+$256`,
+  `+$2C6`, `+$331` : compagnons/objets liés au joueur) ; `+$22E`
+  distinct (`$01`→`$04`→`$01` : salle précédente ?).
+- **Visite** : entrer dans une salle pose bit6 du `b0` de son record
+  (`$84`→`$C4` : record `$04` en terre morne, `$05` au nord).
+- **Tick 966 (R4, soak pur) — les trolls meurent** : entités `$47`/`$48`
+  `id`→`$00` (définitif, jamais réarmés), porteur `$47`→`$FF`,
+  record `$05` `desc` `$0000`→`$1645`, rafale d'états. Cause exacte
+  non attribuée (script PNJ probable, pas un event : table events
+  intacte) ; timing ≈966 ticks aveugle-confirmé, à reproduire.
+- **Dormants `$42`/`$46`/`$3C` : jamais armés** (id `$00` + PC figés
+  sur 1463 ticks). Réveil = déclencheur joueur, pas le temps.
+- **Events `$2B12` : IMMOBILES partout** (1463 WAIT + 12 actions) —
+  `cpt`/`cond`/`actA`/`actB` inchangés, même e8 armé (`cpt=3`).
+  Le modèle « `cpt--` par tick, tir si `cond>=cpt` » est CONTREDIT :
+  driver d'`evt_tick` inconnu (triggers non testés : combat, salles
+  spécifiques). Entrée e9 (`$2B3F`–`$2B43`) : statique
+  (`0C 01 0D 01 0D` = 5 o `[id,cpt,actA,cond,actB]` confirmé par taille).
+- **Entités** : seuls `PClo`/`PChi` bougent (errance : Gandalf 10 PC
+  distincts ; boucles MOVE+GOTO `$34`/`$36`, `$38`/`$42`…).
+  **`n`/`s6` : jamais modifiés. Tables INDIR : jamais patchées**
+  (`$xC` non observé). `base` : fixe.
+- **ZP** : seuls `$CA`/`$CB` bougent par tick (scratch) ;
+  `$BF`–`$C4`, `$CD`, `$CF`–`$D5` : statiques partout (rôle inconnu,
+  ni tick ni action testée).
+- **Records** : 3 mutations vues (`b0` visite ×2, `desc` tick 966) —
+  pas des gabarits inertes.
+- **Reste ouvert** : sens `$BF`–`$C4`/`$CD`/`$CF`–`$D5`, `+0`
+  `$02 $03 $05 $08`, `n`/`s6`, bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/
+  `$2F`, identité `$3C`, noms entités `$3D $3F $40 $43 $45 $49 $4A
+  $4B $4C`, driver events, cause tick 966, `+$22E`, `+$B0` et cie
+  (quel champ de quelle clé ?).
