@@ -4986,7 +4986,7 @@ L51CA:  ldy     #$01
         cmp     ($88),y
         bcc     L51D6
         lda     ($88),y
-L51D6:  jsr     code_56D7
+L51D6:  jsr     rand_range
         tax
 L51DA:  ldy     #$01
         cmp     ($88),y
@@ -5257,7 +5257,9 @@ L5374:  pha
         pla
         rts
 
-L5386:  lda     $0C
+; sonde : $0C==1 execute, sinon $12=1 et annule un niveau
+act_probe:
+        lda     $0C
         cmp     #$01
         bne     L538D
         rts
@@ -5701,7 +5703,8 @@ L56D1:  lda     #$00
         jmp     L471B
 
 L56D6:  .byte   $C0
-code_56D7:
+; tirage pseudo-aleatoire borne par A (bruit ($93))
+rand_range:
         and     #$7F
 L56D9:  sta     L570F
         asl     a
@@ -6286,7 +6289,8 @@ L5B1B:  ldy     #$07
         cmp     #$40
         rts
 
-L5B24:  jsr     print_msg
+; message d'action $13E8 + epilogue
+act_msg:jsr     print_msg
 ; -> $13E8 ... '. '...e....n......{..| 
 msg_5B27:
         .word   $13E8
@@ -6314,7 +6318,7 @@ msg_5B41:
 code_5B43:
         rts
 
-        jsr     L5386
+        jsr     act_probe
         lda     $C6
         sta     $8A
         lda     $C7
@@ -6420,7 +6424,7 @@ L5BE7:  lda     ($8A),y
         sta     $8A
         lda     $18
         sta     $8B
-        jsr     L5386
+        jsr     act_probe
 L5BF8:  ldy     #$01
         lda     ($8A),y
         cmp     #$FF
@@ -6542,7 +6546,7 @@ L5CC5:  jmp     L5A62
 L5CC8:  ldy     #$02
         lda     ($8A),y
         beq     L5CC5
-        jsr     L5386
+        jsr     act_probe
         jsr     L46E9
         jsr     L530B
         ldy     #$00
@@ -6586,7 +6590,7 @@ L5D09:  cmp     #$FF
         jsr     L5E66
         jsr     fetch_retaddr
         bne     L5CC5
-        jsr     L5386
+        jsr     act_probe
         ldy     #$00
         lda     ($8A),y
         sta     $13
@@ -6612,7 +6616,7 @@ code_5D44:
         jsr     L4C82
         bcc     L5D53
         lda     #$09
-        jsr     code_56D7
+        jsr     rand_range
         clc
         adc     #$01
         sta     $13
@@ -6646,7 +6650,7 @@ L5D8A:  jsr     L4C82
         bcs     L5D92
         jmp     L5A62
 
-L5D92:  jsr     L5386
+L5D92:  jsr     act_probe
         clc
         ldy     #$05
         lda     $1B1A,y
@@ -6683,7 +6687,7 @@ L5DAF:  ldy     #$02
         bne     L5DCB
         jmp     L5E47
 
-L5DCB:  jsr     L5386
+L5DCB:  jsr     act_probe
         ldy     #$10
         lda     $8F
         sta     ($88),y
@@ -6817,7 +6821,7 @@ L5EB4:  lda     #$01
         rts
 
         jsr     L5BBB
-        jsr     L5386
+        jsr     act_probe
         lda     $17
         sta     $8A
         lda     $18
@@ -6861,7 +6865,7 @@ code_5EFE:
         jmp     L5D09
 
 L5F07:  lda     #$0A
-        jsr     code_56D7
+        jsr     rand_range
         cmp     #$00
         beq     L5F07
         tax
@@ -6928,7 +6932,7 @@ L5F6A:  lda     $17
         lda     $15
         jmp     L4C6D
 
-        jsr     L5386
+        jsr     act_probe
         lda     $15
         jsr     L520D
         cmp     #$FF
@@ -6941,7 +6945,7 @@ L5F6A:  lda     $17
         ldy     #$06
         lda     ($88),y
         beq     L5FA0
-        jsr     code_56D7
+        jsr     rand_range
         beq     L5FA4
 L5FA0:  jsr     code_3E5B
         rts
@@ -6986,7 +6990,7 @@ L5FDD:  lda     $15
         jsr     L5576
         cmp     #$00
         beq     L5FF5
-        jsr     L5386
+        jsr     act_probe
         jsr     code_5711
         ldy     #$07
         lda     ($8A),y
@@ -6997,7 +7001,7 @@ L5FDD:  lda     $15
 L5FF5:  lda     #$02
         jmp     L5A9D
 
-L5FFA:  jsr     L5386
+L5FFA:  jsr     act_probe
         lda     $19
         sta     $8A
         lda     $1A
@@ -7082,7 +7086,7 @@ msg_6087:
 code_6089:
         rts
 
-L608A:  jsr     L5386
+L608A:  jsr     act_probe
         ldy     #$10
         lda     ($88),y
         sta     ($8A),y
@@ -7094,7 +7098,7 @@ L608A:  jsr     L5386
 L609A:  lda     #$05
         jmp     L5A90
 
-        jsr     L5386
+        jsr     act_probe
         lda     $17
         sta     $8A
         lda     $18
@@ -7109,7 +7113,7 @@ L609A:  lda     #$05
         sta     ($8A),y
         lda     #$01
         bne     L60C4
-L60BF:  jsr     L5386
+L60BF:  jsr     act_probe
         lda     #$0A
 L60C4:  ldy     #$05
         clc
@@ -7177,7 +7181,7 @@ L6109:  ldy     #$06
         ldy     #$05
         lda     ($19),y
         sta     L6320
-L613E:  jsr     L5386
+L613E:  jsr     act_probe
         lda     #$15
         jsr     L56D9
         clc
@@ -7258,7 +7262,7 @@ L61C4:  lda     #$83
         bne     L61D9
         jmp     L5A9D
 
-L61D9:  jsr     L5386
+L61D9:  jsr     act_probe
 L61DC:  ldy     #$07
         lda     ($8A),y
         and     #$DF
@@ -7285,7 +7289,7 @@ L61F4:  lda     $19
         bne     L620B
         jmp     L5A90
 
-L620B:  jsr     L5386
+L620B:  jsr     act_probe
         ldy     #$02
         lda     ($8A),y
         tax
@@ -7301,7 +7305,7 @@ L620B:  jsr     L5386
         beq     L622A
         jmp     L5A9D
 
-L622A:  jsr     L5386
+L622A:  jsr     act_probe
 L622D:  ldy     #$07
         lda     ($8A),y
         ora     #$20
@@ -7385,7 +7389,7 @@ L62B5:  sta     L6320
 L62B8:  lda     L6320
         jsr     L6341
         sta     L6320
-        jsr     L5386
+        jsr     act_probe
         ldy     #$06
         lda     ($17),y
         jsr     L6341
@@ -7520,7 +7524,7 @@ code_6480:
 L6487:  lda     #$00
         sta     $C3
         lda     #$04
-        jsr     code_56D7
+        jsr     rand_range
         asl     a
         sta     $6C
         asl     a
@@ -7543,7 +7547,7 @@ L64AE:  lda     #$00
         dey
         bpl     L64AE
         lda     #$03
-        jsr     code_56D7
+        jsr     rand_range
         asl     a
         asl     a
         clc
@@ -7646,7 +7650,7 @@ msg_6686:
 code_6688:
         rts
 
-L6689:  jsr     L5386
+L6689:  jsr     act_probe
         ldy     #$07
         lda     ($C6),y
         ora     #$80
@@ -7760,11 +7764,11 @@ L6969:  lda     $1B21
         beq     L6971
         rts
 
-L6971:  jsr     L5386
-        jsr     L5B24
+L6971:  jsr     act_probe
+        jsr     act_msg
         .byte   $AB,$14,$60
 code_697A:
-        jsr     L5386
+        jsr     act_probe
         lda     $C8
         cmp     $1DE0
         beq     L6985
@@ -7785,7 +7789,7 @@ code_6997:
         rts
 
 L6998:  jsr     L6250
-        jsr     L5386
+        jsr     act_probe
         lda     #$0B
         sta     $13
         lda     $C5
@@ -7802,7 +7806,7 @@ code_69B3:
         rts
 
 L69B4:  lda     #$08
-        jsr     code_56D7
+        jsr     rand_range
         cmp     #$03
         bcc     L69AE
 L69BD:  lda     $15
@@ -7886,7 +7890,7 @@ L6A38:  ldy     #$00
         lda     ($8A),y
         cmp     #$0A
         bne     L6A32
-        jsr     L5386
+        jsr     act_probe
         ldx     L6A5C
         lda     $15
         ldy     #$01
@@ -7902,7 +7906,7 @@ L6A56:  lda     L6A5C
 
 L6A5C:  .byte   "N`"
 code_6A5E:
-        jsr     L5386
+        jsr     act_probe
         lda     $1F76
         cmp     #$12
         beq     L6A69
@@ -7930,7 +7934,7 @@ L6A79:  stx     $1F85
         bne     L6A92
         jmp     L5A62
 
-L6A92:  jsr     L5386
+L6A92:  jsr     act_probe
         jsr     print_msg
 ; -> $1346 k...Qb...v`..{.......f`..{..
 msg_6A98:
@@ -7987,7 +7991,7 @@ code_6AE2:
         rts
 
 L6AE3:  lda     #$64
-        jsr     code_56D7
+        jsr     rand_range
         cmp     #$32
         rts
 
@@ -8109,17 +8113,17 @@ code_6D77:
         beq     L6D80
         rts
 
-L6D80:  jsr     L5386
+L6D80:  jsr     act_probe
         lda     #$08
-        jsr     code_56D7
+        jsr     rand_range
         cmp     #$04
         bcc     L6D92
-L6D8C:  jsr     L5B24
+L6D8C:  jsr     act_msg
         lda     L6016,y
 L6D92:  lda     #$44
         cmp     $1CC5
         beq     L6D8C
-        jsr     L5B24
+        jsr     act_msg
         iny
         asl     $60,x
         jsr     print_msg
@@ -8185,7 +8189,7 @@ L6DEF:  lda     $C8
 L6DF6:  cmp     #$1C
         rts
 
-        jsr     L5386
+        jsr     act_probe
         lda     #$00
         sta     $D5
         lda     $90
@@ -8246,7 +8250,7 @@ L6E51:  jmp     code_667C
         bne     L6E61
         rts
 
-L6E61:  jsr     L5386
+L6E61:  jsr     act_probe
         lda     #$01
         sta     $0B
         jsr     L5374
@@ -8257,7 +8261,7 @@ L6E61:  jsr     L5386
         rts
 
 L6E74:  lda     #$64
-        jsr     code_56D7
+        jsr     rand_range
         cmp     #$50
         bcs     L6E83
         jsr     print_msg
@@ -8279,20 +8283,20 @@ code_6E88:
         beq     L6E92
         rts
 
-L6E92:  jsr     L5386
+L6E92:  jsr     act_probe
         lda     $C5
         cmp     #$47
         beq     code_6EA1
-        jsr     L5B24
+        jsr     act_msg
         .byte   "+"
         .byte   $16
         .byte   "`"
 code_6EA1:
-        jsr     L5B24
+        jsr     act_msg
         ora     $16,x
         rts
 
-        jsr     L5386
+        jsr     act_probe
         lda     #$47
         jsr     code_4D47
         lda     #$48
@@ -8417,7 +8421,7 @@ L6F84:  stx     $19
         sta     ($19),y
         jmp     L6F56
 
-        jsr     L5386
+        jsr     act_probe
         lda     $17
         sta     $8A
         lda     $18

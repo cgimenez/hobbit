@@ -122,12 +122,23 @@
   (boot, ratés, porte/pontes réussies, ticks PNJ) : le `1` est transitoire
   (jamais capturé en fin de tick) — bit 7 de `$78` = sortie « directe »
   probable (ex. sans porte). `$C8=01` = lieu joueur (salle init) ;
-  `$13=$1E` = cas spécial (sans contrôle lieu) ; `NE→$13=05` ambigu
-  (résidu boot `=05`, non résolu).
   `$13=$1E` = cas spécial (sans contrôle lieu). Anomalie notée : `NE` accepté
-  (`YOU CANNOT GO NORTHEAST.`) mais `$13` final inchangé — chemin diagonal
-  à élucider ; `$13 ∈ {$04,$0E,$10,$13,$1D,$24}` des scripts ≠ directions
-  (autre sous-espace : objets/lieux ?).
+  (`YOU CANNOT GO NORTHEAST.`) mais `$13` final = résidu boot (`05`) —
+  chemin diagonal à élucider ; `$13 ∈ {$04,$0E,$10,$13,$1D,$24}` des scripts
+  ≠ directions (autre sous-espace : objets/lieux ?).
+- Tables d'actions (bande `$70xx-$71xx`, lues au binaire + r2) : `L7014`
+  (15 actions `L4B37`, sentinelle index 0 `$FF61`) et `L7143` (15 actions VM,
+  sentinelle `$FF0B`), toutes en bloc 4 ; appel via `L4C5D` (saut indirect).
+  **Invocation en 2 phases** (`L506B`) : sonde `$0C=0` → `act_probe` (`$5386` :
+  `$12=1` + annule un niveau) si gardes OK, sinon stop ; exécution `$0C=1`
+  (traverse). Gardes typiques : visibilité `$C9==$C8` (même lieu),
+  `$1B21`/`$1E4B`/`$1B40` (lieux), `$CE` (one-shot, auto-consommé),
+  `rand_range` (`$56D7`, PRNG bruit `($93)`, `LDA #n/CMP #m/BCC` = proba),
+  message via `act_msg` (`$5B24`, `$13E8`). Branche ids `≥$80` (`L4BC9`) :
+  table `[$5FAE` + mots hors-bloc4 `$0732…]` — usage non observé (code
+  blocs 2/3 ? chemin mort ?). Convergence vérifiée : id VM `$29` et action
+  compteur `07` → même `$6DD0` (`L7143`/`L7169` contiguës, fenêtre valide
+  index 0-13, `$AC06…` jamais indexés).
 - Les 6 pointeurs `$440D` nuls (`TODO`) élucidés : **idiome général** —
   slot `.word` rempli juste avant `JSR print_msg` (constantes `$13DC/$13E0`,
   lookup `L5399`, table `L6359,x`, calculé, ou `STX/STY` de `L5279` pour

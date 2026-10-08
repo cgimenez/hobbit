@@ -43,7 +43,7 @@ RANGE { START $5439; END $5450; TYPE CODE; NAME "code_5439"; };
 RANGE { START $5454; END $54E7; TYPE CODE; NAME "code_5454"; };
 RANGE { START $54E9; END $55AB; TYPE CODE; NAME "code_54E9"; };
 RANGE { START $55AE; END $56D5; TYPE CODE; NAME "code_55AE"; };
-RANGE { START $56D7; END $570D; TYPE CODE; NAME "code_56D7"; };
+RANGE { START $56D7; END $570D; TYPE CODE; NAME "rand_range"; COMMENT "tirage pseudo-aleatoire borne par A (bruit ($93))"; };
 RANGE { START $5711; END $575A; TYPE CODE; NAME "code_5711"; };
 RANGE { START $575D; END $57FA; TYPE CODE; NAME "code_575D"; };
 RANGE { START $57FD; END $5800; TYPE CODE; NAME "code_57FD"; };
@@ -304,6 +304,8 @@ LABEL { NAME "script_step2"; ADDR $502C; COMMENT "+2 (bit $10:+2), reecrit PC da
 LABEL { NAME "entity_move"; ADDR $511C; COMMENT "mouvement entite ($13/$15/$16), message si visible"; };
 LABEL { NAME "entity_goto"; ADDR $5249; COMMENT "positionne PC entite depuis ($8A)+1..2"; };
 LABEL { NAME "say_if_visible"; ADDR $5279; COMMENT "message (msg_52C6 patche) si entite au lieu du joueur"; };
+LABEL { NAME "act_probe"; ADDR $5386; COMMENT "sonde : $0C==1 execute, sinon $12=1 et annule un niveau"; };
+LABEL { NAME "act_msg"; ADDR $5B24; COMMENT "message d'action $13E8 + epilogue"; };
 LABEL { NAME "tape_load"; ADDR $71DB; COMMENT "LOAD bloc cassette via $0417 + verif $32/$33"; };
 LABEL { NAME "tape_save"; ADDR $7215; COMMENT "SAVE : leader, en-tete 9 o, donnees, checksum EOR"; };
 LABEL { NAME "kb_scan"; ADDR $7353; COMMENT "scan clavier VIA ; A = touche bit7=presente, sinon bit7=0"; };
