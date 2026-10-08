@@ -75,9 +75,9 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 .venv/bin/python scripts/check_disasm.py     # viser exit 0 (RÉSULTAT: PROPRE)
 .venv/bin/python scripts/rebuild.py          # round-trip ca65+ld65 (build/block4.cfg),
                                              # byte-identique exigé, exit 0
-.venv/bin/python scripts/pack_sim.py [--hires]  # image sim65 (/tmp/hobbit.sim) :
+.venv/bin/python scripts/pack_sim.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
                                              # shim I/O + patch $7353 + charset ROM
-./tools/cc65/bin/sim65 -x N /tmp/hobbit.sim < input.txt > frames.bin
+./tools/cc65/bin/sim65 -x N build/sim/hobbit.sim < input.txt > frames.bin
 .venv/bin/python scripts/decode_frames.py frames.bin   # écrans -> texte
 ```
 

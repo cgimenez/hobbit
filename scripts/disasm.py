@@ -898,7 +898,8 @@ def main() -> int:
             f"{DA65} manquant : toolchain attendue dans tools/cc65/bin (cf. AGENTS.md)"
         )
         return 1
-    slice_path = Path("/tmp/hobbit_block4.bin")
+    slice_path = ROOT / "build" / "sim" / "hobbit_block4.bin"
+    slice_path.parent.mkdir(parents=True, exist_ok=True)
     slice_path.write_bytes(raw[lo - BASE : hi - BASE + 1])
     subprocess.run(
         [

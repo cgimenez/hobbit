@@ -18,11 +18,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from disasm import BASE, BIN, BLOCK4, CA65, LD65, LISTING, ROOT  # noqa: E402
 
 CFG = ROOT / "build" / "block4.cfg"
-OBJ = Path("/tmp/hobbit_block4.o")
-OUT = Path("/tmp/hobbit_block4_rebuilt.bin")
+BUILD = ROOT / "build" / "sim"
+OBJ = BUILD / "hobbit_block4.o"
+OUT = BUILD / "hobbit_block4_rebuilt.bin"
 
 
 def main() -> int:
+    BUILD.mkdir(parents=True, exist_ok=True)
     for tool in (CA65, LD65):
         if not Path(tool).is_file():
             print(f"{tool} manquant : toolchain attendue dans tools/cc65/bin (cf. AGENTS.md)")

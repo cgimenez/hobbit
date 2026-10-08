@@ -32,7 +32,7 @@
 - `scripts/pack_sim.py` : assemble `harness/shim.s` (`$C000`, zone "ROM" —
   le jeu n'y écrit jamais), patch `JMP $C000` sur `$7353` (scan clavier
   VIA), charge le charset ROM 1.0 (`$FC70-$FFBF`, font lue en `($0403)`),
-  packe `/tmp/hobbit.sim` (load `$0400`, reset `$2C00`, SPAddr `$02`).
+  packe `build/sim/hobbit.sim` (load `$0400`, reset `$2C00`, SPAddr `$02`).
 - `harness/shim.s` (en `$C000`, ~600 o, zone CODE `$C000-$C2EF`) :
   `shim_kb` — `PVRead` stdin avec machine à états pressé/relâché
   (compatible `BPL`/`BMI` des 4 sites d'appel ; EOF → `$00`, le jeu boucle
@@ -49,10 +49,10 @@
   (tables scheduler) — `scripts/decode_mems.py` (diff par trame).
 - `scripts/decode_frames.py` : rend les écrans hires en texte (charset
   ROM, grille 8 px, bit5-gauche ; n'affiche que les lignes non vides).
-- Recette input : `printf '\rLOOK\r' | sim65 -x 150000000 /tmp/hobbit.sim
+- Recette input : `printf '\rLOOK\r' | sim65 -x 150000000 build/sim/hobbit.sim
   > frames.bin` (CR=`$0D` ; `\r` initial = touche du tourne-page d'intro),
   puis `decode_frames.py frames.bin` (OCR hires → texte).
-- **Mode rapide** (`pack_sim.py --fast` → `/tmp/hobbit_fast.sim`,
+- **Mode rapide** (`pack_sim.py --fast` → `build/sim/hobbit_fast.sim`,
   patch `$2C4A` `01`→`00` : `$56=0`, `img_show` no-op) : texte seul,
   500 ticks + dumps complets en **3,4 s** mur ; lecture par OCR hires
   (les dumps `@@FRAME text` bruts sont des pixels en mode hires).

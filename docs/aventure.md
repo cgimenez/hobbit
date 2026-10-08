@@ -16,7 +16,7 @@ Conventions : `> COMMANDE.` = écho jeu ; tick = commande réussie.
 ## Séance 0 — calibration du mode rapide (2026-10-08)
 
 - `pack_sim.py --fast` : patch `$2C4A` (`01`→`00`, `$56=0`, `img_show`
-  no-op). Image `/tmp/hobbit_fast.sim` (stock inchangée).
+  no-op). Image `build/sim/hobbit_fast.sim` (stock inchangée).
 - Correction : le `N` du boot ne désactive rien (`L2C3D` morte depuis
   `start` : `LDX #$FF` / `BNE L2C49` → `$56=1` toujours ; `L2C3D`
   ne vit que via QUIT). `$56` n'est écrit nulle part ailleurs.
