@@ -258,6 +258,8 @@ Record = `[b0, b1, (mot,masque)×3, desc_lo, desc_hi, …]` ; `+8` = desc
 conds = signature d'appartenance (`code_433A`, groupes § factions).
 
 `$00` = gabarit vide (`$FF $FF`, conds nulles, desc `$0000`).
+Graphe des sorties par record : `docs/game-map.md` (triplets
+`[dir,cond,dest]` + `$FF` après la desc).
 `$13`/`$14` partagent desc `$1931` (b0 `$02`/`$80`).
 Groupes : `$0F`+`$34`–`$41` (`AD07 9102 150A`, créatures),
 `$44`–`$4A` (`BE17 2207…`, +`$0C` en repli), `$4B`–`$4D`

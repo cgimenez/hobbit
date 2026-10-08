@@ -1,5 +1,8 @@
 # Journal d'aventure — The Hobbit (Oric), joué sous sim65
 
+Carte exhaustive (statique, 78 lieux) : `docs/game-map.md`. Ce journal
+ne décrit que le terrain vérifié en jeu.
+
 Parties **informées** (depuis 2026-10-08 PM) : fini l'aveugle — coups
 décidés en connaissance des commandes (sonde vocabulaire),
 PNJ et lieux. Deux images : `build/sim/hobbit_fast.sim` (texte seul,
