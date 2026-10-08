@@ -395,6 +395,10 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   `$0DA0`), QUIT `$3C88` (score + `JMP $2C3D`), HELP `$3C8E`,
   SCORE `$3CCE`, PAUSE `$3D39`. Verbes ordinaires : table **$6FAC**
   (23 entrées `[wid,lo,hi]`, `$01-$0A` = mouvements → `$5D44`) ;
+  identifiés par messages : `$13`=GET, `$0B`=KILL, `$1A`=INVENTORY,
+  `$1D`=DROP, `$17`=LOOK, `$1C`=OPEN probable ; `$0E`/`$1F`/`$20`/
+  `$24`/`$27`/`$2A`/`$30` = pseudo-mouvements ou sans message
+  (`/tmp/verbsc.py`) ;
   objets : `(orec)+1` bit7 → `L7014` vs `L7114+X` (`L4BA3`) ;
   compatibilité verbe/objet : liste en record+`$10` (`L52EA`).
 - SAVE (`cmd_save` `$3DD9`) : `vec_06` (PREPARE TAPE) + 4×
