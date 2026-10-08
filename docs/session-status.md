@@ -264,6 +264,11 @@ Séance 2 intacte), R4 1463×WAIT (stop limite 2G cycles, pas un
 crash). Résultats → `savegame-memory-map.md` §7 (porteur `+1`
 confirmé, visite pose bit6 `b0`, trolls morts tick 966, dormants
 jamais armés, events immobiles — modèle `cpt--` contredit).
+Repro 966 : `build/sim/r966.txt` (`\n` + 1000×`WAIT`) → 3 runs
+identiques (`ticks_r4`, `ticks_966a/b`) : précurseurs 960, dragon
+off 961, trolls off 966. Prochaines pistes : compteur exact
+961/966 (PC scripts avant cut ?), driver events (combat ?),
+ZP `$BF`–`$C4`/`$CF`–`$D5`, Séance 2.
 
 ## Bloc 2 : dictionnaire et messages élucidés (émulation statique)
 
