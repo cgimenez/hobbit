@@ -301,7 +301,7 @@ LABEL { NAME "cr_out"; ADDR $7489; COMMENT "affiche CR ($0D) via ch_out"; };
 LABEL { NAME "ch_out"; ADDR $7491; COMMENT "filtres $0B/$0C/$0D/$C4 (capitales) puis rendu"; };
 LABEL { NAME "glyph_out"; ADDR $75B4; COMMENT "rend un caractere en hires $A000 (font ($0403), ORA $40)"; };
 LABEL { NAME "ch_put"; ADDR $75F6; COMMENT "sortie ecran : gere CR, scroll, pause bas d'ecran via kb_scan"; };
-LABEL { NAME "pause_key"; ADDR $7619; COMMENT "pause 'press any key' : bip $771A, attente relachement+pression"; };
+LABEL { NAME "pause_key"; ADDR $7619; COMMENT "toutes les 16 CR ($11) : touche (10 essais timeout) + relachement, sinon $11++"; };
 LABEL { NAME "hires_clear"; ADDR $7747; COMMENT "remplit $A000-$BFDF de $40"; };
 LABEL { NAME "game_main"; ADDR $7779; COMMENT "boucle principale du jeu (atteinte via JMP vec_15)"; };
 RANGE { START $2C03; END $2C04; TYPE BYTETABLE; };

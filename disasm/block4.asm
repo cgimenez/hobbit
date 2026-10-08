@@ -9221,7 +9221,7 @@ L7607:  lda     #$20
 L7613:  lda     $02
         cmp     #$0D
         bne     L7653
-; pause 'press any key' : bip $771A, attente relachement+pression
+; toutes les 16 CR ($11) : touche (10 essais timeout) + relachement, sinon $11++
 pause_key:
         lda     #$00
         sta     $0F

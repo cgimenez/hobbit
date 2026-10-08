@@ -53,12 +53,61 @@
   (1366 o) et une table `$28E6`+ vers le workspace haut (2 emplacements
   de shim écrasés avant `$C000`).
 
+## AnimTalk : règles parser observées (harnais)
+
+- Boot : le jeu joue lui-même `LOOK` en tutoriel (écho `> LOOK.` +
+  description complète, sans input). Ne pas re-`LOOK` en premier.
+- Déplacement = direction nue (`EAST`, `E`, `N`, `NE`→`NORTHEAST`…) ;
+  `GO EAST` = verbe transitif → `I SEE NOTHING TO GO THROUGH` (idem
+  `GO NORTH`). Bloqué/inexistant → `YOU CANNOT GO <DIR>.` (même message
+  porte close et sans sortie).
+- Insensible à la casse, écho normalisé en capitales (`go east`→`> GO EAST.`).
+- Mots inconnus : `I DO NOT KNOW THE WORD " <mot>."` ; verbe inconnu
+  (slot = 2 mots, ex. `LOOK AT`) : `I DO NOT KNOW THE VERB " <mots> "`.
+  Connu+inconnu (`OPEN SESAME`) → cite le mot inconnu.
+- `GET MAP` (déjà porté) → `YOU ARE ALREADY CARRYING THE MAP.` ;
+  `DROP MAP` → `You drop the curious map.` ; `INVENTORY` → `You are
+  carrying.` + liste (vide = rien) ; `OPEN CHEST` → `You open the wooden
+  chest.` (contenu vu au LOOK suivant) ; `OPEN DOOR` → `You open the round
+  green door.` ; `SCORE` → `You have mastered 0.0% of this adventure` ;
+  `HELP` → `YOU'RE DOING FINE.` ; `QUIT` → illustration + score, retour au
+  prompt (pas de sortie sous harnais) ; commande vide (`> .`) = no-op.
+- `WAIT` existe : `You wait.` + `Time passes...` = tick horloge pur (outil
+  de sonde AnimAction idéal, sortie texte seule, rapide).
+
+## AnimAction : PNJ autonomes confirmés (1 tick = 1 commande réussie)
+
+- Seules les commandes **réussies** tickent (`LOOK INVENTORY WAIT OPEN GET
+  DROP` mouvements…) ; ratées (`CANNOT`, `SEE NOTHING`, `DO NOT KNOW`),
+  `HELP`/`SCORE`/vide → aucun tick (vérifié : 0 action PNJ).
+- Gandalf (script adaptatif) : donne la carte au boot → ouvre la porte
+  verte (même si c'est le joueur qui ouvre le coffre / `INVENTORY`!) →
+  `Gandalf goes east.` → `Gandalf takes the curious map.` (prend des objets
+  pour son compte). Plusieurs PNJ agissent sur le même tick (`Gandalf goes
+  east.` + `Thorin waits.`) ; `Thorin enters.` suit le joueur.
+- Traversée nominale : `OPEN DOOR` / `EAST` → `You go east.` / `gloomy
+  empty land… exits east north northeast` / Gandalf sur place /
+  `Thorin enters.`
+
+## Harnais : protocole affiné (cause racine lue dans le listing)
+
+- `pause_key` (`$7619`, relue dans `ch_put`) : **toutes les 16 CR** (`$11`),
+  attend une touche avec **timeout (~10 essais)** puis le relâchement —
+  consomme donc **1 frappe en attente** si elle existe (`L` de `LOOK`
+  → `OOK`, `Y`/`↵` après `QUIT`), sinon continue (sûr sur EOF).
+- Recette : après toute sortie longue (illustration : `LOOK`, mouvement,
+  `QUIT`), intercaler une touche sacrificielle (`\r` → no-op `> .` au prompt,
+  sans tick) avant la commande suivante.
+- Coût rendu illustration sous sim65 ≈ plusieurs centaines de M cycles :
+  budgets `-x` généreux (2G pour 2 rendus), préférer les commandes
+  texte seul (`WAIT`, `INVENTORY`) pour les sondes. `QUIT` perd l'input
+  suivant (rendu) — prévoir la touche sacrificielle aussi.
+
 ## Prochaine étape
 
-AnimTalk (parser : nourrir le harnais — directions, objets, verbes, cas
-tordus) et AnimAction (thesis : PNJ autonomes — laisser tourner à EOF avec
-dump périodique ? points d'arrêt mémoire ?), puis nommer la zéro-page,
-bloc 2 et bloc 3.
+Dispatch verbes/tick dans le code (textes en bloc 2, handlers en bloc 4 ;
+table des verbes à localiser), inspection mémoire de l'état PNJ (workspace
+haut, copie `$28E6`+), puis nommer la zéro-page, bloc 2 et bloc 3.
 
 ## Points ouverts et limites harnais (non bloquants)
 

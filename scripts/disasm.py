@@ -88,7 +88,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x7491: ("ch_out", "filtres $0B/$0C/$0D/$C4 (capitales) puis rendu"),
     0x75B4: ("glyph_out", "rend un caractere en hires $A000 (font ($0403), ORA $40)"),
     0x75F6: ("ch_put", "sortie ecran : gere CR, scroll, pause bas d'ecran via kb_scan"),
-    0x7619: ("pause_key", "pause 'press any key' : bip $771A, attente relachement+pression"),
+    0x7619: ("pause_key", "toutes les 16 CR ($11) : touche (10 essais timeout) + relachement, sinon $11++"),
     0x7747: ("hires_clear", "remplit $A000-$BFDF de $40"),
     0x7779: ("game_main", "boucle principale du jeu (atteinte via JMP vec_15)"),
 }
