@@ -2,16 +2,20 @@
 
 ## État
 
-- `disasm/block4.asm` fiabilisé : **15 692 o de code (78 %)**, 79 sites
-  `JSR $440D`, **0 conflit**, `scripts/check_disasm.py` → **RÉSULTAT: PROPRE
-  (exit 0, sections A–H)**. Round-trip ca65 prouvé (byte-identique,
-  `scripts/rebuild.py`). Arbre propre, tout commité.
+- `disasm/block4.asm` fiabilisé : **16 851 o de code**, 99 sites
+  `JSR $440D` (115 pointeurs inline `$440D`/`$5B24`), **0 conflit**,
+  `scripts/check_disasm.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
+  Round-trip ca65 prouvé (byte-identique, `scripts/rebuild.py`). Arbre
+  propre, tout commité.
 - Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
-  (seeds r2 validés + 24 `MANUAL_ENTRIES` + `SEED_EXCLUDE={0x6DCE}`).
+  (seeds r2 validés + 74 `MANUAL_ENTRIES` dont 16 vecteurs + 58 orphelins
+  dispatch-indirect, dont les 30 actions `L7014`/`L7143` et leurs voisines
+  révélées par la règle D ; `SEED_EXCLUDE={0x6DCE}`).
 - Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
-  (19 amorcées : `print_msg`, `kb_scan`, `glyph_out`, `tape_load/save`,
-  `boot_copy`… ; nom + résumé → labels/commentaires régénérés ; checker H
-  : adresse=start, nom unique/valide). Ne jamais éditer le listing à la main.
+  (64 : socle `print_msg`/`kb_scan`/`glyph_out`/`tape_load/save`… +
+  `act_probe`/`rand_range`/`act_msg` + 30 actions `act_p14_ii`/`act_v14_ii` ;
+  nom + résumé → labels/commentaires régénérés ; checker H :
+  adresse=start, nom unique/valide). Ne jamais éditer le listing à la main.
 - Conflit `$6DCF` résolu : `JSR $440D` en `$6DCA` (cible d'un `BEQ`, idiome
   print-and-return vers `RTS`) confirmé ; seed `fcn.00006dce` exclu
   (chevauchait le pointeur `$165A`) ; routine orpheline `$6DD0` ajoutée
