@@ -1420,7 +1420,7 @@ L359B:  lda     #$FF
 L35AE:  lda     $6C
         sta     $13
         sta     $14
-        jsr     L3770
+        jsr     move_flags
         jsr     L3674
         lda     #$00
         sta     $0C
@@ -1604,10 +1604,10 @@ move_core:
         jsr     exit_ptr
         jsr     L358F
         jsr     code_4141
-        jsr     L3770
+        jsr     move_flags
         ldx     $15
         lda     $73
-        jsr     L3759
+        jsr     cond_eval
         beq     L370B
         ldy     #$05
 L3703:  lda     ($8A),y
@@ -1616,7 +1616,7 @@ L3703:  lda     ($8A),y
         bpl     L3703
 L370B:  ldx     $16
         lda     $74
-        jsr     L3759
+        jsr     cond_eval
         beq     L371E
         ldy     #$05
 L3716:  lda     ($8A),y
@@ -1656,7 +1656,9 @@ L3743:  tax
         txa
         rts
 
-L3759:  cpx     #$FF
+; slot condition X ($FF=absent), variante selon $73
+cond_eval:
+        cpx     #$FF
         bne     L375E
         rts
 
@@ -1672,7 +1674,9 @@ L3769:  txa
         lda     #$01
         rts
 
-L3770:  lda     $77
+; derive $73/$74/$80 depuis $78 (bits 7/6, sinon residus)
+move_flags:
+        lda     $77
         and     #$40
         sta     $7F
         lda     $78

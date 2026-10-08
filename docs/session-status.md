@@ -109,9 +109,21 @@
   `exit_ptr` (`L43CB`, recalculé à la main) : `($F8) = $26DA + $13*8`
   (entrées 8 o : directions = `[d0 d1 00 00 00 00 AD 04]`, ex. E=`35 03…`) ;
   consommé par `move_core` (`L36DB`, joueur et PNJ) qui en extrait `$77/$78`
-  (`code_4141`, nibbles) puis évalue `$15/$16` (`L3759` : `$FF`=absent, sinon
-  avance `$8A` et copie 6 o vers `$DC/$E2` = slots de conditions, sémantique
-  exacte à confirmer ; `$73` = acteur probable, 1=joueur, à confirmer).
+  (`code_4141`, nibbles) puis évalue `$15/$16` (`cond_eval` = `L3759` :
+  `$FF`=absent, sinon avance `$8A` et copie 6 o vers `$DC/$E2`).
+- `$73` creusé (hypothèse acteur ** réfutée **) : **flag de mode** —
+  `move_flags` (`L3770`) le dérive de `$78` (`$78&$80→$73=1`, sinon `$73=$78&1` ;
+  idem `$74` avec bit 6, `$80=$78&1`), le parser le force transitoirement
+  (`L3A6B` : 1→0 autour de la résolution d'objet). `1` = direct/sans contrôles
+  (saute les checks `L4B37`/`L511C`/`L5127`/`L52D1`, message unique `L51A0`,
+  variante `L43E4` de `cond_eval`, redirection d'appel `L38E5`, étape bonus
+  `L3679`) ; `0` = conditionnel (matching d'identité `$15==$C5`/`$16`,
+  variante `L43F3` via `L5331`). **Observé `=00` dans les 26+ trames MEM**
+  (boot, ratés, porte/pontes réussies, ticks PNJ) : le `1` est transitoire
+  (jamais capturé en fin de tick) — bit 7 de `$78` = sortie « directe »
+  probable (ex. sans porte). `$C8=01` = lieu joueur (salle init) ;
+  `$13=$1E` = cas spécial (sans contrôle lieu) ; `NE→$13=05` ambigu
+  (résidu boot `=05`, non résolu).
   `$13=$1E` = cas spécial (sans contrôle lieu). Anomalie notée : `NE` accepté
   (`YOU CANNOT GO NORTHEAST.`) mais `$13` final inchangé — chemin diagonal
   à élucider ; `$13 ∈ {$04,$0E,$10,$13,$1D,$24}` des scripts ≠ directions
