@@ -64,16 +64,25 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 .venv/bin/python scripts/check_disasm.py     # viser exit 0 (RÉSULTAT: PROPRE)
 .venv/bin/python scripts/rebuild.py          # round-trip ca65+ld65 (build/block4.cfg),
                                              # byte-identique exigé, exit 0
+.venv/bin/python scripts/pack_sim.py [--hires]  # image sim65 (/tmp/hobbit.sim) :
+                                             # shim I/O + patch $7353 + charset ROM
+./tools/cc65/bin/sim65 -x N /tmp/hobbit.sim < input.txt > frames.bin
+.venv/bin/python scripts/decode_frames.py frames.bin   # écrans -> texte
 ```
-
-sim65 : voir `docs/` (état et recettes à jour dans `docs/session-status.md`).
 
 ## 7. État et pistes
 
 - Bloc 4 (`$2C00`–`$7A80`) : checker PROPRE — 15 692 o de code (78 %), 79 sites
   `$440D`, 0 conflit. 6 pointeurs nuls (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A`) =
   adresses résolues à l'exécution (TODO dans le listing).
+- Round-trip ca65 prouvé (byte-identique) ; harnais sim65 fonctionnel :
+  `harness/shim.s` (clavier + dumps d'écrans via paravirt, en `$C000`),
+  boot validé jusqu'au prompt (`You are in a comfortable tunnel like hall`,
+  `> LOOK.`), entrées scriptées + réponses parser observées
+  (`I DO NOT KNOW THE WORD " OOK."`), écho caractère par caractère OK.
 - Détails à jour : `docs/session-status.md`, `docs/block4-analysis.md`,
   `docs/tape-archive-hobbit-1982-analysis.md`, `docs/tap-format.md`.
-- Pistes : nommer la zéro-page ; bloc 2 (table `$0500` + textes, messages
-  `$1370`/`$165A`/… pointés depuis le bloc 4) ; bloc 3 ; harnais sim65.
+- Pistes : AnimTalk (parser, via harnais) ; AnimAction (PNJ autonomes :
+  l'init recopie une table `$28E6`+ vers le workspace haut — base de données
+  jeu probable) ; nommer la zéro-page ; bloc 2 (messages `$1370`/`$165A`/…)
+  et bloc 3.
