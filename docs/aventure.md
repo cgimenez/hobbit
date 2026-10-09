@@ -52,6 +52,42 @@ hard dangerous path in the Misty mountains`, sorties
 est/nord/ouest/sud, `the vicious warg.` (+ Thorin suit).
 `The vicious warg attacks you.` (survécu 1 WAIT ; danger à
 mesurer).
+- `$0B` (E de `$0A`, libre) → `$0C` (E, libre) → `$16` (E, libre,
+sans desc, 5 sorties libres) ; `$0B` N→`$0E` (libre, "LARGE DRY
+CAVE", `DOWN`→`$0F` **refusé, cond `$06`** — 2 rythmes testés,
+tient).
+- `$16` : NE→`$18` (libre, "GATE TO MIRKWOOD"), N→`$31` (libre),
+NW→`$31` (**anomalie** : attendu `$14`, obtenu dest de NORTH —
+zone sombre à mouvement aléatoire ? à trancher).
+- `$18`→`$19` (E, libre) : `$19` "BEWITCHED GLOOMY PLACE", rive
+ouest au sud ("fast black river"), `the wood elf.` sur place.
+`EAST`→rive (`$42` "WEST BANK") puis **capture par l'elfe :
+téléport `$42`→`$1F` (donjon)** + `It is dark.`
+- `$44` (N de `$0A`, libre) → E→`$47`, NE→`$45` (libres) ;
+`$49` (S de `$0A`, libre) → E→`$4A` → N→`$47` (libres). Hauts
+non sombres, sans cond jusqu'ici.
+- `$1F` donjon elfe (sombre) : `The wood elf captures you.` +
+`It is dark.` + `You hear a noise.` + `Someone locks the red
+door with the red key.` (boucle butler). Sorties : SW→`$20`
+[cond `$08`], W→`$1E` [cond `$08`]. **`UP` = sortie dorée :
+`$1F`→`$1E`, 0 chute, consomme la fenêtre `$A0` d'arrivée**
+(2/2 : f10d, f35a). `SING`/`PUSH RED DOOR` tickent sans bouger
+(23 deltas, 0 chute — sondes gratuites).
+- `$1E` (sombre) : `UP`/`SOUTH`/`SOUTHWEST` rebondissent ou
+tombent (`You go somewhere. But fall and hit your head.`) ;
+rythme `(WAIT,SOUTH)`×N finit par sortir (`$1E`→`$1F` f35a,
+`$1E`→`$20` f37c au 3e SOUTH — destinations variables :
+**mouvements aléatoires dans le noir**, direction ignorée ?).
+- `$20` cellier (sombre, "CELLAR...BARRELS OF WINE") : atteignable
+(`$1E` S libre) mais **éjecté au tick-monde suivant :
+`$20`→`$1F` forcé** (signature : obj `$BE`→`$30`, +`$0161`
+`$01`→`$81`, sans chute — bouncer : butler `$42`, eloc `$20` ?).
+Une seule action par visite. `DOWN`→`$21` [cond `$0C`]
+**refusé** (chute + éjection) ; `ENTER/BREAK/OPEN/EXAMINE
+BARREL` = 0 tick (cible invisible dans le noir). Messages
+statiques `$11FA`/`$1206` : `TOO SMALL/TOO FULL FOR YOU TO
+ENTER` = `$21` est un **contenant** (tonneau plein).
+HELP au donjon : `WAIT AROUND AND TIME YOUR EXIT CAREFULLY.`
 
 ## Vocabulaire parser (sondes 63+19+8 verbes, réponses lues)
 
@@ -71,6 +107,9 @@ Inconnus (`I DO NOT KNOW`) : SHUT SHOW FIGHT RUB EXIT SHOUT ASK
 TELL SEARCH STAND WAVE KNOCK FEEL SMELL LISTEN BUY SELL STAY
 MOVE HELLO. Ambiguïtés : `WHICH TROLL ?` (HIDEOUS vs VICIOUS) ;
 `I DO NOT SEE THE X HERE` (absent) ; `TALK TO WHAT ?` (personne).
+F40a (tunnel, verbes seuls) : `ENTER` ✓ (31 deltas), `SIT`/`SLEEP`
+✓ (18, équiv. WAIT) ; `DRINK`/`EMPTY`/`POUR`/`FILL`/`CLIMB` = 0
+(mots connus mais sans effet ici).
 
 ## Séance 0 — calibration du mode rapide (2026-10-08)
 
@@ -153,10 +192,45 @@ F5 (Rivendell, gabarit F4) : `EAST`→`$0A` (23), `WEST`→`$05`
 signature que le don du lunch) ; `EXAMINE ELROND/THORIN`,
 `EAT LUNCH`, `GIVE LUNCH TO ELROND` = 0.
 
+## Séance 5 — donjon elfe + cellier (F6–F41, DB)
+
+F6 (poussée est) : `$0A`→`$0B`→`$0C`→`$16` libres ;
+`$16` NE→`$18` (gate Mirkwood), E→`$19` ; elfe + capture
+(`$42`→`$1F`). F7–F9 (donjon) : `SOUTHWEST` ne passe qu'au
+rythme `(WAIT,SOUTHWEST)` (6e essai, F23/F24 2/2) ; 12 variantes
+de rythme échouent (F29–F31) ; `UP` traverse gratis (F10d/F35a).
+F10 (verbes donjon) : `SING` ✓, `UP` ✓ (`$1F`→`$1E`) ;
+`GIVE LUNCH`/`EAT`/`CLIMB`/`SHOUT`/`OPEN|UNLOCK DOOR` = 0.
+F11–F13 : rebonds `$1E`↔`$1F`, budget ~8 chutes.
+F14–F17 : nord (`$44`→`$47`→`$4A`, libres) ; rivière infranchissable
+(`SOUTH $19`, `RUN EAST` retombe `$1F`).
+F18–F22 : `TAKE (RED) KEY` = 0 (invisible) ; 40×WAIT sans événement
+neuf (locks + `Day dawns` en boucle) ; `HELP`/`SCORE` = 0 tick.
+F23–F28 : rythme `(WAIT,SOUTHWEST)`×6 = entrée à 100 % (5 chutes).
+F32–F36 : `SOUTH $1E`→`$20` (F37c, 3e essai) ; spam `SOUTH` = 0
+mouvement ; 4 phases testées (F37a–d : `$1F`×3, `$20`×1).
+F38–F39 : bounce `$20`→`$1F` systématique au 1er tick-monde ;
+`DOWN` refusé (chute+éjection) ; 4 verbes `BARREL` = 0.
+Hires F39a : pas de `TOO FULL` affiché, dark-fail générique.
+
+## Séance 6 — nord/est (F42–F45, DB, `-t 100 -s 100`)
+
+Préfixe court (`LOOK,EAST,NORTH,SE,EAST`, ~23 ticks). F42 :
+`$0A` N→`$44`, E→`$0B`, S→`$49`, W→`$09` (4/4 libres).
+F43 : `$44`→`$47`/`$45`, `$0B`→`$0C`, `$0B`→`$0E`, `$49`→`$4A`
+(5/5 libres). F44 : `$0C`→`$16` ✓ ; `DOWN $0E` refusé (cond
+`$06`) ; `$4A`→`$47` ✓. F45 : `$16`→`$18`/`$31` ✓,
+`$16` NW→`$31` (anomalie, attendu `$14`) ; `(WAIT,)DOWN $0E`
+→ **`$0D`** (pas `$0F` ! 2/2 : la fenêtre `$06` dévie vers
+`$0D` au lieu d'ouvrir `$0F`).
+
 ## Questions ouvertes (jeu)
 
-- Dormants `$42`/`$46`/`$3C` : déclencheurs en jeu ?
-- Identités `$3D $3F $40 $43 $45 $49 $4A $4B $4C` : rencontres ?
-- Gandalf après son départ est : où le recroiser (FOLLOW/WAIT) ?
-- Nord/sud-ouest/sud-est de la clairière : quoi ?
-- `+0` `$02 $03 $05 $08` : quels objets/lieux ?
+- Cellier : vider le tonneau (quel verbe ? butler endormi après
+  soak ?) ; sens de `UP $21`→`$00` (mort ?) ; qui éjecte `$20`→`$1F`
+  (butler `$42` ?) et comment rester (arriver butler absent ?).
+- Cond `$06` (`$0E`/`$0F`) : fenêtre `$A0` mène à `$0D`, pas `$0F` —
+  quel rythme donne `$0F` ? Route `$3A`→`$0F` (libre) alternative.
+- `$16` NW→`$31` : bug de lecture ou random-noir ? Retester + OCR.
+- Dormants `$42`/`$46`/`$3C` : `$42` (eloc `$20`) se réveille au
+  cellier ?

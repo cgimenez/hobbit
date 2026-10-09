@@ -244,14 +244,46 @@
   budgets `-x` généreux (2G pour 2 rendus), préférer les commandes
   texte seul (`WAIT`, `INVENTORY`) pour les sondes. `QUIT` perd l'input
   suivant (rendu) — prévoir la touche sacrificielle aussi.
+- **Timings rapides validés** : `-t 100 -s 100` donne des deltas
+  **identiques** (`diverge f37c f37c_fast` vide, `$20` au même tick ;
+  30 s vs ~2 min pour 83 ticks). Le coût d'un run ≈ 1,1 s/ligne en
+  `-t 300 -s 500` (300+500+300 ms de sleeps muraux par ligne, sim65
+  répond en ms) — les runs hires paient en plus les illustrations
+  vectorielles (×dizaines par run).
+- **Piège construction cmdfile** : `VAR=$(printf ...)` mange les `\n`
+  finaux → ticks fusionnés (`SOUTHDOWN`) + rythmes décalés. Toujours
+  vérifier (`grep -c`, 1er `diff` d'octets vs référence).
+- **Tick tickdiff vs tick monde** : 1 ligne = 1 tick (lignes vides
+  incluses, no-op sans tour) ; 1 commande acceptée = 1 `world_tick`
+  (`entity_tick`+`evt_tick`). Règle : 0 delta = pas de tour (rejet
+  avant `world_tick`), >0 = un tour. PNJ strictement tour-par-tour
+  (jamais de mouvement sur lignes vides ; déterministe vérifié).
 
 ## Prochaine étape
 
-Moteur de messages, armement `$2B12`, zéro-page, bloc 3, système de
-messages du bloc 2, records de lieux (structure + exits étendues) et
-scripts `$29xx`, layout records `+0..7` et dispatch SAVE/LOAD décodés
-(`docs/block4-analysis.md`). Ensuite : stub cassette B1 (`vec_02/03`
-→ shim, round-trip save/load), puis jeu tour-par-tour. Sondes en
+**Bascule snapshots (décidée, remplace B1)** : le framing cassette est
+cassé à la relecture des deux côtés (`VERIFICATION ERROR` `$1A38`,
+`TAPE LOADING ERROR` `$3E26`) — on le contourne au lieu de le réparer.
+SAVE/LOAD passent déjà par des vecteurs patchables (`save_block`→
+`vec_03`, verify→`vec_04`→`L71CB`, `load_handler`→`vec_05`+`vec_02`→
+`tape_load`) : `vec_03`→`snap_save` (4× `PV_WRITE` brut + `@@SNAP`,
+C=0), `vec_04`→`s_clc`, `vec_02`→`snap_load` (`memcpy $E800`→4 régions
+basses, C=0). `pack_sim --snapshot NOM` embarque le BLOB (table
+`snapshots`, `--snap-file` en repli) → `build/sim/<nom>.sim`.
+Stockage double : `sav/<nom>.bin` + table
+`snapshots(name,run_id,tick,ploc,eloc,obj,crec,created,data)`.
+`tickdb.py` : `snaps`/`snap-tag`/`snap-show`/`snap-diff`/`snap-verify`.
+Validation : SAVE→salissure→reboot→LOAD→0 delta. `tape.s` dormant.
+Pas de `--tape` (bascule franche).
+
+**Pas de ROM exécutée** (point levé) : sim65 = 6502 nu, aucune ROM
+chargée ; `basic10.rom` = fonte en DONNÉES (jamais exécutée) ;
+tout le code cassette est du code jeu (rebuild byte-identique).
+Le snapshot ne contourne donc aucun hardware réel.
+
+Ensuite : checkpoints (`rivendell`, `cellar`…), fin du jeu (tonneau :
+vider ? butler endormi ? ; cond `$06`→`$0F` ; `$16` NW ; dragon
+`$29`), puis B1 byte-layer en validation croisée. Sondes en
 attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
 **B1** (`harness/tape.s` + `pack_sim.py` + `save_tape.py` +
 `diff_tape.py`, 6 vecteurs `$0405`–`$0414` ; `$0417` = loader jeu

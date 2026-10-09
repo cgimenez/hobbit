@@ -460,6 +460,30 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   ni tick ni action testée).
 - **Records** : 3 mutations vues (`b0` visite ×2, `desc` tick 966) —
   pas des gabarits inertes.
+- **Compteur de chutes `+$0005`** (état `$00`, `$1B1A+5`) : `$40`→`$20`→
+  `$10`→`$08`→`$04`→`$02`→`$01`→`$00` (>>1 par chute dans le noir),
+  `$00`→mort+reboot (restauré `$40`). Budget ≈ 7-8 chutes. Seuls les
+  mouvements **ratés** consomment (succès = gratuit) ; `WAIT`/`LOOK`/
+  verbes rejetés (0 tick) = gratuits.
+- **Verrous-fenêtres `+7` (`$80`/`$81`/`$A0`)** : `+$00F2` (état `$08`,
+  porte rouge `$1F`), `+$0180` (état `$0C`, `$20`→`$21`), `+$00BB`
+  (état `$06`, `$0E`/`$0F`) — cycle par rythme WAIT/mouvements ;
+  seul `$A0` (bit `$20`) ouvre. Recettes : `(WAIT,SOUTHWEST)`×6 →
+  `$1F`→`$1E` (5 chutes) ; `UP` → `$1F`→`$1E` **gratuit** (consomme
+  le `$A0` d'arrivée, 2/2). `DOWN $0E` + `$A0` → **`$0D`**, pas
+  `$0F` (2/2, F45d/e) — la fenêtre dévie, autre rythme requis.
+- **Bounce `$20`→`$1F`** : au 1er tick-monde en `$20`, forcé
+  (obj `$BE`→`$30`, +`$0161` `$01`→`$81`, +`$0550` `$41`→`$13`,
+  sans chute) — suspect butler `$42` (eloc `$20`). Une seule
+  action par visite `$20`.
+- **Mouvements noir = non déterministes en apparence** : même
+  direction, même rythme → dest variables (`$1E`→`$1F` vs `$20`,
+  `$16` NW→`$31` vs `$14`). `SOUTH` en rafale ne sort jamais ;
+  seul `(WAIT,DIR)` avance. F37c rejoué à l'identique = deltas
+  identiques (`f37c_fast`, `-t 100 -s 100` validé) → sim
+  déterministe ; les divergences F38 venaient d'un bug de
+  construction cmdfile (`$(...)` mange les `\n` finaux →
+  tick `SOUTHDOWN` fusionné), pas du hasard.
 - **Reste ouvert** : ZP `$BF`–`$C4`/`$CD`/`$CF`–`$D5` (statiques
   partout), sens fin `+0` `$02 $03 $05 $08`, `n`, `s6` (à quoi
   servent-ils ?), bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/`$2F`,

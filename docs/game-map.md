@@ -15,6 +15,10 @@ sans cond = passage libre. Directions : N/S/E/W/NE/NW/SE/SW/UP/DOWN
 (mots `$26DA`, vérifiés au `word_render`).
 
 `[visitée]` = vue sous harnais (texte + occupants constatés).
+**Visitées au 2026-10-09** : `$01 $04 $05 $06 $09 $0A $0B $0C $0E $16
+$18 $19 $1E $1F $20 $31 $44 $45 $47 $49 $4A`. Zones sombres
+(mouvements à destinations variables) : `$1E $1F $20` (+ `$16` ?,
+cf. anomalie NW).
 Les descs entre guillemets = 1re ligne décodée statiquement ;
 `(sans desc)` = desc `$0000` (texte fourni par le moteur à l'exécution,
 ex. `$05` clairière, `$09` Rivendell).
@@ -134,6 +138,13 @@ fait foi) : ouvert — à lever en jeu.
 - **Anomalie `RUN`** : `$05` n'a PAS de sortie SUD (SW/SE/N) mais
   `RUN SOUTH` → `$09` fonctionne. Le verbe `RUN` emprunte un autre chemin
   (`$6FAC`/`L7014` ?) — à élucider, et tester `RUN <dir>` ailleurs.
+  (Note : `SE` `$05`→`$09` libre marche aussi — `RUN` inutile ici.)
+- **Anomalie `$16` NW** (F45c) : obtenu `$31` (dest de NORTH), attendu
+  `$14` — zone sombre à random ? À trancher (retest + OCR).
+- **Fenêtre `$06`** (F45d/e) : `DOWN $0E` + `$A0` → **`$0D`**, pas `$0F`.
+  Route alternative libre : `$3A` E→`$0F` (à tester depuis `$39`/`$41`).
+- **Dests `$00`** (`$19`S, `$21`UP/S) : le record nul = chute dans le vide ?
+  (mort probable — tester avec SAVE avant).
 - **Dests `$00`** (`$19`S, `$21`UP/S) : le record nul = chute dans le vide ?
   (mort probable — tester avec SAVE avant).
 - **Piège `$13`** : la gate gobeline renvoie en `$10` sauf UP conditionnel.
