@@ -12,11 +12,12 @@ DB : build/sim/solver.db (gitignore, comme hobbit.db).
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / "build" / "sim" / "solver.db"
+DB = Path(os.environ.get("SOLVER_DB", ROOT / "build" / "sim" / "solver.db"))
 
 # Regions SAVE, meme ordre que harness/snap.s REGTAB / tickdiff.c.
 REGIONS = [(0x00BE, 0x18), (0x1B1A, 0x556), (0x28CC, 0x2F1), (0x211A, 0x5C8)]

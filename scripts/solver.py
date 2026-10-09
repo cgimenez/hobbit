@@ -20,10 +20,10 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from solver_db import (add_node, best_score, blob_hash, connect, find_by_hash,  # noqa: E402
-                       get_banned, get_blob, get_node, get_text, max_depth,
-                       ok_at_depth, path_of, record_attempt, state_of, stats,
-                       tried, verb_fail_counts)
+from solver_db import (ROOT, add_node, best_score, blob_hash, connect,  # noqa: E402
+                       find_by_hash, get_banned, get_blob, get_node, get_text,
+                       max_depth, ok_at_depth, path_of, record_attempt,
+                       state_of, stats, tried, verb_fail_counts)
 from solver_run import ensure_workers, run_one  # noqa: E402
 
 PARKED_PATTERNS = [
@@ -198,6 +198,57 @@ def step(cx, parent: int | None, cmd: str | None, depth: int,
     r = play(parent_blob, cmd)
     return process_result(cx, parent, cmd, depth, parent_blob, parent_ploc,
                           r, time.time() - t0)
+
+
+def seed_root(cx, name: str) -> int | None:
+    """Racine d'exploration = checkpoint sav/<name>.bin (mode coverage).
+
+    Insere un noeud racine porte sur le blob du checkpoint, texte = un LOOK
+    joue depuis ce blob (vocabulaire d'objets du lieu). Le blob racine reste
+    l'etat pre-LOOK (le tick du LOOK n'est pas commite dans la racine)."""
+    path = ROOT / "sav" / f"{name}.bin"
+    if not path.is_file():
+        print(f"-- seed: fichier absent {path}")
+        return None
+    blob = path.read_bytes()
+    from solver_db import BLOB_LEN
+    if len(blob) != BLOB_LEN:
+        print(f"-- seed: blob {len(blob)} o != {BLOB_LEN}")
+        return None
+    r = play(blob, "LOOK")
+    text = r["text"] if r["valid"] else ""
+    hit = find_by_hash(cx, blob_hash(blob))
+    if hit is not None:
+        print(f"-- seed: sav/{name}.bin deja present (noeud {hit})")
+        return hit
+    nid = add_node(cx, None, f"SEED:{name}", 0, blob, text, [], "ok",
+                   None, None, True)
+    cx.commit()
+    print(f"-- seed: noeud {nid} depuis sav/{name}.bin (ploc="
+          f"${state_of(blob)[0]:02X})", flush=True)
+    return nid
+
+
+def coverage_report() -> None:
+    """Couverture des variables nommees (fusion hobbit.db + solver.db)."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import memmap
+        ev = memmap.load_deltas()
+        addrs = memmap.address_slots()
+        print("== couverture variables (memmap) ==")
+        for base, ln, nom in memmap.D.REGIONS:
+            var, cov = set(), set()
+            for off in range(ln):
+                for s in addrs[(base, off)]:
+                    if s.kind == memmap.D.VAR:
+                        var.add(s.name)
+                        if (base, off) in ev:
+                            cov.add(s.name)
+            print(f"  ${base:04X} {nom}: {len(cov)}/{len(var)} var nommees")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  (couverture indisponible : {exc})")
+
 
 
 def pick_jobs(cx, todo: list[tuple[int, str, int]],
@@ -440,16 +491,26 @@ def main(argv: list[str]) -> int:
 
     cx = connect()
     t_all = time.time()
+    goal = (argv[argv.index("--goal") + 1] if "--goal" in argv else "win")
     if "--scenario" in argv:
         rc = scenario(cx)
     else:
         if cx.execute("SELECT COUNT(*) FROM nodes").fetchone()[0] == 0:
-            print("== DB vide : seed root ==")
-            if step(cx, None, None, 0) is None:
-                return 1
-        rc = bfs(cx, depth_max=flag("--depth", 3), budget=flag("--budget", 150),
+            if "--seed" in argv:
+                if seed_root(cx, argv[argv.index("--seed") + 1]) is None:
+                    return 1
+            else:
+                print("== DB vide : seed root ==")
+                if step(cx, None, None, 0) is None:
+                    return 1
+        elif "--seed" in argv:
+            seed_root(cx, argv[argv.index("--seed") + 1])
+        d_default = 8 if goal == "coverage" else 3
+        rc = bfs(cx, depth_max=flag("--depth", d_default),
+                 budget=flag("--budget", 150),
                  nworkers=flag("--workers", 4), samples=flag("--samples", 1))
     print(f"== stats: {stats(cx)} en {time.time() - t_all:.1f}s, DB={DB} ==")
+    coverage_report()
     return 0 if rc is not None else 1
 
 

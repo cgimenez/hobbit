@@ -434,3 +434,32 @@ E/N/W/S, warg offensif)** ; triggers d'armement events,
 - Base image : `data/hobbit.bin` chargée à `$0400` ; bloc 4 = `$2C00-$7A80`.
 - Pas d'appels ROM directs dans le bloc 4 (vecteurs `$0405-$0417` du bloc 1,
   patchés selon ROM 1.0/1.1).
+
+## Carte mémoire : SSOT + registre de couverture (priorité mapping)
+
+Objectif rappelé : terminer le jeu **mais surtout** mapper/nommer toutes les
+variables SAVE/LOAD. Socle posé :
+
+- **SSOT** `scripts/memmap_defs.py` : 4 régions + décomposition
+  (`ZP_NAMES`, 61 clés `$1A62` + champs, 13 tables INDIR, 10 events `$2B12`,
+  17 entités `$2B45`, 79 records `$2070` via image). `annotate(base,off)` →
+  slots candidats (blocs d'état chevauchants → multi-slot). Identités connues
+  (`map`, `gandalf`, `troll_*`…) portées au nom.
+- **Registre** `scripts/memmap.py` : fusion des deltas des **deux** bases
+  (`hobbit.db` tickdiff + `solver.db`/`SOLVER_DB` BFS) → preuves par slot.
+  `report` (couverture + var nommés), `slots [--virgin]`, `addr`, `sources`,
+  `xref` (réfs littérales de `block4.asm`), `gen [--write]` (annexe du doc
+  entre marqueurs AUTO-COUVERTURE).
+- **Garde-fou** `scripts/check_memmap.py` → `RÉSULTAT: PROPRE` (sections
+  A–F ; `check_disasm.py` reste PROPRE).
+- **Moteur de couverture** : `solver.py --seed NOM --goal coverage`
+  (amorçage checkpoint `sav/NOM.bin`, profondeur 8 par défaut, rapport de
+  couverture en fin) ; `SOLVER_DB=...` isole les runs. Multi-seed idempotent.
+
+Baseline : **140/3623 octets (3,9 %)** mutés (union) ; var nommés couverts
+ZP 5/7, états 30/187, scripts 32/169, records 18/158. Les 4 checkpoints
+(`revise`/`cell20`/`ante2`/`dunj`) ajoutent **0 octet** (saturé) mais le BFS
+atteint **7,5 %** (noeud 10 : `NORTH` depuis `cell20`) vs 2,5 % avant.
+Prochaine cible de couverture : **états/objets/events non encore atteints**
+(fin de jeu, armement d'events, kills) — la couverture d'octets exige de
+nouveaux états, pas de la re-marche.

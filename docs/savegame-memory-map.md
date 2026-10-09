@@ -512,3 +512,17 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   + actB si `cond>=cpt` — mais `cpt` statique en jeu : qui
   appelle quoi ? `$B0` = nb de `world_tick` par commande ?),
   compteur exact tête `$2AD0`, dormants (déclencheurs).
+
+<!-- BEGIN AUTO-COUVERTURE -->
+couverture (fusion tickdiff+solver) : 140/3623 octets (3.9 %).
+
+| Region | Octets | Couverts | % | Var couverts |
+|---|---|---|---|---|
+| `$00BE` ZP | 24 | 11 | 45.8 | 5/7 |
+| `$1B1A` etats | 1366 | 67 | 4.9 | 30/187 |
+| `$28CC` scripts | 753 | 32 | 4.2 | 32/169 |
+| `$211A` records | 1480 | 30 | 2.0 | 18/158 |
+
+Detail des variables : `scripts/memmap.py slots [--virgin]` ;
+xref statique : `scripts/memmap.py xref`.
+<!-- END AUTO-COUVERTURE -->
