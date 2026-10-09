@@ -128,9 +128,10 @@ putchar:jmp     ch_out
 main:   jmp     game_main
 
 ; Point d'entree : copie la zone sauvegarde, vide la pile, reinitialise les variables, affiche le prompt puis boucle de commandes
-; Entree du programme apres chargement de la cassette.
-; Sequence : boot_copy (copie la zone sauvegarde en memoire haute pour preserver le TAPE),
-; init de la pile, RAZ des variables, puis boucle : lire une commande, l'executer, world_tick.
+; Point de depart du jeu, juste apres le chargement de la cassette.
+; Il met de cote l'etat de depart, prepare la memoire, puis entre dans la grande boucle
+; du jeu : afficher la situation, lire la commande du joueur, faire avancer le monde.
+; Technique : boot_copy, init de la pile, RAZ des variables, puis game_main.
 start:  jsr     boot_copy
         ldx     #$FF
         txs
@@ -342,9 +343,9 @@ L2DBD:  lda     #$22
         jmp     L2C99
 
 ; Remet a zero les variables de travail ($97.., $AF, $CC/$CD) puis saute a la boucle principale ($7779)
-; Initialisation des variables de travail : vide $97-$9C ($97..),
-; remet la pile de messages rstk ($AF) et le score ($CC/$CD) a zero,
-; puis saute a game_main (boucle principale).
+; Remet a zero les compteurs de depart (variables de travail, pile de messages, score)
+; juste avant de lancer la partie.
+; Technique : $97-$9C = 0, rstk $AF = 0, score $CC/$CD = 0, puis jmp game_main.
 init_vars:
         lda     #$00
         ldx     #$05
@@ -755,9 +756,10 @@ L308F:  .byte   "> "
 L3091:  .byte   "LOOK."
         .byte   $0D
 ; Copie le bloc sauvegarde $1B1A -> $91D0 (1366 octets) ; $6C = compteur
-; Copie la zone de sauvegarde vers une zone de travail en memoire haute (le jeu tourne
-; sur cette copie : le contenu du TAPE reste donc intact et rechargeable tel quel).
-; Suit une table de 4 descripteurs en $30F9 ; $6C = compteur de segments.
+; Le jeu ne travaille jamais directement sur la cassette : il en recopie le contenu en
+; memoire haute et joue sur cette copie (le TAPE reste intact et rechargeable).
+; Cette routine fait la copie initiale sauvegarde -> memoire de travail.
+; Technique : table de 4 descripteurs en $30F9 ; $6C = nombre de segments.
 boot_copy:
         lda     #$04
         sta     $6C
@@ -779,8 +781,9 @@ L30AB:  ldy     #$00
         rts
 
 ; Recopie le bloc $91D0 -> $1B1A (copie inverse, meme gabarit)
-; Recopie inverse : ramene la zone de travail vers la zone de sauvegarde ($1B1A+),
-; meme table de descripteurs que boot_copy.
+; Copie en sens inverse : ramene la memoire de travail vers la zone de sauvegarde
+; (par exemple avant d'ecrire sur la cassette).
+; Technique : meme table de descripteurs que boot_copy.
 boot_copyback:
         lda     #$04
         sta     $6C
@@ -1655,10 +1658,11 @@ L36D5:  jsr     L4B37
         rts
 
 ; Coeur du deplacement : resout la sortie, evalue la condition, execute
-; Coeur du deplacement du joueur. Sauve le contexte, calcule l'entree de sortie (exit_ptr),
-; en decode les flags (code_4141 -> xaux/xmode), evalue les conditions cond1 (arg1)
-; et cond2 (arg2) via cond_eval, puis execute le deplacement soit en mode sonde (L4B37),
-; soit en deux temps (L35E4). Restaure l'etat et renvoie le resultat en A (Z = echec).
+; Coeur du deplacement : quand le joueur demande a aller quelque part, cette routine
+; retrouve la sortie correspondante du lieu, verifie ses eventuelles conditions (objet
+; requis, passage cache...), puis effectue ou refuse le deplacement.
+; Technique : exit_ptr(wid), flags via code_4141, conditions cond1/cond2 via cond_eval,
+; execution en mode sonde (L4B37) ou en deux temps (L35E4).
 move_core:
         lda     svptr
         pha
@@ -1726,9 +1730,10 @@ L3743:  tax
         rts
 
 ; Evalue la condition d'une sortie (slot X ; $FF = aucune)
-; Evalue la condition d'une sortie. X = slot de condition ($FF = aucune).
-; A = drapeau direct : 0 -> condition lue en etat+8 (L43F3) ; sinon record+2 (L43E4).
-; Positionne ptr sur la condition et renvoie A=1 (Z clair) si elle existe.
+; Prepare la condition a remplir pour emprunter une sortie : une sortie peut etre cachee,
+; verrouillee, ou dependre d'un objet. S'il n'y a pas de condition (X = $FF), rien a verifier.
+; Technique : A = drapeau direct ; 0 -> fiche du lieu (etat+8, L43F3), sinon fiche de l'objet
+; (record+2, L43E4). Renvoie A=1 (Z clair) si une condition existe.
 cond_eval:
         cpx     #$FF
         bne     L375E
@@ -1747,8 +1752,9 @@ L3769:  txa
         rts
 
 ; Derive les drapeaux direct/variante depuis l'octet mode $78
-; Derive les drapeaux de sortie depuis les octets de mode :
-; $7F = bit6 de xaux ; $80 = bit0 de xmode ; direct = bit7 de xmode ; variant = bit6 de xmode.
+; Range les options de la sortie sous forme de drapeaux simples (sortie directe ou en
+; variante) que la suite du deplacement consultera.
+; Technique : direct = bit7 de xmode, variant = bit6, $7F = bit6 de xaux, $80 = bit0 de xmode.
 move_flags:
         lda     xaux
         and     #$40
@@ -3137,10 +3143,11 @@ L4232:  lda     (exitp),y
         jmp     word_render
 
 ; Rend un mot du dictionnaire packe 5-bit, en appliquant pluriels (S/ES/IES/ING), espaces et retour a la ligne
-; Rend un mot du dictionnaire packe 5 bits. Adresse = page ($05 + (hi&$0F)) : lo.
-; Chaque octet fournit 5 bits = un caractere (code 0 = fin) ; le bit7 gere la continuation.
-; Le nibble haut de hi porte la grammaire : suffixe (S/ES/IES/ING via $4322), espace,
-; capitale ($70), ou ponctuation/retour a la ligne de fin ($2x/$3x/$6x).
+; Affiche un mot du dictionnaire. Pour gagner de la place, les lettres sont stockees sur
+; 5 bits ; cette routine les reconstitue, ajoute la terminaison (pluriel, -ing...), gere
+; l'espace et le retour a la ligne.
+; Technique : adresse = page ($05 + (hi&$0F)) : lo ; nibble haut de hi = grammaire
+; (suffixe $4322, espace, capitale $70, fin $2x/$3x/$6x).
 word_render:
         lda     adr_hi
         sta     $5B
@@ -3226,8 +3233,8 @@ L42C3:  sta     L430E,x
         sbc     #$01
         bne     L42B9
 ; Gere les espaces entre mots et le retour a la ligne en fin de colonne
-; Gere l'espacement : insere l'espace en attente, puis passe a la ligne automatiquement
-; si la longueur du mot (X) atteint la largeur de ligne ($04 ou $05 selon le mode).
+; Gere les espaces entre les mots et coupe la ligne quand on arrive au bord de l'ecran.
+; Technique : insere l'espace en attente puis retour a la ligne quand X >= largeur ($04/$05).
 word_space:
         lda     raw
         pha
@@ -3371,8 +3378,10 @@ L43C7:  php
         rts
 
 ; Calcule $F8 = $26DA + wid*8 : pointe l'entree de sortie du lieu
-; Calcule $F8/$F9 = $26DA + wid*8 : adresse de l'entree de 8 octets associee a la sortie wid
-; (deplacement ou condition). C'est la base lue par code_4141 et cond_eval.
+; Retrouve la fiche de la sortie demandee : chaque lieu a une liste de sorties stockee en
+; table ; cette routine calcule l'adresse de l'entree voulue (utilisee ensuite pour le
+; deplacement et pour lire les conditions).
+; Technique : $F8/$F9 = $26DA + wid*8 (entrees de 8 octets).
 exit_ptr:
         rol     a
         rol     $6C
@@ -3415,10 +3424,10 @@ L4402:  lda     $5E
 L440A:  jmp     print_msg
 
 ; Affiche le message dont l'adresse suit l'appel, puis reprend l'execution apres ce mot (appel de 5 octets)
-; Convention d'appel : les 2 octets qui suivent JSR print_msg forment l'adresse du message.
-; print_msg recupere l'adresse de retour, +1 -> pointe le mot inline et en lit lo puis hi
-; dans ptr (l'adresse du message), avance le pointeur de reprise $6A/$6B jusqu'a JSR+5,
-; affiche via render_text, puis jmp ($6A) reprend l'execution APRES le mot inline.
+; Affiche un message. Le message n'est pas passe en argument : son adresse est ecrite
+; juste apres l'instruction d'appel, dans le programme. print_msg la lit a cet endroit,
+; affiche le texte, puis reprend l'execution juste apres.
+; Technique : l'adresse est le mot de 2 octets suivant JSR ; reprise a JSR+5 via jmp ($6A).
 print_msg:
         jsr     L46E9
         pla
@@ -3452,12 +3461,11 @@ L4437:  jsr     render_text
         jmp     (L006A)
 
 ; Rend un message octet par octet : litteraux $20-5F, mots courants $60-7F, mots 2 octets (bit7), tokens <$20
-; Boucle de rendu sur les octets du message (ptr + tidx) :
-;   $20-$5F : litteral ASCII, affiche directement ;
-;   $60-$7F : mot courant via common_lookup (table $1117) ;
-;   bit7 pose : mot de 2 octets du dictionnaire, via word_render ;
-;   <$20    : token (table $4641), sous-routine ou fin.
-; Les tokens de fin $14/$15/$16 terminent ; sinon on avance et on continue.
+; Traduit en caracteres le texte compresse d'un message. Un message est une suite de
+; codes : des lettres telles quelles, des mots courants (the, a, you...), des mots du
+; dictionnaire, et des marqueurs qui inserrent un nom d'objet ou terminent la phrase.
+; Technique : $20-$5F = litteral ; $60-$7F = mot courant ($1117) ; bit7 = mot 2 octets
+; (word_render) ; <$20 = token ($4641).
 render_text:
         ldy     #$00
         sty     tidx
@@ -3519,8 +3527,9 @@ L44A8:  jsr     print_cr
         jmp     L44BD
 
 ; Dernier octet du message : $2x = fin simple, $3x = fin + '.', $6x = fin + retour a la ligne
-; Fin de message. Rend le dernier mot puis termine selon la grammaire du mot :
-; $6x = saut de ligne, $3x = point, $2x = rien.
+; Termine proprement un message : affiche le dernier mot puis applique la ponctuation
+; finale demandee (rien, un point, ou un saut de ligne).
+; Technique : $6x = saut de ligne, $3x = point, $2x = rien.
 text_end:
         jsr     word_render
         lda     $5B
@@ -3532,7 +3541,8 @@ text_end:
 L44BD:  rts
 
 ; Avance le pointeur de message courant $6A/$6B de 1 (gere la retenue)
-; Avance le pointeur de reprise du message ($6A/$6B) de 1, avec gestion de la retenue de page.
+; Petit utilitaire : avance d'un cran le pointeur de lecture du message courant.
+; Technique : INC $6A, + $6B si retenue.
 msgptr_inc:
         inc     L006A
         bne     L44C4
@@ -3781,8 +3791,9 @@ L4622:  lda     #$58
         jmp     word_render
 
 ; Traduit un octet $60-7F en mot courant via la table $1117 (the/a/and/you/to/...)
-; Traduit un octet $60-$7F en mot courant : index = (octet-$60) ; l'entree de $1117
-; est un pointeur de mot du dictionnaire, rendu par word_render.
+; Raccourci pour les mots les plus frequents (the, a, and, you...) : un seul octet suffit
+; a designer le mot, qui est ensuite affiche par le rendu normal.
+; Technique : octet $60-$7F -> entree de la table $1117 (pointeur de mot).
 common_lookup:
         sec
         sbc     #$60
@@ -3797,9 +3808,10 @@ common_lookup:
         jmp     L4469
 
 ; Table des 32 tokens <$20 : tokens <$14 = sous-routines (retour Z = saute word_render), $14/$15/$16 = fins
-; Table des 32 handlers de token (<$20), 2 octets chacun ($4641 + tok*2).
-; Tokens <$14 : sous-routines (retour Z = sauter le rendu du mot suivant) ;
-; $14/$15/$16 = fins inline ; $17-$1F non utilises (0000).
+; Annuaire des marqueurs speciaux d'un message (codes inferieurs a $20). Chaque code
+; renvoie vers la routine qui sait le traiter : inserer un nom d'objet, un pronom, un
+; retour a la ligne, ou terminer le message.
+; Technique : 32 entiers de 2 octets ; <$14 = sous-programmes, $14/$15/$16 = fin, $17-$1F vides.
 token_jumps:
         cmp     $44
         sbc     $44,x
@@ -4670,8 +4682,10 @@ L4E49:  sta     L4DF5
 
 L4E58:  .byte   $1A
 ; Fait vivre le monde apres une commande : entites (VM), evenements differes $2B12
-; Fait vivre le monde apres une commande reussie : prepare les evenements, fait tourner
-; les entites PNJ (entity_tick), puis balaye la table d'evenements differes (evt_tick).
+; Fait vivre le monde autour du joueur : chaque personnage joue son script (il se deplace,
+; parle...), et les evenements differes se declenchent (un PNJ qui arrive, une porte qui
+; s'ouvre...). Appele apres chaque commande reussie.
+; Technique : L69E7, entity_tick (VM des PNJ), puis evt_tick (table $2B12).
 world_tick:
         jsr     L46E6
         jsr     L69E7
@@ -4686,9 +4700,10 @@ world_tick:
         lda     #$2B
         sta     ptr2_hi
 ; Balaye la table $2B12 : decremente les compteurs, re-arme et declenche les actions
-; Balaye la table $2B12 : entrees de 5 octets [id, cpt, actA, cond, actB], terminee par $FF.
-; cpt==0 -> entree suivante ; sinon cpt-- : a 0 on re-arme et on declenche actA (evt_fire),
-; sinon on teste la condition de l'entree (evt_cond).
+; Parcourt la liste des evenements differes. Chaque evenement a un compte a rebours :
+; quand il atteint zero, l'action prevue se declenche ; sinon on peut tester une condition.
+; Technique : table $2B12, entrees de 5 octets [id, cpt, actA, cond, actB], fin $FF ;
+; cpt==0 -> suivante ; cpt-- ; a 0 -> actA (evt_fire), sinon evt_cond.
 evt_tick:
         ldy     #$00
         lda     (ptr2),y
@@ -4711,8 +4726,9 @@ evt_tick:
         jmp     evt_fire
 
 ; Si la condition est armee et que cpt l'atteint : execute l'action de l'entree
-; Si la condition de l'entree (octet 3) est non nulle et que cpt l'atteint (cond >= cpt),
-; declenche actB (octet 4) via evt_fire ; sinon passe a l'entree suivante.
+; Teste la condition d'un evenement en cours : si elle est remplie, l'action associee
+; s'execute.
+; Technique : si cond (octet 3) != 0 et cond >= cpt -> evt_fire (actB, octet 4).
 evt_cond:
         ldy     #$03
         lda     (ptr2),y
@@ -4722,8 +4738,8 @@ evt_cond:
         bcc     L4EBE
         ldy     #$04
 ; Ecrit l'action a executer depuis la table $7169 puis l'appelle (L4C5D)
-; Y = index de l'action dans l'entree. Copie la cible depuis la table de sauts $7169
-; (index*2) dans le JMP auto-modifie $4C64/$4C65, puis appelle le dispatcher $4C5D.
+; Declenche l'action d'un evenement : va chercher son adresse dans une table, puis l'execute.
+; Technique : table de sauts $7169 (index*2) -> patch du JMP $4C64/$4C65 -> appel $4C5D.
 evt_fire:
         lda     (ptr2),y
         asl     a
@@ -4742,7 +4758,8 @@ L4EBE:  lda     ptr2
 L4EC9:  jmp     evt_tick
 
 ; Fin de la table ($FF) : signale la fin ($0B=1) et sort
-; Fin de la table ($FF) : reautorise l'affichage puis sort (L471B restaure le contexte).
+; Fin de la liste des evenements : on rend la main (et on reautorise l'affichage).
+; Technique : outen=1 puis L471B.
 evt_end:lda     #$01
         sta     outen
         jmp     L471B
@@ -4750,21 +4767,11 @@ evt_end:lda     #$01
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
 ; Fait tourner une entite (machine virtuelle) : execute jusqu'a 6 opcodes par tick
-; Tour d'une entite : machine virtuelle AnimAction (scripts du bloc 2).
-; Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],
-; terminee par $FF ; id $00 = slot dormant (ignore).
-; Pour chaque entite active : obj=id, on resout son etat (L57BB -> eloc), crec = son bloc.
-; Puis boucle d'opcodes, au plus 6 par tick (compteur L4ED3 = garde-fou anti-boucle) :
-;   le nibble bas de l'opcode donne le type :
-;     0-4  : MOVE, deplacement via entity_move ($4 = MOVE court)
-;     5-D  : INDIR, saut via la table de sauts propre a l'entite
-;     E    : GOTO absolu (PC := les 2 octets suivants)
-;     C    : PATCH (reecrit une cible de la table de sauts)
-;     F    : RANDOM (choix aleatoire parmi des cibles)
-;   bit $40 de l'opcode pose = pas de preambule one-shot ; sinon preambule au 1er tour.
-;   apres un MOVE : bit $20 -> efface l'opcode (auto-modification) ;
-;                   bit $10 -> saut calcule si le deplacement echoue.
-; Detail complet : docs/block4-analysis.md, section 'VM AnimAction'.
+; Fait jouer le script d'un personnage : son 'cerveau'. Chaque personnage a une petite
+; suite d'instructions (se deplacer, parler, attendre, choisir au hasard) qui s'execute
+; un peu a chaque tour, meme quand le joueur est ailleurs.
+; Technique : table $2B45 (17 entrees de 7 octets, fin $FF) ; nibble bas de l'opcode =
+; MOVE 0-4 / INDIR 5-D / GOTO E / PATCH C / RANDOM F ; au plus 6 opcodes par tick (L4ED3).
 entity_tick:
         jsr     code_5235
         lda     #$45
@@ -4939,7 +4946,8 @@ L5008:  lda     #$00
 
 L501E:  lda     #$04
 ; Avance le pointeur de script $8C de A octets
-; Avance le pointeur de script de l'entite ($8C/$8D) de A octets.
+; Avance d'un cran le programme (script) d'un personnage.
+; Technique : $8C/$8D += A.
 script_adv:
         clc
         adc     $8C
@@ -4949,13 +4957,15 @@ script_adv:
 L5029:  rts
 
 ; Avance le pointeur de script de 4 (+2 si le bit $10 est pose)
-; Avance le pointeur de script de 4 (ou 2), +2 de plus si l'opcode porte le bit $10,
-; puis reecrit le nouveau PC dans l'entree de l'entite (ptr2+2/+3).
+; Passe a l'instruction suivante du script d'un personnage, en sautant la taille de
+; l'instruction courante.
+; Technique : +4 (+2 si le bit $10 est pose), puis reecrit le PC dans l'entree de l'entite.
 script_step4:
         lda     #$04
 ; Avance le pointeur de script de 2 (+2 si le bit $10 est pose)
-; Avance le pointeur de script de 2 (ou 2), +2 de plus si l'opcode porte le bit $10,
-; puis reecrit le nouveau PC dans l'entree de l'entite (ptr2+2/+3).
+; Passe a l'instruction suivante du script d'un personnage, en sautant la taille de
+; l'instruction courante (version courte).
+; Technique : +2 (+2 si le bit $10 est pose), puis reecrit le PC dans l'entree de l'entite.
 script_step2:
         jsr     script_adv
         ldy     #$00
@@ -5896,8 +5906,9 @@ L56D1:  lda     #$00
 
 L56D6:  .byte   $C0
 ; Tirage pseudo-aleatoire borne par A (source de bruit $93)
-; Tire un nombre pseudo-aleatoire borne par A, en melangeant des octets de la source de bruit
-; pointee par $93/$94 ; le resultat est ramene dans l'intervalle demande.
+; Fabrique un nombre aleatoire borne, utilise pour les comportements imprevisibles
+; (errance des personnages, combats...).
+; Technique : melange des octets de la source de bruit $93/$94 puis ramene le resultat dans [0, A).
 rand_range:
         and     #$7F
 L56D9:  sta     L570F
@@ -9798,8 +9809,9 @@ L7351:  sec
         rts
 
 ; Scanne le clavier ; A = touche si le bit7 est pose, sinon bit7=0 (pas de touche)
-; Scanne la matrice clavier via le VIA ($0300). Renvoie le code de touche ;
-; bit7 = touche presente, sinon bit7=0 (aucune touche).
+; Lit l'etat du clavier : renvoie la touche appuyee, ou indique qu'aucune touche n'est
+; enfoncee.
+; Technique : scan de la matrice via le VIA ($0300) ; A = code touche, bit7 pose si presente.
 kb_scan:stx     $1E
         sty     $1F
         lda     #$FF
@@ -9929,14 +9941,16 @@ L7472:  sta     $0301
 
         .byte   "`"
 ; Attend une touche (bloquant) et renvoie son code sans le bit7
-; Attend une touche en boucle sur kb_scan (jusqu'a bit7 pose), puis renvoie son code sans le bit7.
+; Attend que le joueur appuie sur une touche, puis renvoie son code.
+; Technique : boucle sur kb_scan jusqu'a bit7 pose, retour & $7F.
 kb_wait:jsr     kb_scan
         bpl     kb_wait
         and     #$7F
         rts
 
 ; Affiche un retour a la ligne ($0D)
-; Affiche un retour a la ligne ($0D) via ch_out.
+; Affiche un retour a la ligne.
+; Technique : $0D via ch_out.
 cr_out: pha
         lda     #$0D
         jsr     ch_out
@@ -9944,8 +9958,9 @@ cr_out: pha
         rts
 
 ; Point d'entree d'affichage : filtre certains codes et passe au rendu ecran
-; Point d'entree d'affichage. Si (phase & outen)==0 le caractere est jete (sortie muette).
-; Sinon : en mode raw ($0D pose) on force les majuscules ; en mode normal ch_put gere l'ecran.
+; Point d'entree pour tout caractere affiche a l'ecran. Il peut etre ignore selon le
+; contexte (par exemple pendant qu'une scene se prepare).
+; Technique : si (phase & outen)==0 -> jete ; mode raw -> majuscules ; sinon ch_put.
 ch_out: pha
         lda     phase
         and     outen
@@ -10115,8 +10130,9 @@ L75AB:  dec     L0000
         rts
 
 ; Dessine un caractere en mode hires ($A000) avec la police ROM
-; Dessine un caractere (A-$20) dans l'ecran hires : la police est pointee par $0403/$0404,
-; 8 octets sont ecrits a l'adresse courante en OR $40 (encre), puis la ligne avance de $28.
+; Dessine un caractere a l'ecran graphique (hires) en recopiant son motif depuis la police
+; du jeu, puis fait avancer le curseur.
+; Technique : police pointee par $0403/$0404 ; 8 octets en OR $40 (encre) ; ligne += $28.
 glyph_out:
         ldx     L0000
         ldy     $01
@@ -10155,9 +10171,10 @@ L75F0:  iny
         rts
 
 ; Affiche un caractere : gere retour a la ligne, scroll et pause de bas d'ecran
-; Affiche un caractere : gere les espaces en attente, le retour a la ligne (scroll + pause
-; tous les 16 CR via pause_key), le backspace, la capitalisation apres un point, et passe
-; les lettres en minuscules par defaut.
+; Affiche un caractere en gerant les details du texte : espaces en attente, passage a la
+; ligne, effacement, majuscule apres un point, minuscules par defaut. Toutes les 16 lignes
+; il s'arrete pour laisser le joueur lire (pause).
+; Technique : scroll L7694, pause pause_key, backspace $08, capitalisation apres '.' ($2E).
 ch_put: sta     $02
         pha
         txa
@@ -10178,8 +10195,9 @@ L7613:  lda     $02
         cmp     #$0D
         bne     L7653
 ; Toutes les 16 lignes, attend une touche (avec delai) pour pause, sinon incremente le compteur
-; Sur un retour a la ligne : tous les 16 CR, attend une touche (10 essais avec delai) pour
-; mettre en pause, puis scrolle l'ecran (L7694) et remet le compteur de lignes a zero.
+; Pause de lecture : tous les 16 sauts de ligne, le jeu attend une touche (ou un court
+; delai), puis fait defiler l'ecran et remet le compteur de lignes a zero.
+; Technique : 10 essais kb_scan avec delai, compteur crcnt mod 16, scroll L7694.
 pause_key:
         lda     #$00
         sta     sppend
