@@ -63,15 +63,23 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 Table des clés **`$1A62`** : **61 triplets** `[clé,lo,hi]` + `$FF` en
 `$1B19`. Clés `$00`–`$2B` (44) puis `$3C`–`$4C` (17) ; **trou `$2C`–`$3B`**
 (aucune clé). Correction : pas 60 mais **61 clés** (`$4C` inclus,
-`$205A`). Adresses non monotones (ex. `$3C`→`$1B30` < `$2B`→`$1B84`) :
-les blocs se chevauchent/partagent des plages — tailles non délimitées,
-champs à offsets fixes.
+`$205A`).
 
-Format de bloc (via `L57BB`) : `+0`==`$01` → localisé, lieu courant =
-octet en `+$10` (`eloc`) ; `+1` = porteur (id entité, `$FF`=personne :
-ex. carte `$03`→`$3E` = Gandalf la porte au boot) ; `+8` = template de
-description (tokens runtime). `+0` vaut aussi `$02 $03 $05 $08`
-(sens à élucider ; majoritaire `$01`).
+**Partition des blocs (corrigé)** : les bases sont non monotones en **ordre
+de clé** (`$3C`→`$1B30` < `$2B`→`$1B84`) mais forment une partition
+**contiguë en ordre d'adresse** : chaque octet appartient à la clé dont la
+base est la plus grande `≤` l'adresse, jusqu'à la base suivante (blocs de
+`$12` à `$24` o). Vérifié sur les 32 références littérales de `block4.asm`
+(0 ambiguïté) ; encodé par `memmap_defs.state_owner`.
+
+Format de bloc (via `L57BB`, `code_5AF0`, `act_p14_00/01`) : `+0`==`$01` →
+localisé, lieu courant = octet en `+$10` (`eloc`) ; `+1` = porteur (id
+entité, `$FF`=personne : ex. carte `$03`→`$3E` = Gandalf la porte au boot) ;
+`+$05` = points de vie/dégâts (combat, `+10`/coup, `bit7`⇒tué) ; `+$06` =
+seuil de robustesse ; `+$07` = flags (`bit5`=ouvert portes, `bit1`/`bit3`
+combat) ; `+$08` = template de description ; `+$0A`/`+$0B` = pointeur
+secondaire ; `+$0C`/`+$0D` = paire (RAZ par `code_5AF0`, sens ouvert).
+`+0` vaut aussi `$02 $03 $05 $08` (sens à élucider ; majoritaire `$01`).
 
 | Clé | Addr | +0 | +1 porteur | +8 tpl | eloc (+$10, si +0==1) |
 |---|---|---|---|---|---|
@@ -146,13 +154,12 @@ Chaînes de porteurs (qui tient quoi) : `$03`→`$3E`, `$04`→`$47`,
 co-localisation joueur/Gollum (confirme `+$10` = `eloc`).
 
 **Champs de bloc `+$05`/`+$06`/`+$07` (via `act_p14_00` `$60BF` /
-`act_p14_01` `$60ED`, combat)** : `+$05` = compteur de dégâts (`+10`/coup,
-`+$05`&`$80` ⇒ tué, msg `$1525`), `+$06` = seuil de robustesse, `+$07` =
-flags (`bit1`, `bit3` = mis à mort, `bit5` = ouvert sur les clés-portes ;
-`$1B21`=`$00.+$07` bit7 testé par `act_v14_12`). ⚠️ Les fenêtres de blocs se
-**chevauchent** (`STATE_WINDOW $40`, bases non monotones) → l'appartenance
-d'un octet à une clé reste ambiguë ; nommage générique à ne faire qu'après
-délimitation des tailles.
+`act_p14_01` `$60ED`, combat)** : `+$05` = dégâts/vie (`+10`/coup, `bit7`⇒
+tué, msg `$1525` ; doublé par la transfo `$6F1B`), `+$06` = seuil de
+robustesse, `+$07` = flags (`bit1`/`bit3` combat, `bit5` ouvert portes ;
+`$1B21`=`$00.+$07` bit7 testé par `act_v14_12`). Encodés dans
+`STATE_FIELD` ; l'appartenance des octets est désormais **univoque**
+(partition `state_owner`).
 
 ## 3. Scripts et tables `$28CC`–`$2B11` (753 o) — qui fait quoi, et quand
 
@@ -541,8 +548,8 @@ couverture (fusion tickdiff+solver) : 222/3623 octets (6.1 %).
 
 | Region | Octets | Couverts | % | Var couverts |
 |---|---|---|---|---|
-| `$00BE` ZP | 24 | 17 | 70.8 | 6/7 |
-| `$1B1A` etats | 1366 | 105 | 7.7 | 45/126 |
+| `$00BE` ZP | 24 | 17 | 70.8 | 10/11 |
+| `$1B1A` etats | 1366 | 105 | 7.7 | 99/427 |
 | `$28CC` scripts | 753 | 36 | 4.8 | 33/78 |
 | `$211A` records | 1480 | 64 | 4.3 | 52/79 |
 

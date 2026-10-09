@@ -763,3 +763,20 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   (workflow de nommage). ZP var couvertes 6→10/11 ; `check_memmap` PROPRE.
 - Restent non nommés : ZP `$BF`/`$C0`/`$C1`/`$CF`–`$D5` ; champs de bloc
   `+5/+6/+7/+0A/+0B` (blocks se chevauchant → propriétaire ambigu).
+
+### Séance 12 (modèle blocs) — partition par adresse (fin des chevauchements)
+- **Correction de modèle** : les blocs d'état ne se chevauchent PAS ; les
+  bases sont non monotones en **ordre de clé** mais forment une **partition
+  contiguë en ordre d'adresse** (chaque octet → clé de base la plus grande
+  `≤` adresse, jusqu'à la base suivante ; blocs `$12`–`$24` o). Vérifié sur
+  les **32 réfs littérales** de `block4.asm` (0 ambiguïté) →
+  `memmap_defs.state_owner` ; `annotate` rend désormais **un** slot par octet.
+- **Champs encodés** (`STATE_FIELD`) : `+$05`=hp (combat, `act_p14_00` ;
+  `+10`/coup, bit7⇒tué, ×2 transfo `$6F1B`), `+$06`=tough (seuil,
+  `act_p14_01`), `+$07`=flags (spéciaux portes prioritaires), `+$0A`/`+$0B`=
+  `altptr` (ex. `$098F` posé par `$6F1B`).
+- **Effet** : offsets couverts non nommés `etats` **60 → 6** (reste
+  `+$0C`/`+$0D`, paire RAZ par `code_5AF0`, sens ouvert) ; var couvertes
+  `etats` **45 → 99**. Restent non nommés : ZP `$BF/$C0/$C1/$CF-$D5` (7),
+  scripts `code$299D/$2A7B/$2A7C` (3).
+- `check_memmap` PROPRE ; annexe régénérée ; doc §2 réécrite.

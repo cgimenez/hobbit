@@ -11,8 +11,9 @@ Regions (meme ordre que harness/snap.s REGTAB / solver_db.REGIONS) :
   $211A 1480  records (table $2070)
 
 Un slot = une variable/structure nommee rattachee a une adresse. Les blocs
-d'etat se chevauchent (adresses non monotones, cf. savegame-memory-map.md
-§2) -> annotate(base, off) rend TOUS les slots candidats d'une adresse.
+d'etat partitionnent la region par ORDRE D'ADRESSE (bases non monotones en
+ordre de cle, cf. savegame-memory-map.md §2) : chaque octet appartient a la
+cle dont la base est la plus grande <= adresse (cf. state_owner).
 """
 
 from __future__ import annotations
@@ -84,7 +85,12 @@ STATE_KEYS: list[tuple[int, int]] = [
 STATE_FIELD: dict[int, tuple[str, str, str]] = {
     0x00: ("type", CONST, "octet de type ($01 localise, autres regimes)"),
     0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne)"),
+    0x05: ("hp", VAR, "degats/vie (act_p14_00 : +10/coup, bit7=>tue ; x2 transfo $6F1B)"),
+    0x06: ("tough", VAR, "seuil de robustesse (compare aux degats +$05 ; act_p14_01)"),
+    0x07: ("flags", VAR, "flags (b1/b3 combat, b5 ouvert portes, b7 divers)"),
     0x08: ("tpl", GABARIT, "template de description (tokens runtime)"),
+    0x0A: ("altptr", VAR, "pointeur secondaire (2 o ; ex. $098F pose par $6F1B)"),
+    0x0B: ("altptr_hi", VAR, "haut de altptr"),
     0x10: ("eloc", VAR, "lieu de l'entite (si +0==$01)"),
 }
 # Champs specifiques a une cle (cle, offset) -> (nom, genre, doc).
@@ -94,7 +100,24 @@ STATE_SPECIAL: dict[tuple[int, int], tuple[str, str, str]] = {
     (0x08, 0x07): ("lock", VAR, "verrou-fenetre $F2 porte rouge (bit $20 ouvre)"),
     (0x0C, 0x07): ("lock", VAR, "verrou-fenetre $180 ($20->$21)"),
 }
-STATE_WINDOW = 0x40  # portee max d'un bloc (non delimite precisement)
+# Partition des blocs par ordre d'ADRESSE (pas de chevauchement) : chaque
+# octet appartient a la cle dont la base est la plus grande <= adresse.
+# Verifie sur les 32 references litterales de block4.asm (0 ambiguite).
+_STATE_BASES: list[tuple[int, int]] = sorted((b, k) for k, b in STATE_KEYS)
+_STATE_LO, _STATE_HI = 0x1B1A, 0x2070
+
+
+def state_owner(addr: int) -> tuple[int, int] | None:
+    """(cle, offset) du bloc contenant addr, ou None hors region etats."""
+    if not (_STATE_LO <= addr < _STATE_HI):
+        return None
+    key, base = None, None
+    for b, k in _STATE_BASES:
+        if b <= addr:
+            base, key = b, k
+        else:
+            break
+    return None if key is None else (key, addr - base)
 
 # Identites connues des cles (savegame-memory-map.md §2 ; "presume" = a
 # confirmer). Token court -> nom lisible du slot.
@@ -190,18 +213,18 @@ def annotate(base: int, off: int) -> list[Slot]:
             out.append(Slot("ZP", f"zp${addr:02X}", UNKNOWN,
                             "inconnu (scratch ?, cf. carte §1)", addr))
     elif base == 0x1B1A:
-        for key, kbase in STATE_KEYS:
-            d = addr - kbase
-            if 0 <= d <= STATE_WINDOW:
-                sp = STATE_SPECIAL.get((key, d))
-                fld = sp or STATE_FIELD.get(d)
-                if fld:
-                    nm, kind, doc = fld
-                else:
-                    nm, kind, doc = f"+${d:02X}", UNKNOWN, "offset de bloc"
-                ident = STATE_IDENTITY.get(key, f"state${key:02X}")
-                out.append(Slot("etats", f"{ident}.{nm}", kind,
-                                f"cle ${key:02X} : {doc}", addr))
+        own = state_owner(addr)
+        if own is not None:
+            key, d = own
+            sp = STATE_SPECIAL.get((key, d))
+            fld = sp or STATE_FIELD.get(d)
+            if fld:
+                nm, kind, doc = fld
+            else:
+                nm, kind, doc = f"+${d:02X}", UNKNOWN, "offset de bloc"
+            ident = STATE_IDENTITY.get(key, f"state${key:02X}")
+            out.append(Slot("etats", f"{ident}.{nm}", kind,
+                            f"cle ${key:02X} : {doc}", addr))
     elif base == 0x28CC:
         if EVENTS_BASE <= addr < EVENTS_BASE + EVENTS_N * EVENTS_SIZE:
             e = (addr - EVENTS_BASE) // EVENTS_SIZE
