@@ -463,3 +463,79 @@ atteint **7,5 %** (noeud 10 : `NORTH` depuis `cell20`) vs 2,5 % avant.
 Prochaine cible de couverture : **états/objets/events non encore atteints**
 (fin de jeu, armement d'events, kills) — la couverture d'octets exige de
 nouveaux états, pas de la re-marche.
+
+## Reprise 2026-10-09 (suite) — priorité MAPPING + jeu dirigé + lumière
+
+**Objectif rappelé** : terminer le jeu **mais surtout** mapper/nommer toutes
+les variables SAVE/LOAD. Infrastructure désormais en place (commits
+`6f5d285`, `9dc0536`, `b8c0cbc`, `05ad976`, `4cfc2c1`).
+
+### Outillage mapping (SSOT + registre)
+- `scripts/memmap_defs.py` : SSOT. 4 régions + slots nommés : `ZP_NAMES`
+  (7), 61 clés d'état `$1A62` (+identités `player/map/key/sword/lunch/
+  gandalf/dragon/butler/gollum/troll_*`), champs `type/carrier/tpl/eloc/
+  falls/lock`, 13 tables INDIR, 10 events `$2B12`, 17 entités `$2B45`,
+  79 records `$2070` (via image). `annotate(base,off)` → slots (multi-slot).
+- `scripts/memmap.py` : `report` (couverture + var nommés), `slots
+  [--virgin]`, `addr <base> <off>` (annotation + preuves = commandes/valeurs),
+  `sources`, `xref [base [off]]` (réfs littérales `block4.asm`), `gen
+  [--write]` (annexe between markers dans `savegame-memory-map.md`).
+  Env `SOLVER_DB=` cible une base de run.
+- `scripts/check_memmap.py` : PROPRE (A–F ; noms/contiguïté/docs/genres,
+  61 clés / 13 INDIR / 10 events / 17 entités / 79 records).
+- Métrique : **85/290 variables réelles couvertes (29 %)** (var = hors
+  constantes : état `+0` type, `b1`, `n`, `balo/bahi`, event `actA/cond`).
+  Vierges : `records.b0` 61 (visiter lieux), `états.carrier` 56 + `eloc` 40,
+  `scripts` PChi 12 / cpt 8 / id 9 / s6 17, `ZP.exploc/once` 2.
+
+### Jeu dirigé (outillage)
+- `solver.py` : `--seed NOM` (checkpoint `sav/NOM.bin`, multi-seed
+  idempotent), `--goal coverage` (prof. 8), `--moves-only` (directions),
+  `--route FICHIER [--seed N --save N]` (séquence + suivi couverture,
+  stop mort/invalide). `SOLVER_DB=build/sim/cover.db` isole les runs.
+- `map_static.py --path <from> <to> [--via A,B]` : plus court chemin sur le
+  graphe statique (78 records/203 sorties).
+- `routes/` : `east.txt`, `barrels.txt` (fichiers de jeu dirigé).
+- **Constat** : le BFS sature la couverture dans le monde atteignable
+  (0 nouvel octet) ; il faut progresser dans la quête. BFS trouve toutefois
+  score **7,5 %** (nœud 10 : `NORTH` depuis `cell20`) vs 2,5 %.
+
+### Découverte : LUMIÈRE = l'épée (donjon franchissable)
+- `is_dark` (`$4C82`, doc `ROUTINE_DOCS`) : un lieu est sombre SAUF si un
+  état `$1A62` est **au lieu du joueur** avec `+4` bit7 et `+7`
+  (bits `$08`/`$04`/`$40` posés, `$10` clair).
+- Seule clé matchante : **`$0E`** (`$1CB0`) = **« the short strong sword »**
+  (init eloc `$07`). Preuve : patch `state$0E.eloc := ploc` dans `ante2`
+  (`$1F`)/`gloomy`(`$04`)/`revise`(`$09`) → LOOK révèle la pièce (plus
+  « IT IS DARK ») + liste « the short strong sword ».
+- **Corrige** l'ancien « pas de lampe au jeu » (séance 9 `aventure.md`).
+- Blocage : épée en `$07` derrière la **porte rock** (`$06 N`, cond `$01`)
+  → `NORTH` = `YOU CANNOT GO NORTH` ; `PUSH/BREAK ROCK` inopérants.
+
+### PROCHAINE ÉTAPE (reprise après compactage)
+**Trouver ce qui ouvre la porte rock (cond `$01`)** → chercher l'épée `$0E`
+→ franchir le donjon `$1E/$1F/$20` → quête (cellier→tonneaux→Lac→Montagne
+`$2C`→dragon `$29`).
+
+Chaîne de code du test de condition d'exit :
+`move_core` (`$36DB`) : `ldx arg1; lda direct; jsr cond_eval` → si
+`direct==0` `L43F3` (`jsr L5331` = état clé `arg1`, puis `ptr += 8`) sinon
+`L43E4` (`L530B` record, `ptr += 2`) ; copie `(ptr)+5..0` → `cond1`/`cond2` ;
+match via `L3679`/`L4B37`/`code_433A`. Donc **cond `$01` = signature
+`état[$01]+8`** (état `$01` @ `$1B63` : `02 FF FF FF 00 00 90 81 F2 02 19 05
+6F 08 00 00 07 06 0C 02` ; `+7=$81`). À élucider : quel opcode/action écrit
+l'état `$01` (ou déplace l'épée), et pourquoi la porte rock reste fermée.
+
+Autres pistes ouvertes : `scripts.cpt` (armement events), `records.b0`
+(visiter les 55 lieux non vus, cf. `docs/game-map.md`), identités clés
+restantes, `ZP.exploc/once`.
+
+Commandes utiles :
+```
+.venv/bin/python scripts/memmap.py report           # couverture
+.venv/bin/python scripts/memmap.py slots --virgin   # cibles
+.venv/bin/python scripts/memmap.py xref 1B63        # qui touche l'état $01
+.venv/bin/python scripts/check_memmap.py            # PROPRE
+.venv/bin/python scripts/solver.py --route F --seed N --save M
+.venv/bin/python scripts/map_static.py --path 06 07
+```
