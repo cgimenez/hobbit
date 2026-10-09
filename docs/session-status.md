@@ -726,10 +726,11 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
 4. Portes à événement : magique elfes `$0D+7` bit5 (`$1D26`), trou Montagne
    `$0B+7` bit7 (`$1C7B`), porte rouge `$08`.
 5. Slots vierges : `memmap.py slots --virgin` ; ingérer via solver/tickdiff.
-6. **Nommage des champs de bloc** : délimiter les tailles/chevauchements des
-   blocs d'état (`STATE_WINDOW $40`, bases non monotones) pour nommer sûrement
-   `+5/+6/+7/+0A/+0B` (dégâts/seuil/flags confirmés pour `+5/+6/+7` via
-   `act_p14_00/01`). Cible : `memmap.py unnamed` (7 ZP + 60 etats restants).
+6. **Nommage des champs de bloc** — **FAIT** : modèle corrigé en partition
+   par ordre d'adresse (`memmap_defs.state_owner`, 32 réfs vérifiées) ;
+   champs `+5`(hp)/`+6`(tough)/`+7`(flags)/`+A`(altptr) encodés. `etats` non
+   nommés **60 → 6** ; ZP `tblA`/`tblB`. Restent **10** offsets : ZP
+   `$C3/$C4/$CF-$D5` + etats `+$0C/+$0D`. Cible : `memmap.py unnamed`.
 
 ### Séance 12 (couverture 2) — chaîne canonique + batch BFS
 - **Run `canon`** injecté dans `hobbit.db` : les 20 checkpoints du parcours
