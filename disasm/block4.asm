@@ -3052,7 +3052,7 @@ L41AC:  jsr     L454F
         jsr     word_render
 L41BE:  ldy     #$06
         jsr     L4232
-        jsr     L4C82
+        jsr     is_dark
         ldy     #$00
         bcc     L41E0
         lda     wid
@@ -4206,7 +4206,7 @@ L4B37:  jsr     L46E9
         bne     L4B42
         jmp     L4C51
 
-L4B42:  jsr     L4C82
+L4B42:  jsr     is_dark
         bcc     L4B5F
         lda     $7F
         bne     L4B57
@@ -4293,7 +4293,7 @@ L4BE9:  lda     phase
         lda     obj
         cmp     #$00
         bne     code_4BFF
-        jsr     L4C82
+        jsr     is_dark
         bcc     code_4BFF
         jsr     print_msg
 ; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
@@ -4377,7 +4377,8 @@ L4C6D:  pha
 L4C80:  pla
         rts
 
-L4C82:  jsr     L46E6
+; 1 si sombre : balaie etats $1A62, objet au lieu du joueur avec +4 bit7 et +7 ($08/$04/$40 poses, $10 clair) = lumiere (epee $0E) ; sinon 'IT IS DARK.'
+is_dark:jsr     L46E6
         ldy     #$04
         lda     (crec),y
         and     #$80
@@ -5161,7 +5162,7 @@ code_5235:
         lda     #$00
         jsr     L57BB
         sta     ploc
-        jsr     L4C82
+        jsr     is_dark
         lda     #$00
         bcc     L5245
         lda     #$01
@@ -6734,7 +6735,7 @@ code_5D42:
 
 L5D43:  .byte   $04
 code_5D44:
-        jsr     L4C82
+        jsr     is_dark
         bcc     L5D53
         lda     #$09
         jsr     rand_range
@@ -6767,7 +6768,7 @@ L5D74:  lda     obj
         jsr     L57D5
         cmp     #$FF
         bne     L5DAF
-L5D8A:  jsr     L4C82
+L5D8A:  jsr     is_dark
         bcs     L5D92
         jmp     L5A62
 
@@ -6834,7 +6835,7 @@ evt_lookup:
         lda     (ptr),y
         sta     L4C65
         jsr     L4C5D
-L5DFD:  jsr     L4C82
+L5DFD:  jsr     is_dark
         bcc     L5E03
         rts
 

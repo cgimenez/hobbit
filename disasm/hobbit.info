@@ -446,6 +446,7 @@ LABEL { NAME "token_jumps"; ADDR $4641; COMMENT "table des 32 tokens <$20 : <$14
 LABEL { NAME "cr_aware_out"; ADDR $46DB; COMMENT "putchar + Z si $0D (token $0D = CR inline, saute $4241)"; };
 LABEL { NAME "fetch_retaddr"; ADDR $4737; COMMENT "copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B"; };
 LABEL { NAME "img_show"; ADDR $4750; COMMENT "illustration de la cle A (table $7AC0) : vec_init + keyin, Z si absente"; };
+LABEL { NAME "is_dark"; ADDR $4C82; COMMENT "1 si sombre : balaie etats $1A62, objet au lieu du joueur avec +4 bit7 et +7 ($08/$04/$40 poses, $10 clair) = lumiere (epee $0E) ; sinon 'IT IS DARK.'"; };
 LABEL { NAME "evt_tick"; ADDR $4E75; COMMENT "balaye $2B12 : cpt--, re-arme, dispatch actB via $7169"; };
 LABEL { NAME "evt_cond"; ADDR $4E9D; COMMENT "si cond<>0 et cond>=cpt : dispatch entree+4 (L4EAB)"; };
 LABEL { NAME "evt_fire"; ADDR $4EAB; COMMENT "patch L4C64/L4C65 depuis $7169+X*2 puis jsr L4C5D"; };

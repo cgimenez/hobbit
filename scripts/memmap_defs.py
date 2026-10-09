@@ -98,6 +98,7 @@ STATE_IDENTITY: dict[int, str] = {
     0x00: "player",       # bloc global (compteur de chutes +$05)
     0x03: "map",
     0x04: "key",          # the large key
+    0x0E: "sword",        # the short strong sword (source de lumiere : +4 b7, +7 $94)
     0x26: "lunch",
     0x3E: "gandalf",
     0x41: "dragon",       # presume

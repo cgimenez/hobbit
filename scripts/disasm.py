@@ -175,6 +175,12 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)",
     ),
     0x44BE: ("msgptr_inc", "INC $6A (+ $6B si retenue) ; avance le pointeur message"),
+    0x4C82: (
+        "is_dark",
+        "1 si sombre : balaie etats $1A62, objet au lieu du joueur avec +4"
+        " bit7 et +7 ($08/$04/$40 poses, $10 clair) = lumiere (epee $0E) ;"
+        " sinon 'IT IS DARK.'",
+    ),
     # Moteur de messages (decodeur valide par reimplementation Python : les
     # 32 mots $1117 et le dictionnaire 5-bit sortent en anglais propre).
     0x4444: (

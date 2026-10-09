@@ -307,3 +307,23 @@ warg enters.`) — 2 traqueurs à l'est (`$43` + warg).
 - `$16` NW→`$31` : scramble (`L5F07`) confirmé, pas de bug.
 - Dormants `$42`/`$46`/`$3C` : `$42` (eloc `$20`) se réveille au
   cellier ?
+
+## Séance 10 — source de lumière élucidée (donjon franchissable)
+
+**Correction de la séance 9** (« pas de lampe au jeu ») : la lumière existe.
+
+- Test « sombre » `is_dark` (`$4C82`, doc `ROUTINE_DOCS`) : un lieu est
+  sombre sauf si un état `$1A62` se trouve **au lieu du joueur** avec
+  `+4` bit7 et `+7` (bits `$08`/`$04`/`$40` posés, `$10` clair).
+- Seule la clé **`$0E`** (`$1CB0`, « the short strong sword ») matche :
+  c'est la **source de lumière**. Init eloc `$07` (caverne des trolls).
+- Preuve par patch : state `$0E`.eloc := `ploc` dans `ante2`($1F) →
+  `You are in a dark dungeon in the Elvenkings halls… you see : the short
+  strong sword. Thorin.` (plus de `IT IS DARK`) ; idem `$04`/`$09`. Sans
+  patch : `I SEE NOTHING HERE. IT IS DARK.`
+- Conséquence : pour franchir le labyrinthe noir (`$1E/$1F/$20`), il faut
+  l'épée. Accès `$07` bloqué par la **porte rock** (`$06 N`, cond `$01`) —
+  `NORTH` → `YOU CANNOT GO NORTH.` (PUSH/BREAK inopérants vus séance 5).
+  Prochaine cible : ouvrir la porte rock (ou obtenir l'épée autrement).
+- Outillage : `scripts/memmap_defs.py` nomme la clé `$0E` (`sword`) ;
+  `scripts/memmap.py` / `check_memmap.py` PROPRE.

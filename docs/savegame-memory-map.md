@@ -88,7 +88,7 @@ description (tokens runtime). `+0` vaut aussi `$02 $03 $05 $08`
 | `$0B` | `$1C74` | `$02` | `$FF` | `$F2` | — |
 | `$0C` | `$1C93` | `$02` | `$FF` | `$F2` | — |
 | `$0D` | `$1D1F` | `$02` | `$FF` | `$F2` | — |
-| `$0E` | `$1CB0` | `$01` | `$FF` | `$45` | `$07` |
+| `$0E` | `$1CB0` | `$01` | `$FF` | `$45` | `$07` (épée « short strong sword », **source de lumière** `+4`=01x, `+7`=$94) |
 | `$0F` | `$1CDA` | `$01` | `$42` | `$CB` | `$20` |
 | `$10` | `$1CC4` | `$01` | `$FF` | `$59` | `$3D` |
 | `$11` | `$1CEC` | `$02` | `$FF` | `$F2` | — |
@@ -465,6 +465,15 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   `$00`→mort+reboot (restauré `$40`). Budget ≈ 7-8 chutes. Seuls les
   mouvements **ratés** consomment (succès = gratuit) ; `WAIT`/`LOOK`/
   verbes rejetés (0 tick) = gratuits.
+- **Lumière / salles sombres (`is_dark` `$4C82`)** : un lieu est sombre
+  SAUF si un état `$1A62` est **au lieu du joueur** avec `+4` bit7 posé et
+  `+7` (bits `$08`/`$04`/`$40` posés, `$10` clair). Seule la clé **`$0E`**
+  (`$1CB0`, « the short strong sword », init eloc `$07`) matche → porter
+  l'épée éclaire. Preuve : état `$0E`.eloc patché sur `ploc=$1F`/`$04`/`$09`
+  → LOOK révèle la pièce (plus « IT IS DARK ») et liste « the short strong
+  sword » ; sans patch : `I SEE NOTHING HERE. IT IS DARK.`. Corrige
+  l'ancien « pas de lampe au jeu » (`docs/aventure.md` séance 9) : la
+  lumière existe, c'est l'épée (caverne des trolls `$07`, porte rock).
 - **Verrous-fenêtres `+7` (`$80`/`$81`/`$A0`)** : `+$00F2` (état `$08`,
   porte rouge `$1F`), `+$0180` (état `$0C`, `$20`→`$21`), `+$00BB`
   (état `$06`, `$0E`/`$0F`) — cycle par rythme WAIT/mouvements ;
