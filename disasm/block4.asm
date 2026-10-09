@@ -4694,6 +4694,21 @@ evt_end:lda     #$01
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
 ; Fait tourner une entite (machine virtuelle) : execute jusqu'a 6 opcodes par tick
+; Tour d'une entite : machine virtuelle AnimAction (scripts du bloc 2).
+; Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],
+; terminee par $FF ; id $00 = slot dormant (ignore).
+; Pour chaque entite active : obj=id, on resout son etat (L57BB -> eloc), crec = son bloc.
+; Puis boucle d'opcodes, au plus 6 par tick (compteur L4ED3 = garde-fou anti-boucle) :
+;   le nibble bas de l'opcode donne le type :
+;     0-4  : MOVE, deplacement via entity_move ($4 = MOVE court)
+;     5-D  : INDIR, saut via la table de sauts propre a l'entite
+;     E    : GOTO absolu (PC := les 2 octets suivants)
+;     C    : PATCH (reecrit une cible de la table de sauts)
+;     F    : RANDOM (choix aleatoire parmi des cibles)
+;   bit $40 de l'opcode pose = pas de preambule one-shot ; sinon preambule au 1er tour.
+;   apres un MOVE : bit $20 -> efface l'opcode (auto-modification) ;
+;                   bit $10 -> saut calcule si le deplacement echoue.
+; Detail complet : docs/block4-analysis.md, section 'VM AnimAction'.
 entity_tick:
         jsr     code_5235
         lda     #$45

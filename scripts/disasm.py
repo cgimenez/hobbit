@@ -522,6 +522,30 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0xF9: ("exitp_hi", "Octet haut de exitp"),
 }
 
+# Notes detaillees (multi-lignes) inserees AVANT le label d'une routine,
+# en complement du resume une ligne de ROUTINE_DOCS. Servent a expliquer le
+# FONCTIONNEMENT (algorithme, entree/sortie, effets), pas seulement le but.
+# Cles = adresses de routines nommees (via ROUTINE_DOCS/VECTORS).
+ROUTINE_NOTES: dict[int, list[str]] = {
+    0x4ED5: [
+        "Tour d'une entite : machine virtuelle AnimAction (scripts du bloc 2).",
+        "Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],",
+        "terminee par $FF ; id $00 = slot dormant (ignore).",
+        "Pour chaque entite active : obj=id, on resout son etat (L57BB -> eloc), crec = son bloc.",
+        "Puis boucle d'opcodes, au plus 6 par tick (compteur L4ED3 = garde-fou anti-boucle) :",
+        "  le nibble bas de l'opcode donne le type :",
+        "    0-4  : MOVE, deplacement via entity_move ($4 = MOVE court)",
+        "    5-D  : INDIR, saut via la table de sauts propre a l'entite",
+        "    E    : GOTO absolu (PC := les 2 octets suivants)",
+        "    C    : PATCH (reecrit une cible de la table de sauts)",
+        "    F    : RANDOM (choix aleatoire parmi des cibles)",
+        "  bit $40 de l'opcode pose = pas de preambule one-shot ; sinon preambule au 1er tour.",
+        "  apres un MOVE : bit $20 -> efface l'opcode (auto-modification) ;",
+        "                  bit $10 -> saut calcule si le deplacement echoue.",
+        "Detail complet : docs/block4-analysis.md, section 'VM AnimAction'.",
+    ],
+}
+
 # Points d'entrée de la table de vecteurs en $2C05 (16 entrées JMP).
 VECTORS = {
     0x2C00: "autorun",
@@ -836,6 +860,34 @@ def build_info(
     return "\n".join(lines) + "\n"
 
 
+def label_name(addr: int) -> str | None:
+    """Nom du label d'une routine (pour rattacher ROUTINE_NOTES au listing)."""
+    if addr in ROUTINE_DOCS and ROUTINE_DOCS[addr][0]:
+        return ROUTINE_DOCS[addr][0]
+    if addr in VECTORS:
+        return VECTORS[addr]
+    if addr in ZP_NAMES:
+        return ZP_NAMES[addr][0]
+    return ROM_LABELS.get(addr)
+
+
+def inject_notes(asm: list[str], notes: dict[int, list[str]]) -> list[str]:
+    """Insere les notes multi-lignes juste avant le label correspondant."""
+    by_name: dict[str, list[str]] = {}
+    for addr, lines in notes.items():
+        name = label_name(addr)
+        if name:
+            by_name[name] = lines
+    out: list[str] = []
+    for ln in asm:
+        m = re.match(r"([A-Za-z_][A-Za-z0-9_]*):", ln)
+        if m and m.group(1) in by_name:
+            for text in by_name.pop(m.group(1)):
+                out.append(f"; {text}\n")
+        out.append(ln)
+    return out
+
+
 def main() -> int:
     import subprocess
 
@@ -929,6 +981,7 @@ def main() -> int:
         and not ln.startswith("; Input file:")
         and not ln.startswith("; Page:")
     ]
+    asm = inject_notes(asm, ROUTINE_NOTES)
     header = (
         "; ============================================================\n"
         "; The Hobbit (Oric, 1982)\n"
