@@ -544,6 +544,146 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "                  bit $10 -> saut calcule si le deplacement echoue.",
         "Detail complet : docs/block4-analysis.md, section 'VM AnimAction'.",
     ],
+    0x2C35: [
+        "Entree du programme apres chargement de la cassette.",
+        "Sequence : boot_copy (copie la zone sauvegarde en memoire haute pour preserver le TAPE),",
+        "init de la pile, RAZ des variables, puis boucle : lire une commande, l'executer, world_tick.",
+    ],
+    0x2DC8: [
+        "Initialisation des variables de travail : vide $97-$9C ($97..),",
+        "remet la pile de messages rstk ($AF) et le score ($CC/$CD) a zero,",
+        "puis saute a game_main (boucle principale).",
+    ],
+    0x3097: [
+        "Copie la zone de sauvegarde vers une zone de travail en memoire haute (le jeu tourne",
+        "sur cette copie : le contenu du TAPE reste donc intact et rechargeable tel quel).",
+        "Suit une table de 4 descripteurs en $30F9 ; $6C = compteur de segments.",
+    ],
+    0x30BB: [
+        "Recopie inverse : ramene la zone de travail vers la zone de sauvegarde ($1B1A+),",
+        "meme table de descripteurs que boot_copy.",
+    ],
+    0x440D: [
+        "Convention d'appel : les 2 octets qui suivent JSR print_msg forment l'adresse du message.",
+        "print_msg recupere l'adresse de retour, +1 -> pointe le mot inline et en lit lo puis hi",
+        "dans ptr (l'adresse du message), avance le pointeur de reprise $6A/$6B jusqu'a JSR+5,",
+        "affiche via render_text, puis jmp ($6A) reprend l'execution APRES le mot inline.",
+    ],
+    0x4444: [
+        "Boucle de rendu sur les octets du message (ptr + tidx) :",
+        "  $20-$5F : litteral ASCII, affiche directement ;",
+        "  $60-$7F : mot courant via common_lookup (table $1117) ;",
+        "  bit7 pose : mot de 2 octets du dictionnaire, via word_render ;",
+        "  <$20    : token (table $4641), sous-routine ou fin.",
+        "Les tokens de fin $14/$15/$16 terminent ; sinon on avance et on continue.",
+    ],
+    0x4241: [
+        "Rend un mot du dictionnaire packe 5 bits. Adresse = page ($05 + (hi&$0F)) : lo.",
+        "Chaque octet fournit 5 bits = un caractere (code 0 = fin) ; le bit7 gere la continuation.",
+        "Le nibble haut de hi porte la grammaire : suffixe (S/ES/IES/ING via $4322), espace,",
+        "capitale ($70), ou ponctuation/retour a la ligne de fin ($2x/$3x/$6x).",
+    ],
+    0x462D: [
+        "Traduit un octet $60-$7F en mot courant : index = (octet-$60) ; l'entree de $1117",
+        "est un pointeur de mot du dictionnaire, rendu par word_render.",
+    ],
+    0x42CE: [
+        "Gere l'espacement : insere l'espace en attente, puis passe a la ligne automatiquement",
+        "si la longueur du mot (X) atteint la largeur de ligne ($04 ou $05 selon le mode).",
+    ],
+    0x44AE: [
+        "Fin de message. Rend le dernier mot puis termine selon la grammaire du mot :",
+        "$6x = saut de ligne, $3x = point, $2x = rien.",
+    ],
+    0x44BE: [
+        "Avance le pointeur de reprise du message ($6A/$6B) de 1, avec gestion de la retenue de page.",
+    ],
+    0x4641: [
+        "Table des 32 handlers de token (<$20), 2 octets chacun ($4641 + tok*2).",
+        "Tokens <$14 : sous-routines (retour Z = sauter le rendu du mot suivant) ;",
+        "$14/$15/$16 = fins inline ; $17-$1F non utilises (0000).",
+    ],
+    0x36DB: [
+        "Coeur du deplacement du joueur. Sauve le contexte, calcule l'entree de sortie (exit_ptr),",
+        "en decode les flags (code_4141 -> xaux/xmode), evalue les conditions cond1 (arg1)",
+        "et cond2 (arg2) via cond_eval, puis execute le deplacement soit en mode sonde (L4B37),",
+        "soit en deux temps (L35E4). Restaure l'etat et renvoie le resultat en A (Z = echec).",
+    ],
+    0x3759: [
+        "Evalue la condition d'une sortie. X = slot de condition ($FF = aucune).",
+        "A = drapeau direct : 0 -> condition lue en etat+8 (L43F3) ; sinon record+2 (L43E4).",
+        "Positionne ptr sur la condition et renvoie A=1 (Z clair) si elle existe.",
+    ],
+    0x3770: [
+        "Derive les drapeaux de sortie depuis les octets de mode :",
+        "$7F = bit6 de xaux ; $80 = bit0 de xmode ; direct = bit7 de xmode ; variant = bit6 de xmode.",
+    ],
+    0x43CB: [
+        "Calcule $F8/$F9 = $26DA + wid*8 : adresse de l'entree de 8 octets associee a la sortie wid",
+        "(deplacement ou condition). C'est la base lue par code_4141 et cond_eval.",
+    ],
+    0x4E59: [
+        "Fait vivre le monde apres une commande reussie : prepare les evenements, fait tourner",
+        "les entites PNJ (entity_tick), puis balaye la table d'evenements differes (evt_tick).",
+    ],
+    0x4E75: [
+        "Balaye la table $2B12 : entrees de 5 octets [id, cpt, actA, cond, actB], terminee par $FF.",
+        "cpt==0 -> entree suivante ; sinon cpt-- : a 0 on re-arme et on declenche actA (evt_fire),",
+        "sinon on teste la condition de l'entree (evt_cond).",
+    ],
+    0x4E9D: [
+        "Si la condition de l'entree (octet 3) est non nulle et que cpt l'atteint (cond >= cpt),",
+        "declenche actB (octet 4) via evt_fire ; sinon passe a l'entree suivante.",
+    ],
+    0x4EAB: [
+        "Y = index de l'action dans l'entree. Copie la cible depuis la table de sauts $7169",
+        "(index*2) dans le JMP auto-modifie $4C64/$4C65, puis appelle le dispatcher $4C5D.",
+    ],
+    0x4ECC: [
+        "Fin de la table ($FF) : reautorise l'affichage puis sort (L471B restaure le contexte).",
+    ],
+    0x5020: [
+        "Avance le pointeur de script de l'entite ($8C/$8D) de A octets.",
+    ],
+    0x502A: [
+        "Avance le pointeur de script de 4 (ou 2), +2 de plus si l'opcode porte le bit $10,",
+        "puis reecrit le nouveau PC dans l'entree de l'entite (ptr2+2/+3).",
+    ],
+    0x502C: [
+        "Avance le pointeur de script de 2 (ou 2), +2 de plus si l'opcode porte le bit $10,",
+        "puis reecrit le nouveau PC dans l'entree de l'entite (ptr2+2/+3).",
+    ],
+    0x7353: [
+        "Scanne la matrice clavier via le VIA ($0300). Renvoie le code de touche ;",
+        "bit7 = touche presente, sinon bit7=0 (aucune touche).",
+    ],
+    0x7481: [
+        "Attend une touche en boucle sur kb_scan (jusqu'a bit7 pose), puis renvoie son code sans le bit7.",
+    ],
+    0x7489: [
+        "Affiche un retour a la ligne ($0D) via ch_out.",
+    ],
+    0x7491: [
+        "Point d'entree d'affichage. Si (phase & outen)==0 le caractere est jete (sortie muette).",
+        "Sinon : en mode raw ($0D pose) on force les majuscules ; en mode normal ch_put gere l'ecran.",
+    ],
+    0x75B4: [
+        "Dessine un caractere (A-$20) dans l'ecran hires : la police est pointee par $0403/$0404,",
+        "8 octets sont ecrits a l'adresse courante en OR $40 (encre), puis la ligne avance de $28.",
+    ],
+    0x75F6: [
+        "Affiche un caractere : gere les espaces en attente, le retour a la ligne (scroll + pause",
+        "tous les 16 CR via pause_key), le backspace, la capitalisation apres un point, et passe",
+        "les lettres en minuscules par defaut.",
+    ],
+    0x7619: [
+        "Sur un retour a la ligne : tous les 16 CR, attend une touche (10 essais avec delai) pour",
+        "mettre en pause, puis scrolle l'ecran (L7694) et remet le compteur de lignes a zero.",
+    ],
+    0x56D7: [
+        "Tire un nombre pseudo-aleatoire borne par A, en melangeant des octets de la source de bruit",
+        "pointee par $93/$94 ; le resultat est ramene dans l'intervalle demande.",
+    ],
 }
 
 # Points d'entrée de la table de vecteurs en $2C05 (16 entrées JMP).
