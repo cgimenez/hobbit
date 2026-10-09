@@ -19,6 +19,13 @@ Usage : .venv/bin/python scripts/pack_sim.py [--hires] [--fast]
           --tape FILE : pre-remplit le buffer cassette $E804+ avec FILE
             (save produite par scripts/save_tape.py) ; RD/WR inits.
             Combine avec --fast (sortie build/sim/hobbit_fast.sim).
+          --snapshot NOM : image checkpoint (sortie build/sim/NOM.sim) :
+            assemble harness/snap.s AU LIEU de tape.s (slot $F700),
+            patch vec_02/03/04 ($2C0B/$2C0E/$2C11) vers snap_load/
+            snap_save/s_clc (bypass couche octet), bake NOM en $F700+19,
+            embarque sav/NOM.bin (ou --snap-file F) en $E800 ("SNAP"+3623).
+            Implique --fast ($56=0). Incompatible avec --tape.
+          --snap-file F : blob snapshot explicite (defaut : sav/NOM.bin).
 """
 from __future__ import annotations
 
@@ -42,6 +49,19 @@ TAPE_VECS = (0x0405, 0x0408, 0x040B, 0x040E, 0x0411, 0x0414)
 # ($0417 n'est pas un vecteur : loader jeu conserve ; cf. harness/tape.s)
 TAPE_RD, TAPE_WR, TAPE_DATA, TAPE_END = 0xE800, 0xE802, 0xE804, 0xF700
 TAPE_CAP = TAPE_END - TAPE_DATA  # 3820 o utiles
+# Bypass snapshots : vec_02/03/04 -> snap_load/snap_save/s_clc.
+VEC02, VEC02_WANT = 0x2C0B, 0x71DB  # JMP tape_load (mesure image)
+VEC03, VEC03_WANT = 0x2C0E, 0x7215  # JMP tape_save
+VEC04, VEC04_WANT = 0x2C11, 0x71CB  # JMP L71CB (verify)
+SNAP_SRC = ROOT / "harness" / "snap.s"
+SNAP_CFG = ROOT / "harness" / "snap.cfg"
+SNAP_ADDR = 0xF700  # meme slot que tape.s (remplace en mode --snapshot)
+SNAP_BLOB = 0xE800  # "SNAP" + 3623 o (pack_sim --snapshot)
+SNAP_LEN = 4 + 0x0018 + 0x0556 + 0x02F1 + 0x05C8  # 3627 o
+SNAP_NAMELEN_OFF = SNAP_ADDR + 18
+SNAP_NAME_OFF = SNAP_ADDR + 19
+SNAP_NAME_MAX = 15
+SAV_DIR = ROOT / "sav"
 HIBIT_ADDR = 0xC2F2
 TXTSH, TXTSH_END = 0xC300, 0xC300 + 0x460
 VARS, VARS_END = 0xC2F0, 0xC300
@@ -74,7 +94,47 @@ def main() -> int:
         if not tape_file.is_file():
             print(f"fichier tape introuvable : {tape_file}")
             return 1
-    out = FAST_OUT if fast else OUT
+    snap_name = None
+    if "--snapshot" in sys.argv:
+        i = sys.argv.index("--snapshot")
+        if i + 1 >= len(sys.argv):
+            print("--snapshot exige un nom")
+            return 1
+        snap_name = sys.argv[i + 1]
+        if not (1 <= len(snap_name) <= SNAP_NAME_MAX) or any(
+                c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                         "abcdefghijklmnopqrstuvwxyz0123456789_-."
+                for c in snap_name) or snap_name in (".", ".."):
+            print(f"nom snapshot invalide : {snap_name!r} "
+                  f"(1-{SNAP_NAME_MAX} car. [A-Za-z0-9_-.])")
+            return 1
+        fast = True  # checkpoints = jeu texte, toujours sans images
+    snap_file = None
+    if "--snap-file" in sys.argv:
+        i = sys.argv.index("--snap-file")
+        if i + 1 >= len(sys.argv):
+            print("--snap-file exige un fichier")
+            return 1
+        snap_file = Path(sys.argv[i + 1])
+        if not snap_file.is_file():
+            print(f"fichier snapshot introuvable : {snap_file}")
+            return 1
+    if snap_name is not None and tape_file is not None:
+        print("--snapshot et --tape sont incompatibles (zone $E800 partagee)")
+        return 1
+    if snap_file is not None and snap_name is None:
+        print("--snap-file exige --snapshot NOM")
+        return 1
+    if snap_name is not None and snap_file is None:
+        snap_file = SAV_DIR / f"{snap_name}.bin"
+        if not snap_file.is_file():
+            print(f"snapshot introuvable : {snap_file} "
+                  f"(jouer SAVE d'abord, ou --snap-file F)")
+            return 1
+    if snap_name is not None:
+        out = BUILD / f"{snap_name}.sim"
+    else:
+        out = FAST_OUT if fast else OUT
     BUILD.mkdir(parents=True, exist_ok=True)
     for tool in (CA65, LD65):
         if not Path(tool).is_file():
@@ -86,17 +146,32 @@ def main() -> int:
     if len(shim) > 0x2F0:
         print(f"shim trop gros : {len(shim)} > 752 octets")
         return 1
-    subprocess.run([str(CA65), "-o", str(TAPE_OBJ), str(TAPE_SRC)], check=True)
-    subprocess.run([str(LD65), "-C", str(TAPE_CFG), "-o", str(TAPE_BIN), str(TAPE_OBJ)], check=True)
-    tape = TAPE_BIN.read_bytes()
-    if len(tape) > 0x500:
-        print(f"stubs tape trop gros : {len(tape)} > 1280 octets")
-        return 1
     import struct as _st
-    entries = _st.unpack("<6H", tape[:12])
-    if entries[0] < TAPE_ADDR or max(entries) >= 0xFC00:
-        print(f"table tape hors zone : {[f'{a:04X}' for a in entries]}")
-        return 1
+    if snap_name is not None:
+        SNAP_OBJ = BUILD / "hobbit_snap.o"
+        SNAP_BIN = BUILD / "hobbit_snap.bin"
+        subprocess.run([str(CA65), "-o", str(SNAP_OBJ), str(SNAP_SRC)], check=True)
+        subprocess.run([str(LD65), "-C", str(SNAP_CFG), "-o", str(SNAP_BIN), str(SNAP_OBJ)], check=True)
+        snap = SNAP_BIN.read_bytes()
+        if len(snap) > 0x500:
+            print(f"shims snap trop gros : {len(snap)} > 1280 octets")
+            return 1
+        entries = _st.unpack("<9H", snap[:18])
+        if entries[0] < SNAP_ADDR or max(entries) >= 0xFC00:
+            print(f"table snap hors zone : {[f'{a:04X}' for a in entries]}")
+            return 1
+        _, _, _, _, _, _, e_save, e_load, e_clc = entries
+    else:
+        subprocess.run([str(CA65), "-o", str(TAPE_OBJ), str(TAPE_SRC)], check=True)
+        subprocess.run([str(LD65), "-C", str(TAPE_CFG), "-o", str(TAPE_BIN), str(TAPE_OBJ)], check=True)
+        tape = TAPE_BIN.read_bytes()
+        if len(tape) > 0x500:
+            print(f"stubs tape trop gros : {len(tape)} > 1280 octets")
+            return 1
+        entries = _st.unpack("<6H", tape[:12])
+        if entries[0] < TAPE_ADDR or max(entries) >= 0xFC00:
+            print(f"table tape hors zone : {[f'{a:04X}' for a in entries]}")
+            return 1
 
     img = bytearray(BIN.read_bytes())
     # Patch clavier : $7353 (STX $1E / STY $1F) -> JMP shim.
@@ -124,28 +199,62 @@ def main() -> int:
     if len(img) < SHIM_ADDR - BASE:
         img += bytes(SHIM_ADDR - BASE - len(img))
     img[SHIM_ADDR - BASE:SHIM_ADDR - BASE + len(shim)] = shim
-    # Colle les stubs cassette B1 en $F700.
-    if len(img) < TAPE_ADDR + len(tape) - BASE:
-        img += bytes(TAPE_ADDR + len(tape) - BASE - len(img))
-    img[TAPE_ADDR - BASE:TAPE_ADDR - BASE + len(tape)] = tape
-    print(f"tape : {len(tape)} o @ ${TAPE_ADDR:04X} "
+    # Colle les stubs ($F700 : tape.s ou snap.s selon le mode).
+    lowcode = snap if snap_name is not None else tape
+    lowname = "snap" if snap_name is not None else "tape"
+    if len(img) < TAPE_ADDR + len(lowcode) - BASE:
+        img += bytes(TAPE_ADDR + len(lowcode) - BASE - len(img))
+    img[TAPE_ADDR - BASE:TAPE_ADDR - BASE + len(lowcode)] = lowcode
+    print(f"{lowname} : {len(lowcode)} o @ ${TAPE_ADDR:04X} "
           f"({' '.join(f'{a:04X}' for a in entries)})")
-    # Buffer cassette $E800 : RD/WR := $E804 (+ pre-remplissage --tape).
-    if len(img) < TAPE_WR + 2 - BASE:
-        img += bytes(TAPE_WR + 2 - BASE - len(img))
-    img[TAPE_RD - BASE:TAPE_RD - BASE + 2] = TAPE_DATA.to_bytes(2, "little")
-    wr = TAPE_DATA
-    if tape_file is not None:
-        blob = tape_file.read_bytes()
-        if len(blob) > TAPE_CAP:
-            print(f"tape trop grosse : {len(blob)} > {TAPE_CAP} octets")
+    if snap_name is not None:
+        # Bypass SAVE/LOAD : vec_02/03/04 -> snap_load/save/s_clc.
+        for vec, want, new in ((VEC02, VEC02_WANT, e_load),
+                               (VEC03, VEC03_WANT, e_save),
+                               (VEC04, VEC04_WANT, e_clc)):
+            off = vec - BASE
+            op, lo, hi = img[off], img[off + 1], img[off + 2]
+            if op != 0x4C or (lo | (hi << 8)) != want:
+                print(f"refus patch ${vec:04X} : JMP ${lo | (hi << 8):04X} "
+                      f"(attendu ${want:04X})")
+                return 1
+            img[off + 1:off + 3] = bytes((new & 0xFF, new >> 8))
+            print(f"patch ${vec:04X} : JMP ${want:04X} -> JMP ${new:04X}")
+        # Blob snapshot en $E800 ("SNAP" + 3623 o, magique verifie).
+        blob = snap_file.read_bytes()
+        if len(blob) != SNAP_LEN or blob[:4] != b"SNAP":
+            print(f"snapshot invalide : {snap_file} "
+                  f"({len(blob)} o, magique {blob[:4]!r}, "
+                  f"attendu 3627 o + 'SNAP')")
             return 1
-        if len(img) < TAPE_DATA + len(blob) - BASE:
-            img += bytes(TAPE_DATA + len(blob) - BASE - len(img))
-        img[TAPE_DATA - BASE:TAPE_DATA - BASE + len(blob)] = blob
-        wr = TAPE_DATA + len(blob)
-        print(f"tape pre-remplie : {tape_file} ({len(blob)} o)")
-    img[TAPE_WR - BASE:TAPE_WR - BASE + 2] = wr.to_bytes(2, "little")
+        if len(img) < SNAP_BLOB + len(blob) - BASE:
+            img += bytes(SNAP_BLOB + len(blob) - BASE - len(img))
+        img[SNAP_BLOB - BASE:SNAP_BLOB - BASE + len(blob)] = blob
+        print(f"snapshot embarque : {snap_file} "
+              f"({len(blob)} o @ ${SNAP_BLOB:04X})")
+        # Bake du nom en $F700+18/+19 (SNAP_NAMELEN/SNAP_NAME).
+        nb = snap_name.encode("ascii")
+        img[SNAP_NAMELEN_OFF - BASE] = len(nb)
+        img[SNAP_NAME_OFF - BASE:SNAP_NAME_OFF + 16 - BASE] = \
+            nb + bytes(16 - len(nb))
+        print(f"snapshot nom : {snap_name!r}")
+    else:
+        # Buffer cassette $E800 : RD/WR := $E804 (+ pre-remplissage --tape).
+        if len(img) < TAPE_WR + 2 - BASE:
+            img += bytes(TAPE_WR + 2 - BASE - len(img))
+        img[TAPE_RD - BASE:TAPE_RD - BASE + 2] = TAPE_DATA.to_bytes(2, "little")
+        wr = TAPE_DATA
+        if tape_file is not None:
+            blob = tape_file.read_bytes()
+            if len(blob) > TAPE_CAP:
+                print(f"tape trop grosse : {len(blob)} > {TAPE_CAP} octets")
+                return 1
+            if len(img) < TAPE_DATA + len(blob) - BASE:
+                img += bytes(TAPE_DATA + len(blob) - BASE - len(img))
+            img[TAPE_DATA - BASE:TAPE_DATA - BASE + len(blob)] = blob
+            wr = TAPE_DATA + len(blob)
+            print(f"tape pre-remplie : {tape_file} ({len(blob)} o)")
+        img[TAPE_WR - BASE:TAPE_WR - BASE + 2] = wr.to_bytes(2, "little")
     # Charset ROM 1.0 a son adresse (font lue en ($0403) = $FC70).
     rom = ROM10.read_bytes()
     if len(img) < FONT_HI - BASE:
@@ -170,10 +279,11 @@ def main() -> int:
     end = 0x0400 + len(img) - 1
     print(f"pack : {out}, image $0400-${end:04X} "
           f"({len(img)} o), reset $2C00, shim {len(shim)} o @ ${SHIM_ADDR:04X}"
-          f", tape {len(tape)} o @ ${TAPE_ADDR:04X}"
+          f", {lowname} {len(lowcode)} o @ ${TAPE_ADDR:04X}"
           + (", hires ON" if hires else "")
           + (", $56=0 (fast)" if fast else "")
-          + (f", --tape {tape_file}" if tape_file is not None else ""))
+          + (f", --tape {tape_file}" if tape_file is not None else "")
+          + (f", --snapshot {snap_name}" if snap_name is not None else ""))
     return 0
 
 

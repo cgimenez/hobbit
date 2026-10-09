@@ -224,6 +224,19 @@ F43 : `$44`→`$47`/`$45`, `$0B`→`$0C`, `$0B`→`$0E`, `$49`→`$4A`
 → **`$0D`** (pas `$0F` ! 2/2 : la fenêtre `$06` dévie vers
 `$0D` au lieu d'ouvrir `$0F`).
 
+## Séance 7 — snapshots SAVE/LOAD (sna/snb, DB)
+
+`sna` (image `revise.sim`, squelette `snap-init`) : trajet F5 vers
+`$09` + `WAIT` + `SAVE` (+2 sacrificielles : prompt PREPARE) +
+`INVENTORY` + `EAST` (salissure `$0A`) → `@@SNAP`×4 capturé
+(`sav/revise.bin` 3627 o, DB `snapshots` tick19 `ploc=$09`).
+`pack --snapshot revise` (vrai blob). `snb` : reboot + `LOAD`
+(+2 sacrificielles : prompt PRESS ANY) → tick7 `ploc=$09`
+(restauré, pas `$0A`) + `INVENTORY`/`EAST` vivants. **0-delta** :
+run direct pacé (`feed.sh` 0,4 s/ligne — sinon `pause_key` mange
+`LOAD`), `-x 100M` (sinon spin idle pollue) : 3623 o post-LOAD ==
+SAVE byte-exact. Checkpoint `$09` réutilisable (`revise.sim`).
+
 ## Questions ouvertes (jeu)
 
 - Cellier : vider le tonneau (quel verbe ? butler endormi après

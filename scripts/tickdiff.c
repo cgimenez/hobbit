@@ -14,6 +14,10 @@
  * Ne stocke que les deltas (octets changes) + l'etat ZP par tick.
  * Les frames texte/hires sont parsees-et-jetees (servent juste
  * a detecter l'activite).
+ *
+ * Snapshots (harness/snap.s) : "@@SNAP\n" + NLEN(1) + NOM + IDX(1) +
+ * LEN(2) + octets bruts, 4 blocs (idx 0..3 = ZP/etats/scripts/records).
+ * Un SAVE complet -> sav/NOM.bin ("SNAP" + 3623 o) + ligne snapshots.
  */
 
 #include <stdio.h>
@@ -24,12 +28,15 @@
 #include <errno.h>
 #include <sys/select.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <sqlite3.h>
 
 #define NREG 4
 static const unsigned REG_BASE[NREG] = {0x00BE, 0x1B1A, 0x28CC, 0x211A};
 static const unsigned REG_LEN[NREG]  = {0x0018, 0x0556, 0x02F1, 0x05C8};
+#define SNAP_MAGIC "SNAP"
+#define SNAP_NAMEMAX 31
 
 #define OUT_CHUNK 65536
 
@@ -86,6 +93,39 @@ static long G_frames = 0;
 static int G_rfd = -1;
 static long G_timeout_ms = 300;
 static long G_settle_ms = 0;   /* delai de tassement apres le silence (-s) */
+/* snapshot en cours d'accumulation (harness/snap.s) */
+static unsigned char G_snapbuf[NREG][0x05C8];
+static int G_got[NREG] = {0};
+static char G_snapname[SNAP_NAMEMAX + 1] = {0};
+static int G_snap_active = 0;
+static char G_savdir[1024] = {0};
+
+/* dir sav : <racine>/sav, racine = simfile sans build/sim + nom
+   (ex. build/sim/x.sim -> ./sav ; /a/b/build/sim/x.sim -> /a/b/sav) */
+static void sav_dir_for(const char *simfile) {
+    char tmp[1024];
+    snprintf(tmp, sizeof tmp, "%s", simfile);
+    for (int k = 0; k < 3; k++) {
+        char *s = strrchr(tmp, '/');
+        if (!s) { tmp[0] = 0; break; }
+        *s = 0;
+    }
+    if (tmp[0] == 0) snprintf(G_savdir, sizeof G_savdir, "sav");
+    else snprintf(G_savdir, sizeof G_savdir, "%s/sav", tmp);
+}
+
+static int snap_name_ok(const unsigned char *nm, unsigned nl) {
+    if (nl < 1 || nl > SNAP_NAMEMAX) return 0;
+    if (nm[0] == '.') return 0;
+    for (unsigned k = 0; k < nl; k++) {
+        unsigned char c = nm[k];
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+            continue;
+        return 0;
+    }
+    return 1;
+}
 
 /* lit jusqu'au silence (fin de tick) ; rend 0 si l'enfant est parti */
 static int wait_quiet(void) {
@@ -125,6 +165,30 @@ static int wait_quiet(void) {
                 G_s.pos += 16 + ln;
             } else if (avail >= 13 && !memcmp(p, "@@TAPE-BLOCK\n", 13)) {
                 G_s.pos += 13;
+            } else if (avail >= 7 && !memcmp(p, "@@SNAP\n", 7)) {
+                /* "@@SNAP\n" + NLEN(1) + NOM + IDX(1) + LEN(2) + payload */
+                if (avail < 8) break;
+                unsigned nl = p[7];
+                if (avail < (size_t)(8 + nl + 3)) break;
+                const unsigned char *nm = p + 8;
+                unsigned idx = nm[nl];
+                unsigned ln = nm[nl + 1] | ((unsigned)nm[nl + 2] << 8);
+                if (!snap_name_ok(nm, nl) || idx >= (unsigned)NREG ||
+                    ln != REG_LEN[idx]) { G_s.pos++; continue; }
+                if (avail < (size_t)(8 + nl + 3 + ln)) break;
+                if (idx == 0) {  /* nouveau SAVE : repart de zero */
+                    memcpy(G_snapname, nm, nl);
+                    G_snapname[nl] = 0;
+                    memset(G_got, 0, sizeof G_got);
+                    G_snap_active = 1;
+                } else if (!G_snap_active || strlen(G_snapname) != nl ||
+                           memcmp(G_snapname, nm, nl)) {
+                    G_s.pos += 8 + nl + 3 + ln;  /* hors sequence : jette */
+                    continue;
+                }
+                memcpy(G_snapbuf[idx], nm + nl + 3, ln);
+                G_got[idx] = 1;
+                G_s.pos += 8 + nl + 3 + ln;
             } else if (avail >= 12 && !memcmp(p, "@@TAPE-BYTE\n", 12)) {
                 if (avail < 13) break;
                 G_s.pos += 13;
@@ -173,7 +237,10 @@ int main(int argc, char **argv) {
         " reponse TEXT, PRIMARY KEY(run_id, n));"
         "CREATE TABLE IF NOT EXISTS state(run_id INTEGER, n INTEGER,"
         " ploc INTEGER, eloc INTEGER, obj INTEGER, crec INTEGER,"
-        " PRIMARY KEY(run_id, n));";
+        " PRIMARY KEY(run_id, n));"
+        "CREATE TABLE IF NOT EXISTS snapshots(name TEXT PRIMARY KEY,"
+        " run_id INTEGER, tick INTEGER, ploc INTEGER, eloc INTEGER,"
+        " obj INTEGER, crec INTEGER, created TEXT, data BLOB);";
     if (sqlite3_exec(db, schema, 0, 0, 0) != SQLITE_OK) {
         fprintf(stderr, "sqlite schema: %s\n", sqlite3_errmsg(db));
         return 1;
@@ -213,12 +280,26 @@ int main(int argc, char **argv) {
         sqlite3_step(st_delta);
         sqlite3_finalize(st_delta);
     }
+    sqlite3_prepare_v2(db, "DELETE FROM snapshots WHERE run_id=?;",
+                       -1, &st_delta, 0);
+    sqlite3_bind_int64(st_delta, 1, run_id);
+    sqlite3_step(st_delta);
+    sqlite3_finalize(st_delta);
     sqlite3_prepare_v2(db, "INSERT INTO ticks VALUES(?,?,?,?);",
                        -1, &st_tick, 0);
     sqlite3_prepare_v2(db, "INSERT INTO deltas VALUES(?,?,?,?,?,?);",
                        -1, &st_delta, 0);
     sqlite3_prepare_v2(db, "INSERT INTO state VALUES(?,?,?,?,?,?);",
                        -1, &st_state, 0);
+    sqlite3_stmt *st_snap = NULL;
+    sqlite3_prepare_v2(db, "INSERT OR REPLACE INTO snapshots"
+                       " VALUES(?,?,?,?,?,?,?,datetime('now'),?);",
+                       -1, &st_snap, 0);
+    if (!st_snap) {
+        fprintf(stderr, "prepare snapshots: %s\n", sqlite3_errmsg(db));
+        return 1;
+    }
+    sav_dir_for(simfile);
 
     FILE *cmdf = NULL;
     if (cmdfile) {
@@ -378,6 +459,37 @@ int main(int argc, char **argv) {
         sqlite3_bind_int64(st_state, 6, G_cur[0][0x08] | (G_cur[0][0x09] << 8));
         sqlite3_step(st_state);
         sqlite3_reset(st_state);
+        if (G_snap_active && G_got[0] && G_got[1] && G_got[2] && G_got[3]) {
+            /* SAVE complet : sav/NOM.bin ("SNAP"+3623) + ligne snapshots */
+            static unsigned char blob[4 + 0x0018 + 0x0556 + 0x02F1 + 0x05C8];
+            memcpy(blob, SNAP_MAGIC, 4);
+            size_t off = 4;
+            for (int i = 0; i < NREG; i++) {
+                memcpy(blob + off, G_snapbuf[i], REG_LEN[i]);
+                off += REG_LEN[i];
+            }
+            mkdir(G_savdir, 0777);
+            char path[1100];
+            snprintf(path, sizeof path, "%s/%s.bin", G_savdir, G_snapname);
+            FILE *f = fopen(path, "wb");
+            if (f) { fwrite(blob, 1, off, f); fclose(f); }
+            else fprintf(stderr, "snapshot %s : ecriture %s impossible\n",
+                         G_snapname, path);
+            sqlite3_bind_text(st_snap, 1, G_snapname, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int64(st_snap, 2, run_id);
+            sqlite3_bind_int64(st_snap, 3, ticks);
+            sqlite3_bind_int64(st_snap, 4, G_cur[0][0x0A]);
+            sqlite3_bind_int64(st_snap, 5, G_cur[0][0x0B]);
+            sqlite3_bind_int64(st_snap, 6, G_cur[0][0x07]);
+            sqlite3_bind_int64(st_snap, 7, G_cur[0][0x08] | (G_cur[0][0x09] << 8));
+            sqlite3_bind_blob(st_snap, 8, blob, (int)off, SQLITE_TRANSIENT);
+            sqlite3_step(st_snap);
+            sqlite3_reset(st_snap);
+            fprintf(stderr, "snapshot %s : %zu o (tick %ld, %s)\n",
+                    G_snapname, off, ticks, path);
+            G_snap_active = 0;
+            memset(G_got, 0, sizeof G_got);
+        }
         fprintf(stderr, "tick %ld cmd=\"%s\" : %ld octets changes\n", ticks, cmd, ndiff);
         ticks++;
     }
@@ -394,6 +506,7 @@ int main(int argc, char **argv) {
     sqlite3_finalize(st_tick);
     sqlite3_finalize(st_delta);
     sqlite3_finalize(st_state);
+    sqlite3_finalize(st_snap);
     sqlite3_close(db);
     fprintf(stderr, "db : %s run=%s (%ld ticks)\n", dbpath, runname, ticks);
     return 0;

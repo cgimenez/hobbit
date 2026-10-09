@@ -77,6 +77,12 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
                                              # byte-identique exigé, exit 0
 .venv/bin/python scripts/pack_sim.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
                                              # shim I/O + patch $7353 + charset ROM
+.venv/bin/python scripts/pack_sim.py --snapshot NOM  # checkpoint rejouable
+                                             # (build/sim/NOM.sim, implique
+                                             # --fast) : bypass SAVE/LOAD
+                                             # (vec_02/03/04 -> snap.s),
+                                             # blob sav/NOM.bin en $E800
+.venv/bin/python scripts/tickdb.py snaps     # snapshots (show/diff/verify/init)
 ./tools/cc65/bin/sim65 -x N build/sim/hobbit.sim < input.txt > frames.bin
 .venv/bin/python scripts/decode_frames.py frames.bin   # écrans -> texte
 ```

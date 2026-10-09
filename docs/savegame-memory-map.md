@@ -484,6 +484,26 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   déterministe ; les divergences F38 venaient d'un bug de
   construction cmdfile (`$(...)` mange les `\n` finaux →
   tick `SOUTHDOWN` fusionné), pas du hasard.
+- **SAVE/LOAD décodés (octets, pas de VM)** : `tape_tramp` poppe
+  l'adresse de retour de l'appelant = pointeur sur **params inline
+  `[len src]`** (4 o → `ptr2`/`ptr`), reprise à param+4, `jmp ($6A)`
+  = exécute le `jsr vec_0x` suivant. Le `18 00` après `jsr
+  save_block` = len `$0018` (pas `CLC;BRK` — da65 affiche des params
+  comme du code ; idem les « programmes BRK » et le ASCII-salad =
+  params + `JSR $2C1D` + `JSR L471B` + `JMP L3C07`). `cmd_save` :
+  `vec_06` + 4× `save_block` (ZP/états/scripts/records) + verify ;
+  `load_handler` : `vec_05` + 4× `L3D6A` (charge direct en `(ptr)`,
+  sans staging) + `jsr $2C1D` (`vec_08`=`L71FF`=`CLC`, no-op) +
+  `L471B` + boucle. Pile retours logicielle `$0200`+`rstk`
+  (`L46E6` push ptr/ptr2, `L471B`/`fetch_retaddr` pop).
+  `($FFFE)` toujours `$FFFF` (jamais écrit) — aucun handler BRK.
+- **Snapshots** (`harness/snap.s`, images `--snapshot`, runs
+  `sna`/`snb`) : bypass `vec_02/03/04`, marqueur binaire `@@SNAP\n`
+  +`NLEN+NOM+IDX+LEN`+payload, `sav/NOM.bin` (`"SNAP"`+3623) +
+  table `snapshots`. 0-delta prouvé (LOAD==SAVE byte-exact).
+  **Spin EOF-idle non neutre** : ~32 o réécrits sur 2G cycles de
+  polls `keyin` à `$00` (pas de tick monde, mais side-effects) —
+  valider à `-x` court ou via tickdiff uniquement.
 - **Reste ouvert** : ZP `$BF`–`$C4`/`$CD`/`$CF`–`$D5` (statiques
   partout), sens fin `+0` `$02 $03 $05 $08`, `n`, `s6` (à quoi
   servent-ils ?), bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/`$2F`,

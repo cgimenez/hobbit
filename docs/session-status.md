@@ -259,22 +259,32 @@
   avant `world_tick`), >0 = un tour. PNJ strictement tour-par-tour
   (jamais de mouvement sur lignes vides ; déterministe vérifié).
 
-## Prochaine étape
+## Prochaine étape (snapshots : FAIT, 0-delta prouvé)
 
-**Bascule snapshots (décidée, remplace B1)** : le framing cassette est
-cassé à la relecture des deux côtés (`VERIFICATION ERROR` `$1A38`,
-`TAPE LOADING ERROR` `$3E26`) — on le contourne au lieu de le réparer.
-SAVE/LOAD passent déjà par des vecteurs patchables (`save_block`→
-`vec_03`, verify→`vec_04`→`L71CB`, `load_handler`→`vec_05`+`vec_02`→
-`tape_load`) : `vec_03`→`snap_save` (4× `PV_WRITE` brut + `@@SNAP`,
-C=0), `vec_04`→`s_clc`, `vec_02`→`snap_load` (`memcpy $E800`→4 régions
-basses, C=0). `pack_sim --snapshot NOM` embarque le BLOB (table
-`snapshots`, `--snap-file` en repli) → `build/sim/<nom>.sim`.
-Stockage double : `sav/<nom>.bin` + table
-`snapshots(name,run_id,tick,ploc,eloc,obj,crec,created,data)`.
-`tickdb.py` : `snaps`/`snap-tag`/`snap-show`/`snap-diff`/`snap-verify`.
-Validation : SAVE→salissure→reboot→LOAD→0 delta. `tape.s` dormant.
-Pas de `--tape` (bascule franche).
+**Bascule snapshots implémentée** (`harness/snap.s`, `pack_sim
+--snapshot NOM`, `tickdiff @@SNAP`, `tickdb.py snaps/snap-show/
+snap-diff/snap-verify/snap-init`) : `vec_02/03/04`
+(`$2C0B/$2C0E/$2C11`) → `snap_load`/`snap_save`/`s_clc`, sans état
+(index déduit de src/dst : `$00BE/$1B1A/$28CC/$211A`), prompts
+`vec_05/06` conservés (1 touche sacrificielle chacun). Stockage double :
+`sav/NOM.bin` (`"SNAP"`+3623) + table `snapshots` (run,tick,ploc…,
+`data` BLOB). Images par défaut byte-identiques, tickdiff régressé
+(`diverge f37c f37c_new` vide).
+**Validation** : `sna` (Rivendell `$09`, SAVE tick19, salissure
+`EAST`→`$0A`) → `pack --snapshot revise` → `snb` (reboot, LOAD :
+`$09` restauré, `INVENTORY`/`EAST` vivants) → **0-delta byte-exact**
+(3623 o post-LOAD == SAVE, run direct pacé, `-x` court).
+**Pièges trouvés** : `tickdiff` envoyait `sav/` dans `build/sav/`
+(dépilage chemin) ; `VALUES` à 10 pour 9 colonnes (prepare silencieux) ;
+run direct non pacé : `pause_key` mange les lignes (¿`LOAD` jamais
+exécuté) ; **spin EOF-idle pollue la mémoire** (~32 o sur 2G cycles —
+comparer à `-x` court ou runs tickdiff, jamais après idle long).
+Pas de `--tape` (bascule franche, `tape.s` dormant).
+
+Ensuite : checkpoints (`rivendell`, `cellar`…), fin du jeu (tonneau :
+vider ? butler endormi ? ; cond `$06`→`$0F` ; `$16` NW ; dragon
+`$29`), puis B1 byte-layer en validation croisée. Sondes en
+attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
 
 **Pas de ROM exécutée** (point levé) : sim65 = 6502 nu, aucune ROM
 chargée ; `basic10.rom` = fonte en DONNÉES (jamais exécutée) ;

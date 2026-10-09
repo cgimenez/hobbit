@@ -10,10 +10,14 @@ Usage :
   tickdb.py diverge <runA> <runB>
   tickdb.py morts [--run R6]
   tickdb.py runs | tickdb.py query "<sql>"
+  tickdb.py snaps | tickdb.py snap-show NOM
+  tickdb.py snap-diff A B | tickdb.py snap-verify NOM
 
 Schema : runs(run) / ticks(run,n,cmd,frames) /
 deltas(run,n,base,off,avant,apres) / texts(run,n,reponse).
 Etat ZP : table state(run,n,ploc,eloc,obj,crec).
+Snapshots : table snapshots(name,run,tick,ploc,eloc,obj,crec,created,data)
++ fichiers sav/NOM.bin ("SNAP" + 3623 o).
 """
 
 from __future__ import annotations
@@ -24,6 +28,111 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "build" / "sim" / "hobbit.db"
+SAV = ROOT / "sav"
+
+REGIONS = [(0x00BE, 0x18, "ZP"), (0x1B1A, 0x556, "etats"),
+           (0x28CC, 0x2F1, "scripts"), (0x211A, 0x5C8, "records")]
+SNAP_MAGIC = b"SNAP"
+SNAP_LEN = 4 + sum(ln for _, ln, _ in REGIONS)
+
+
+def snap_blob(name: str) -> bytes | None:
+    cx = connect()
+    row = cx.execute("SELECT data FROM snapshots WHERE name=?",
+                     (name,)).fetchone()
+    return bytes(row[0]) if row and row[0] is not None else None
+
+
+def cmd_snaps() -> int:
+    cx = connect()
+    for name, run, tick, ploc, eloc, created, ln in cx.execute(
+            "SELECT s.name, r.name, s.tick, s.ploc, s.eloc, s.created,"
+            " LENGTH(s.data) FROM snapshots s LEFT JOIN runs r"
+            " ON r.run_id=s.run_id ORDER BY s.name"):
+        f = SAV / f"{name}.bin"
+        tag = f"{f.stat().st_size} o" if f.is_file() else "pas de fichier"
+        print(f"{name}: run={run} tick={tick} ploc=${ploc:02X} "
+              f"eloc=${eloc:02X} {created} DB={ln} o sav={tag}")
+    return 0
+
+
+def cmd_snap_show(name: str) -> int:
+    data = snap_blob(name)
+    if data is None:
+        print(f"snapshot inconnu : {name}")
+        return 1
+    ok = data[:4] == SNAP_MAGIC and len(data) == SNAP_LEN
+    print(f"{name}: {len(data)} o magique={data[:4]!r} "
+          f"{'OK' if ok else 'INVALIDE'}")
+    off = 4
+    for base, ln, nom in REGIONS:
+        blk = data[off:off + ln]
+        print(f"  ${base:04X} {nom}: "
+              f"{' '.join(f'{b:02X}' for b in blk[:8])} ... "
+              f"{' '.join(f'{b:02X}' for b in blk[-4:])}")
+        off += ln
+    return 0 if ok else 1
+
+
+def cmd_snap_diff(a: str, b: str) -> int:
+    da, db = snap_blob(a), snap_blob(b)
+    if da is None or db is None:
+        print(f"snapshot inconnu : {a if da is None else b}")
+        return 1
+    if len(da) != len(db):
+        print(f"tailles : {len(da)} vs {len(db)}")
+        return 1
+    off, shown, total = 4, 0, 0
+    for base, ln, nom in REGIONS:
+        n = sum(1 for k in range(ln) if da[off + k] != db[off + k])
+        total += n
+        if n and shown < 20:
+            for k in range(ln):
+                x, y = da[off + k], db[off + k]
+                if x != y and shown < 20:
+                    print(f"  ${base:04X}+${k:04X} ({nom}): "
+                          f"${x:02X}->${y:02X}")
+                    shown += 1
+        print(f"  ${base:04X} {nom}: {n} octets differents")
+        off += ln
+    print(f"{a} vs {b}: {total} octets differents")
+    return 0
+
+
+def cmd_snap_init(name: str) -> int:
+    """Squelette sav/NOM.bin ("SNAP" + zeros) pour la premiere capture :
+    pack --snapshot exige un blob valide, que le 1er SAVE ecrasera."""
+    if not (1 <= len(name) <= 15) or any(
+            c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                     "abcdefghijklmnopqrstuvwxyz0123456789_-."
+            for c in name) or name in (".", ".."):
+        print(f"nom invalide : {name!r}")
+        return 1
+    SAV.mkdir(parents=True, exist_ok=True)
+    f = SAV / f"{name}.bin"
+    if f.is_file():
+        print(f"existe deja : {f}")
+        return 1
+    f.write_bytes(SNAP_MAGIC + bytes(SNAP_LEN - 4))
+    print(f"squelette : {f} ({SNAP_LEN} o)")
+    return 0
+
+
+def cmd_snap_verify(name: str) -> int:
+    data = snap_blob(name)
+    f = SAV / f"{name}.bin"
+    if data is None:
+        print(f"snapshot inconnu en DB : {name}")
+        return 1
+    if not f.is_file():
+        print(f"fichier manquant : {f}")
+        return 1
+    raw = f.read_bytes()
+    good = (data == raw and data[:4] == SNAP_MAGIC
+            and len(data) == SNAP_LEN)
+    print(f"{name}: DB={len(data)} o sav={len(raw)} o "
+          f"{'IDENTIQUES' if good else 'DIVERGENTS'}")
+    return 0 if good else 1
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -46,6 +155,10 @@ CREATE TABLE IF NOT EXISTS state(
   run_id INTEGER, n INTEGER, ploc INTEGER, eloc INTEGER,
   obj INTEGER, crec INTEGER,
   PRIMARY KEY(run_id, n));
+CREATE TABLE IF NOT EXISTS snapshots(
+  name TEXT PRIMARY KEY, run_id INTEGER REFERENCES runs,
+  tick INTEGER, ploc INTEGER, eloc INTEGER, obj INTEGER, crec INTEGER,
+  created TEXT, data BLOB);
 """
 
 
@@ -235,6 +348,16 @@ def main(argv: list[str]) -> int:
                 "WHERE d.run_id=r.run_id) FROM runs r ORDER BY name"):
             print(f"{r[0]}: {r[1]} ticks, {r[2]} deltas")
         return 0
+    if c == "snaps":
+        return cmd_snaps()
+    if c == "snap-show" and len(argv) >= 3:
+        return cmd_snap_show(argv[2])
+    if c == "snap-diff" and len(argv) >= 4:
+        return cmd_snap_diff(argv[2], argv[3])
+    if c == "snap-verify" and len(argv) >= 3:
+        return cmd_snap_verify(argv[2])
+    if c == "snap-init" and len(argv) >= 3:
+        return cmd_snap_init(argv[2])
     if c == "query":
         cx = connect()
         cur = cx.execute(" ".join(argv[2:]))
