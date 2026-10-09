@@ -11,6 +11,20 @@
 ; X, Y et le zero-page utilise sont preserves ; A = resultat (l'original
 ; n'est pas conserve : pas de PHA d'entree pour A, pile equilibree).
 ;
+; Variante SOLVER (ca65 -D SOLVER, cf. pack_sim.py --solver) : aucun dump
+; ecran/memoire (shim_kb = lecture clavier pure) ; a la place, capture
+; ASCII a la source via 2 hooks poses par pack_sim :
+;   - L75B8 (corps commun du plot : glyph_out + L76ED->L75B8) -> asc_plot :
+;     A = caractere final rendu (capitales appliquees) ; emis "@@A"+octet.
+;     Le curseur '+' ($2B, reecrit par le caractere suivant) est emis aussi :
+;     filtre cote Python. A/X/Y/$02/$03 preserves, octet remplace rejoue.
+;   - L7694 (scroll, appele sur chaque CR ch_put) -> asc_eol : emis "@@EOL\n".
+;   - asc_plot emis "@@P\n" quand le caractere est '>' ($3E = prompt) : fin
+;     de tour (segmentation cote Python sur les prompts).
+;   - shim_kb (variante solveur) emis "@@K"+octet a chaque lecture stdin :
+;     diagnostic des entrees rellement consommees par le jeu.
+; Les dumps @@FRAME/@@MEM n'existent pas dans cette variante.
+;
 ; A chaque appel, l'ecran texte ($BB80-$BFDF, 1120 o) est compare a son
 ; miroir ; en cas de changement, dump sur stdout (fd 1) :
 ;   "@@FRAME text\n" + 1120 octets bruts. Idem hires ($A000-$BFFF, 8192 o)
@@ -35,6 +49,9 @@ KBSTATE  = $C2F1
 HIBIT    = $C2F2                ; 1 = dump hires aussi
 RESULT   = $C2F3
 MEMFLAG  = $C2F8                ; 1 = un ecran a change -> dumper la RAM
+.ifdef SOLVER
+ASC_CHAR = $C2F9                ; slot libre ($C2F9/$C2FA inutilises)
+.endif
 
 P_TXT    = $04                  ; ptr ZP (sauvegardes, cf. dump_text)
 P_SH     = $06
@@ -77,6 +94,9 @@ shim_kb:
         lda KEYBUF
         ora #$80                ; bit 7 = touche presente
         sta RESULT
+.ifdef SOLVER
+        jsr k_log               ; "@@K"+octet lu (diagnostic entrees)
+.endif
         bne dodump
 nokey:
         lda #0
@@ -87,6 +107,10 @@ release:
         sta KBSTATE
         sta RESULT
 dodump:
+.ifdef SOLVER
+        ; Variante solveur : pas de dump (capture ASCII par hooks L75B8/L7694).
+        ; (fallthrough direct vers restore)
+.else
         lda #0
         sta MEMFLAG
         jsr dump_text
@@ -96,6 +120,7 @@ dodump:
 @nomem: lda MEMFLAG
         beq restore
         jsr dump_mem
+.endif
 restore:
         pla
         tay
@@ -136,6 +161,125 @@ pv_write:
         rts
 P_CNT    = $C2F6
 
+.ifdef SOLVER
+; ---- k_log : "@@K"+octet lu sur stdin (diagnostic entrees). Preserve
+; A/X/Y/$02/$03 (meme gabarit que asc_plot). Appele apres sta RESULT :
+; KEYBUF = octet brut, A = touche|$80.
+k_log:
+        pha
+        txa
+        pha
+        tya
+        pha
+        lda $02
+        pha
+        lda $03
+        pha
+        lda KEYBUF
+        sta K_BUF+3
+        lda #<K_BUF
+        sta P_W
+        lda #>K_BUF
+        sta P_W+1
+        lda #4
+        ldx #0
+        jsr pv_write
+        pla
+        sta $03
+        pla
+        sta $02
+        pla
+        tay
+        pla
+        tax
+        pla
+        rts
+K_BUF:  .byte "@@K", $00
+
+; ---- hooks ASCII (variante solveur, cf. tete de fichier) ----
+; asc_plot : JMP depuis L75B8 (remplace stx L75E0). Entree : A = caractere
+; final rendu, X/Y = curseur. Preserve A/X/Y/$02/$03, rejoue stx/sty,
+; reprend en $75BE. Le '+' curseur ($2B) est emis comme le reste : filtre
+; cote Python (reecrit par le caractere suivant, sauf au repos).
+asc_plot:
+        sta ASC_BUF+3            ; octet emis (restaure A en sortie)
+        txa
+        pha
+        tya
+        pha
+        lda $02
+        pha
+        lda $03
+        pha
+        lda #<ASC_BUF
+        sta P_W
+        lda #>ASC_BUF
+        sta P_W+1
+        lda #4
+        ldx #0
+        jsr pv_write            ; "@@A"+caractere
+        lda ASC_BUF+3
+        cmp #$3E                ; '>' = prompt : fin de tour (astuce)
+        bne @nop
+        lda #<MARK_P
+        sta P_W
+        lda #>MARK_P
+        sta P_W+1
+        lda #4
+        ldx #0
+        jsr pv_write            ; "@@P\n"
+@nop:   pla
+        sta $03
+        pla
+        sta $02
+        pla
+        tay
+        pla
+        tax
+        lda ASC_BUF+3
+        stx $75E0                ; octet remplace (L75B8)
+        sty $75E1                ; octet remplace (L75BB)
+        jmp $75BE                ; reprise (L75B8+6)
+
+; asc_eol : JMP depuis L7694 (scroll, un par CR ch_put ; remplace pha +
+; lda #$00). Rejoue les 2 octets, reprend en $7697.
+asc_eol:
+        sta ASC_CHAR
+        txa
+        pha
+        tya
+        pha
+        lda $02
+        pha
+        lda $03
+        pha
+        lda #<MARK_E
+        sta P_W
+        lda #>MARK_E
+        sta P_W+1
+        lda #6
+        ldx #0
+        jsr pv_write
+        pla
+        sta $03
+        pla
+        sta $02
+        pla
+        tay
+        pla
+        tax
+        lda ASC_CHAR
+        pha                      ; octet remplace (L7694)
+        lda #$00                 ; octet remplace (L7694+1)
+        jmp $7697                ; reprise (L7694+3)
+
+; ---- donnees hooks (adresses resolues a l'edition de liens ;
+; pack_sim.py lit asc_plot/asc_eol dans le listing ca65 -l) ----
+ASC_BUF:.byte "@@A", $00
+MARK_E: .byte "@@EOL", $0A
+MARK_P: .byte "@@P", $0A
+
+.else
 ; ---- dump ecran texte si changement ----
 MARK_T: .byte "@@FRAME text", $0A
 dump_text:
@@ -355,3 +499,4 @@ dump_mem:
         cpx #36
         bcc @reg
         rts
+.endif ; (SOLVER / dumps classiques)

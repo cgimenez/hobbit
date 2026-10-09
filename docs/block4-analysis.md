@@ -131,6 +131,17 @@ bloc 4 (contexte par routine, valeurs aux `sta`, patterns push/pop et
 - **`keyin` `$7481`** : `JSR $7353` en boucle `BPL` (attente bloquante),
   puis `AND #$7F`. Le `JSR keyin` du boot (`$2C3D`) est du code mort
   (`BNE` toujours pris après `LDX #$FF`).
+- **Lecteur ligne `L406D`** (boucle d'input `L2E04`, prompt `"> "` en
+  `L2DEA`) : `JSR vec_11`, si pas de touche compte à rebours `$61`/`$62`
+  (rechargé `$7530` à chaque touche) puis **auto-`WAIT` d'inactivité** :
+  recopie `L40BA` (`57 41 49 54` = `WAIT`) + `$0D` dans le buffer `$40BE`
+  avec écho (`L408F`). Sous harnais EOF = `WAIT` infini (horloge gratuite,
+  ~coûteux en cycles : préférer `WAIT` explicite). Écho `> CMD.` sur la
+  même ligne que le prompt (pas de `CR` après commande vide ni après
+  `SAVE` : plusieurs prompts par ligne possibles).
+- **Touches curseur `L2EA9`** : `$08`/`$0A`/`$0B`/`$15` → poke `W`/`S`/`N`/`E`
+  + `$0D` dans `$40BE` avec écho (`L2EBC`) : les flèches déplacent
+  immédiatement (Oric). `@` (`$40`) en tête → `L2DDB` (2× `$08`, retour 0).
 - **`putchar` `$7491`** : filtrages `$0C`&`$0B`, `$0D`, `$C4` (dont conversion
   en capitales `AND #$5F`), puis rendu. Ne pas shimmer ici (logique jeu).
 - **Rendu `$75B4`** : une touche → glyphe 8×6 dans le **bitmap hires `$A000`**

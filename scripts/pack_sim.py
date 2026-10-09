@@ -25,7 +25,10 @@ Usage : .venv/bin/python scripts/pack_sim.py [--hires] [--fast]
             snap_save/s_clc (bypass couche octet), bake NOM en $F700+19,
             embarque sav/NOM.bin (ou --snap-file F) en $E800 ("SNAP"+3623).
             Implique --fast ($56=0). Incompatible avec --tape.
-          --snap-file F : blob snapshot explicite (defaut : sav/NOM.bin).
+           --snap-file F : blob snapshot explicite (defaut : sav/NOM.bin).
+           --solver : variante capture ASCII (shim -D SOLVER, hooks L75B8/
+             L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py.
+             Se combine avec --snapshot (ex. --snapshot SLVW --solver).
 """
 from __future__ import annotations
 
@@ -42,6 +45,11 @@ SHIM_SRC = ROOT / "harness" / "shim.s"
 SHIM_CFG = ROOT / "harness" / "shim.cfg"
 SHIM_ADDR = 0xC000  # zone "ROM" : le jeu n'y ecrit jamais (ROM sur Oric)
 KB_SCAN = 0x7353  # scan clavier VIA -> remplace par JMP shim
+# Hooks ASCII (variante --solver) : L75B8 (plot, `stx L75E0`) et L7694
+# (scroll/CR, `pha`) -> JMP shims (verifies sur data/hobbit.bin).
+PLOT_ADDR, PLOT_WANT = 0x75B8, bytes((0x8E, 0xE0, 0x75))
+EOL_ADDR, EOL_WANT = 0x7694, bytes((0x48, 0xA9, 0x00))
+PLOT_BACK, EOL_BACK = 0x75BE, 0x7697  # reprises (codes en dur dans shim.s)
 TAPE_SRC = ROOT / "harness" / "tape.s"
 TAPE_CFG = ROOT / "harness" / "tape.cfg"
 TAPE_ADDR = 0xF700  # stubs cassette B1 (zone ROM, cf. tape.s)
@@ -84,6 +92,7 @@ NOIMG_ADDR, NOIMG_WANT = 0x2C4A, 0x01
 def main() -> int:
     hires = "--hires" in sys.argv
     fast = "--fast" in sys.argv
+    solver = "--solver" in sys.argv
     tape_file = None
     if "--tape" in sys.argv:
         i = sys.argv.index("--tape")
@@ -122,6 +131,12 @@ def main() -> int:
     if snap_name is not None and tape_file is not None:
         print("--snapshot et --tape sont incompatibles (zone $E800 partagee)")
         return 1
+    if solver and snap_name is None:
+        print("--solver exige --snapshot NOM (images solver)")
+        return 1
+    if solver and hires:
+        print("--solver et --hires sont incompatibles (pas de dumps en solver)")
+        return 1
     if snap_file is not None and snap_name is None:
         print("--snap-file exige --snapshot NOM")
         return 1
@@ -140,12 +155,27 @@ def main() -> int:
         if not Path(tool).is_file():
             print(f"{tool} manquant : toolchain attendue dans tools/cc65/bin (cf. AGENTS.md)")
             return 1
-    subprocess.run([str(CA65), "-o", str(OBJ), str(SHIM_SRC)], check=True)
+    SHIM_LST = BUILD / "hobbit_shim.lst"
+    ca65_flags = ["-D", "SOLVER"] if solver else []
+    subprocess.run([str(CA65), *ca65_flags, "-l", str(SHIM_LST),
+                    "-o", str(OBJ), str(SHIM_SRC)], check=True)
     subprocess.run([str(LD65), "-C", str(SHIM_CFG), "-o", str(SHIM_BIN), str(OBJ)], check=True)
     shim = SHIM_BIN.read_bytes()
     if len(shim) > 0x2F0:
         print(f"shim trop gros : {len(shim)} > 752 octets")
         return 1
+    hook_addrs: dict[str, int] = {}
+    if solver:
+        import re as _re
+        for line in SHIM_LST.read_text().splitlines():
+            m = _re.match(r"^([0-9A-F]{6})r\s+1\s+(asc_plot|asc_eol):$", line)
+            if m:
+                hook_addrs[m.group(2)] = SHIM_ADDR + int(m.group(1), 16)
+        if set(hook_addrs) != {"asc_plot", "asc_eol"}:
+            print(f"hooks introuvables dans {SHIM_LST}")
+            return 1
+        print(f"hooks solver : "
+              + " ".join(f"{k}=${v:04X}" for k, v in hook_addrs.items()))
     import struct as _st
     if snap_name is not None:
         SNAP_OBJ = BUILD / "hobbit_snap.o"
@@ -180,6 +210,19 @@ def main() -> int:
     print(f"patch ${KB_SCAN:04X} : "
           f"{' '.join(f'{b:02X}' for b in img[kb_off:kb_off + 3])} -> {' '.join(f'{b:02X}' for b in jmp)}")
     img[kb_off:kb_off + 3] = jmp
+    if solver:
+        # Hooks ASCII : verifie les octets d'origine puis JMP shims.
+        for addr, want, name in ((PLOT_ADDR, PLOT_WANT, "asc_plot"),
+                                 (EOL_ADDR, EOL_WANT, "asc_eol")):
+            off = addr - BASE
+            if bytes(img[off:off + 3]) != want:
+                print(f"refus hook {name} : ${addr:04X} = "
+                      f"{' '.join(f'{b:02X}' for b in img[off:off + 3])} "
+                      f"(attendu {' '.join(f'{b:02X}' for b in want)})")
+                return 1
+            hook = hook_addrs[name]
+            img[off:off + 3] = bytes((0x4C, hook & 0xFF, hook >> 8))
+            print(f"hook {name} : ${addr:04X} -> JMP ${hook:04X}")
     # Patch cassette : $0405-$0417 -> JMP stubs B1 (table en $F700).
     for vec, stub in zip(TAPE_VECS, entries):
         off = vec - BASE

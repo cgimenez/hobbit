@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """Un tick solver = un noeud : restaure le blob parent, joue CMD, capture.
 
-Image : build/sim/SLVW.sim (pack --snapshot SLVW --hires, --fast implicite).
+Image : build/sim/SLVW.sim (pack --snapshot SLVW --solver, --fast implicite).
 Protocole par run (gabarit \\r, $0D -- JAMAIS \\n brut, lu comme touche) :
   root  : page-turn + SAVE (+sacrificielles)
   noeud : page-turn + LOAD (+sacrificielle vec_05) + CMD + SAVE (+sacrificielle
           vec_06). Le blob parent est patche directement dans le .sim
           (offset 12+(0xE800-0x0400)), pas de repack.
-Capture sur FICHIER (pas de pipe : le scan Python octet-par-octet faisait
-du backpressure sur sim65 et triplait le temps) : stdout -> slv_run.bin,
-scrutation incrementale avec bytes.find (vitesse C), kill des que les 4
-blocs @@SNAP sont complets (+0,4 s de grace). ~0,7-0,8 s/noeud en serie.
+Capture ASCII a la source (shim -D SOLVER, hooks L75B8/L7694) sur FICHIER
+(pas de pipe : le scan Python octet-par-octet faisait du backpressure sur
+sim65 et triplait le temps) : stdout -> slv_run.bin, scrutation
+incrementale avec bytes.find (vitesse C), kill des que les 4 blocs @@SNAP
+sont complets (+0,4 s de grace). ~17 Ko/run (vs ~240 Ko de frames).
+Marqueurs : @@A+octet (caractere rendu, curseur '+' inclus), @@EOL,
+@@P (caractere '>' = prompt : fin de tour), @@K+octet (octet lu sur
+stdin, diagnostic), @@SNAP (blob, complétion).
+Segmentation : lignes nettoyees ('+' retire) ; texte du noeud = lignes
+entre l'echo '> CMD.' et le prompt suivant ; full = tout (motifs).
 
 Retour run_one : dict(text, full, blob, ndiff, echo_ok, valid).
-  text = dernier ecran (stocke en DB), full = ecrans gardes concatenes
-  (fenetre d'echo + classification).
 """
 
 from __future__ import annotations
@@ -26,7 +30,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from solver_db import BLOB_LEN, REGIONS, ROOT, diff_blobs, make_blob  # noqa: E402
-from decode_frames import load_font  # noqa: E402
 
 SIM65 = ROOT / "tools" / "cc65" / "bin" / "sim65"
 SIM0 = ROOT / "build" / "sim" / "SLVW.sim"
@@ -39,11 +42,18 @@ TIMEOUT_S = 60
 # d'echo/classification (la reponse CMD sort vite des derniers ecrans).
 
 REG_LEN = [ln for _, ln in REGIONS]
-M_HIRES = b"@@FRAME hires\n"  # 14 + 8192
-M_TEXT = b"@@FRAME text\n"    # 13 + 1120 (remplissage, saute)
-M_MEM = b"@@MEM "             # 6 + 10 header + payload (saute)
 M_SNAP = b"@@SNAP\n"          # 7 + NLEN+NOM+IDX+LEN(2) + payload
+M_A = b"@@A"                  # 3 + 1 octet (caractere rendu)
+M_EOL = b"@@EOL\n"            # 6 (fin de ligne)
+M_P = b"@@P\n"                # 4 ('>' prompt : fin de tour)
+M_K = b"@@K"                  # 3 + 1 octet (lu sur stdin)
 TAIL = 32  # queue retenue si aucun marqueur (marqueur a cheval)
+
+
+def clean_line(raw: bytes) -> str:
+    """Retire les '+' (curseur $2B transient + repos) ; aucun '+' en prose
+    (a valider vs charset : cf. --diag)."""
+    return raw.replace(b"+", b"").decode("ascii", errors="?").rstrip()
 
 
 class Capture:
@@ -51,47 +61,52 @@ class Capture:
         self.buf = bytearray()
         self.pos = 0
         self.snap: dict[int, bytes] = {}
-        self.frames: list[bytes] = []
+        self.cur = bytearray()          # ligne en cours (octets bruts)
+        self.alines: list[bytes] = []   # lignes terminees (brutes)
+        self.aprompts: list[tuple[int, int]] = []  # (idx_ligne, col) des '>'
+        self.keys = bytearray()         # octets lus sur stdin (@@K)
 
     def feed(self, data: bytes) -> None:
         if data:
             self.buf += data
         b, n, p = self.buf, len(self.buf), self.pos
         while True:
-            jh = b.find(M_HIRES, p)
-            jt = b.find(M_TEXT, p)
-            jm = b.find(M_MEM, p)
             js = b.find(M_SNAP, p)
-            cand = [(j, k) for k, j in (("h", jh), ("t", jt), ("m", jm), ("s", js))
-                    if j != -1]
+            ja = b.find(M_A, p)
+            je = b.find(M_EOL, p)
+            jp = b.find(M_P, p)
+            jk = b.find(M_K, p)
+            cand = [(j, k) for k, j in (("s", js), ("a", ja), ("e", je),
+                                        ("p", jp), ("k", jk)) if j != -1]
             if not cand:
                 p = max(p, n - TAIL)
                 break
             j, k = min(cand)
-            if k == "h":
-                if n - j < 14 + 8192:
+            if k == "a":
+                if n - j < 4:
                     p = j
                     break
-                self.frames.append(bytes(b[j + 14:j + 14 + 8192]))
-                p = j + 14 + 8192
-            elif k == "t":
-                if n - j < 13 + 1120:
+                self.cur.append(b[j + 3])
+                p = j + 4
+            elif k == "e":
+                if n - j < 6:
                     p = j
                     break
-                p = j + 13 + 1120
-            elif k == "m":
-                if n - j < 16:
+                self.alines.append(bytes(self.cur))
+                self.cur = bytearray()
+                p = j + 6
+            elif k == "p":
+                if n - j < 4:
                     p = j
                     break
-                try:
-                    ln = int(b[j + 11:j + 15], 16)
-                except ValueError:
-                    p = j + 1
-                    continue
-                if n - j < 16 + ln:
+                self.aprompts.append((len(self.alines), len(self.cur)))
+                p = j + 4
+            elif k == "k":
+                if n - j < 4:
                     p = j
                     break
-                p = j + 16 + ln
+                self.keys.append(b[j + 3])
+                p = j + 4
             else:
                 if n - j < 8:
                     p = j
@@ -130,7 +145,7 @@ def out_of(worker: int) -> Path:
 def ensure_workers(n: int) -> None:
     """Duplique l'image par worker (patch blob independant par run)."""
     import shutil
-    assert SIM0.is_file(), f"image manquante : {SIM0} (pack --snapshot SLVW --hires)"
+    assert SIM0.is_file(), f"image manquante : {SIM0} (pack --snapshot SLVW --solver)"
     for w in range(1, n):
         shutil.copyfile(SIM0, sim_of(w))
 
@@ -154,6 +169,7 @@ def build_cmd(cmd: str | None, pad: int = 0) -> bytes:
 
 
 def decode_screen(h: bytes, font: dict[bytes, str]) -> str:
+    """Decode charset (conserve pour la validation ASCII vs frames)."""
     out = []
     for brow in range(0, 200, 8):
         line = "".join(
@@ -162,6 +178,39 @@ def decode_screen(h: bytes, font: dict[bytes, str]) -> str:
         if line.strip(". "):
             out.append(line.rstrip(". "))
     return "\n".join(out)
+
+
+def segment_text(cap: Capture, cmd: str | None) -> tuple[str, str, bool]:
+    """full = toutes les lignes nettoyees ; text = reponse segmentee ;
+    echo_ok = echo '> CMD.' vu. Segmentation sur les prompts ('>' en
+    tete de ligne, correlee aux @@P en --diag). L'echo cherche est le
+    DERNIER avant SAVE (tuto LOOK rejoue, WAIT auto de grace apres)."""
+    if cap.cur:  # queue partielle (kill pendant un WAIT auto)
+        cap.alines.append(bytes(cap.cur))
+        cap.cur = bytearray()
+    clines = [clean_line(l) for l in cap.alines]
+    full = "\n".join(l for l in clines if l)
+    save_idx = None
+    for i, l in enumerate(clines):
+        if "> SAVE." in l:
+            save_idx = i
+    if cmd is None:  # racine : tout avant l'echo SAVE (boot + tuto + LOOK)
+        cut = save_idx if save_idx is not None else len(clines)
+        return "\n".join(x for x in clines[:cut] if x), full, save_idx is not None
+    needle = "> " + cmd + "."
+    zone = save_idx if save_idx is not None else len(clines)
+    echo_at = None
+    for i in range(zone - 1, -1, -1):
+        if needle in clines[i]:
+            echo_at = i
+            break
+    if echo_at is None:
+        return full, full, False
+    j = echo_at + 1
+    while j < len(clines) and not clines[j].startswith(">"):
+        j += 1
+    seg = [x for x in clines[echo_at + 1:j] if x]
+    return ("\n".join(seg) if seg else full), full, True
 
 
 def run_one(parent_blob: bytes | None, cmd: str | None, pad: int = 0,
@@ -203,12 +252,16 @@ def run_one(parent_blob: bytes | None, cmd: str | None, pad: int = 0,
                     done = True
                 break
             time.sleep(0.01)
-        if done:  # grace : dernieres frames (prompts SAVE/verify)
+        if done:  # grace : texte final jusqu'au prompt qui suit SAVE
+            # (astuce @@P : fin de tour = affichage du prompt ; borne seche)
+            np = len(cap.aprompts)
             t1 = time.time()
             while time.time() - t1 < GRACE_S:
                 chunk = fin.read()
                 if chunk:
                     cap.feed(chunk)
+                if len(cap.aprompts) > np:
+                    break
                 time.sleep(0.02)
         try:
             proc.terminate()
@@ -227,10 +280,7 @@ def run_one(parent_blob: bytes | None, cmd: str | None, pad: int = 0,
     if not cap.complete():
         return {"valid": False, "wall": wall, "reason": "snap-incomplet",
                 "got": sorted(cap.snap)}
-    font = load_font()
-    decoded = [decode_screen(h, font) for h in cap.frames]
-    text = decoded[-1] if decoded else ""
-    full = "\n---\n".join(decoded)
+    text, full, echo_found = segment_text(cap, cmd)
     if parent_blob is not None:
         deltas = diff_blobs(parent_blob, cap_snap_blob(cap))
     else:
@@ -239,7 +289,9 @@ def run_one(parent_blob: bytes | None, cmd: str | None, pad: int = 0,
     echo_ok = True if cmd is None else cmd.replace(" ", "") in norm
     return {"valid": True, "wall": wall, "blob": cap_snap_blob(cap),
             "text": text, "full": full, "ndiff": len(deltas),
-            "deltas": deltas, "echo_ok": echo_ok, "frames": len(decoded)}
+            "deltas": deltas, "echo_ok": echo_ok, "echo_seg": echo_found,
+            "lines": len(cap.alines), "nprompt": len(cap.aprompts),
+            "keys": bytes(cap.keys)}
 
 
 def cap_snap_blob(cap: Capture) -> bytes:
@@ -247,6 +299,34 @@ def cap_snap_blob(cap: Capture) -> bytes:
 
 
 if __name__ == "__main__":
+    import sys as _sys
+    if len(_sys.argv) > 1 and _sys.argv[1] == "diag":
+        # Structure du run racine : lignes, prompts @@P vs '>' initiaux,
+        # cles lues, segmentation.
+        r = run_one(None, None)
+        print({k: (v if k not in ("blob", "deltas", "text", "full", "keys")
+                   else f"<{len(v)}>")
+               for k, v in r.items()})
+        if r.get("valid"):
+            print("---- cles lues ----")
+            print(repr(r["keys"]))
+            # Reparse brut pour correler @@P : relit le fichier de capture.
+            cap2 = Capture()
+            cap2.feed(open(out_of(0), "rb").read())
+            raws = [bytes(l) for l in cap2.alines]
+            if cap2.cur:
+                raws.append(bytes(cap2.cur))
+            cleans = [clean_line(l) for l in raws]
+            init = [i for i, l in enumerate(cleans) if l.startswith(">")]
+            print(f"prompts @@P={len(cap2.aprompts)} "
+                  f"lignes '>'={len(init)}")
+            no_gt = [(li, col) for li, col in cap2.aprompts
+                     if li >= len(raws) or b">" not in raws[li]]
+            print(f"@@P sur ligne sans '>' : {no_gt[:10]}")
+            print(f"lignes '>' : {init}")
+            print("---- texte segmente (racine) ----")
+            print(r["text"])
+        sys.exit(0)
     r = run_one(None, None)
     print({k: (v if k not in ("blob", "deltas", "text", "full") else f"<{len(v)}>")
            for k, v in r.items()})
