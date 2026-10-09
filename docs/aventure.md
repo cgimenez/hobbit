@@ -409,3 +409,21 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
   palais elfe → tonneau.
 - Checkpoints : `sav/sword_rope.bin` ($07+rope), `sav/forestriver17.bin`
   ($17).
+
+### Séance 12 (suite) — crack des Montagnes → donjon gobelin
+- Depuis `$07` : `S`($06 trolls path) `S`($05) `SE`($09 Rivendell)
+  `E`($0A) `E`($0B « narrow place, dreadful drop ») `N` → **chute dans
+  « the small insignificant crack »** → **`$0D` = the goblins dungeon**
+  (capturé : « to the north the goblins door, to the west the window,
+  you see : some sand ») — `sav/crack.bin`, `sav/goblin_dungeon.bin`.
+- `DIG SAND` → révèle « the trap door » ; `BREAK TRAP DOOR` ×25 sans
+  casser (pas de compteur net ; seul `$06+7` `$A0→$80` bouge). `GET KEY`
+  ambigu (« YOU ARE ALREADY CARRYING THE KEY » = grande clé). Trappe =
+  trésor optionnel (guide : « may take a very long time »).
+- `OPEN WINDOW` → « YOU CANNOT REACH THE WINDOW. » Sortie = coopération
+  PNJ (« SAY TO THORIN ... » ; syntaxe exacte à trancher : sans guillemets
+  le 2e verbe est absorbé, avec guillemets l'input se corrompt).
+- **Prochaine étape** : sortir du donjon gobelin (fenêtre + Thorin) ou
+  naviguer le repaire gobelin ($10-$13/$39-$41/$11 lac souterrain) pour
+  trouver **Gollum `$44`** (arg `$10`) → énigme → **Anneau** (WEAR RING),
+  clef de l'évasion elfique.
