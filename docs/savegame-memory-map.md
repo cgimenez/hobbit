@@ -41,10 +41,10 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | `$C7` | `crec_hi` | haut de `crec` | `$08` |
 | `$C8` | `ploc` | **lieu du joueur** | `$AC` |
 | `$C9` | `eloc` | lieu de l'entité (visibilité : `eloc`==`ploc`) | `$11` |
-| `$CA` | — | inconnu | `$85` |
-| `$CB` | — | inconnu | `$43` |
-| `$CC` | — | inconnu | `$80` |
-| `$CD` | — | inconnu | `$83` |
+| `$CA` | `recptr` | pointeur de record de lieu courant (copie de `ptr`) | `$85` |
+| `$CB` | `recptr_hi` | haut de `recptr` (toujours `$21`–`$26` = region records) | `$43` |
+| `$CC` | `score` | score courant en points (lu par SCORE `$3CD4` ; hi `$CD`) | `$80` |
+| `$CD` | `score_hi` | haut du score (remis à 0 après victoire) | `$83` |
 | `$CE` | `once` | verrou one-shot (posé, testé+consommé) | `$87` |
 | `$CF` | — | inconnu | `$83` |
 | `$D0` | — | inconnu | `$43` |
@@ -54,8 +54,9 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | `$D4` | — | inconnu | `$96` |
 | `$D5` | — | inconnu | `$0D` |
 
-À lever sous harnais : `$BF`–`$C4`, `$CA`–`$CD`, `$CF`–`$D5` (rôles +
-valeurs runtime).
+À lever sous harnais : `$BF`–`$C4`, `$CF`–`$D5` (rôles + valeurs runtime).
+`$CC`/`$CD` = **score** (points ; SCORE `$3CD4`) ; `$CA`/`$CB` = **recptr**
+(pointeur de record de lieu sauvegardé, `$21`–`$26`).
 
 ## 2. États `$1B1A`–`$206F` (1366 o) — personnages, objets, lieux
 
@@ -139,6 +140,10 @@ description (tokens runtime). `+0` vaut aussi `$02 $03 $05 $08`
 Chaînes de porteurs (qui tient quoi) : `$03`→`$3E`, `$04`→`$47`,
 `$0F`→`$42`, `$14`→`$13`, `$19`/`$1A`→`$46`, `$1E`→`$1D`,
 `$1F`→`$1E`, `$21`→`$24`, `$22`→`$21`, `$24`→`$20`, `$02`→`$1F`.
+
+**`$1E4B` = `$44.$10` = `gollum.eloc`** (base `$1E3B`+`$10`) : `act_v14_12`
+(`$6C03`) et `act_v14_14` (`$6D78`) le comparent à `ploc` pour exiger la
+co-localisation joueur/Gollum (confirme `+$10` = `eloc`).
 
 ## 3. Scripts et tables `$28CC`–`$2B11` (753 o) — qui fait quoi, et quand
 

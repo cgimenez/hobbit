@@ -145,6 +145,27 @@ def cmd_slots(ev: dict, virgin: bool) -> int:
     return 0
 
 
+def cmd_unnamed(ev: dict) -> int:
+    """Offsets couverts mais sans aucun slot nomme (cibles du nommage)."""
+    addrs = address_slots()
+    total = 0
+    for base, ln, nom in D.REGIONS:
+        rows = []
+        for off in range(ln):
+            slots = addrs[(base, off)]
+            if (base, off) in ev and not any(_is_named(s) for s in slots):
+                rows.append((off, slots, ev[(base, off)]))
+        total += len(rows)
+        print(f"== ${base:04X} {nom}: {len(rows)} offsets couverts non nommes ==")
+        for off, slots, e in rows:
+            vals = " ".join(f"${v:02X}" for v in sorted(e.vals)[:8])
+            cmds = sorted(c for c in e.cmds if c)[:5]
+            names = ",".join(s.name for s in slots)
+            print(f"  +${off:04X} [{names}] vals[{vals}] cmds{cmds}")
+    print(f"total: {total} offsets a nommer")
+    return 0
+
+
 def cmd_addr(ev: dict, base: int, off: int) -> int:
     slots = D.annotate(base, off)
     print(f"${base:04X}+${off:04X} ({D.region_of(base)}) :")
@@ -260,6 +281,8 @@ def main(argv: list[str]) -> int:
         return cmd_report(ev)
     if c == "slots":
         return cmd_slots(ev, "--virgin" in argv)
+    if c == "unnamed":
+        return cmd_unnamed(ev)
     if c == "sources":
         return cmd_sources(ev)
     if c == "addr" and len(argv) >= 3:

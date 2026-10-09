@@ -746,3 +746,14 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
 Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
 `INSERT INTO deltas(run,n,base,off,avant,apres)` sous un run `canon`
 (`tickdb.connect()`).
+
+### Séance 12 (nommage) — ZP `score`/`recptr`
+- `memmap_defs.ZP_NAMES` : `$CC`/`$CD` = **score** (points ; lu par SCORE
+  `$3CD4` ; 75/100/550 observés, remis à 0 après victoire), `$CA`/`$CB` =
+  **recptr** (pointeur de record de lieu sauvegardé, `$21`–`$26`).
+- Confirmé statiquement : **`$1E4B` = `$44.$10` = `gollum.eloc`** (`act_v14_12`/
+  `act_v14_14` le comparent à `ploc`) → valide `+$10`=eloc.
+- Nouvelle commande **`memmap.py unnamed`** = offsets couverts sans slot nommé
+  (workflow de nommage). ZP var couvertes 6→10/11 ; `check_memmap` PROPRE.
+- Restent non nommés : ZP `$BF`/`$C0`/`$C1`/`$CF`–`$D5` ; champs de bloc
+  `+5/+6/+7/+0A/+0B` (blocks se chevauchant → propriétaire ambigu).
