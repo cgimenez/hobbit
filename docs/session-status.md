@@ -163,8 +163,10 @@
   `docs/block4-analysis.md`, citations intégrées aux `ROUTINE_DOCS`) :
   corps lus au binaire + r2, nommés `act_p14_ii` (table `L7014`, verbes
   joueur) et `act_v14_ii` (table `L7143`, PNJ). Effets vérifiés (guarde +
-  mutation + message). `L7014` : 00 `$60BF` consomme compteur ($C6)+5 + RAZ
-  16 o (msg $1525) ; 01 `$60ED` déplace objet ; 02 `$61C9`/03 `$6222`
+   mutation + message). `L7014` : 00 `$60BF` **combat** (dégâts `+10` sur
+   `(bloc)+$05`, débordement négatif ⇒ msg `$1525` "KILLED") ; 01 `$60ED`
+   **combat/riposte** (dégâts `+$05` vs seuil `+$06`, pose flag `+$07` bit3) ;
+   02 `$61C9`/03 `$6222`
   bit5 de ($8A)+7 = 0/1 (03 id==1 → `$580F` fête, msg $171B « CHEERING
   CROWD ») ; 04-05 `$5CA9`/`$5D06` prise/pose ; 06 `$65DD` dit $140C ;
   08/12 `$65BA`/`$65B6` dispatch objet $16 ($04/$0F) ; 09 `$6B72` (garde

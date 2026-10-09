@@ -145,6 +145,15 @@ Chaînes de porteurs (qui tient quoi) : `$03`→`$3E`, `$04`→`$47`,
 (`$6C03`) et `act_v14_14` (`$6D78`) le comparent à `ploc` pour exiger la
 co-localisation joueur/Gollum (confirme `+$10` = `eloc`).
 
+**Champs de bloc `+$05`/`+$06`/`+$07` (via `act_p14_00` `$60BF` /
+`act_p14_01` `$60ED`, combat)** : `+$05` = compteur de dégâts (`+10`/coup,
+`+$05`&`$80` ⇒ tué, msg `$1525`), `+$06` = seuil de robustesse, `+$07` =
+flags (`bit1`, `bit3` = mis à mort, `bit5` = ouvert sur les clés-portes ;
+`$1B21`=`$00.+$07` bit7 testé par `act_v14_12`). ⚠️ Les fenêtres de blocs se
+**chevauchent** (`STATE_WINDOW $40`, bases non monotones) → l'appartenance
+d'un octet à une clé reste ambiguë ; nommage générique à ne faire qu'après
+délimitation des tailles.
+
 ## 3. Scripts et tables `$28CC`–`$2B11` (753 o) — qui fait quoi, et quand
 
 ### 3a. Tables INDIR (sauts 3 o `[clé,lo,hi]`, `$FF` termine sauf `$2943`)
