@@ -39,7 +39,7 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | `$C5` | `obj` | objet/entité courant (id ; `$FF`=personne ; lieu via `L57BB`) | `$AC` |
 | `$C6` | `crec` | enregistrement courant, octet bas (contexte/compteurs ; base `$1B1A`) | `$05` |
 | `$C7` | `crec_hi` | haut de `crec` | `$08` |
-| `$C8` | `ploc` | **lieu du joueur** | `$AC` |
+| `$C8` | `ploc` | lieu du joueur — **miroir** de `player.eloc` (`$1B2A`) ; LOOK/déplacement lisent l'`eloc`, pas `ploc` (patté seul, il est re-dérivé) | `$AC` |
 | `$C9` | `eloc` | lieu de l'entité (visibilité : `eloc`==`ploc`) | `$11` |
 | `$CA` | `recptr` | pointeur de record de lieu courant (copie de `ptr`) | `$85` |
 | `$CB` | `recptr_hi` | haut de `recptr` (toujours `$21`–`$26` = region records) | `$43` |

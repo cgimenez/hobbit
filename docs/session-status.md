@@ -707,11 +707,18 @@ Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
 - **Anneau** = état `$10` (`$1CC4`) au lieu `$3D` ; `GET RING`.
 - **Évasion elfique** = tonneau via Anneau (`sav/barrel_ride.bin`).
 - **Dragon** = `SAY TO BARD "SHOOT DRAGON"` ; **araignées** = `WAIT`×2.
-- **Couverture memmap** : **184/3623 o (5.1 %)**, records **41/79 var**
-  (fusion `win.db`→`solver.db`, backup `solver_pre_win.db`).
+- **Lieux** : **79/79 visités** (graphe parcouru ; 10 conditionnels `08 14 15
+  1A 1B 1C 1D 32 42 43` via patch debug de `player.eloc`). Carte :
+  `docs/game-map.md`.
+- **Lieu autoritaire** lu par LOOK = **`player.eloc`** (`$1B2A`, bloc `$00`
+  `+$10`) ; `ploc` (`$C8`) = **miroir** (patté seul, il est re-dérivé).
+- **Couverture memmap** : **237/3623 o (6.5 %)** ; `records` **78/79**
+  (var 66/79), `etats` 99 var — fusion `build/sim/{hobbit,solver}.db`.
 
 **Toolchain** : `check_disasm`/`check_memmap` PROPRE, `rebuild` byte-identique,
-git clean. Derniers commits : `1a8c62c`, `8545b6d`, `ecff9cf`, `0e833fc`.
+git clean. Derniers commits : `42f6d3a` (exploration lieux), `eb95415`
+(lieux 79/79 + eloc), `1444777` (partition blocs), `6a74942` (ZP tblA/tblB),
+`f64363d`, `48fb64d` (nommage).
 Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`,
 `dragon_hall.bin`, `treasure.bin`.
 
@@ -721,7 +728,9 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
    (`$16C8`) / « pockets ? » (`$16B9`), **reprend l'Anneau**, récite l'énigme
    « It cannot be seen… » ; capture au lac (`$11`) → `$0D`. Détails
    `docs/aventure.md` séance 12 (Gollum), checkpoint `sav/gollum_riddle.bin`.
-2. Gobelins profonds `$10`–`$13`, `$39`–`$41` ; hauts nord-est `$44`–`$4F`.
+2. ~~Gobelins `$10`–`$13`, `$39`–`$41` ; hauts nord-est `$44`–`$4F`~~ **FAIT** :
+   tous visités (cf. `game-map.md`). Conditions `$07`/`$09`/`$0A` non levées
+   en jeu (accès debug uniquement).
 3. Événements différés `$2B12` (10 entrées), `$28E6`/`$28CC` init.
 4. Portes à événement : magique elfes `$0D+7` bit5 (`$1D26`), trou Montagne
    `$0B+7` bit7 (`$1C7B`), porte rouge `$08`.

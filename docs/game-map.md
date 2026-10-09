@@ -15,10 +15,12 @@ sans cond = passage libre. Directions : N/S/E/W/NE/NW/SE/SW/UP/DOWN
 (mots `$26DA`, vérifiés au `word_render`).
 
 `[visitée]` = vue sous harnais (texte + occupants constatés).
-**Visitées au 2026-10-09** : `$01 $04 $05 $06 $09 $0A $0B $0C $0E $16
-$18 $19 $1E $1F $20 $31 $44 $45 $47 $49 $4A`. Zones sombres
-(mouvements à destinations variables) : `$1E $1F $20` (+ `$16` ?,
-cf. anomalie NW).
+**Visitées : 79/79 (2026-10-09)** — graphe parcouru (exploration dirigée +
+`solver.py --route ... --record`), les 10 lieux conditionnels (`08 14 15 1A
+1B 1C 1D 32 42 43`, gated `$07/$09/$0A`) rendus par **patch debug** de
+`player.eloc` (`$1B2A`). `$42` : texte rendu mais `ploc` forcé à `$1F` par
+un événement. Zones sombres (mouvements à destinations variables) :
+`$1E $1F $20` (+ `$16` ?, cf. anomalie NW).
 Les descs entre guillemets = 1re ligne décodée statiquement ;
 `(sans desc)` = desc `$0000` (texte fourni par le moteur à l'exécution,
 ex. `$05` clairière, `$09` Rivendell).
@@ -150,5 +152,6 @@ fait foi) : ouvert — à lever en jeu.
 - **Piège `$13`** : la gate gobeline renvoie en `$10` sauf UP conditionnel.
 - **Cul-de-sac `$23`** : tout ramène en `$22`.
 - **Doublon `$04`** : NORTH→`$05` en double (inoffensif).
-- **Non visitées** : tout sauf `$01 $04 $05 $06 $09 $0A` — textes ci-dessus
-  décodés statiquement, occupants/visibilité à confirmer en jeu.
+- **Lieux** : **tous visités (79/79)** au 2026-10-09 — voir entête. Les
+  conditions `$07` (araignées)/`$09` (rivière)/`$0A` (gate gobeline) n'ont
+  pas été levées en jeu ; accès debug via `player.eloc`.
