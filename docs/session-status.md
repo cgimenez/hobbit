@@ -539,3 +539,23 @@ Commandes utiles :
 .venv/bin/python scripts/solver.py --route F --seed N --save M
 .venv/bin/python scripts/map_static.py --path 06 07
 ```
+
+### Addendum cond `$01` (porte rock) — relevés du 2026-10-09
+- Record `$06` N→`$07` **[cond `$01`]** confirmé au binaire ; état clé `$01`
+  @ `$1B63` = `02 FF FF FF 00 00 90 81 F2 02 19 05 6F 08 00 00 07 ...`
+  (`+0=$02` = **non localisé**, `+7=$81` verrou-fenêtre, `+8..+D` signature
+  `F2 02 19 05 6F 08`). Aucun xréf littéral (accès via `L5331`).
+- Sondage jeu à `$06` : `OPEN/PUSH/BREAK/LIFT/GET/EXAMINE/STRIKE/KILL/PULL/
+  MOVE ROCK|DOOR`, `CLIMB`, `ENTER`, `THROW`, `SAY`, `WAIT`×3 → **jamais**
+  `NORTH` (`ploc` reste `$06`). Donc cond `$01` = changement global, pas une
+  action locale.
+- Portes sœurs (à événement) repérées :
+  - **trou secret vers la Montagne** : état `$0B`+7 bit7 (`$1C7B`),
+    `code_6DBE` (`ora #$80; sta $1C7B`) → `$165A` « A LOUD CRACK AND A HOLE
+    APPEAR… SIDE DOOR TO THE MOUNTAIN » au lieu `$2A` ; `$1685` = vanish.
+  - **porte magique elfes** : état `$0D`+7 bit5 (`$1D26`, `ora #$20`) →
+    `$1415` « THE MAGIC DOOR OPEN » aux lieux `$1E`/`$1C` ; event e5
+    (`$2B2B` cpt) → `$168B` « THE MAGIC DOOR WARN OF ELVES APPROACH ».
+- Piste : état `$01` = objet/global « porte rock » ; chercher l'opcode/action
+  qui pose son flag (ou déplace l'épée `$0E`) — probablement lié aux trolls
+  (`$05`) ou à un événement. Alternative : trouver un autre accès à l'épée.
