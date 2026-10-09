@@ -721,3 +721,25 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
 4. Portes à événement : magique elfes `$0D+7` bit5 (`$1D26`), trou Montagne
    `$0B+7` bit7 (`$1C7B`), porte rouge `$08`.
 5. Slots vierges : `memmap.py slots --virgin` ; ingérer via solver/tickdiff.
+
+### Séance 12 (couverture 2) — chaîne canonique + batch BFS
+- **Run `canon`** injecté dans `hobbit.db` : les 20 checkpoints du parcours
+  dans l'ordre, diffs net par diff (`solver_db.diff_blobs`) → table
+  `deltas`. 724 deltas. (Méthode : boucle Python, cf. ci-dessous.)
+- **42 seeds BFS** (tous checkpoints `sav/*.bin`, `--goal coverage
+  --depth 6 --budget ~200`, DB `build/sim/win.db` puis fusion dédup dans
+  `solver.db`) : ~240 nœuds.
+- Couverture **184 → 222/3623 o (5.1 → 6.1 %)** ; `records` **41 → 52/79
+  var**. Annexe régénérée ; `check_memmap` PROPRE.
+- **Limite** : une seule trajectoire ne mute qu'une fraction des zones ;
+  le reste exige l'exploration de **branches** (combat/morts, tous les
+  lieux, riddle Gollum, PNJ). ROI désormais dans le BFS longue haleine,
+  pas dans les seeds alignés sur le parcours.
+- **Reproductibilité** : `sav/*.bin`, `build/sim/*.db` et `*.sim` sont
+  gitignorés ; le parcours canonique n'est **pas scripté** (joué
+  interactivement). Piste : committer les checkpoints (≈3.5 Ko × ~20) et/ou
+  un `routes/canon.txt` rejouable.
+
+Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
+`INSERT INTO deltas(run,n,base,off,avant,apres)` sous un run `canon`
+(`tickdb.connect()`).

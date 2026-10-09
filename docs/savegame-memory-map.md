@@ -523,14 +523,14 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   compteur exact tête `$2AD0`, dormants (déclencheurs).
 
 <!-- BEGIN AUTO-COUVERTURE -->
-couverture (fusion tickdiff+solver) : 184/3623 octets (5.1 %).
+couverture (fusion tickdiff+solver) : 222/3623 octets (6.1 %).
 
 | Region | Octets | Couverts | % | Var couverts |
 |---|---|---|---|---|
-| `$00BE` ZP | 24 | 16 | 66.7 | 5/7 |
-| `$1B1A` etats | 1366 | 82 | 6.0 | 37/126 |
-| `$28CC` scripts | 753 | 33 | 4.4 | 33/78 |
-| `$211A` records | 1480 | 53 | 3.6 | 41/79 |
+| `$00BE` ZP | 24 | 17 | 70.8 | 6/7 |
+| `$1B1A` etats | 1366 | 105 | 7.7 | 45/126 |
+| `$28CC` scripts | 753 | 36 | 4.8 | 33/78 |
+| `$211A` records | 1480 | 64 | 4.3 | 52/79 |
 
 Detail des variables : `scripts/memmap.py slots [--virgin]` ;
 xref statique : `scripts/memmap.py xref`.
