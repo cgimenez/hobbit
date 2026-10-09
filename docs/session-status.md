@@ -618,3 +618,18 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   Montagne `$29` → dragon `$41`.
 - Checkpoints : `sav/sword_rope.bin` (map, large key, sword, rope @ `$07`),
   `sav/forestriver17.bin` (`$17`). Toolchain PROPRE, git commit à suivre.
+
+### Séance 12 (suite) — repaire gobelin / Anneau (reprise)
+- Route : `sav/sword_rope.bin` ($07) → `S S SE E E N` → **chute crack
+  « the small insignificant crack »** → `$0D` **goblins dungeon** (sand,
+  goblins door N, window W). Checkpoints `sav/crack.bin`,
+  `sav/goblin_dungeon.bin`.
+- Donjon gobelin : `DIG SAND` → trap door ; `BREAK TRAP DOOR` long/optionnel ;
+  `OPEN WINDOW` = « cannot reach » (sortie = coopération PNJ Thorin,
+  syntaxe SAY à trancher). Exits N/W cond (`$11`/`$1B`) bloquées sur place
+  (goblins vous gardent).
+- **Objectif immédiat** : trouver **Gollum `$44`** (arg `$10`, caverne/
+  lac souterrain `$11`/`$10`) → énigme → **Anneau** → `WEAR RING` pour
+  l'évasion elfique (barrel escape → Lac `$23`), puis route Montagne
+  `$29`/dragon `$41`.
+- Toolchain PROPRE ; checkpoints sauvés. Dernier commit `ad2a997`.
