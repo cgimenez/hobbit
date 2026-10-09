@@ -633,3 +633,17 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   l'évasion elfique (barrel escape → Lac `$23`), puis route Montagne
   `$29`/dragon `$41`.
 - Toolchain PROPRE ; checkpoints sauvés. Dernier commit `ad2a997`.
+
+### Séance 12 (fin) — donjon gobelin (reprise/blocker)
+- **`BREAK TRAP DOOR WITH SWORD`** (il faut l'épée !) → « The door is
+  broken. » → **goblins cache** → **small curious key** prise par
+  **Thorin** (autonome). Checkpoint `sav/goblin_key.bin`.
+- **Blockers** : (1) sortie gobelin = ordre au PNJ `SAY TO THORIN "..."`,
+  mais le harnais casse sur le `"` (echo_ok=False) → à investiguer
+  (rendu 0x22 / touche quote Oric) ; (2) solver : aucune évasion.
+- Indice jeu : `SAY HELP` → « A WINDOW SHOULD BE NO OBSTACLE TO A THIEF
+  WITH FRIENDS. »
+- **Rappel objectif** : Anneau (Gollum `$44`) → évasion elfique (barrel,
+  WEAR RING) → Lac `$23` → Montagne `$29` → dragon `$41`.
+- Docs `aventure.md` séance 12 (+suites). Toolchain PROPRE. Commits à
+  jour.

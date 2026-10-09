@@ -427,3 +427,24 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
   naviguer le repaire gobelin ($10-$13/$39-$41/$11 lac souterrain) pour
   trouver **Gollum `$44`** (arg `$10`) → énigme → **Anneau** (WEAR RING),
   clef de l'évasion elfique.
+
+### Séance 12 (suite 2) — donjon gobelin : clé sous la trappe (épée)
+- **`BREAK TRAP DOOR` sans arme = échec infini** (150×). Il faut
+  l'**épée** : `BREAK TRAP DOOR WITH SWORD` → « You strike the trap door
+  with the short strong sword. **The door is broken.** » (la trappe
+  n'était cassable qu'avec une arme — piège).
+- La trappe cassée révèle **« the goblins cache »** contenant
+  **« the small curious key »**. **Thorin** (PNJ autonome) la prend seul :
+  « Thorin takes the small curious key. » / « Thorin says " This was
+  Thrains key " ». Checkpoint `sav/goblin_key.bin`.
+- **Sortie toujours bloquée** : `OPEN WINDOW` = « cannot reach »,
+  `THROW ROPE THROUGH WINDOW` = « THE WINDOW IS CLOSED. », `GO THROUGH
+  WINDOW`/`WEST`/`N` refusés ; Thorin reste (« Thorin waits »). `SAY HELP`
+  → indice « **A WINDOW SHOULD BE NO OBSTACLE TO A THIEF WITH FRIENDS.** »
+- **Blocage syntaxe** : le guide commande le PNJ par
+  `SAY TO THORIN "CARRY ME"` / `"OPEN WINDOW"` / `"WEST"`. Notre harnais
+  envoie bien la chaîne mais **l'écho casse sur le `"`** (`echo_ok=False`,
+  sortie corrompue) ; testé aussi guillemets simples, `TO`, `TELL`,
+  `ORDER` → échec. Le solver (vocabulaire standard) ne trouve aucune
+  évasion (frontière vide). → **piste : implémenter le rendu du caractère
+  `"` (0x22) ou trouver la touche quote Oric** pour tester la commande.
