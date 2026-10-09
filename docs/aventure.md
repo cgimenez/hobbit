@@ -494,3 +494,39 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
 - **Prochain** : `WEAR RING` + suivre le guide (bateau → araignées →
   palais elfe `EXAMINE DOOR` → tonneau → Lac `$23` → Montagne `$29` →
   dragon `$41`).
+
+### Séance 12 (FINALE) — VICTOIRE 🏆 (2026-10-09)
+> « You put the valuable treasure in the wooden chest. A cheering crowd
+> of dwarves, hobbits and elves appears. Led by Gandalf they carry you
+> off into the sunset, proclaiming you hero of heroes and master
+> adventurer!!! **You have mastered 80.0% of this adventure.** »
+
+Checkpoint `sav/win.bin`. **Parcours complet reproductible** (dans l'ordre) :
+
+1. `$01`→`E`→`$04`→trolls→clé→`$06`/`$07` (épée+rope) — cf. séance 11.
+2. Monts Brumeux : `$07`→`S S SE E E`→`$0B`→`N` (chute crack)→`$0D`
+   donjon gobelin.
+3. Donjon gobelin : `DIG SAND` ; **`BREAK TRAP DOOR WITH SWORD`** →
+   **« small curious key »** (Thorin la prend) ; `SAY TO THORIN "CARRY ME"`
+   `"OPEN WINDOW"` `"WEST"` → `$12`→`SW`→`$10`→…→`$11` lac.
+4. **Anneau** : `$11`→`N`→`$37`→`SW`→`$3D` → `GET RING` (« the valuable
+   golden ring »).
+5. Sortie gobelin : `$0F` (attendre que la fenêtre s'ouvre) `UP`→`$0E`→`S`
+   `$0B`→`W` surface `$0A` ; `E E E NE`→`$18` Mirkwood ; `E E`→capture
+   `$1F`.
+6. Donjon elfe : `WEAR RING` ; `LOOK`+`SW`→`$20` cellier ; `WEAR RING`
+   (×, l'effet dure ~3-4 tours) ; suivre le cycle du butler ; quand il ouvre
+   le tonneau : `CLIMB INTO BARREL` (puis il ferme) ; `WAIT`×2 → `$21`
+   Forestriver → `WAIT` → **Long Lake `$22`**.
+7. `E`→`$23` Lake-town ; `SAY TO BARD "NORTH"` `FOLLOW BARD`
+   `SAY TO BARD "UP"` `FOLLOW BARD` `SAY TO BARD "NORTH"` `FOLLOW BARD`
+   `FOLLOW BARD` `SAY TO BARD "NORTH"` `FOLLOW BARD` → `$29` (Bard suit).
+8. `SAY TO BARD "SHOOT DRAGON"` → « Bard shoots the red golden dragon…
+   The dragon is dead. » `GET TREASURE`.
+9. Retour : `S S S DOWN S S W W W N W N SW W W SW W` → `$01`. **Aux lieux
+   « pale bulbous eyes » (araignées `$02`/`$03`), `WAIT`×2 avant de bouger.**
+10. `OPEN CHEST` ; `PUT TREASURE IN CHEST` → **victoire** (80 %).
+
+**Mécaniques clés** : ordres PNJ `SAY TO <PERS> "<ORDRE>"` (guillemets
+doubles) ; `WEAR RING` = invisibilité ~3-4 tours (re-porter) ; tonneau
+flottant ; araignées = WAIT×2 ; Bard conduit au dragon et tire.

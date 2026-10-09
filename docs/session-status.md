@@ -672,3 +672,16 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   rope). `STATE_IDENTITY[0x10]="ring"` ajouté ; `check_memmap` PROPRE.
 - Famille clés `tpl=$CB` : `$02`/`$04`/`$0F` ; `$0F`=clé rouge (butler).
 - **Prochain** : `WEAR RING` puis guide complet vers le Lac/Montagne.
+
+### Séance 12 (FINALE) — VICTOIRE 80 % (reprise)
+- **Victoire atteinte** : `OPEN CHEST` + `PUT TREASURE IN CHEST` au tunnel
+  `$01` → « …master adventurer!!! You have mastered 80.0% ». Checkpoint
+  **`sav/win.bin`**.
+- Parcours complet (10 étapes) consigné dans `docs/aventure.md` séance 12
+  finale. Mécaniques : `SAY TO X "..."`, Anneau = état `$10` @ `$3D`
+  (`sav/ring.bin`), tonneau (`sav/barrel_ride.bin`), Bard
+  (`sav/strongriver.bin`→`sav/dragon_hall.bin`), araignées WAIT×2.
+- **Reste côté projet** : ingérer les nouveaux états dans la DB
+  (`tickdiff`/`solver`) pour faire monter la **couverture memmap**
+  (rapport inchangé à 140/3623 o car les `run_one` ne sont pas enregistrés).
+- Toolchain PROPRE ; commits à jour.
