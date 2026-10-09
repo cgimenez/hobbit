@@ -268,7 +268,7 @@ L2D45:  cmp     #$02
         lda     #$01
         sta     raw
         jsr     print_msg
-; -> $1177 .. ?..c..........qtj..`.c '.
+; -> $1177 WHAT ?
 msg_2D50:
         .word   $1177
 code_2D52:
@@ -306,7 +306,7 @@ L2D7F:  lda     $F2
         sta     raw
         sta     $7E
         jsr     print_msg
-; -> $117C .c..........qtj..`.c '... '.
+; -> $117C YOU<W>. TIME PASSES...
 msg_2D92:
         .word   $117C
 code_2D94:
@@ -319,7 +319,7 @@ L2D97:  jsr     L3A0B
 L2D9F:  lda     #$01
         sta     raw
         jsr     print_msg
-; -> $116B qtj..`.. ' ... ?..c.........
+; -> $116B I DO NOT KNOW THE WORD '
 msg_2DA6:
         .word   $116B
 code_2DA8:
@@ -2444,7 +2444,7 @@ code_3CB9:
 L3CBF:  lda     #$01
         sta     raw
         jsr     print_msg
-; -> $179D  YOU'RE.. FINE.a.} NEEDSa...
+; -> $179D YOU'RE DO FINE.
 msg_3CC6:
         .word   $179D
 code_3CC8:
@@ -2458,7 +2458,7 @@ L3CD4:  jsr     L46E9
         lda     #$00
         sta     raw
         jsr     print_msg
-; -> $178A c.. MASTERED .%fp.W YOU'RE..
+; -> $178A YOU HAVE MASTERED
 msg_3CDE:
         .word   $178A
 code_3CE0:
@@ -2482,7 +2482,7 @@ L3CF2:  lda     #$0A
         lda     #$00
         sta     cap
         jsr     print_msg
-; -> $1798 %fp.W YOU'RE.. FINE.a.} NEED
+; -> $1798 %OF THIS ADVENTURE
 msg_3D0E:
         .word   $1798
 code_3D10:
@@ -2550,7 +2550,7 @@ L3D6A:  jsr     tape_tramp
 L3D73:  lda     #$01
         sta     raw
         jsr     print_msg
-; -> $3E26 TAPE LOADING ERROR :- PRESS 
+; -> $3E26 TAPE LOADING ERROR :- PRESS ANY KEY TO RESTART GAME.
 msg_3D7A:
         .word   $3E26
 code_3D7C:
@@ -2587,7 +2587,7 @@ save_block:
 L3DB3:  lda     #$01
         sta     raw
         jsr     print_msg
-; -> $1A1A .` SAVING.{:-......d CONTINU
+; -> $1A1A TAPE SAVING ERROR:-PRESS ANY KEY TO CONTINUE.
 msg_3DBA:
         .word   $1A1A
 ; echec SAVE : dit $1A1A, keyin, abandonne params, code_3E20
@@ -2605,7 +2605,7 @@ save_err:
 L3DCD:  lda     #$01
         sta     raw
         jsr     print_msg
-; -> $1A38 .` VERIFICATION...          
+; -> $1A38 TAPE VERIFICATION ERROR:-PRESS ANY KEY TO CONTINUE.
 msg_3DD4:
         .word   $1A38
 code_3DD6:
@@ -4216,7 +4216,7 @@ L4B42:  jsr     is_dark
         jsr     L534B
         bcs     L4B5F
 L4B57:  jsr     print_msg
-; -> $13A0 ql.`u.`......}... ...*......
+; -> $13A0 I SEE NOTHING HERE.
 msg_4B5A:
         .word   $13A0
 code_4B5C:
@@ -4296,7 +4296,7 @@ L4BE9:  lda     phase
         jsr     is_dark
         bcc     code_4BFF
         jsr     print_msg
-; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
+; -> $11F6 IT IS DARK
 msg_4BFD:
         .word   $11F6
 code_4BFF:
@@ -4344,7 +4344,7 @@ L4C51:  jsr     L4C57
         jmp     L4C1D
 
 L4C57:  jsr     print_msg
-; -> $139B qot.qql.`u.`......}... ...*.
+; -> $139B I CANNOT DO THAT
 msg_4C5A:
         .word   $139B
 code_4C5C:
@@ -4470,7 +4470,7 @@ L4CF8:  lda     L4D44
         lda     (ptr),y
         sta     L4670
         jsr     print_msg
-; -> $13C4 .er..qo.#.xu.....l.`..u..''.
+; -> $13C4 <W>IS CARRYING<W>.
 msg_4D3D:
         .word   $13C4
 code_4D3F:
@@ -4745,7 +4745,7 @@ L4EF7:  sta     obj
         bne     L4F43
         inc     L4ED4
         jsr     print_msg
-; -> $1406 c..a.:...j..p.A`..}...`..}..
+; -> $1406 YOU HEAR A NOISE
 msg_4F3D:
         .word   $1406
 code_4F3F:
@@ -5062,7 +5062,7 @@ L5163:  lda     obj
         jmp     L518A
 
 L5182:  jsr     print_msg
-; -> $1406 c..a.:...j..p.A`..}...`..}..
+; -> $1406 YOU HEAR A NOISE
 msg_5185:
         .word   $1406
 code_5187:
@@ -5886,7 +5886,7 @@ L572B:  jsr     L542C
         sta     (ptr2),y
         jsr     L5521
         jsr     print_msg
-; -> $1522 .....Z.... KILLED....'....`.
+; -> $1522 EVAPORATE.
 msg_575B:
         .word   $1522
 code_575D:
@@ -5977,7 +5977,7 @@ L57FC:  .byte   $20
 code_57FD:
         pha
         jsr     print_msg
-; -> $13E3 .l :.... '. '...e....n......
+; -> $13E3 <OBJ>SEE :
 msg_5801:
         .word   $13E3
 code_5803:
@@ -6000,7 +6000,7 @@ L580F:  stx     L5832
         lda     L5834
         bne     code_582F
         jsr     print_msg
-; -> $171B      .`...a CHEERING CROWDf 
+; -> $171B NOTHING
 msg_582D:
         .word   $171B
 code_582F:
@@ -6118,7 +6118,7 @@ L58E7:  sta     L5958
         lda     L5958
         sta     L466F
         jsr     print_msg
-; -> $11D0 .r.bk...7...em..d...rm.....r
+; -> $11D0 <NAME>CARRYING
 msg_5917:
         .word   $11D0
 code_5919:
@@ -6143,7 +6143,7 @@ L591C:  ldy     #$08
         sta     L4672
 L5942:  jsr     L5B9B
         jsr     print_msg
-; -> $13BF ......er..qo.#.xu.....l.`..u
+; -> $13BF <W>THERE<W>
 msg_5948:
         .word   $13BF
 code_594A:
@@ -6208,7 +6208,7 @@ L59B5:  lda     adr
         lda     adr_hi
         pha
         jsr     print_msg
-; -> $11EE d`..em.kke...em.(.8.d.n..em.
+; -> $11EE TO THE
 msg_59BE:
         .word   $11EE
 code_59C0:
@@ -6218,7 +6218,7 @@ code_59C0:
         sta     adr
 L59C6:  jsr     word_render
         jsr     print_msg
-; -> $13F1 ..e....n......{..| :.c..a.:.
+; -> $13F1 THERE IS<MSG>
 msg_59CC:
         .word   $13F1
 code_59CE:
@@ -6267,7 +6267,7 @@ code_5A0D:
 L5A24:  jsr     L5A43
         beq     L5A40
         jsr     print_msg
-; -> $13FE .{..| :.c..a.:...j..p.A`..}.
+; -> $13FE VISIBLE EXITS ARE :
 msg_5A2C:
         .word   $13FE
 code_5A2E:
@@ -6359,7 +6359,7 @@ L5AB3:  tax
         lda     L5AD0,x
         sta     L4672
         jsr     print_msg
-; -> $1397 .e..qot.qql.`u.`......}... .
+; -> $1397 <W>IS<W>.
 msg_5AC4:
         .word   $1397
 code_5AC6:
@@ -6407,7 +6407,7 @@ L5B1B:  ldy     #$07
 
 ; message d'action $13E8 + epilogue
 act_msg:jsr     print_msg
-; -> $13E8 ... '. '...e....n......{..| 
+; -> $13E8 <OBJ>SAY '
 msg_5B27:
         .word   $13E8
 code_5B29:
@@ -6428,7 +6428,7 @@ code_5B29:
         jmp     print_msg
 
         jsr     print_msg
-; -> $13EE  '...e....n......{..| :.c..a
+; -> $13EE '.
 msg_5B41:
         .word   $13EE
 code_5B43:
@@ -6448,7 +6448,7 @@ code_5B43:
         lda     #$00
         sta     $13DE
         jsr     print_msg
-; -> $13DC .''..l..l :.... '. '...e....
+; -> $13DC <NAME>''
 msg_5B64:
         .word   $13DC
 code_5B66:
@@ -6468,7 +6468,7 @@ code_5B66:
         jsr     putchar
         jsr     print_cr
         jsr     print_msg
-; -> $13E3 .l :.... '. '...e....n......
+; -> $13E3 <OBJ>SEE :
 msg_5B89:
         .word   $13E3
 code_5B8B:
@@ -6509,7 +6509,7 @@ L5BBB:  jsr     L5349
 L5BC1:  pla
         pla
         jsr     print_msg
-; -> $11C8 .jrk..r..r.bk...7...em..d...
+; -> $11C8 <NAME>NOT CARRYING IT.
 msg_5BC6:
         .word   $11C8
 code_5BC8:
@@ -6518,7 +6518,7 @@ code_5BC8:
         jsr     L5349
         bcc     L5BD4
         jsr     print_msg
-; -> $11E8 ...r..d`..em.kke...em.(.8.d.
+; -> $11E8 <NAME>ALREADY CARRYING<ARG1>.
 msg_5BD1:
         .word   $11E8
 code_5BD3:
@@ -6611,7 +6611,7 @@ code_5C78:
         pla
         pla
         jsr     print_msg
-; -> $11DB .em..d...rm.....r..d`..em.kk
+; -> $11DB <ARG1>IS TOO HEAVY TO LIFT
 msg_5C7D:
         .word   $11DB
 code_5C7F:
@@ -6620,7 +6620,7 @@ code_5C7F:
 L5C80:  pla
         pla
         jsr     print_msg
-; -> $11E3 .rm.....r..d`..em.kke...em.(
+; -> $11E3 <NAME>CARRYING TOO MUCH
 msg_5C85:
         .word   $11E3
 code_5C87:
@@ -6692,7 +6692,7 @@ L5CC8:  ldy     #$02
         rts
 
 L5D00:  jsr     print_msg
-; -> $11F6 ke...em.(.8.d.n..em.k.8.d.n.
+; -> $11F6 IT IS DARK
 msg_5D03:
         .word   $11F6
 code_5D05:
@@ -6727,7 +6727,7 @@ L5D09:  cmp     #$FF
         jmp     L5BD4
 
 L5D3D:  jsr     print_msg
-; -> $1391 .ejg...e..qot.qql.`u.`......
+; -> $1391 <ARG1>IS NOT IN<ARG2>.
 msg_5D40:
         .word   $1391
 code_5D42:
@@ -6780,14 +6780,14 @@ L5D92:  jsr     act_probe
         sta     $1B1A,y
         beq     L5DA7
         jsr     print_msg
-; -> $1157 h..b.K....h..b.-....qtj..`..
+; -> $1157 BUT FALL AND HIT YOUR HEAD
 msg_5DA4:
         .word   $1157
 code_5DA6:
         rts
 
 L5DA7:  jsr     print_msg
-; -> $1161 h..b.-....qtj..`.. ' ... ?..
+; -> $1161 BUT FALL AND SMASH YOUR SKULL
 msg_5DAA:
         .word   $1161
 code_5DAC:
@@ -6873,7 +6873,7 @@ L5E3B:  jmp     L4DC6
 
 L5E3E:  jsr     L5E50
         jsr     print_msg
-; -> $11FA .em.(.8.d.n..em.k.8.d.n.i...
+; -> $11FA <W>IS TOO SMALL FOR<OBJ>TO ENTER.
 msg_5E44:
         .word   $11FA
 code_5E46:
@@ -6881,7 +6881,7 @@ code_5E46:
 
 L5E47:  jsr     L5E50
         jsr     print_msg
-; -> $1206 .em.k.8.d.n.i......z....... 
+; -> $1206 <W>IS TOO FULL FOR<OBJ>TO ENTER.
 msg_5E4D:
         .word   $1206
 code_5E4F:
@@ -6978,7 +6978,7 @@ L5EE4:  ldy     #$10
         adc     ptr_hi
         sta     L4670
         jsr     print_msg
-; -> $1521 ......Z.... KILLED....'....`
+; -> $1521 <MSG>EVAPORATE.
 msg_5EFC:
         .word   $1521
 code_5EFE:
@@ -7016,7 +7016,7 @@ L5F23:  sta     wid
         jmp     L5D09
 
 L5F3A:  jsr     print_msg
-; -> $13C9 qo.#.xu.....l.`..u..''..l..l
+; -> $13C9 I CANNOT FOLLOW<ARG1>FROM HERE.
 msg_5F3D:
         .word   $13C9
 code_5F3F:
@@ -7075,7 +7075,7 @@ L5FA0:  jsr     code_3E5B
         rts
 
 L5FA4:  jsr     print_msg
-; -> $15BE ... '.7 '.kos SEEN,os.....s.
+; -> $15BE <ARG1>SAY 'NO '
 msg_5FA7:
         .word   $15BE
 code_5FA9:
@@ -7085,7 +7085,7 @@ code_5FA9:
 L5FAE:  lda     #$00
         sta     obj
         jsr     print_msg
-; -> $13D1 ....l.`..u..''..l..l :.... '
+; -> $13D1 <NAME>DEAD
 msg_5FB5:
         .word   $13D1
 code_5FB7:
@@ -7149,7 +7149,7 @@ L6019:  iny
         lda     #$00
 L6021:  pha
         jsr     print_msg
-; -> $11D3 bk...7...em..d...rm.....r..d
+; -> $11D3 AND IT GET SWEPT AWAY
 msg_6025:
         .word   $11D3
 code_6027:
@@ -7206,7 +7206,7 @@ L6057:  cmp     #$06
         beq     L6084
         bcs     L608A
 L6084:  jsr     print_msg
-; -> $11F1 .em.kke...em.(.8.d.n..em.k.8
+; -> $11F1 <ARG2>IS TOO FULL
 msg_6087:
         .word   $11F1
 code_6089:
@@ -7263,7 +7263,7 @@ L60DA:  lda     #$00
         rts
 
 L60E3:  jsr     print_msg
-; -> $1525 ..Z.... KILLED....'....`.f`y
+; -> $1525 <HIS>FOUL GLUTTONY HAS KILLED<OBJ>.
 msg_60E6:
         .word   $1525
 code_60E8:
@@ -7509,7 +7509,7 @@ L628E:  ldy     #$05
         cmp     #$01
         beq     L62A9
         jsr     print_msg
-; -> $133F co..i..k...Qb...v`..{.......
+; -> $133F YOU CANNOT KILL WITH<ARG2>.
 msg_62A6:
         .word   $133F
 code_62A8:
@@ -7532,7 +7532,7 @@ L62B8:  lda     L6320
         cmp     L6320
         bcc     L62D6
         jsr     print_msg
-; -> $1330 h`.Ae......em..co..i..k...Qb
+; -> $1330 BUT THE EFFORT IS WASTED.<HIS>DEFENSE IS TOO STRONG
 msg_62D3:
         .word   $1330
 code_62D5:
@@ -7583,7 +7583,7 @@ L6320:  .byte   $00
 L6321:  .byte   $00
 code_6322:
         jsr     print_msg
-; -> $1212 i......z....... VIOLENT.....
+; -> $1212 WITH ONE WELL PLACE BLOW<OBJ>CLEAVE<HIS>SKULL
 msg_6325:
         .word   $1212
 code_6327:
@@ -7644,7 +7644,7 @@ code_63C3:
         rts
 
 L63C4:  jsr     print_msg
-; -> $13E0 .l..l :.... '. '...e....n...
+; -> $13E0 <OBJ>SEE
 msg_63C7:
         .word   $13E0
 code_63C9:
@@ -7664,7 +7664,7 @@ L63DC:  lda     orec2
         jsr     L5349
         bcs     L63EF
         jsr     print_msg
-; -> $11C8 .jrk..r..r.bk...7...em..d...
+; -> $11C8 <NAME>NOT CARRYING IT.
 msg_63EC:
         .word   $11C8
 code_63EE:
@@ -7681,7 +7681,7 @@ L63EF:  lda     arg2
         sbc     $6C
         bcs     L6408
         jsr     print_msg
-; -> $11E3 .rm.....r..d`..em.kke...em.(
+; -> $11E3 <NAME>CARRYING TOO MUCH
 msg_6405:
         .word   $11E3
 code_6407:
@@ -7885,7 +7885,7 @@ L65CC:  lda     arg2
 ; dit $140C (X do not fit this lock) sinon $139B (i cannot do that)
 act_p14_06:
         jsr     print_msg
-; -> $140C ...j..p.A`..}...`..}....lc. 
+; -> $140C <ARG2>DO NOT FIT THIS LOCK
 msg_65E0:
         .word   $140C
 code_65E2:
@@ -7921,7 +7921,7 @@ L6604:  jmp     act_p14_03
         cmp     #$20
         beq     L661D
         jsr     print_msg
-; -> $14FD co.@...jr`.i`.......a....`..
+; -> $14FD YOU CANNOT REACH<ARG1>.
 msg_661A:
         .word   $14FD
 code_661C:
@@ -7971,7 +7971,7 @@ L6636:  ldy     #$00
 
         jsr     act_probe
         jsr     print_msg
-; -> $1494 ...h.....`w.....b.z.... WHER
+; -> $1494 AS SOON AS<OBJ>TOUCH THE RIVER<OBJ>FALL ASLEEP AND GENTLY FLOAT 
 msg_666C:
         .word   $1494
 code_666E:
@@ -7979,7 +7979,7 @@ code_666E:
         pha
         bne     code_6678
         jsr     print_msg
-; -> $1181 .......qtj..`.c '... '......
+; -> $1181 TIME PASSES...
 msg_6676:
         .word   $1181
 code_6678:
@@ -7990,7 +7990,7 @@ L667C:  lda     $1CCB
         and     #$80
         beq     evt_disarme6
         jsr     print_msg
-; -> $1454 .j WEARING...e....`.k......c
+; -> $1454 <NAME>NOT WEARING<ARG1>.
 msg_6686:
         .word   $1454
 code_6688:
@@ -8053,7 +8053,7 @@ L66DF:  lda     (orec),y
         lda     $2B17
         sta     $2B18
         jsr     print_msg
-; -> $1478 .T......`......tc....dtip ?.
+; -> $1478 SOME SPIDERS START MEND THE BROKEN WEB
 msg_66EE:
         .word   $1478
 code_66F0:
@@ -8128,7 +8128,7 @@ act_v14_06:
 
 L68D7:  jsr     act_probe
         jsr     act_msg
-; -> $143F ..p...........a.ab.]..j WEAR
+; -> $143F HELLO
 msg_68DD:
         .word   $143F
 code_68DF:
@@ -8142,7 +8142,7 @@ act_v14_01:
         cmp     #$00
         bne     L68F2
         jsr     act_msg
-; -> $1432 c|..a.....z.B..p...........a
+; -> $1432 YOU ARE DO A GREAT JOB
 msg_68EF:
         .word   $1432
 code_68F1:
@@ -8151,14 +8151,14 @@ code_68F1:
 L68F2:  cmp     #$01
         bne     L68FC
         jsr     act_msg
-; -> $143B .z.B..p...........a.ab.]..j 
+; -> $143B HURRY UP
 msg_68F9:
         .word   $143B
 code_68FB:
         rts
 
 L68FC:  jsr     act_msg
-; -> $143F ..p...........a.ab.]..j WEAR
+; -> $143F HELLO
 msg_68FF:
         .word   $143F
 code_6901:
@@ -8175,7 +8175,7 @@ code_6901:
 act_v14_02:
         jsr     act_probe
         jsr     act_msg
-; -> $1441 p...........a.ab.]..j WEARIN
+; -> $1441 THIS WAS THRAINS KEY
 msg_6912:
         .word   $1441
 code_6914:
@@ -8188,14 +8188,14 @@ evt_tip:jsr     act_probe
         cmp     #$08
         bcc     L6927
         jsr     act_msg
-; -> $1485 ..tc....dtip ?....h.....`w..
+; -> $1485 WHAT DO YOU EXPECT ME TO DO WITH THIS ?
 msg_6924:
         .word   $1485
 code_6926:
         rts
 
 L6927:  jsr     act_msg
-; -> $1423 .lc. WHAT'Sp ?.c|..a.....z.B
+; -> $1423 THANK YOU
 msg_692A:
         .word   $1423
 code_692C:
@@ -8205,7 +8205,7 @@ code_692C:
 act_v14_00:
         jsr     act_probe
         jsr     act_msg
-; -> $1427  WHAT'Sp ?.c|..a.....z.B..p.
+; -> $1427 WHAT'S THIS ?
 msg_6933:
         .word   $1427
 code_6935:
@@ -8236,7 +8236,7 @@ L6952:  cmp     #$00
         .byte   $C7,$14,$60
 code_695C:
         jsr     act_msg
-; -> $143B .z.B..p...........a.ab.]..j 
+; -> $143B HURRY UP
 msg_695F:
         .word   $143B
 code_6961:
@@ -8256,7 +8256,7 @@ L6969:  lda     $1B21
 
 L6971:  jsr     act_probe
         jsr     act_msg
-; -> $14AB  WHERE'S`~ ?....E..fp..,~ !.
+; -> $14AB WHERE'S THE THIEF ?
 msg_6977:
         .word   $14AB
 code_6979:
@@ -8278,7 +8278,7 @@ L6985:  jsr     L4D9E
         jsr     L534B
         bcs     L6998
         jsr     print_msg
-; -> $1503 .jr`.i`.......a....`...K...m
+; -> $1503 <NAME>NOT CARRYING THE BOW
 msg_6995:
         .word   $1503
 code_6997:
@@ -8295,7 +8295,7 @@ L6998:  jsr     L6250
         cmp     #$3C
         bne     L69B4
 L69AE:  jsr     print_msg
-; -> $1509 `.......a....`...K...m.:....
+; -> $1509 THE ARROW MISS<ARG2>BY A WIDE MARGIN
 msg_69B1:
         .word   $1509
 code_69B3:
@@ -8311,7 +8311,7 @@ L69BD:  lda     arg1
         lda     #$FF
         sta     $1E74
 L69C8:  jsr     print_msg
-; -> $1516 `...K...m.:......Z.... KILLE
+; -> $1516 THE ARROW HIT<ARG1>.
 msg_69CB:
         .word   $1516
 code_69CD:
@@ -8334,7 +8334,7 @@ L69E7:  lda     $1F38
         rts
 
 L69EF:  jsr     print_msg
-; -> $1722 ...a CHEERING CROWDf DWARVES
+; -> $1722 A CHEERING CROWD OF DWARVES, HOBBITS AND ELVES APPEAR. LED BY GA
 msg_69F2:
         .word   $1722
 code_69F4:
@@ -8352,7 +8352,7 @@ L69FF:  jmp     code_5FB7
         rts
 
 L6A0A:  jsr     print_msg
-; -> $1380 ia..`.^...Q`wb....ejg...e..q
+; -> $1380 WITH A LURCH THE BOAT GLIDES ACROSS THE RIVER AND LAND ON THE OT
 msg_6A0D:
         .word   $1380
 code_6A0F:
@@ -8378,7 +8378,7 @@ evt_disarme7:
         cmp     #$FF
         bne     L6A38
 L6A32:  jsr     print_msg
-; -> $16E1 .o.....xu.......l.T........n
+; -> $16E1 <OBJ>CANNOT JUMP ONTO<ARG1>FROM HERE.
 msg_6A35:
         .word   $16E1
 code_6A37:
@@ -8411,7 +8411,7 @@ code_6A5E:
         rts
 
 L6A69:  jsr     print_msg
-; -> $1370 `.^...Q`wb..vp{.ia..`.^...Q`
+; -> $1370 THE BOAT GLIDES ACROSS THE RIVER AND LAND ON THIS SIDE.
 msg_6A6C:
         .word   $1370
 code_6A6E:
@@ -8434,7 +8434,7 @@ L6A79:  stx     $1F85
 
 L6A92:  jsr     act_probe
         jsr     print_msg
-; -> $1346 k...Qb...v`..{.......f`..{..
+; -> $1346 IT SAIL ACROSS AND
 msg_6A98:
         .word   $1346
 code_6A9A:
@@ -8447,14 +8447,14 @@ code_6A9A:
         jsr     L6AE3
         bcs     L6AB3
         jsr     print_msg
-; -> $1367 ..h.....o`.^...Q`wb..vp{.ia.
+; -> $1367 <0B>SOON SLIDE OUT AGAIN
 msg_6AB0:
         .word   $1367
 code_6AB2:
         rts
 
 L6AB3:  jsr     print_msg
-; -> $1355 ......f`..{...g`.^..h.....o`
+; -> $1355 FALL JUST SHORT OF THE OTHER SIDE.
 msg_6AB6:
         .word   $1355
 code_6AB8:
@@ -8463,7 +8463,7 @@ code_6AB8:
 L6AB9:  lda     #$12
         sta     $1F76
         jsr     print_msg
-; -> $1361 ..g`.^..h.....o`.^...Q`wb..v
+; -> $1361 LAND IN THE BOAT
 msg_6AC1:
         .word   $1361
 code_6AC3:
@@ -8482,7 +8482,7 @@ L6AC4:  jsr     L6AE3
         lda     arg1
         jsr     L5612
         jsr     print_msg
-; -> $134D ..v`..{.......f`..{...g`.^..
+; -> $134D LAND ON THE OTHER SIDE.
 msg_6AE0:
         .word   $134D
 code_6AE2:
@@ -8513,7 +8513,7 @@ evt_arme9b:
         jmp     L5A62
 
 L6B10:  jsr     print_msg
-; -> $14FD co.@...jr`.i`.......a....`..
+; -> $14FD YOU CANNOT REACH<ARG1>.
 msg_6B13:
         .word   $14FD
 code_6B15:
@@ -8539,7 +8539,7 @@ L6B26:  rts
         jmp     L5A62
 
 L6B37:  jsr     print_msg
-; -> $14FD co.@...jr`.i`.......a....`..
+; -> $14FD YOU CANNOT REACH<ARG1>.
 msg_6B3A:
         .word   $14FD
 code_6B3C:
@@ -8566,7 +8566,7 @@ L6B54:  rts
         and     #$80
         beq     evt_arme5
         jsr     print_msg
-; -> $13D4 .l.`..u..''..l..l :.... '. '
+; -> $13D4 <OBJ>SEE NOTHING SPECIAL HERE.
 msg_6B63:
         .word   $13D4
 code_6B65:
@@ -8577,7 +8577,7 @@ evt_arme5:
         lda     $2B2B
         sta     $2B2C
         jsr     print_msg
-; -> $168B `..}..f.Z.....e`...q...^..g`
+; -> $168B THE MAGIC DOOR WARN OF ELVES APPROACH.
 msg_6B6F:
         .word   $168B
 code_6B71:
@@ -8637,7 +8637,7 @@ L6BA2:  ldy     #$05
         lda     adr_hi
         sta     L4670
         jsr     act_msg
-; -> $15AB ...x.d..d...X..cx. ... '.7 '
+; -> $15AB GO<W>FROM<MSG>TO GET TO<MSG>
 msg_6BD8:
         .word   $15AB
 code_6BDA:
@@ -8664,7 +8664,7 @@ L6BE3:  jsr     L4D95
         rts
 
 L6C03:  jsr     print_msg
-; -> $14EB `.(.f........G.1..co.@...jr`
+; -> $14EB THE SMALL CURIOUS KEY SHATTER.
 msg_6C06:
         .word   $14EB
 code_6C08:
@@ -8734,7 +8734,7 @@ evt_act5:
         rts
 
 L6C6B:  jsr     print_msg
-; -> $1535 ..'....`.f`y.. '..~...W....c
+; -> $1535 <NAME>SLOWLY SINK INTO THE BOG
 msg_6C6E:
         .word   $1535
 code_6C70:
@@ -8752,7 +8752,7 @@ L6C76:  jmp     L5FAE
         rts
 
 L6C87:  jsr     print_msg
-; -> $141C `..}....lc. WHAT'Sp ?.c|..a.
+; -> $141C THE MAGIC DOOR CLOSE.
 msg_6C8A:
         .word   $141C
 code_6C8C:
@@ -8783,7 +8783,7 @@ L6CA7:  sta     $1B40
         lda     #$1B
         sta     L4670
         jsr     print_msg
-; -> $13F6 ..n......{..| :.c..a.:...j..
+; -> $13F6 <MSG>ENTER.
 msg_6CBB:
         .word   $13F6
 code_6CBD:
@@ -8801,14 +8801,14 @@ L6CC5:  jsr     act_probe
         and     #$80
         beq     L6CD5
         jsr     print_msg
-; -> $153F `y.. '..~...W....cp.....d.. 
+; -> $153F THE DRAGON SAY 'WELL THIEF YOUR CUNNING HAS FAILED YOU THIS TIME
 msg_6CD2:
         .word   $153F
 code_6CD4:
         rts
 
 L6CD5:  jsr     print_msg
-; -> $155D `y.. '....js.Cdlc~h........c
+; -> $155D THE DRAGON SAY 'I MAY NOT BE ABLE TO SEE YOU THIEF BUT I CAN STI
 msg_6CD8:
         .word   $155D
 code_6CDA:
@@ -8876,12 +8876,12 @@ L6D0E:  jsr     act_probe
         rts
 
 L6D48:  jsr     print_msg
-; -> $16F0 .l.T........n...T....x.Lb...
+; -> $16F0 <OBJ>SEE SOME PALE BULBOUS EYES STAR AT<OBJ>.
 msg_6D4B:
         .word   $16F0
 code_6D4D:
         jsr     print_msg
-; -> $16FF .T....x.Lb...c|....`..f`.^..
+; -> $16FF SOME THING DROP FROM ABOVE AND STING.
 msg_6D50:
         .word   $16FF
 code_6D52:
@@ -8905,7 +8905,7 @@ L6D5D:  lda     $2B3F
 ; dit $1685 (hole vanish) ; queue du sub $6AEB
 evt_print:
         jsr     print_msg
-; -> $1685 `.a.].`..}..f.Z.....e`...q..
+; -> $1685 THE HOLE VANISH.
 msg_6D75:
         .word   $1685
 code_6D77:
@@ -8924,7 +8924,7 @@ L6D80:  jsr     act_probe
         cmp     #$04
         bcc     L6D92
 L6D8C:  jsr     act_msg
-; -> $16B9 ....k..g.... ?....=.. '.r...
+; -> $16B9 WHAT HAS IT GOT IN ITS POCKET ?
 msg_6D8F:
         .word   $16B9
 code_6D91:
@@ -8934,14 +8934,14 @@ L6D92:  lda     #$44
         cmp     $1CC5
         beq     L6D8C
         jsr     act_msg
-; -> $16C8 ...=.. '.r.....fk..... '..o.
+; -> $16C8 MY BIRTHDAY PRESENT 'HOW DID WE LOSE IT MY PRECIOUS '
 msg_6D9C:
         .word   $16C8
 code_6D9E:
         rts
 
         jsr     print_msg
-; -> $16F0 .l.T........n...T....x.Lb...
+; -> $16F0 <OBJ>SEE SOME PALE BULBOUS EYES STAR AT<OBJ>.
 msg_6DA2:
         .word   $16F0
 code_6DA4:
@@ -8970,7 +8970,7 @@ code_6DBE:
         rts
 
 L6DCA:  jsr     print_msg
-; -> $165A ..ea.j.Hba.a...G....x`...c|.
+; -> $165A THERE IS A LOUD CRACK AND A HOLE APPEAR ABOUT THREE FEET FROM TH
 msg_6DCD:
         .word   $165A
 code_6DCF:
@@ -8982,14 +8982,14 @@ code_6DCF:
         jsr     L6DEF
         bne     code_6DE2
         jsr     print_msg
-; -> $1415 `..}...`..}....lc. WHAT'Sp ?
+; -> $1415 THE MAGIC DOOR OPEN.
 msg_6DE0:
         .word   $1415
 code_6DE2:
         jsr     L6DEF
         bne     code_6DEC
         jsr     print_msg
-; -> $14F5 ...G.1..co.@...jr`.i`.......
+; -> $14F5 AN ELF SWEEPS PAST
 msg_6DEA:
         .word   $14F5
 code_6DEC:
@@ -9033,7 +9033,7 @@ L6E15:  jsr     L3485
 L6E29:  lda     #$01
         sta     outen
         jsr     print_msg
-; -> $15B6 .X..cx. ... '.7 '.kos SEEN,o
+; -> $15B6 SOMEONE STRANGLE YOU FROM BEHIND
 msg_6E30:
         .word   $15B6
 code_6E32:
@@ -9083,14 +9083,14 @@ L6E74:  lda     #$64
         cmp     #$50
         bcs     L6E83
         jsr     print_msg
-; -> $1582 g`..cl`..fa..y...jc.`y..bga.
+; -> $1582 IN THE DISTANCE YOU SEE THE SHAPE OF A MONSTROUS DRAGON FLYING A
 msg_6E80:
         .word   $1582
 code_6E82:
         rts
 
 L6E83:  jsr     print_msg
-; -> $1596 `y..bga.d..f....cda.M...x.d.
+; -> $1596 THE DRAGON DESCENDS AND IN A TERRIFIC SPOUT OF FLAMES BURN YOU T
 msg_6E86:
         .word   $1596
 code_6E88:
@@ -9108,14 +9108,14 @@ L6E92:  jsr     act_probe
         cmp     #$47
         beq     L6EA1
         jsr     act_msg
-; -> $162B ......,h.. WOULDN'T...La..ga
+; -> $162B YER CAN TRY,BUT HE WOULDN'T MAKE ABOVE A MOUTHFULL
 msg_6E9E:
         .word   $162B
 code_6EA0:
         rts
 
 L6EA1:  jsr     act_msg
-; -> $1615 .O,.bnp !!.....= 'EM?.......
+; -> $1615 BLIMEY,LOOK AT THIS !!CAN YER COOK 'EM?
 msg_6EA4:
         .word   $1615
 code_6EA6:
@@ -9148,7 +9148,7 @@ act_v14_17:
         lda     #$01
         sta     outen
         jsr     print_msg
-; -> $16EB ......l.T........n...T....x.
+; -> $16EB DAY DAWN.
 msg_6EE7:
         .word   $16EB
 code_6EE9:
@@ -9187,7 +9187,7 @@ L6F00:  ldx     ptr_block3
         rts
 
 L6F22:  jsr     print_msg
-; -> $14DF `....e.'.Dc.`.(.f........G.1
+; -> $14DF THE SPIDER WEB IS SLOWLY SMOTHERING YOU.
 msg_6F25:
         .word   $14DF
 code_6F27:
@@ -9484,7 +9484,7 @@ evt_gate21:
 
 L710B:  jsr     L5DFD
         jsr     print_msg
-; -> $1650 ..7.;.t`....ea.j.Hba.a...G..
+; -> $1650 <NAME>SWEPT FORCEFULLY AGAINST THE PORTCULLIS
 msg_7111:
         .word   $1650
 code_7113:
@@ -9640,20 +9640,20 @@ L7283:  dey
         rts
 
 L7293:  jsr     print_msg
-; -> $72AA PREPARE TAPE FOR GAME SAVE..
+; -> $72AA PREPARE TAPE FOR GAME SAVE
 msg_7296:
         .word   $72AA
 code_7298:
         jmp     tape_prompt
 
 L729B:  jsr     print_msg
-; -> $72C5 .REWIND TAPE FOR VERIFICATIO
+; -> $72C5 REWIND TAPE FOR VERIFICATION
 msg_729E:
         .word   $72C5
 ; invites PREPARE TAPE / REWIND / PRESS ANY KEY
 tape_prompt:
         jsr     print_msg
-; -> $72E3 PRESS ANY KEY WHEN READY. .r
+; -> $72E3 PRESS ANY KEY WHEN READY
 msg_72A3:
         .word   $72E3
 code_72A5:

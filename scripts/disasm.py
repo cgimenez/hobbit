@@ -42,6 +42,7 @@ from opcodes6502 import (
     BRK,
     ilen,
 )
+from msgdecode import decode_message
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "data" / "hobbit.bin"
@@ -638,17 +639,14 @@ def try_decode(
     return False
 
 
-def msg_preview(raw: bytes, addr: int, n: int = 28) -> str:
-    """Aperçu ASCII du message pointé (sanitisé pour da65)."""
+def msg_preview(raw: bytes, addr: int, n: int = 64) -> str:
+    """Texte décodé du message pointé (moteur render_text ; cf. msgdecode)."""
     if addr == 0:
         return "TODO pointeur nul"
-    off = addr - BASE
-    if off < 0 or off >= len(raw):
+    if not (BASE <= addr < BASE + len(raw)):
         return "(hors image)"
-    out = []
-    for c in raw[off : off + n]:
-        out.append(chr(c) if 0x20 <= c < 0x7F else ".")
-    return "".join(out).replace('"', "'")
+    text = decode_message(raw, addr, cap=n)
+    return text if text else "(vide)"
 
 
 def sanitize_comment(doc: str) -> str:

@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""Décodeur statique des messages de The Hobbit (bloc 2, moteur $4444).
+
+Réimplémente ``render_text`` ($4444), ``word_render`` ($4241) et
+``common_lookup`` ($462D) pour transformer un pointeur de message (inline
+``JSR $440D``) en texte anglais lisible, utilisé par ``disasm.py`` pour les
+commentaires du listing (à la place des aperçus octets illisibles).
+
+Format (cf. docs/block4-analysis.md) — le message est un flux d'octets :
+  - ``$20-$5F`` : littéral ASCII ;
+  - ``$60-$7F`` : mot courant, table $1117 (32 pointeurs 2 o) ;
+  - bit7 set  : mot 2 octets du dictionnaire packé 5-bit : page ``$05 +
+                (hi&$0F)``, offset ``lo`` ; le nibble haut de ``hi`` porte la
+                grammaire (suffixes/espaces/ponctuation/CR) ;
+  - ``<$20``  : tokens (interpolation d'état : noms d'objets, pronoms,
+                messages imbriqués, GOTO/recurse…). Sans état runtime, ces
+                tokens sont rendus en marqueurs ``<OBJ>``/``<NAME>``/…
+
+Le décodage est approximatif (suffixes S/ES/ING et espaces dépendent du
+contexte runtime) mais lisible. Usage :
+
+    from msgdecode import decode_message
+    texte = decode_message(raw, 0x18AA)   # -> "A COMFORTABLE TUNNEL LIKE HALL"
+"""
+
+from __future__ import annotations
+
+BASE = 0x0400
+CAP = 72  # longueur max d'un aperçu (caractères utiles)
+
+# Tokens $00-$13 (table $4641). Rendus en marqueurs faute d'état runtime.
+_TOKENS = {
+    0x00: "<MSG>",   # message imbriqué (pile $466F)
+    0x01: "<W>",     # mot à l'adresse empilée
+    0x03: "<W>",     # mot pointé par wptr ($71)
+    0x04: "<W>",     # variante empilée (tables $28BC/$28C4)
+    0x06: "<OBJ>",   # nom de l'objet $C5
+    0x07: "<ARG1>",  # nom/objet $15
+    0x08: "<C>",     # vecteur $2C2F
+    0x09: "<ARG2>",  # objet $16
+    0x0C: "<HIS>",   # his/your (objet $C5)
+    0x0E: "<HIS>",   # his/your (objet $15)
+    0x10: "<NAME>",  # nom (objet $C5 ; someone si $FF)
+    0x11: "<NAME>",  # nom (objet $15)
+    0x13: "<NAME>",  # nom (mot empilé)
+}
+
+
+class Decoder:
+    """Décodeur adossé à l'image mémoire ``raw`` (base ``$0400``)."""
+
+    def __init__(self, raw: bytes):
+        self.raw = raw
+        self._words: dict[tuple[int, int], str] = {}
+        self._common = self._build_common()
+
+    def _b(self, addr: int) -> int:
+        off = addr - BASE
+        return self.raw[off] if 0 <= off < len(self.raw) else 0
+
+    def word(self, hi: int, lo: int) -> str:
+        """Mot du dictionnaire packé 5-bit (word_render $4241)."""
+        key = (hi, lo)
+        if key in self._words:
+            return self._words[key]
+        base = ((0x05 + (hi & 0x0F)) << 8) | lo
+        codes: list[int] = []
+        x = y = 0
+        for _ in range(64):
+            a = self._b(base + y)
+            code = a & 0x1F
+            if code == 0:
+                break
+            codes.append(code)
+            x += 1
+            y += 1
+            if (a & 0x80) == 0:
+                continue
+            if x == 2:
+                continue
+            if x != 3:
+                break
+            if self._b(base + y - 2) & 0x80:
+                continue
+            break
+        text = "".join(chr(0x40 + c) for c in codes)
+        self._words[key] = text
+        return text
+
+    def _build_common(self) -> dict[int, str]:
+        """Table $1117 : $60-$7F -> mot courant (common_lookup $462D)."""
+        out = {}
+        for i in range(32):
+            hi = self._b(0x1118 + 2 * i)
+            lo = self._b(0x1117 + 2 * i)
+            out[0x60 + i] = self.word(hi, lo)
+        return out
+
+    def message(self, addr: int, cap: int = CAP) -> str:
+        """Décode le message à ``addr`` (render_text $4444)."""
+        if addr == 0:
+            return ""
+        ptr, tidx = addr, 0
+        out: list[str] = []
+
+        def add_word(w: str) -> None:
+            if not w:
+                return
+            if out and out[-1][-1:].isalnum():
+                out.append(" ")
+            out.append(w)
+
+        for _ in range(1000):
+            if sum(len(s) for s in out) > cap * 4:
+                break
+            b = self._b(ptr + tidx)
+            if b & 0x80:  # mot 2 octets
+                hi, lo = b & 0x7F, self._b(ptr + tidx + 1)
+                tidx += 2
+                add_word(self.word(hi, lo))
+                if (hi & 0xF0) in (0x20, 0x30, 0x60):
+                    break
+            elif 0x20 <= b < 0x60:  # littéral
+                out.append(chr(b))
+                tidx += 1
+            elif b >= 0x60:  # mot courant
+                add_word(self._common.get(b, "?"))
+                tidx += 1
+            else:  # token
+                if b == 0x02:  # GOTO offset signé
+                    tidx += 1
+                    off = self._b(ptr + tidx)
+                    off -= 256 if off >= 0x80 else 0
+                    ptr, tidx = ptr + tidx + off, 0
+                    continue
+                if b == 0x0D:  # CR inline
+                    out.append("\n")
+                    tidx += 1
+                    continue
+                if b == 0x14:
+                    out.append("\n")
+                    break
+                if b == 0x15:
+                    out.append(".")
+                    break
+                if b == 0x16:
+                    break
+                if b in (0x05, 0x0A, 0x0F, 0x12):  # no-op
+                    tidx += 1
+                    continue
+                out.append(_TOKENS.get(b, f"<{b:02X}>"))
+                tidx += 1
+        return "".join(out)
+
+
+def decode_message(raw: bytes, addr: int, cap: int = CAP) -> str:
+    """Texte anglais lisible du message à ``addr`` (1 ligne, nettoyé)."""
+    text = Decoder(raw).message(addr, cap)
+    text = text.replace("\n", " ").replace('"', "'")
+    text = " ".join(text.split())  # espaces multiples -> 1
+    return text[:cap]
+
+
+if __name__ == "__main__":
+    import sys
+
+    raw = open("data/hobbit.bin", "rb").read()
+    addrs = [int(x, 16) for x in sys.argv[1:]] or [0x18AA, 0x143F, 0x1582]
+    for a in addrs:
+        print(f"${a:04X}: {decode_message(raw, a)}")
