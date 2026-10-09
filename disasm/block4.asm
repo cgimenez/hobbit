@@ -15,58 +15,58 @@
         .setcpu "6502"
 
 L0000           := $0000
-col             := $0004                        ; colonnes restantes (RAZ $28/ligne ; test wrap cpx, conso glyph_out)
-outen           := $000B                        ; 1=sortie autorisee (init input, annonces PNJ, fin events)
-phase           := $000C                        ; 0=sonde, 1=execution (actions L506B, parser, print_msg, ch_out)
-raw             := $000D                        ; 1=mode brut (espace forcee, limite col, capitales L74BB)
-cap             := $000E                        ; 1=capitaliser la prochaine lettre (pose sur point)
-sppend          := $000F                        ; espace en attente avant le prochain mot (word_space)
-crcnt           := $0011                        ; CR depuis derniere pause (mod 16 ; relu en $39D3)
-passok          := $0012                        ; sonde reussie (1=passer a l'exec ; cf. L506B/act_probe)
-wid             := $0013                        ; id mot/direction (parser, exit_ptr, move, VM)
-arg1            := $0015                        ; operande objet 1 ($FF=absent ; match identite $C5)
-arg2            := $0016                        ; operande objet 2 ($FF=absent)
-orec            := $0017                        ; enregistrement objet 1 (pointeur ; hi $18)
-orec_hi         := $0018                        ; haut de orec
-orec2           := $0019                        ; enregistrement objet 2 (pointeur ; hi $1A)
-orec2_hi        := $001A                        ; haut de orec2
-adr             := $005C                        ; adresse etagee (message imbrique, mot ; hi $5D)
-adr_hi          := $005D                        ; haut de adr
+col             := $0004                        ; Colonnes restantes sur la ligne courante (remis a jour a chaque ligne ; sert au retour auto)
+outen           := $000B                        ; Autorise l'affichage (1 = la sortie texte est autorisee)
+phase           := $000C                        ; Phase d'execution : 0 = sonde (simulation), 1 = execution reelle
+raw             := $000D                        ; Mode brut : 1 = texte force sans mise en forme (limite de colonnes, capitales)
+cap             := $000E                        ; Capitaliser la prochaine lettre affichee (pose apres un point)
+sppend          := $000F                        ; Espace en attente a inserer avant le prochain mot
+crcnt           := $0011                        ; Compteur de lignes depuis la derniere pause (modulo 16)
+passok          := $0012                        ; Reussite d'une sonde : 1 = passer a l'execution reelle
+wid             := $0013                        ; Mot/identifiant courant (verbe d'action ou direction)
+arg1            := $0015                        ; Premier objet de la commande ($FF = aucun)
+arg2            := $0016                        ; Second objet de la commande ($FF = aucun)
+orec            := $0017                        ; Pointeur vers l'enregistrement du premier objet (octet haut en $18)
+orec_hi         := $0018                        ; Octet haut de orec
+orec2           := $0019                        ; Pointeur vers l'enregistrement du second objet (octet haut en $1A)
+orec2_hi        := $001A                        ; Octet haut de orec2
+adr             := $005C                        ; Adresse de travail : mot de message pointe (octet haut en $5D)
+adr_hi          := $005D                        ; Octet haut de adr
 L006A           := $006A
-tidx            := $006F                        ; index texte (curseur Y sauvegarde du renderer)
-nest            := $0070                        ; niveau d'imbrication du rendu (0=simple)
-wptr            := $0071                        ; pointeur de mot/nom (tok_objw, L626B ; hi $72)
-wptr_hi         := $0072                        ; haut de wptr
-direct          := $0073                        ; 1=direct/sans controles (=bit7 xmode)
-variant         := $0074                        ; variante (=bit6 xmode ; move_flags)
-msgstk          := $0076                        ; index pile messages $466F (RAZ a chaque print_msg)
-xaux            := $0077                        ; octet auxiliaire de sortie (nibbles +5/+7 ; bit6->$7F)
-xmode           := $0078                        ; octet mode de sortie (nibbles +1/+3 ; b7 direct, b6 variante)
-ptr3            := $007A                        ; 3e pointeur de travail (hi $7B)
-ptr3_hi         := $007B                        ; haut de ptr3
-ptr2            := $0088                        ; pointeur secondaire, balayages de tables (hi $89)
-ptr2_hi         := $0089                        ; haut de ptr2
-ptr             := $008A                        ; pointeur de travail universel (hi $8B)
-ptr_hi          := $008B                        ; haut de ptr
-key             := $008F                        ; cle de dispatch (table $709F, evt_lookup)
-noise           := $0093                        ; pointeur source d'entropie (bruit ($93),y ; hi $94)
-noise_hi        := $0094                        ; haut de noise
-svA             := $00AD                        ; A sauvegarde (routines pile $0200)
-svX             := $00AE                        ; X sauvegarde (routines pile $0200)
-rstk            := $00AF                        ; index pile retours $0200 (push $46E9/$4702, pop $471E/$4737)
-exploc          := $00BE                        ; lieu attendu par l'evenement (copie de key ; grille ploc)
-obj             := $00C5                        ; objet/entite courant (id ; $FF=personne ; lieu via L57BB)
-crec            := $00C6                        ; enregistrement courant (contexte/compteurs ; hi $C7 ; base $1B1A)
-crec_hi         := $00C7                        ; haut de crec
-ploc            := $00C8                        ; lieu du joueur (cf. code_5235)
-eloc            := $00C9                        ; lieu de l'entite (visibilite : eloc==ploc)
-once            := $00CE                        ; verrou one-shot (pose, teste+consomme)
-cond1           := $00DC                        ; tampon condition 1 (6 o $DC-$E1)
-cond2           := $00E2                        ; tampon condition 2 (6 o $E2-$E7)
-svptr           := $00E8                        ; ptr sauvegarde (contexte move ; hi $E9)
-svptr_hi        := $00E9                        ; haut de svptr
-exitp           := $00F8                        ; curseur table des sorties ($26DA+wid*8 ; hi $F9)
-exitp_hi        := $00F9                        ; haut de exitp
+tidx            := $006F                        ; Index du caractere en cours dans le message affiche
+nest            := $0070                        ; Niveau d'imbrication du rendu (0 = message simple)
+wptr            := $0071                        ; Pointeur vers le mot/nom en cours de rendu (octet haut en $72)
+wptr_hi         := $0072                        ; Octet haut de wptr
+direct          := $0073                        ; Sortie directe sans controle (copie du bit7 de xmode)
+variant         := $0074                        ; Sortie en variante (copie du bit6 de xmode)
+msgstk          := $0076                        ; Index de la pile de messages $466F (remis a zero a chaque message)
+xaux            := $0077                        ; Octet auxiliaire de sortie (drapeaux de mise en forme)
+xmode           := $0078                        ; Octet de mode de sortie (bit7 = direct, bit6 = variante)
+ptr3            := $007A                        ; Troisieme pointeur de travail (octet haut en $7B)
+ptr3_hi         := $007B                        ; Octet haut de ptr3
+ptr2            := $0088                        ; Pointeur secondaire, pour balayer les tables (octet haut en $89)
+ptr2_hi         := $0089                        ; Octet haut de ptr2
+ptr             := $008A                        ; Pointeur de travail universel (octet haut en $8B)
+ptr_hi          := $008B                        ; Octet haut de ptr
+key             := $008F                        ; Cle d'evenement a declencher (cherchee dans la table $709F)
+noise           := $0093                        ; Pointeur vers la source de bruit (entropie des tirages aleatoires)
+noise_hi        := $0094                        ; Octet haut de noise
+svA             := $00AD                        ; Sauvegarde de l'accumulateur A (routines utilisant la pile $0200)
+svX             := $00AE                        ; Sauvegarde du registre X (routines utilisant la pile $0200)
+rstk            := $00AF                        ; Index de la pile d'adresses de retour $0200
+exploc          := $00BE                        ; Lieu attendu par l'evenement (copie de key, compare a ploc)
+obj             := $00C5                        ; Objet/entite courant (id ; $FF = une personne)
+crec            := $00C6                        ; Pointeur vers l'enregistrement courant (contexte/compteurs, base $1B1A)
+crec_hi         := $00C7                        ; Octet haut de crec
+ploc            := $00C8                        ; Lieu du joueur : simple miroir de player.eloc ($1B2A), pas la source
+eloc            := $00C9                        ; Lieu d'une entite (visible quand eloc==ploc)
+once            := $00CE                        ; Verrou one-shot : pose puis consomme pour n'agir qu'une fois
+cond1           := $00DC                        ; Tampon de condition 1 (6 octets $DC-$E1)
+cond2           := $00E2                        ; Tampon de condition 2 (6 octets $E2-$E7)
+svptr           := $00E8                        ; Sauvegarde du pointeur ptr (contexte de deplacement, octet haut en $E9)
+svptr_hi        := $00E9                        ; Octet haut de svptr
+exitp           := $00F8                        ; Curseur dans la table des sorties du lieu ($26DA + wid*8)
+exitp_hi        := $00F9                        ; Octet haut de exitp
 L0405           := $0405
 L0408           := $0408
 L040B           := $040B
@@ -127,7 +127,7 @@ putchar:jmp     ch_out
 
 main:   jmp     game_main
 
-; init : copies boot, pile, RAZ vars, prompt '> LOOK.', boucle d'input
+; Point d'entree : copie la zone sauvegarde, vide la pile, reinitialise les variables, affiche le prompt puis boucle de commandes
 start:  jsr     boot_copy
         ldx     #$FF
         txs
@@ -338,7 +338,7 @@ L2DBD:  lda     #$22
         jsr     print_cr
         jmp     L2C99
 
-; RAZ variables ($97.., $AF, $CC/$CD) puis JMP main $7779
+; Remet a zero les variables de travail ($97.., $AF, $CC/$CD) puis saute a la boucle principale ($7779)
 init_vars:
         lda     #$00
         ldx     #$05
@@ -748,7 +748,7 @@ L3078:  lda     (ptr),y
 L308F:  .byte   "> "
 L3091:  .byte   "LOOK."
         .byte   $0D
-; copie $1B1A->$91D0 (1366 o) ; $6C = compteur
+; Copie le bloc sauvegarde $1B1A -> $91D0 (1366 octets) ; $6C = compteur
 boot_copy:
         lda     #$04
         sta     $6C
@@ -769,7 +769,7 @@ L30AB:  ldy     #$00
         bne     L309D
         rts
 
-; recopie inverse ($8C)->($8A), meme gabarit
+; Recopie le bloc $91D0 -> $1B1A (copie inverse, meme gabarit)
 boot_copyback:
         lda     #$04
         sta     $6C
@@ -1643,7 +1643,7 @@ L36D5:  jsr     L4B37
         lda     passok
         rts
 
-; resout $13 (L43CB), evalue cond $15/$16, execute, ret A
+; Coeur du deplacement : resout la sortie, evalue la condition, execute
 move_core:
         lda     svptr
         pha
@@ -1710,7 +1710,7 @@ L3743:  tax
         txa
         rts
 
-; slot condition X ($FF=absent), variante selon $73
+; Evalue la condition d'une sortie (slot X ; $FF = aucune)
 cond_eval:
         cpx     #$FF
         bne     L375E
@@ -1728,7 +1728,7 @@ L3769:  txa
         lda     #$01
         rts
 
-; derive $73/$74/$80 depuis $78 (bits 7/6, sinon residus)
+; Derive les drapeaux direct/variante depuis l'octet mode $78
 move_flags:
         lda     xaux
         and     #$40
@@ -2513,7 +2513,7 @@ L3D35:  txa
         jsr     keyin
         jmp     L3C07
 
-; trampoline JSR+params [len src] : fetch pile, jmp (L006A)
+; Trampoline cassette : lit [longueur, source] apres l'appel et saute au handler
 tape_tramp:
         pla
         clc
@@ -2556,7 +2556,7 @@ msg_3D7A:
 code_3D7C:
         jmp     L2C3D
 
-; LOAD(i7) : vec_05 (PRESS ANY KEY) + L3D6A (vec_02) + copies
+; Commande LOAD : invite 'PRESS ANY KEY' puis charge un bloc cassette (vec_02)
 load_handler:
         jsr     L46E6
         jsr     vec_05
@@ -2577,7 +2577,7 @@ load_handler:
         .byte   "GL"
         .byte   $07
         .byte   "<"
-; ecrit 1 bloc SAVE : L3D3F + vec_03 (params inline [len src])
+; Ecrit un bloc SAVE sur cassette (appel vec_03 avec [longueur, source] inline)
 save_block:
         jsr     tape_tramp
         jsr     vec_03
@@ -2590,7 +2590,7 @@ L3DB3:  lda     #$01
 ; -> $1A1A TAPE SAVING ERROR:-PRESS ANY KEY TO CONTINUE.
 msg_3DBA:
         .word   $1A1A
-; echec SAVE : dit $1A1A, keyin, abandonne params, code_3E20
+; Echec de SAVE : affiche l'erreur $1A1A, attend une touche puis abandonne
 save_err:
         jsr     keyin
         pla
@@ -2611,7 +2611,7 @@ msg_3DD4:
 code_3DD6:
         jmp     save_err
 
-; SAVE : vec_06 + 4x save_block (ZP/etats/scripts/records) + verify
+; Commande SAVE : ecrit les 4 blocs (ZP, etats, scripts, records) puis verifie
 cmd_save:
         jsr     L46E6
         jsr     vec_06
@@ -2626,7 +2626,7 @@ cmd_save:
         .byte   $05,$1A,$1B,$20,$C4,$3D,$F1,$02
         .byte   $CC,$28,$20,$C4,$3D,$C8,$05,$1A
         .byte   $21,$20,$23,$2C
-; restore ptr2 (L471B) + retour boucle commandes (L3C07)
+; Restaure le contexte et revient a la boucle de commandes
 cmd_next:
         jsr     L471B
         jmp     L3C07
@@ -3116,7 +3116,7 @@ L4232:  lda     (exitp),y
         iny
         jmp     word_render
 
-; rend un mot du dico packe 5-bit : pluriels S/ES/IES/ING, espace auto, wrap
+; Rend un mot du dictionnaire packe 5-bit, en appliquant pluriels (S/ES/IES/ING), espaces et retour a la ligne
 word_render:
         lda     adr_hi
         sta     $5B
@@ -3201,7 +3201,7 @@ L42C3:  sta     L430E,x
         sec
         sbc     #$01
         bne     L42B9
-; espace auto ($0D/$0F) + wrap (longueur X vs $04/$05, flag $0E)
+; Gere les espaces entre mots et le retour a la ligne en fin de colonne
 word_space:
         lda     raw
         pha
@@ -3344,7 +3344,7 @@ L43C7:  php
         plp
         rts
 
-; ($F8) = $26DA + $13*8 (entrees 8 o)
+; Calcule $F8 = $26DA + wid*8 : pointe l'entree de sortie du lieu
 exit_ptr:
         rol     a
         rol     $6C
@@ -3386,7 +3386,7 @@ L4402:  lda     $5E
         sta     phase
 L440A:  jmp     print_msg
 
-; affiche le message du mot inline ; reprend a JSR+5 via JMP ($6A)
+; Affiche le message dont l'adresse suit l'appel, puis reprend l'execution apres ce mot (appel de 5 octets)
 print_msg:
         jsr     L46E9
         pla
@@ -3419,7 +3419,7 @@ L4437:  jsr     render_text
         jsr     fetch_retaddr
         jmp     (L006A)
 
-; boucle : literaux $20-5F, mots $60-7F ($1117), tokens <$20 ($4641), 2 o si bit7
+; Rend un message octet par octet : litteraux $20-5F, mots courants $60-7F, mots 2 octets (bit7), tokens <$20
 render_text:
         ldy     #$00
         sty     tidx
@@ -3469,7 +3469,7 @@ L4482:  clc
         beq     L446C
         jmp     L4469
 
-; JMP auto-patche vers le handler du token (mot L4641+tok*2)
+; Saut auto-modifie vers le handler du token (adresse lue dans la table $4641)
 token_dispatch:
 L44A1           := * + 1
 L44A2           := * + 2
@@ -3480,7 +3480,7 @@ L44A3:  lda     #$2E
 L44A8:  jsr     print_cr
         jmp     L44BD
 
-; fin 2 o : $2x=fin, $3x='.', $6x=CR (via $44A3/$44A8)
+; Dernier octet du message : $2x = fin simple, $3x = fin + '.', $6x = fin + retour a la ligne
 text_end:
         jsr     word_render
         lda     $5B
@@ -3491,14 +3491,14 @@ text_end:
         beq     L44A3
 L44BD:  rts
 
-; INC $6A (+ $6B si retenue) ; avance le pointeur message
+; Avance le pointeur de message courant $6A/$6B de 1 (gere la retenue)
 msgptr_inc:
         inc     L006A
         bne     L44C4
         inc     $6B
 L44C4:  rts
 
-; token $00 : rend le message empile (L466F/$0200), Z=saute
+; Token $00 : affiche le message imbrique depile de la pile ($466F) ; retour Z = saute word_render
 tok_nested:
         lda     #$00
 L44C7:  sta     nest
@@ -3515,7 +3515,7 @@ L44DE:  jsr     fetch_retaddr
         lda     #$00
         rts
 
-; depile une adresse L466F ($76) en $5C/$5D
+; Depile une adresse de la pile de messages ($466F) vers $5C/$5D
 stk_pop:ldx     msgstk
         lda     L466F,x
         sta     adr
@@ -3526,19 +3526,19 @@ stk_pop:ldx     msgstk
         stx     msgstk
         rts
 
-; token $01 : rend le mot a l'adresse empilee (L466F)
+; Token $01 : affiche le mot dont l'adresse est empilee ($466F)
 tok_stkword:
         jsr     stk_pop
         lda     #$01
         rts
 
-; token $02 : GOTO offset signe (octet suivant, L4507, tidx=$FF, sans retour)
+; Token $02 : saut (GOTO) a l'offset signe qui suit, sans revenir (deplace le pointeur du message)
 tok_skip:
         inc     tidx
         jsr     L4507
         lda     #$FF
         sta     tidx
-; tokens $05/$0A/$0F/$12 reserves : sans effet (lda #0, saute)
+; Tokens $05/$0A/$0F/$12 non utilises : aucun effet, on passe au suivant
 tok_noop:
         lda     #$00
         rts
@@ -3567,7 +3567,7 @@ L4522:  clc
         sta     ptr_hi
         rts
 
-; token $03 : rend le mot pointe par ($71/$72)
+; Token $03 : affiche le mot pointe par le pointeur de travail $71/$72
 tok_objw:
         lda     wptr
         sta     adr
@@ -3576,7 +3576,7 @@ tok_objw:
         lda     #$01
         rts
 
-; token $04 : variante ($70=1, tables $28BC/$28C4) du mot empile
+; Token $04 : variante du mot empile (lecture dans les tables $28BC/$28C4 si contexte imbrique)
 tok_stkvar:
         jsr     stk_pop
         lda     #$01
@@ -3588,7 +3588,7 @@ tok_stkvar:
         lda     #$01
         jmp     L44C7
 
-; token $06 : rend le nom de l'objet $C5 via $461B (imbrique $44C7)
+; Token $06 : affiche le nom de l'objet courant $C5 (via $461B)
 tok_objC5:
         lda     #$00
         sta     nest
@@ -3597,7 +3597,7 @@ L454F:  lda     obj
         lda     #$00
         rts
 
-; token $07 : rend l'objet $15 (direct $43E4 si $73, sinon $43F3)
+; Token $07 : affiche l'objet $15 (selon les tables direct $43E4 ou variante $43F3)
 tok_obj15:
         lda     #$01
         sta     nest
@@ -3609,13 +3609,13 @@ L455B:  lda     direct
 L4564:  lda     arg1
         jmp     L458A
 
-; token $08 : appel vecteur interne $2C2F avec A=$08
+; Token $08 : envoie le code $08 a la sortie video (vecteur $2C2F)
 tok_ctrl08:
         jsr     putchar
         lda     #$00
         rts
 
-; token $09 : rend l'objet $16 (variante $74)
+; Token $09 : affiche l'objet $16 (variante)
 tok_obj16:
         lda     #$01
         sta     nest
@@ -3638,7 +3638,7 @@ L4590:  jsr     nested_render
         lda     #$00
         rts
 
-; token $0B : recurse render_text sur offset signe (octet suivant, queues partagees)
+; Token $0B : reaffiche un texte a l'offset signe qui suit, puis revient (queues de messages partagees)
 tok_recurse:
         jsr     L46E9
         inc     tidx
@@ -3652,7 +3652,7 @@ tok_recurse:
         lda     #$00
         rts
 
-; token $0C : pronom his ($0548->$0A48) si $C5, your ($0C12->$1112) sinon
+; Token $0C : pronom possessif 'his' si l'objet $C5 existe, 'your' sinon
 tok_pronC5:
         lda     obj
 L45B2:  beq     L45BF
@@ -3670,12 +3670,12 @@ L45BF:  lda     #$12
         lda     #$01
         rts
 
-; token $0E : idem tok_pronC5 avec $15
+; Token $0E : meme chose que $0C mais pour l'objet $15
 tok_pron15:
         lda     arg1
         jmp     L45B2
 
-; token $10 : nom objet $C5 ($05B2=is si absent, $0958=someone si $FF)
+; Token $10 : nom de l'objet $C5 ('is' si absent, 'someone' si $FF)
 tok_nameC5:
         lda     obj
         pha
@@ -3700,14 +3700,14 @@ L45E9:  lda     #$BE
         lda     #$01
         rts
 
-; token $11 : idem avec $15 et variante $70=1
+; Token $11 : nom de l'objet $15 (variante imbriquee)
 tok_name15:
         lda     arg1
         pha
         lda     #$01
         jmp     L45D4
 
-; token $13 : empile L466F ($76) puis nom objet ($45D4)
+; Token $13 : nom de l'objet dont l'adresse est empilee
 tok_nameSTK:
         ldx     msgstk
         lda     L466F,x
@@ -3717,7 +3717,7 @@ tok_nameSTK:
         lda     #$01
         jmp     L45D4
 
-; rend le message imbrique ($5C/$5D) : pile $0200 ($5535)
+; Affiche un message imbrique en sauvant/restaurant l'etat de rendu (pile $0200)
 nested_render:
         jsr     L4702
         lda     ptr
@@ -3727,7 +3727,7 @@ nested_render:
         jsr     L5535
         jmp     L471E
 
-; id objet -> mot : $FF=someone ($0958), sinon rendu $458A
+; Identifiant d'objet -> mot : $FF = someone, sinon nom de l'objet
 obj_lookup:
         cmp     #$FF
         beq     L4622
@@ -3739,7 +3739,7 @@ L4622:  lda     #$58
         sta     adr_hi
         jmp     word_render
 
-; octet $60-7F -> mot courant de la table $1117 (the/a/and/you/to/...)
+; Traduit un octet $60-7F en mot courant via la table $1117 (the/a/and/you/to/...)
 common_lookup:
         sec
         sbc     #$60
@@ -3753,7 +3753,7 @@ common_lookup:
         sta     adr_hi
         jmp     L4469
 
-; table des 32 tokens <$20 : <$14 sous-routines (Z=saute $4241), $14/15/16=fins
+; Table des 32 tokens <$20 : tokens <$14 = sous-routines (retour Z = saute word_render), $14/$15/$16 = fins
 token_jumps:
         cmp     $44
         sbc     $44,x
@@ -3822,7 +3822,7 @@ L46CD:  lda     $28BC,x
         sta     adr_hi
         jmp     word_render
 
-; putchar + Z si $0D (token $0D = CR inline, saute $4241)
+; Affiche un caractere ; retour Z si c'est un retour a la ligne $0D
 cr_aware_out:
         jsr     putchar
         cmp     #$0D
@@ -3876,7 +3876,7 @@ L471E:  sta     svA
         lda     svA
         rts
 
-; copie 2 octets de la pile ($0200+$AF-2) en $8A/$8B
+; Copie sur $8A/$8B l'adresse de retour empilee (routine appelee par JSR)
 fetch_retaddr:
         sta     svA
         stx     svX
@@ -3892,7 +3892,7 @@ fetch_retaddr:
         lda     svA
         rts
 
-; illustration de la cle A (table $7AC0) : vec_init + keyin, Z si absente
+; Affiche l'illustration associee a la cle A (table $7AC0) ; retour Z si absente
 img_show:
         pha
         lda     ptr_block3
@@ -4377,7 +4377,7 @@ L4C6D:  pha
 L4C80:  pla
         rts
 
-; 1 si sombre : balaie etats $1A62, objet au lieu du joueur avec +4 bit7 et +7 ($08/$04/$40 poses, $10 clair) = lumiere (epee $0E) ; sinon 'IT IS DARK.'
+; Renvoie 1 si le lieu est sombre : aucune source de lumiere allumee (bit7 de +4, ou +7=$08/$04/$40) dans un objet porte ; sinon affiche 'IT IS DARK.'
 is_dark:jsr     L46E6
         ldy     #$04
         lda     (crec),y
@@ -4623,7 +4623,7 @@ L4E49:  sta     L4DF5
         jmp     L4E17
 
 L4E58:  .byte   $1A
-; apres commande reussie : L46E6, L69E7, VM entites, table $2B12
+; Fait vivre le monde apres une commande : entites (VM), evenements differes $2B12
 world_tick:
         jsr     L46E6
         jsr     L69E7
@@ -4637,7 +4637,7 @@ world_tick:
         sta     ptr2
         lda     #$2B
         sta     ptr2_hi
-; balaye $2B12 : cpt--, re-arme, dispatch actB via $7169
+; Balaye la table $2B12 : decremente les compteurs, re-arme et declenche les actions
 evt_tick:
         ldy     #$00
         lda     (ptr2),y
@@ -4659,7 +4659,7 @@ evt_tick:
         ldy     #$02
         jmp     evt_fire
 
-; si cond<>0 et cond>=cpt : dispatch entree+4 (L4EAB)
+; Si la condition est armee et que cpt l'atteint : execute l'action de l'entree
 evt_cond:
         ldy     #$03
         lda     (ptr2),y
@@ -4668,7 +4668,7 @@ evt_cond:
         cmp     (ptr2),y
         bcc     L4EBE
         ldy     #$04
-; patch L4C64/L4C65 depuis $7169+X*2 puis jsr L4C5D
+; Ecrit l'action a executer depuis la table $7169 puis l'appelle (L4C5D)
 evt_fire:
         lda     (ptr2),y
         asl     a
@@ -4686,14 +4686,14 @@ L4EBE:  lda     ptr2
         inc     ptr2_hi
 L4EC9:  jmp     evt_tick
 
-; fin de table ($FF) : $0B=1 puis jmp $471B
+; Fin de la table ($FF) : signale la fin ($0B=1) et sort
 evt_end:lda     #$01
         sta     outen
         jmp     L471B
 
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
-; VM : entree 7 o $2B45 ([id,?,PC,..]), <=6 opcodes/tick (nibble bas)
+; Fait tourner une entite (machine virtuelle) : execute jusqu'a 6 opcodes par tick
 entity_tick:
         jsr     code_5235
         lda     #$45
@@ -4867,7 +4867,7 @@ L5008:  lda     #$00
         rts
 
 L501E:  lda     #$04
-; avance PC script $8C de A
+; Avance le pointeur de script $8C de A octets
 script_adv:
         clc
         adc     $8C
@@ -4876,10 +4876,10 @@ script_adv:
         inc     $8D
 L5029:  rts
 
-; +4 (bit $10:+2), reecrit PC dans l'entree
+; Avance le pointeur de script de 4 (+2 si le bit $10 est pose)
 script_step4:
         lda     #$04
-; +2 (bit $10:+2), reecrit PC dans l'entree
+; Avance le pointeur de script de 2 (+2 si le bit $10 est pose)
 script_step2:
         jsr     script_adv
         ldy     #$00
@@ -5008,7 +5008,7 @@ L5105:  ldy     #$00
         sta     $8C
         jmp     L4F63
 
-; mouvement entite ($13/$15/$16), message si visible
+; Deplace une entite ($13/$15/$16) et affiche sa sortie si elle est visible
 entity_move:
         jsr     L46E9
         jsr     move_core
@@ -5169,7 +5169,7 @@ code_5235:
 L5245:  sta     L4ED4
         rts
 
-; positionne PC entite depuis ($8A)+1..2
+; Positionne le pointeur de script d'une entite depuis ($8A)+1..2
 entity_goto:
         jsr     L46E6
         jsr     L520D
@@ -5199,7 +5199,7 @@ entity_goto:
         sta     (ptr2),y
 L5276:  jmp     L471B
 
-; message (msg_52C6 patche) si entite au lieu du joueur
+; Affiche un message si l'entite partage le lieu du joueur
 say_if_visible:
         cmp     #$FF
         beq     code_52C8
@@ -5373,7 +5373,7 @@ L5374:  pha
         pla
         rts
 
-; sonde : $0C==1 execute, sinon $12=1 et annule un niveau
+; Mode sonde : soit execute (phase 1), soit annule et signale la reussite ($12=1)
 act_probe:
         lda     phase
         cmp     #$01
@@ -5819,7 +5819,7 @@ L56D1:  lda     #$00
         jmp     L471B
 
 L56D6:  .byte   $C0
-; tirage pseudo-aleatoire borne par A (bruit ($93))
+; Tirage pseudo-aleatoire borne par A (source de bruit $93)
 rand_range:
         and     #$7F
 L56D9:  sta     L570F
@@ -6405,7 +6405,7 @@ L5B1B:  ldy     #$07
         cmp     #$40
         rts
 
-; message d'action $13E8 + epilogue
+; Affiche le message d'action $13E8 puis execute l'epilogue
 act_msg:jsr     print_msg
 ; -> $13E8 <OBJ>SAY '
 msg_5B27:
@@ -6643,7 +6643,7 @@ L5CA3:  php
         plp
         rts
 
-; objet $15 : test flags ($64D7/$5C88) puis prise/pose
+; Objet $15 : teste ses drapeaux puis le prend ou le pose
 act_p14_04:
         lda     arg1
         jsr     L5331
@@ -6651,7 +6651,7 @@ act_p14_04:
         bne     act_p14_14
         jmp     L5A9D
 
-; objet $C5 : test flags ($5C88) puis bascule $46E9
+; Objet $C5 : teste ses drapeaux puis bascule son etat
 act_p14_14:
         lda     obj
         jsr     L5C88
@@ -6698,7 +6698,7 @@ msg_5D03:
 code_5D05:
         rts
 
-; objet : seuil ($8A)+2, deplace et fixe $13/$15
+; Objet : compare a un seuil (($8A)+2), le deplace et fixe $13/$15
 act_p14_05:
         jsr     L576D
 L5D09:  cmp     #$FF
@@ -6821,7 +6821,7 @@ L5DCB:  jsr     act_probe
         beq     evt_lookup
         rts
 
-; dispatch $8F via table $709F (cles->$70CB..) sinon $5DFD
+; Trouve l'evenement associe a la cle $8F (table $709F), sinon $5DFD
 evt_lookup:
         ldx     #$9F
         ldy     #$70
@@ -7168,7 +7168,7 @@ code_6027:
 
 L6040:  rts
 
-; flags objet ($19) : bits 0-2, dit $11D3 (swept away) / $13D1 (X dead)
+; Drapeaux de l'objet ($19) bits 0-2 : affiche 'swept away' ($11D3) ou 'X dead' ($13D1)
 act_p14_13:
         jsr     L5BBB
         lda     orec
@@ -7239,7 +7239,7 @@ L609A:  lda     #$05
         sta     (ptr),y
         lda     #$01
         bne     L60C4
-; consomme compteur ($C6)+5, RAZ 16 o ; dit $1525 (gluttony KILLED)
+; Combat : applique les degats, consomme le compteur puis affiche 'KILLED' ($1525)
 act_p14_00:
         jsr     act_probe
         lda     #$0A
@@ -7270,7 +7270,7 @@ code_60E8:
         lda     obj
         jmp     code_4D47
 
-; deplacement objet (bits $78), ecrit $75/$70/$5C/$5D
+; Deplacement de l'objet (bits de $78), ecrit les pointeurs de rendu $75/$70/$5C/$5D
 act_p14_01:
         lda     orec
         sta     ptr
@@ -7384,7 +7384,7 @@ L61A3:  ldy     #$07
 L61C4:  lda     #$83
         jmp     L5A9D
 
-; objet ($17) : bit5 de ($8A)+7 -> 0 ; sinon $5A9D
+; Objet ($17) : remet a 0 le bit5 de ($8A)+7, sinon branche $5A9D
 act_p14_02:
         lda     orec
         sta     ptr
@@ -7401,7 +7401,7 @@ L61DC:  ldy     #$07
         sta     (ptr),y
         rts
 
-; objet $16 : lit bit5 de ($88)+7, branche $5A90
+; Objet $16 : lit le bit5 de ($88)+7 et branche a $5A90
 act_p14_07:
         jsr     L5BBB
         lda     arg2
@@ -7435,7 +7435,7 @@ L620B:  jsr     act_probe
         lda     arg1
         jmp     L5612
 
-; bit5 ($8A)+7 -> 1 ; si id==1 fete $580F (CHEERING CROWD...SUNSET)
+; Pose le bit5 de ($8A)+7 ; si id==1, declenche la fete ($580F : foule en liesse... coucher de soleil)
 act_p14_03:
         jsr     L5A70
         beq     L622A
@@ -7848,7 +7848,7 @@ L64F4:  lda     #$02
         .byte   $6B,$0B,$4C,$B5,$2B,$10,$D8,$02
         .byte   $A0,$10,$B1,$C6,$C9,$10,$F0,$03
         .byte   $4C,$62,$5A
-; jsr $6222 + $4D95 puis cpt e3 := id (orphelin)
+; Arme l'evenement e3 (cpt := id) apres avoir appele $6222 et $4D95
 evt_arme3:
         jsr     act_p14_03
         jsr     L4D95
@@ -7857,11 +7857,11 @@ evt_arme3:
         rts
 
         .byte   $A9,$02,$D0,$06
-; dispatcher objet $16 (cas $0F) -> $65DD/$641D/$6448
+; Repartit l'objet $16 (cas $0F) vers $65DD/$641D/$6448
 act_p14_12:
         lda     #$0F
         bne     L65BC
-; dispatcher objet $16 (cas $04) -> $65DD/$4C57
+; Repartit l'objet $16 (cas $04) vers $65DD/$4C57
 act_p14_08:
         lda     #$04
 L65BC:  cmp     arg2
@@ -7882,7 +7882,7 @@ L65CC:  lda     arg2
         beq     act_p14_06
         jmp     L4C57
 
-; dit $140C (X do not fit this lock) sinon $139B (i cannot do that)
+; Affiche 'X do not fit this lock' ($140C), sinon 'i cannot do that' ($139B)
 act_p14_06:
         jsr     print_msg
 ; -> $140C <ARG2>DO NOT FIT THIS LOCK
@@ -7898,7 +7898,7 @@ code_65E2:
         sta     ptr_hi
         jmp     L622D
 
-; si ($C6)+16==$0F -> $6222 sinon $5A62
+; Si ((crec)+16)==$0F saute a $6222, sinon a $5A62
 act_p14_10:
         lda     crec
         sta     ptr
@@ -7996,7 +7996,7 @@ msg_6686:
 code_6688:
         rts
 
-; desarme e6 (cpt:=0) + pose bit7 ($1CCB, ($C6)+7/+5)
+; Desarme l'evenement e6 (cpt := 0) et pose son bit de drapeau
 evt_disarme6:
         jsr     act_probe
         ldy     #$07
@@ -8015,7 +8015,7 @@ evt_disarme6:
         sta     $2B31
         rts
 
-; arme e6 : cpt := 2+rand(8) (delai aleatoire)
+; Arme l'evenement e6 : cpt := 2 + aleatoire(8) (delai aleatoire)
 evt_arme6:
         jsr     act_probe
         ldy     #$07
@@ -8039,7 +8039,7 @@ evt_arme6:
         sta     $2B31
         rts
 
-; dit $1478 (spiders mend the web) + arme e1 (cpt:=id)
+; Affiche 'spiders mend the web' ($1478) et arme l'evenement e1
 act_p14_11:
         ldy     #$07
         lda     (orec),y
@@ -8119,7 +8119,7 @@ code_66F0:
         .byte   $00,$85,$0B,$A9,$13,$20,$13,$57
         .byte   $A9,$01,$85,$0B,$A9,$20,$8D,$B8
         .byte   $1D,$A9,$13,$8D,$A9,$1D,$60
-; si meme lieu ($C9==$C8) : sonde + dit $143F (hello)
+; Si au meme lieu que le joueur : affiche 'hello' ($143F)
 act_v14_06:
         lda     eloc
         cmp     ploc
@@ -8134,7 +8134,7 @@ msg_68DD:
 code_68DF:
         rts
 
-; oisivete : $1432 (great job) / $143B (hurry up) / $143F (hello)
+; PNJ oisif : 'great job' ($1432) / 'hurry up' ($143B) / 'hello' ($143F)
 act_v14_01:
         jsr     act_probe
         lda     #$02
@@ -8171,7 +8171,7 @@ code_6901:
         sta     $1CF3
         rts
 
-; sonde + dit $1441 (thrains key)
+; Affiche 'thrains key' ($1441)
 act_v14_02:
         jsr     act_probe
         jsr     act_msg
@@ -8181,7 +8181,7 @@ msg_6912:
 code_6914:
         rts
 
-; sonde + tirage : ~20% dit $1485 (expect me) ; orphelin
+; Sonde et tirage : ~20% de chance d'afficher 'expect me' ($1485)
 evt_tip:jsr     act_probe
         lda     #$0A
         jsr     rand_range
@@ -8201,7 +8201,7 @@ msg_692A:
 code_692C:
         rts
 
-; sonde + dit $1427 (WHAT'S this ?)
+; Affiche 'WHAT'S this ?' ($1427)
 act_v14_00:
         jsr     act_probe
         jsr     act_msg
@@ -8211,7 +8211,7 @@ msg_6933:
 code_6935:
         rts
 
-; tirage 0-7 : $4D9E + dec ($14), message $143B
+; Tirage 0-7 : appelle $4D9E, decremente ($14) et affiche $143B
 act_v14_04:
         jsr     act_probe
         lda     #$08
@@ -8242,7 +8242,7 @@ msg_695F:
 code_6961:
         rts
 
-; si meme lieu et !($1B21&$80) : dit $14AB (WHERE'S the thief ?)
+; Si au meme lieu et que le bit7 de $1B21 est clair : affiche 'WHERE'S the thief ?' ($14AB)
 act_v14_03:
         lda     eloc
         cmp     ploc
@@ -8262,7 +8262,7 @@ msg_6977:
 code_6979:
         rts
 
-; si $C8==$1DE0 : sonde, $4D9E, ror ($14)
+; Si $C8==$1DE0 : appelle $4D9E et ajuste ($14)
 act_v14_05:
         jsr     act_probe
         lda     ploc
@@ -8363,7 +8363,7 @@ code_6A0F:
         beq     evt_disarme7
         rts
 
-; si $C5==0 : $C4:=1 + desarme e7 (cpt:=cond=0)
+; Si $C5 vaut 0 : pose $C4:=1 et desarme l'evenement e7
 evt_disarme7:
         lda     #$01
         sta     $C4
@@ -8493,7 +8493,7 @@ L6AE3:  lda     #$64
         cmp     #$32
         rts
 
-; jsr $4D95, cpt e9 := 6, flags $1C7B, jmp $6D72
+; Arme l'evenement e9 (cpt := 6), pose les drapeaux $1C7B, saute a $6D72
 evt_arme9b:
         jsr     L4D95
         lda     #$06
@@ -8572,7 +8572,7 @@ msg_6B63:
 code_6B65:
         rts
 
-; cpt e5 := id + dit $168B (magic door) ; orphelin
+; Arme l'evenement e5 (cpt := id) et affiche 'magic door' ($168B)
 evt_arme5:
         lda     $2B2B
         sta     $2B2C
@@ -8583,7 +8583,7 @@ msg_6B6F:
 code_6B71:
         rts
 
-; si $C5==$41 : parcourt ($C1), dit $13E0/$15AB (go...from...to)
+; Si $C5==$41 : parcourt la table ($C1) et affiche 'go...from...to' ($13E0/$15AB)
 act_p14_09:
         lda     obj
         cmp     #$41
@@ -8670,7 +8670,7 @@ msg_6C06:
 code_6C08:
         rts
 
-; si $1E4B==$C8 et ($1B21&$80) : message patche ($6C2C)
+; Gollum : si $1E4B==$C8 et drapeau pause, affiche un message (patche)
 act_v14_12:
         lda     $1E4B
         cmp     ploc
@@ -8698,7 +8698,7 @@ code_6C2E:
         sta     $D5
         rts
 
-; one-shot ($CE==1) : RAZ $CE, $3F7F, copie $14/$15 en $2A7B
+; One-shot (verrou $CE==1) : remet $CE a zero et copie $14/$15 vers $2A7B
 act_v14_11:
         lda     once
         cmp     #$01
@@ -8724,7 +8724,7 @@ L6C46:  lda     #$00
         sta     $2A7A
         rts
 
-; actB e4 : si $C8==$1D dit $1535 (bog) sinon desarme e4
+; Action de l'evenement e4 : si au marais ($C8==$1D) affiche $1535, sinon desarme e4
 evt_act5:
         lda     ploc
         cmp     #$1D
@@ -8758,7 +8758,7 @@ msg_6C8A:
 code_6C8C:
         rts
 
-; si $C8 in {27,2C,29} : sonde + dit $13F6 (X enter)
+; Si $C8 vaut 27, 2C ou 29 : affiche 'X enter' ($13F6)
 act_v14_09:
         lda     ploc
         cmp     #$27
@@ -8789,7 +8789,7 @@ msg_6CBB:
 code_6CBD:
         rts
 
-; meme lieu : $153F (dragon : prepare to die) ou $155D (aveugle) si $80
+; Dragon au meme lieu : 'PREPARE TO DIE' ($153F) ou 'aveugle' ($155D)
 act_v14_10:
         lda     ploc
         cmp     eloc
@@ -8814,7 +8814,7 @@ msg_6CD8:
 code_6CDA:
         rts
 
-; si meme lieu : sonde, wid=$1B/arg1=0, $60BF + JMP $5FAE
+; Si au meme lieu : simule un combat (wid=$1B/arg1=0) puis saute a $5FAE
 act_v14_16:
         lda     eloc
         cmp     ploc
@@ -8832,7 +8832,7 @@ L6CE2:  jsr     act_probe
         jsr     act_p14_00
         jmp     L5FAE
 
-; si meme lieu : prend l'objet $1FC1 (id $1FB2=41)
+; Si au meme lieu : prend l'objet $1FC1 (id 41)
 act_v14_07:
         lda     eloc
         cmp     ploc
@@ -8902,7 +8902,7 @@ L6D5D:  lda     $2B3F
         beq     evt_print
         rts
 
-; dit $1685 (hole vanish) ; queue du sub $6AEB
+; Affiche le trou qui disparait ($1685)
 evt_print:
         jsr     print_msg
 ; -> $1685 THE HOLE VANISH.
@@ -8911,7 +8911,7 @@ msg_6D75:
 code_6D77:
         rts
 
-; si $C8==$1E4B : tirage, $16B9 (pocket ?) / $16C8 (my precious)
+; Gollum et l'Anneau : si $C8==$1E4B, tirage entre 'pocket?' ($16B9) et 'my precious' ($16C8)
 act_v14_14:
         lda     ploc
         cmp     $1E4B
@@ -9003,7 +9003,7 @@ L6DEF:  lda     ploc
 L6DF6:  cmp     #$1C
         rts
 
-; cherche lieu $3485, RAZ $D5, dit $15B6 (strangle you)
+; Cherche un lieu, remet $D5 a zero et affiche 'strangle you' ($15B6)
 act_v14_13:
         jsr     act_probe
         lda     #$00
@@ -9061,7 +9061,7 @@ L6E51:  jmp     L667C
         sta     $C4
         rts
 
-; si $1F47!=$29 : tirage 0-100, $1582 (dragon flying) / $1596 (burn you)
+; Smaug : si $1F47!=$29, tirage 0-100 entre 'dragon flying' ($1582) et 'burn you' ($1596)
 act_v14_08:
         lda     $1F47
         cmp     #$29
@@ -9096,7 +9096,7 @@ msg_6E86:
 code_6E88:
         jmp     L5FAE
 
-; si $C8==5 : sonde, $C5==$47 ? $1615 (BLIMEY, COOK EM) : $162B (MOUTHFUL) [trolls]
+; Trolls au lieu 5 : si $C5==$47 affiche 'BLIMEY, COOK EM' ($1615), sinon 'MOUTHFUL' ($162B)
 act_v14_15:
         lda     ploc
         cmp     #$05
@@ -9121,7 +9121,7 @@ msg_6EA4:
 code_6EA6:
         rts
 
-; sonde + L4D47 ($47/$48), RAZ bit7 $1F94/$1FA6, $214C&~$40, desc $2154=$1645, dit $16EB
+; Efface des drapeaux ($1F94/$1FA6), met a jour une description de lieu et affiche $16EB
 act_v14_17:
         jsr     act_probe
         lda     #$47
@@ -9423,7 +9423,7 @@ L7015:  .byte   $FF,$BF
         .byte   $D9
         .byte   "p"
         .byte   $FF
-; si ($1DC5&8) : $2B61:=$42 (entite) + bit7 (cle $16)
+; Cle $16 : si le drapeau $1DC5 vaut 8, place une entite ($2B61:=$42) et arme
 evt_arme16:
         lda     $1DC5
         and     #$08
@@ -9437,19 +9437,19 @@ L70BD:  lda     #$42
         sta     $1DC5
         rts
 
-; cpt e2 := id (cle $1A, table $709F)
+; Arme l'evenement e2 (cpt := id) ; cle $1A
 evt_arme2:
         lda     $2B1C
         sta     $2B1D
         rts
 
-; cpt e4 := id (cle $1D)
+; Arme l'evenement e4 (cpt := id) ; cle $1D
 evt_arme4:
         lda     $2B26
         sta     $2B27
         rts
 
-; cpt e9 := 3 + ecrit entites $2B76/$2B7D (cle $20)
+; Arme l'evenement e9 (cpt := 3) et ecrit les entites $2B76/$2B7D ; cle $20
 evt_arme9:
         lda     #$03
         sta     $2B40
@@ -9467,7 +9467,7 @@ L70F2:  lda     #$46
         sta     $2B76
         rts
 
-; $BE:=$8F + cpt e8 := id (cles $02/$03)
+; Cle $02/$03 : copie $8F dans $BE et arme l'evenement e8
 evt_arme8:
         lda     key
         sta     exploc
@@ -9475,7 +9475,7 @@ evt_arme8:
         sta     $2B3B
         rts
 
-; $1B1B==$13 ? $5DFD + print (cle $21)
+; Cle $21 : si $1B1B vaut $13, declenche $5DFD et affiche
 evt_gate21:
         lda     $1B1B
         cmp     #$13
@@ -9541,7 +9541,7 @@ L71CB:  lda     $024D
         jsr     code_72FC
         jmp     L71E8
 
-; LOAD bloc cassette via $0417 + verif $32/$33
+; Charge un bloc cassette via le loader ROM $0417 et verifie l'en-tete
 tape_load:
         lda     $024D
         sta     $6C
@@ -9576,7 +9576,7 @@ L720A:  jsr     L46E6
         jsr     ch_out
         jmp     L471B
 
-; SAVE : leader, en-tete 9 o, donnees, checksum EOR
+; Ecrit un bloc cassette : leader, en-tete (9 o), donnees, checksum EOR
 tape_save:
         jsr     L720A
         lda     $024D
@@ -9650,7 +9650,7 @@ L729B:  jsr     print_msg
 ; -> $72C5 REWIND TAPE FOR VERIFICATION
 msg_729E:
         .word   $72C5
-; invites PREPARE TAPE / REWIND / PRESS ANY KEY
+; Affiche les invites 'PREPARE TAPE' / 'REWIND' / 'PRESS ANY KEY'
 tape_prompt:
         jsr     print_msg
 ; -> $72E3 PRESS ANY KEY WHEN READY
@@ -9719,7 +9719,7 @@ L733B:  lda     $37
 L7351:  sec
         rts
 
-; scan clavier VIA ; A = touche bit7=presente, sinon bit7=0
+; Scanne le clavier ; A = touche si le bit7 est pose, sinon bit7=0 (pas de touche)
 kb_scan:stx     $1E
         sty     $1F
         lda     #$FF
@@ -9848,20 +9848,20 @@ L7472:  sta     $0301
         rts
 
         .byte   "`"
-; attente bloquante d'une touche (BPL) ; retour & $7F
+; Attend une touche (bloquant) et renvoie son code sans le bit7
 kb_wait:jsr     kb_scan
         bpl     kb_wait
         and     #$7F
         rts
 
-; affiche CR ($0D) via ch_out
+; Affiche un retour a la ligne ($0D)
 cr_out: pha
         lda     #$0D
         jsr     ch_out
         pla
         rts
 
-; filtres $0B/$0C/$0D/$C4 (capitales) puis rendu
+; Point d'entree d'affichage : filtre certains codes et passe au rendu ecran
 ch_out: pha
         lda     phase
         and     outen
@@ -10030,7 +10030,7 @@ L75AB:  dec     L0000
         cmp     #$29
         rts
 
-; rend un caractere en hires $A000 (font ($0403), ORA $40)
+; Dessine un caractere en mode hires ($A000) avec la police ROM
 glyph_out:
         ldx     L0000
         ldy     $01
@@ -10068,7 +10068,7 @@ L75F0:  iny
         bne     L75DB
         rts
 
-; sortie ecran : gere CR, scroll, pause bas d'ecran via kb_scan
+; Affiche un caractere : gere retour a la ligne, scroll et pause de bas d'ecran
 ch_put: sta     $02
         pha
         txa
@@ -10088,7 +10088,7 @@ L7607:  lda     #$20
 L7613:  lda     $02
         cmp     #$0D
         bne     L7653
-; toutes les 16 CR ($11) : touche (10 essais timeout) + relachement, sinon $11++
+; Toutes les 16 lignes, attend une touche (avec delai) pour pause, sinon incremente le compteur
 pause_key:
         lda     #$00
         sta     sppend
@@ -10251,7 +10251,7 @@ L7736:  lda     $030D
 L7745:  pla
         rts
 
-; remplit $A000-$BFDF de $40
+; Efface l'ecran hires $A000-$BFDF (remplit de $40)
 hires_clear:
         lda     #$00
         sta     L7756
@@ -10278,7 +10278,7 @@ L7772:  sta     $BF3F,y
         bne     L7772
         rts
 
-; boucle principale du jeu (atteinte via JMP vec_15)
+; Boucle principale du jeu (atteinte via le vecteur vec_15)
 game_main:
         lda     #$1E
         sta     $BFDF
@@ -10324,7 +10324,7 @@ L77B6:  dex
 
 L77CA:  .byte   "aZDZa"
 L77CF:  .byte   "aVHVa"
-; dessine une illustration (($28/$29)) : setup L7990 puis boucle dispatch
+; Dessine une illustration : prepare l'ecran ($7990) puis interprete le flux de trace
 vec_image:
         stx     $28
         sty     $29
@@ -10369,7 +10369,7 @@ L781D:  inc     $28
         inc     $29
 L7823:  rts
 
-; remplissage ($40) : balayage L79FB/L7A0F sur compteurs $32-$36
+; Remplissage : balaye la zone avec la couleur $40 sur les compteurs $32-$36
 vec_fill:
         tsx
         stx     $32
@@ -10458,7 +10458,7 @@ L78C0:  lda     $33
         sta     $31
         rts
 
-; $08 : pose le curseur $30/$31 (2 o)
+; Instruction $08 : place le curseur en $30/$31 (2 octets)
 vec_pos:jsr     L781D
         ldy     #$00
         lda     ($28),y
@@ -10468,7 +10468,7 @@ vec_pos:jsr     L781D
         sta     $31
         rts
 
-; $20 : saute jusqu'a $FF (repris comme L78E4)
+; Instruction $20 : saute jusqu'a l'octet $FF
 vec_skip:
         jsr     L781D
         lda     ($28),y
@@ -10476,7 +10476,7 @@ vec_skip:
         bne     vec_skip
         rts
 
-; bit7 : segment (2 o : flags+longueur, pas) ; pixel par pixel (lent)
+; Instruction de trace : segment (bit7, 2 o : drapeaux+longueur, pas), dessine pixel par pixel
 vec_line:
         lda     ($28),y
         and     #$01
@@ -10580,7 +10580,7 @@ L798B:  dec     $2E
         bpl     L7958
         rts
 
-; efface hires $A000-$B3FF ($40) + aplats depuis l'octet mode
+; Efface l'ecran hires $A000-$B3FF et applique les aplats selon l'octet de mode
 vec_setup:
         pha
         lda     #$A0
@@ -10643,7 +10643,7 @@ L79E4           := * + 2
         bne     L79E2
         rts
 
-; teste le pixel ($30/$31) : $FF si hors bande $0E-$F2
+; Teste la validite du pixel ($30/$31) : renvoie $FF hors des bornes $0E-$F2
 vec_testpx:
         lda     $30
         cmp     #$0E
@@ -10657,7 +10657,7 @@ vec_testpx:
 L7A0C:  lda     #$FF
         rts
 
-; allume le pixel ($30/$31) via ($38/$39)+masque L7A5F
+; Allume le pixel ($30/$31) via la ligne ($38/$39) et le masque L7A5F
 vec_plot:
         lda     $30
         cmp     #$0E
@@ -10669,7 +10669,7 @@ vec_plot:
         sta     ($38),y
 L7A21:  rts
 
-; adresse+masque du pixel ($30/$31) : X=$7F-$31, Y=$37
+; Calcule l'adresse et le masque du pixel ($30/$31) dans l'ecran hires
 vec_addr:
         lda     #$02
         sta     $38
