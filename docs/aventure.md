@@ -530,3 +530,25 @@ Checkpoint `sav/win.bin`. **Parcours complet reproductible** (dans l'ordre) :
 **Mécaniques clés** : ordres PNJ `SAY TO <PERS> "<ORDRE>"` (guillemets
 doubles) ; `WEAR RING` = invisibilité ~3-4 tours (re-porter) ; tonneau
 flottant ; araignées = WAIT×2 ; Bard conduit au dragon et tire.
+
+### Séance 12 (Gollum) — riddle déclenché dynamiquement (env. `$3D`)
+Depuis `sav/ring.bin` (Anneau en poche, lieu `$3D` où Gollum **rôde**), suite
+`WAIT` **déterministe** (6 essais identiques) :
+- `w3` `Gollum enters.`
+- `w4` `Gollum says "My birthday present, how did we loses it, my
+  preciouss."` = **`act_v14_14`** (`$6D78`) : tirage `rand_range 8` < 4 **et**
+  `$1CC5`≠`$44` (Anneau chez le joueur) → msg `$16C8`.
+- `w5` **`Gollum takes the valuable golden ring.`** → **Gollum REPREND
+  l'Anneau** (danger réel : ne pas s'attarder à `$3D`).
+- `w6` énigme complète : `Gollum says "It cannot be seen, cannot be felt /
+  Cannot be heard, cannot be smelt / it lies behind stars and under hills, /
+  And empty holes it fills. / It comes first and follows after, ends life,
+  kills laughter."` (le « noir »).
+- Variante `$16B9` observée : `Gollum says "What has it got in its
+  pockets?"` (tirage ≥ 4, ou Anneau encore chez Gollum).
+- **Au lac `$11`** sans avoir l'Anneau en poche/à portée : `Gollum enters.`
+  → **`The horrible goblin captures you.` → donjon gobelin `$0D`**
+  (`act_v14_12`, message patché depuis la donnée de l'entité).
+Checkpoint `sav/gollum_riddle.bin`. Conclusion : `act_v14_14` n'est **pas**
+un simple tirage décoratif : séquence dialogue + **vol de l'Anneau** + énigme,
+toute la chaîne `$16B9-$1721` est du Gollum.
