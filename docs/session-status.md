@@ -575,3 +575,32 @@ Commandes utiles :
   `$04`=`key` ; `docs/aventure.md` séance 11 ; §2 `savegame-memory-map.md`.
 - **Suivant** : franchir le labyrinthe noir Elvenking (`$1E/$1F/$20`) avec
   l'épée → cellier `$20` → tonneaux → Lac → Montagne → dragon.
+
+### Séance 11 (suite) — donjon éclairé, cellier, trappe (reprise)
+- **Épée = lumière confirmée en jeu** : à `$1F` (donjon Elvenking), plus de
+  `IT IS DARK.` (vs séance 9). Checkpoints : `dungeon_sword.bin` ($1F),
+  `cellar_sword.bin` ($20), `forestriver.bin`.
+- **Route rejouable** (depuis `sav/sword.bin`, $07 ; `pad≈20` requis pour
+  la capture autour du warg) :
+  `S S SE E E E E NE` → `$18` (porte Mirkwood, **warg vicieux**) → `E`
+  → `$19` « bewitched gloomy place » → `E` → capture → téléport `$1F`.
+  Puis `LOOK` (déclenche « Someone opens the red door. ») → `SW` → `$20`.
+  Au cellier : `OPEN TRAP DOOR` → `DOWN` → « You are at Forestriver ».
+- **Donjon `$1F`** : porte rouge verrouillée (cond `$08`, clé rouge du
+  butler `$42`). Mouvements bloqués hors fenêtre porte rouge. `LOOK`+`SW`
+  ouvre la fenêtre.
+- **Cellier `$20`** (pas d'éjection ici, actions multiples) : `OPEN BARREL`
+  (montre le vin), `BREAK BARREL` (« a barrel is broken »), `DRINK WINE`
+  (ivre + capturé → `$1F`), `OPEN TRAP DOOR`, `DOWN`→ Forestriver.
+  `ENTER BARREL` refusé.
+- **À trancher** : `forestriver.bin` (ploc `$01`) rebondit au hall au tick
+  suivant (`LOOK` ultérieur = hall au coffre). Forestriver réel ou artefact ?
+- **Prochaines cibles** : Forestriver/Lac (évasion en tonneau : vider un
+  tonneau puis « entrer »), Montagne `$29`, dragon `$41`. Attention : la
+  couverture memmap reste ~85/290 var ; progresser en jeu (nouveaux lieux)
+  est ce qui fera monter la couverture.
+
+### État toolchain (fin séance 11)
+`check_memmap.py` exit 0 (RÉSULTAT: PROPRE), `check_disasm.py` PROPRE
+(131 routines, 51 ZP), `rebuild.py` byte-identique, git clean. Aucun
+process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
