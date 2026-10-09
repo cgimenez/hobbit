@@ -604,3 +604,17 @@ Commandes utiles :
 `check_memmap.py` exit 0 (RÉSULTAT: PROPRE), `check_disasm.py` PROPRE
 (131 routines, 51 ZP), `rebuild.py` byte-identique, git clean. Aucun
 process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
+
+### Séance 12 — l'Anneau (reprise)
+- **Sortie du donjon elfe = Anneau obligatoire.** `DOWN` cellier et `SWIM`
+  → `$21` Forestriver → mort (courant/portcullis) ; route terrestre
+  `$18→$2E→$02→$03→$2D` → « waterfall » → mort (araignée). Séquence guide :
+  `WEAR RING` continu → `WAIT` (butler ouvre/boit un tonneau) →
+  `CLIMB INTO BARREL` → `WAIT` → **Long Lake `$23`**.
+- États : `$0C` trappe (`+7` `$80`/`$A0`), `$2A` rivière (`+7=$86`),
+  `$27` cond `$21`E→`$22`.
+- **Prochaine étape : obtenir l'Anneau** (caverne gobelins / Gollum `$44`,
+  arg `$10`). Puis araignées → bateau → palais elfe → tonneau → Lac →
+  Montagne `$29` → dragon `$41`.
+- Checkpoints : `sav/sword_rope.bin` (map, large key, sword, rope @ `$07`),
+  `sav/forestriver17.bin` (`$17`). Toolchain PROPRE, git commit à suivre.

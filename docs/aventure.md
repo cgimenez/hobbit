@@ -378,3 +378,34 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
 - Route rejouable jusqu'au cellier (avec le warg à `$18` → `pad`).
   Prochaine cible : Forestriver/Lac (barrel escape ?) → Montagne `$29`
   → dragon `$41`.
+
+## Séance 12 — sortie du donjon elfe = l'Anneau obligatoire (2026-10-09)
+- **`$07` = trolls cave** : prendre aussi `GET ROPE` (« the rope »).
+  Inventaire après : map, large key, sword, rope. Checkpoint
+  `sav/sword_rope.bin`.
+- **Pièges mortels de la zone elfe** (confirmés en jeu) :
+  - `$20` cellier : `OPEN TRAP DOOR` met `$0C+7` `$80`→`$A0` (trappe
+    ouverte = cond `$0C` satisfaite) ; **`DOWN` → `$21` Forestriver**
+    (« the fast river »), puis **mort** « swept forcefully against the
+    portcullis » (courant). Idem **`SWIM`** depuis `$17` Forestriver.
+  - Route **terrestre** `$18 S→$2E E→$02 E→$03 E→$2D` : `$2D` =
+    « the waterfall » → **mort** « Some thing drops from above and stings »
+    (araignée / pale bulbous eyes, event e8 `$6D9F`).
+  - `$17` = « Forestriver » (SE rivière = cond `$2A`, `$2A+7=$86`).
+- **Solution (guide externe Melbourne House)** : la sortie du donjon exige
+  **l'Anneau** (invisibilité). Séquence : `WEAR RING` en continu ;
+  `WAIT` jusqu'à ce que le butler ouvre un tonneau et boive le vin ;
+  `CLIMB INTO BARREL` ; `WAIT` jusqu'à atterrir au **Long Lake `$23`**.
+  Sans l'Anneau le butler capture (`CLIMB INTO BARREL` → capture → `$1F`).
+  Le butler suit un cycle fixe (rouvre la porte rouge régulièrement).
+- **Route amont** (pour atteindre le palais elfe sans capture) : bateau
+  traversant la rivière (`THROW ROPE`, `PULL ROPE`, `CLIMB INTO BOAT`),
+  araignées (`BREAK WEB`), puis `WEAR RING` + `EXAMINE DOOR` (porte
+  magique elfe `$0D+7` bit5) — cf. guide ZX.
+- États ajoutés au repérage : `$0C` = trappe ($80/$A0), `$2A` = rivière
+  (`+7=$86`), `$27` = cond `$21` E→`$22`.
+- **Objectif suivant = l'Anneau** : via la caverne des gobelins / énigme
+  de Gollum (état `$44`, arg `$10` caverne). Puis araignées → bateau →
+  palais elfe → tonneau.
+- Checkpoints : `sav/sword_rope.bin` ($07+rope), `sav/forestriver17.bin`
+  ($17).
