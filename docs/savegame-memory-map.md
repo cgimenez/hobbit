@@ -89,8 +89,8 @@ description (tokens runtime). `+0` vaut aussi `$02 $03 $05 $08`
 | `$0C` | `$1C93` | `$02` | `$FF` | `$F2` | — |
 | `$0D` | `$1D1F` | `$02` | `$FF` | `$F2` | — |
 | `$0E` | `$1CB0` | `$01` | `$FF` | `$45` | `$07` (épée « short strong sword », **source de lumière** `+4`=01x, `+7`=$94) |
-| `$0F` | `$1CDA` | `$01` | `$42` | `$CB` | `$20` |
-| `$10` | `$1CC4` | `$01` | `$FF` | `$59` | `$3D` |
+| `$0F` | `$1CDA` | `$01` | `$42` | `$CB` | `$20` (portée par le butler `$42` → **clé rouge** présumée ; tpl `$CB` = famille « clé » : `$02`,`$04`,`$0F`) |
+| `$10` | `$1CC4` | `$01` | `$FF` | `$59` | `$3D` (**the valuable golden ring**, objet au lieu `$3D` ; carrier=`$00` après GET ; `$1CC5`==`$44` → « pocket ? » dans `act_v14_14`/Gollum) |
 | `$11` | `$1CEC` | `$02` | `$FF` | `$F2` | — |
 | `$12` | `$1D07` | `$01` | `$FF` | `$77` | `$07` |
 | `$13` | `$1D84` | `$01` | `$FF` | `$07` | `$20` |

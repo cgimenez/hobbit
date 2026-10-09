@@ -100,6 +100,7 @@ STATE_IDENTITY: dict[int, str] = {
     0x03: "map",
     0x04: "key",          # the large key (porte par le troll hideux $47 a $05)
     0x0E: "sword",        # the short strong sword (source de lumiere : +4 b7, +7 $94)
+    0x10: "ring",         # the valuable golden ring (cache en $3D ; pocket de Gollum $1CC5<-$44)
     0x26: "lunch",
     0x3E: "gandalf",
     0x41: "dragon",       # presume

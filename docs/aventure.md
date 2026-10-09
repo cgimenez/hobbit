@@ -478,3 +478,19 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
 - Guide complet (Spectrum/BBC, porté) désormais exécutable : ordres PNJ
   OK. Reste à obtenir l'Anneau et enchaîner bateau → araignées → palais
   elfe → tonneau → Lac.
+
+### Séance 12 (suite 4) — ANNEau localisé et pris !
+- **L'Anneau = état `$10`** (`$1CC4`, template `$0859`) = « **the
+  valuable golden ring** », posé au lieu **`$3D`** (dark stuffy passage).
+  Identifié par recoupement statique (`act_v14_14` teste `$1CC5` = carrier
+  de `$10` == `$44` Gollum → « pocket ? ») puis **confirmé en jeu**.
+- Chemin : `sav/lake.bin` ($11) → `N`→`$37` → `SW`→`$3D` : « you see :
+  **the valuable golden ring**. » → `GET RING` → « You take the valuable
+  golden ring. » → carrier `$FF`→`$00`. Inventaire : map, large key,
+  sword, **golden ring**, rope. Checkpoint `sav/ring.bin`.
+- **Famille « clé »** : `tpl=$CB` partagé par `$02`, `$04`, `$0F` →
+  ce sont des clés ; `$04` = grande clé, `$0F` = **clé rouge** (portée
+  par le butler `$42`). `$02` = clé portée par `$1F` au lieu `$0D`.
+- **Prochain** : `WEAR RING` + suivre le guide (bateau → araignées →
+  palais elfe `EXAMINE DOOR` → tonneau → Lac `$23` → Montagne `$29` →
+  dragon `$41`).

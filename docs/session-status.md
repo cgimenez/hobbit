@@ -664,3 +664,11 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   riddle) OU 2e coup au butler ; puis guide complet (bateau/araignées/
   palais/tonneau/Lac `$23`/Montagne `$29`/dragon `$41`).
 - Toolchain PROPRE ; commits à jour.
+
+### Séance 12 (suite 4) — Anneau pris (reprise)
+- **Anneau = état `$10`** = « the valuable golden ring », au lieu `$3D`.
+  Chemin `sav/lake.bin`→`N`($37)→`SW`($3D)→`GET RING`. Checkpoint
+  **`sav/ring.bin`** (inventaire : map, large key, sword, golden ring,
+  rope). `STATE_IDENTITY[0x10]="ring"` ajouté ; `check_memmap` PROPRE.
+- Famille clés `tpl=$CB` : `$02`/`$04`/`$0F` ; `$0F`=clé rouge (butler).
+- **Prochain** : `WEAR RING` puis guide complet vers le Lac/Montagne.
