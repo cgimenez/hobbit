@@ -1,0 +1,12 @@
+# Rivendell ($09) -> est : Monts Brumeux puis au-dela
+# (s arrete a la mort / salle piege)
+EAST
+EAST
+EAST
+EAST
+NORTHEAST
+EAST
+EAST
+EAST
+EAST
+NORTHEAST

@@ -1,0 +1,9 @@
+# du donjon $1F vers la Montagne Solitaire $29 (quete)
+SOUTHWEST
+DOWN
+EAST
+NORTH
+UP
+NORTH
+NORTH
+NORTH

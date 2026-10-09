@@ -145,6 +145,33 @@ def short_desc(addr):
     return first[:110]
 
 
+def plan_path(graph, src, dst):
+    """BFS sur le graphe statique (sorties ignorées les conditions) :
+    rend [(dir, cond, id), ...] de src a dst, ou None."""
+    from collections import deque
+    if src not in graph or dst not in graph:
+        return None
+    prev = {src: None}
+    q = deque([src])
+    while q:
+        cur = q.popleft()
+        if cur == dst:
+            break
+        for d, c, t in graph[cur]["exits"]:
+            if t in graph and t not in prev:
+                prev[t] = (cur, d, c)
+                q.append(t)
+    if dst not in prev:
+        return None
+    out = []
+    cur = dst
+    while prev[cur] is not None:
+        p, d, c = prev[cur]
+        out.append((d, c, cur))
+        cur = p
+    return out[::-1]
+
+
 def main():
     recs = {}
     for i in range(0x50):
@@ -172,6 +199,26 @@ def main():
                 warns.append("$%02X : dir %d inconnue" % (i, d))
             exits.append((d, c, dst))
         graph[i] = {"addr": r, "b0": B(r), "desc": desc, "exits": exits}
+    # Mode planification : map_static.py --path <from> <to> [--via A,B,...]
+    if "--path" in sys.argv:
+        k = sys.argv.index("--path")
+        src, dst = int(sys.argv[k + 1], 16), int(sys.argv[k + 2], 16)
+        via = []
+        if "--via" in sys.argv:
+            via = [int(x, 16) for x in
+                   sys.argv[sys.argv.index("--via") + 1].split(",")]
+        legs = [src] + via + [dst]
+        for a, b in zip(legs, legs[1:]):
+            seg = plan_path(graph, a, b)
+            if seg is None:
+                print(f"# pas de chemin $%02X -> $%02X" % (a, b))
+                return 1
+            print(f"# $%02X -> $%02X (%d sorties)" % (a, b, len(seg)))
+            for d, c, t in seg:
+                nm = DIRS.get(d, "?%d" % d)
+                cond = "" if c == 0 else "  [cond $%02X]" % c
+                print("%-10s # -> $%02X%s" % (nm, t, cond))
+        return 0
     # recoupement terrain : (src, dir_id, dst) observes
     seen = [(0x01, 3, 0x04), (0x04, 3, 0x05), (0x04, 1, 0x05),
             (0x04, 5, 0x06), (0x09, 3, 0x0A), (0x09, 4, 0x05)]

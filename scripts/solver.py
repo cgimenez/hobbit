@@ -486,6 +486,57 @@ def scenario(cx) -> int:
     return 0
 
 
+def route(cx, rt_file: str, seed_name: str | None,
+          save_name: str | None) -> int:
+    """Jeu dirige : sequence de commandes (1/ligne, '#' commentaire) depuis
+    un checkpoint (--seed) ou le boot, avec suivi de couverture. S'arrete a
+    la mort ou a une commande invalide. --save ecrit l'etat final."""
+    if seed_name:
+        p = ROOT / "sav" / f"{seed_name}.bin"
+        if not p.is_file():
+            print(f"-- route: checkpoint absent {p}")
+            return 1
+        blob = p.read_bytes()
+    else:
+        r0 = run_one(None, None)
+        if not r0["valid"]:
+            print("-- route: boot invalide")
+            return 1
+        blob = r0["blob"]
+    cmds = [ln.strip() for ln in Path(rt_file).read_text().splitlines()
+            if ln.strip() and not ln.strip().startswith("#")]
+    import memmap
+    base = set(memmap.load_deltas())
+    touched: set[tuple[int, int]] = set()
+    print(f"route {rt_file}: {len(cmds)} commandes, depart "
+          f"ploc=${state_of(blob)[0]:02X}", flush=True)
+    for i, cmd in enumerate(cmds, 1):
+        r = play(blob, cmd)
+        if not r["valid"]:
+            print(f"{i:3d} {cmd:16} INVALIDE ({r.get('reason')})")
+            break
+        for b, o, _av, _ap in r["deltas"]:
+            touched.add((b, o))
+        ploc = state_of(r["blob"])[0]
+        status, _fail = classify(cmd, r["full"], r["ndiff"], ploc, None)
+        first = next((ln for ln in r["text"].splitlines() if ln.strip()), "")
+        flag = " MORT" if status == "dead" else ""
+        print(f"{i:3d} {cmd:16} ploc=${ploc:02X} nd{r['ndiff']:3d}{flag}  "
+              f"{first[:52]}", flush=True)
+        if status == "dead":
+            break
+        blob = r["blob"]
+    new = touched - base
+    print(f"couverture: {len(touched)} octets touches, {len(new)} nouveaux")
+    if new:
+        print("  nouveaux:", " ".join(f"${b:04X}+${o:04X}"
+                                      for b, o in sorted(new)[:40]))
+    if save_name:
+        (ROOT / "sav" / f"{save_name}.bin").write_bytes(blob)
+        print(f"  save sav/{save_name}.bin (ploc=${state_of(blob)[0]:02X})")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     from solver_db import DB
     if "--fresh" in argv:
@@ -497,6 +548,11 @@ def main(argv: list[str]) -> int:
     cx = connect()
     t_all = time.time()
     goal = (argv[argv.index("--goal") + 1] if "--goal" in argv else "win")
+    if "--route" in argv:
+        rt = argv[argv.index("--route") + 1]
+        seed = argv[argv.index("--seed") + 1] if "--seed" in argv else None
+        save = argv[argv.index("--save") + 1] if "--save" in argv else None
+        return route(cx, rt, seed, save)
     if "--scenario" in argv:
         rc = scenario(cx)
     else:
