@@ -714,8 +714,11 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
 `dragon_hall.bin`, `treasure.bin`.
 
 **Pistes mapping (objectif projet)** — zones/états à couvrir :
-1. **Gollum `$44`** errant + riddle `act_v14_14` (`$6D78`, msgs `$16B9`
-   « pocket ? » / `$16C8` « my precious ») — jamais déclenché proprement.
+1. ~~**Gollum `$44`** errant + riddle `act_v14_14`~~ **FAIT** : déclenché
+   dynamiquement depuis `sav/ring.bin` à `$3D` — Gollum dit « my precious »
+   (`$16C8`) / « pockets ? » (`$16B9`), **reprend l'Anneau**, récite l'énigme
+   « It cannot be seen… » ; capture au lac (`$11`) → `$0D`. Détails
+   `docs/aventure.md` séance 12 (Gollum), checkpoint `sav/gollum_riddle.bin`.
 2. Gobelins profonds `$10`–`$13`, `$39`–`$41` ; hauts nord-est `$44`–`$4F`.
 3. Événements différés `$2B12` (10 entrées), `$28E6`/`$28CC` init.
 4. Portes à événement : magique elfes `$0D+7` bit5 (`$1D26`), trou Montagne
