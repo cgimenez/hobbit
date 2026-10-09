@@ -24,6 +24,7 @@ Retour run_one : dict(text, full, blob, ndiff, echo_ok, valid).
 from __future__ import annotations
 
 import subprocess
+import re
 import sys
 import time
 from pathlib import Path
@@ -182,34 +183,46 @@ def decode_screen(h: bytes, font: dict[bytes, str]) -> str:
 
 def segment_text(cap: Capture, cmd: str | None) -> tuple[str, str, bool]:
     """full = toutes les lignes nettoyees ; text = reponse segmentee ;
-    echo_ok = echo '> CMD.' vu. Segmentation sur les prompts ('>' en
-    tete de ligne, correlee aux @@P en --diag). L'echo cherche est le
-    DERNIER avant SAVE (tuto LOOK rejoue, WAIT auto de grace apres)."""
+    echo_ok = echo '> CMD.' vu. Le jeu n'imprime souvent aucun CR entre
+    prompts (LOAD + sacrificiels + CMD + SAVE sur UNE ligne) : on
+    decoupe d'abord en segments de prompt (split sur '> ', chaque '>'
+    du flux est un prompt : @@P se declenche sur tout $3E trace).
+    L'echo cherche est le DERNIER avant SAVE (tuto LOOK rejoue, WAIT
+    auto de grace apres, exclus par la borne SAVE)."""
     if cap.cur:  # queue partielle (kill pendant un WAIT auto)
         cap.alines.append(bytes(cap.cur))
         cap.cur = bytearray()
-    clines = [clean_line(l) for l in cap.alines]
-    full = "\n".join(l for l in clines if l)
+    segs: list[str] = []
+    for raw in cap.alines:
+        for part in re.split("(?=> )", clean_line(raw)):
+            part = part.rstrip()
+            if part:
+                segs.append(part)
+    full = "\n".join(segs)
     save_idx = None
-    for i, l in enumerate(clines):
-        if "> SAVE." in l:
+    for i, s in enumerate(segs):
+        if s.startswith("> SAVE."):
             save_idx = i
+            break
     if cmd is None:  # racine : tout avant l'echo SAVE (boot + tuto + LOOK)
-        cut = save_idx if save_idx is not None else len(clines)
-        return "\n".join(x for x in clines[:cut] if x), full, save_idx is not None
+        cut = save_idx if save_idx is not None else len(segs)
+        return "\n".join(segs[:cut]), full, save_idx is not None
     needle = "> " + cmd + "."
-    zone = save_idx if save_idx is not None else len(clines)
+    zone = save_idx if save_idx is not None else len(segs)
     echo_at = None
     for i in range(zone - 1, -1, -1):
-        if needle in clines[i]:
+        if segs[i].startswith(needle):
             echo_at = i
             break
     if echo_at is None:
         return full, full, False
     j = echo_at + 1
-    while j < len(clines) and not clines[j].startswith(">"):
+    while j < len(segs) and not segs[j].startswith(">"):
         j += 1
-    seg = [x for x in clines[echo_at + 1:j] if x]
+    # Reponse sur le segment d'echo lui-meme (pas de CR : echec...) :
+    # ex. '> GIVE DOOR TO THORIN.  YOU ARE NOT CARRYING IT.'
+    tail = segs[echo_at][len(needle):].strip()
+    seg = ([tail] if tail else []) + segs[echo_at + 1:j]
     return ("\n".join(seg) if seg else full), full, True
 
 

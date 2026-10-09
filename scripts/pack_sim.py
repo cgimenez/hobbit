@@ -12,13 +12,13 @@ Artefacts dans build/sim/ (regenerables, gitignore). Sortie 0 si OK.
 
 Usage : .venv/bin/python scripts/pack_sim.py [--hires] [--fast]
                                              [--tape FILE]
-          --hires : active aussi le dump de l'ecran hires ($A000-$BFFF).
-          --fast : force $56=0 au boot (pas d'illustrations vectorielles ;
-            img_show devient no-op -> avance rapide texte seul).
-            Sortie build/sim/hobbit_fast.sim (le .sim stock est inchange).
-          --tape FILE : pre-remplit le buffer cassette $E804+ avec FILE
-            (save produite par scripts/save_tape.py) ; RD/WR inits.
-            Combine avec --fast (sortie build/sim/hobbit_fast.sim).
+           --hires : active aussi le dump de l'ecran hires ($A000-$BFFF).
+           --fast : force $56=0 au boot (pas d'illustrations vectorielles ;
+             img_show devient no-op -> avance rapide texte seul).
+             Sortie build/sim/hobbit_fast.sim (le .sim stock est inchange).
+           --tape FILE : pre-remplit le buffer cassette $E804+ avec FILE
+             (save produite par scripts/save_tape.py) ; RD/WR inits.
+             Combine avec --fast (sortie build/sim/hobbit_fast.sim).
           --snapshot NOM : image checkpoint (sortie build/sim/NOM.sim) :
             assemble harness/snap.s AU LIEU de tape.s (slot $F700),
             patch vec_02/03/04 ($2C0B/$2C0E/$2C11) vers snap_load/
@@ -27,8 +27,9 @@ Usage : .venv/bin/python scripts/pack_sim.py [--hires] [--fast]
             Implique --fast ($56=0). Incompatible avec --tape.
            --snap-file F : blob snapshot explicite (defaut : sav/NOM.bin).
            --solver : variante capture ASCII (shim -D SOLVER, hooks L75B8/
-             L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py.
-             Se combine avec --snapshot (ex. --snapshot SLVW --solver).
+             L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py
+             ET play.sh. Se combine avec --snapshot (ex. --snapshot SLVW
+             --solver).
 """
 from __future__ import annotations
 
