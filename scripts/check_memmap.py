@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import memmap_defs as D  # noqa: E402
 
-KINDS = {D.VAR, D.GABARIT, D.TABLE, D.CODE, D.UNKNOWN}
+KINDS = {D.VAR, D.GABARIT, D.TABLE, D.CODE, D.CONST, D.UNKNOWN}
 MAXDOC = 160
 
 

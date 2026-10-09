@@ -30,8 +30,9 @@ REGIONS = [(0x00BE, 0x18, "ZP"), (0x1B1A, 0x556, "etats"),
 REGION_LEN = {b: ln for b, ln, _ in REGIONS}
 TOTAL_BYTES = sum(ln for _, ln, _ in REGIONS)
 
-# Genre de slot : var = variable mutable ; gabarit/table/code = statique.
-VAR, GABARIT, TABLE, CODE, UNKNOWN = "var", "gabarit", "table", "code", "?"
+# Genre de slot : var = variable mutable ; gabarit/table/code/const = statique.
+VAR, GABARIT, TABLE, CODE, CONST, UNKNOWN = (
+    "var", "gabarit", "table", "code", "const", "?")
 
 
 @dataclass(frozen=True)
@@ -74,9 +75,10 @@ STATE_KEYS: list[tuple[int, int]] = [
     (0x48, 0x1F9F), (0x49, 0x2018), (0x4A, 0x202E), (0x4B, 0x2044),
     (0x4C, 0x205A),
 ]
-# Offsets de champ (sens generique d'un bloc d'etat).
+# Offsets de champ (sens generique d'un bloc d'etat). +0 = regime, jamais
+# mute (doc §6 : "jamais modifie") -> constante.
 STATE_FIELD: dict[int, tuple[str, str, str]] = {
-    0x00: ("type", VAR, "octet de type ($01 localise, autres regimes)"),
+    0x00: ("type", CONST, "octet de type ($01 localise, autres regimes)"),
     0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne)"),
     0x08: ("tpl", GABARIT, "template de description (tokens runtime)"),
     0x10: ("eloc", VAR, "lieu de l'entite (si +0==$01)"),
@@ -113,8 +115,14 @@ INDIR_TABLES: list[tuple[int, int]] = [
 ]
 EVENTS_BASE, EVENTS_N, EVENTS_SIZE = 0x2B12, 10, 5
 EVENTS_FIELD = ["id", "cpt", "actA", "cond", "actB"]
+# id/actA/cond/actB = configuration (immuable) ; seul cpt est le compteur
+# mutable (evt_tick : cpt--, armement cpt:=id).
+EVENTS_KIND = [CONST, VAR, CONST, CONST, CONST]
 ENTITIES_BASE, ENTITIES_N, ENTITIES_SIZE = 0x2B45, 17, 7
 ENTITIES_FIELD = ["id", "n", "PClo", "PChi", "balo", "bahi", "s6"]
+# id (reveil dormant), PC (errance VM) et s6 (quasi-statique) = variables ;
+# n et base = configuration fixe (doc §6).
+ENTITIES_KIND = [VAR, CONST, VAR, VAR, CONST, CONST, VAR]
 
 
 def _load_image() -> bytes:
@@ -146,7 +154,7 @@ RECORDS: dict[int, int] = _rec_table()
 _REC_SORTED = sorted(RECORDS.items(), key=lambda kv: kv[1])
 RECORD_FIELD = {
     "b0": (0, VAR, "flags record (bit6=visite pose au LOOK, &$0E template)"),
-    "b1": (1, VAR, "flags record (bit6 inclusion recherche)"),
+    "b1": (1, CONST, "flags record (bit6 inclusion recherche ; immuable)"),
     "conds": (2, GABARIT, "signature d'appartenance (3 paires mot/masque)"),
     "desc": (8, GABARIT, "pointeur description LOOK"),
     "exits": (10, GABARIT, "sorties [dir,cond,dest]* terminees $FF"),
@@ -191,12 +199,14 @@ def annotate(base: int, off: int) -> list[Slot]:
         if EVENTS_BASE <= addr < EVENTS_BASE + EVENTS_N * EVENTS_SIZE:
             e = (addr - EVENTS_BASE) // EVENTS_SIZE
             f = (addr - EVENTS_BASE) % EVENTS_SIZE
-            out.append(Slot("scripts", f"evt{e}.{EVENTS_FIELD[f]}", VAR,
+            out.append(Slot("scripts", f"evt{e}.{EVENTS_FIELD[f]}",
+                            EVENTS_KIND[f],
                             "evenement differe [id,cpt,actA,cond,actB]", addr))
         elif ENTITIES_BASE <= addr < ENTITIES_BASE + ENTITIES_N * ENTITIES_SIZE:
             e = (addr - ENTITIES_BASE) // ENTITIES_SIZE
             f = (addr - ENTITIES_BASE) % ENTITIES_SIZE
-            out.append(Slot("scripts", f"ent{e}.{ENTITIES_FIELD[f]}", VAR,
+            out.append(Slot("scripts", f"ent{e}.{ENTITIES_FIELD[f]}",
+                            ENTITIES_KIND[f],
                             "entite VM [id,n,PC,base,s6]", addr))
         else:
             tbl = next(((a, s) for a, s in INDIR_TABLES if a <= addr < a + s),
