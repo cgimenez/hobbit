@@ -360,3 +360,21 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
 - **Suivant** : avec l'épée, franchir le **labyrinthe noir**
   (`$1E/$1F/$20`, Elvenking) → cellier `$20` → tonneaux → Lac → Montagne
   → dragon `$41`/`$29`.
+
+### Séance 11 (suite) — donjon éclairé, cellier, trappe
+- Avec l'épée en main, `$1F` (donjon Elvenking) n'est plus « IT IS DARK »
+  (l'épée éclaire). Arrivée : `$07` → … → `$18` (porte Mirkwood) →
+  `E` (pad nécessaire, warg) → `$19` « bewitched gloomy place » →
+  `E` → capture → téléport `$1F`.
+- `$1F` : porte rouge verrouillée (cond `$08`, clé rouge du butler).
+  **Timing** : `LOOK` (déclenche « Someone opens the red door. ») puis
+  `SW` → **`$20` cellier** (`cellar_sword.bin`).
+- `$20` (cellier) : actions multiples possibles (pas d'éjection ici) :
+  `OPEN BARREL` (montre le vin), `BREAK BARREL` (« a barrel is broken »),
+  `DRINK WINE` (ivre + capturé → `$1F`), `OPEN TRAP DOOR` (marche) puis
+  **`DOWN` → « You are at Forestriver »** (portcullis à l'est, trappe
+  au-dessus) — `forestriver.bin`. Rebond/téléport immédiat suspecté
+  (le `LOOK` suivant revient au hall) : à confirmer.
+- Route rejouable jusqu'au cellier (avec le warg à `$18` → `pad`).
+  Prochaine cible : Forestriver/Lac (barrel escape ?) → Montagne `$29`
+  → dragon `$41`.
