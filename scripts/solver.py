@@ -87,10 +87,14 @@ def parse_unknown(text: str) -> list[str]:
     return list({m.group(1).upper() for m in WORD_RE.finditer(text)})
 
 
-def actions_for(text: str, banned: set[str] | None = None) -> list[str]:
+def actions_for(text: str, banned: set[str] | None = None,
+                moves_only: bool = False) -> list[str]:
     """Actions candidates pour un lieu : mouvements + CORE + VERBE x objets,
-    moins tout ce qui contient un mot banni."""
+    moins tout ce qui contient un mot banni. moves_only : directions seules
+    (cartographie des lieux, sans verbe)."""
     banned = banned or set()
+    if moves_only:
+        return [m for m in MOVES if not any(w in banned for w in m.split())]
     objs = [o for o in extract_objects(text) if o not in banned]
     persons = [p for p in PERSONS if p in objs]
     acts = list(MOVES) + list(CORE)
@@ -375,7 +379,8 @@ def run_level(tasks: list[tuple[int, str, int, bytes, int]],
     return [(p, c, d, pb, pp, *bykey[(p, c)]) for p, c, d, pb, pp in tasks]
 
 
-def bfs(cx, depth_max: int, budget: int, nworkers: int, samples: int) -> int:
+def bfs(cx, depth_max: int, budget: int, nworkers: int, samples: int,
+        moves_only: bool = False) -> int:
     """Expansion generique par niveaux jusqu'a epuisement/budget/win."""
     ensure_workers(nworkers)
     tried_all = tried(cx)
@@ -389,7 +394,7 @@ def bfs(cx, depth_max: int, budget: int, nworkers: int, samples: int) -> int:
             if d >= depth_max:
                 continue
             cands = [(nid, ploc) for nid, ploc in ok_at_depth(cx, d)]
-            full = {nid: actions_for(get_text(cx, nid), banned)
+            full = {nid: actions_for(get_text(cx, nid), banned, moves_only)
                     for nid, _ in cands}
             todo = [(nid, c, d) for nid, _ in cands for c in full[nid]]
             todo = [t for t in todo if (t[0], t[1]) not in tried_all]
@@ -508,7 +513,8 @@ def main(argv: list[str]) -> int:
         d_default = 8 if goal == "coverage" else 3
         rc = bfs(cx, depth_max=flag("--depth", d_default),
                  budget=flag("--budget", 150),
-                 nworkers=flag("--workers", 4), samples=flag("--samples", 1))
+                 nworkers=flag("--workers", 4), samples=flag("--samples", 1),
+                 moves_only="--moves-only" in argv)
     print(f"== stats: {stats(cx)} en {time.time() - t_all:.1f}s, DB={DB} ==")
     coverage_report()
     return 0 if rc is not None else 1
