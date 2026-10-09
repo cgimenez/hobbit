@@ -96,8 +96,9 @@ STATE_WINDOW = 0x40  # portee max d'un bloc (non delimite precisement)
 # confirmer). Token court -> nom lisible du slot.
 STATE_IDENTITY: dict[int, str] = {
     0x00: "player",       # bloc global (compteur de chutes +$05)
+    0x01: "rock_door",    # the heavy rock door ($06 N->$07 ; +7 bit0=verrou, bit5=ouvert)
     0x03: "map",
-    0x04: "key",          # the large key
+    0x04: "key",          # the large key (porte par le troll hideux $47 a $05)
     0x0E: "sword",        # the short strong sword (source de lumiere : +4 b7, +7 $94)
     0x26: "lunch",
     0x3E: "gandalf",

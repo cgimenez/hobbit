@@ -559,3 +559,19 @@ Commandes utiles :
 - Piste : état `$01` = objet/global « porte rock » ; chercher l'opcode/action
   qui pose son flag (ou déplace l'épée `$0E`) — probablement lié aux trolls
   (`$05`) ou à un événement. Alternative : trouver un autre accès à l'épée.
+
+### Résolu (2026-10-09 soir) — trolls → pierre, porte rock, épée
+- **`$05` = trolls clearing** ; le troll hideux `$47` porte la grande clé `$04`.
+- Quitter `$05` + attendre ~4 ticks → « Day dawns. » → `act_v14_17`
+  (`$6EA7`) change les trolls en pierre (RAZ bit7 `$1F94`/`$1FA6`, desc
+  record `$05`→`$1645`). Reprendre la clé (`GET KEY`).
+- `$06 N` cond `$01` = **état `$01` « the heavy rock door »** (`+7`
+  bit0=verrou, bit5=ouvert) : `UNLOCK DOOR` (clé `$04`) efface bit0 ;
+  `OPEN DOOR` met bit5 (Gandalf peut refermer, aléatoire) ; `NORTH` passe
+  quand `+7=$A0`.
+- **`$07` = trolls cave** : prendre « the short strong sword » `$0E`
+  (source de lumière). Checkpoint `sav/sword.bin`.
+- Idées ajoutées : `scripts/memmap_defs.py` `$01`=`rock_door`,
+  `$04`=`key` ; `docs/aventure.md` séance 11 ; §2 `savegame-memory-map.md`.
+- **Suivant** : franchir le labyrinthe noir Elvenking (`$1E/$1F/$20`) avec
+  l'épée → cellier `$20` → tonneaux → Lac → Montagne → dragon.

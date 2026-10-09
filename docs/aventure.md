@@ -327,3 +327,36 @@ warg enters.`) — 2 traqueurs à l'est (`$43` + warg).
   Prochaine cible : ouvrir la porte rock (ou obtenir l'épée autrement).
 - Outillage : `scripts/memmap_defs.py` nomme la clé `$0E` (`sword`) ;
   `scripts/memmap.py` / `check_memmap.py` PROPRE.
+
+## Séance 11 — trolls → pierre, porte rock, épée (2026-10-09)
+
+**Chaîne complète résolue : `$04`→`$05`(trolls) → attente → `$05`(pierre) →
+clé → `$06` → UNLOCK → `$07`→ épée.**
+
+- **`$05` = trolls clearing** : le troll hideux (`$47`) **porte la grande
+  clé** (`$04`, template `KEY` `$0ACB`) — `GET KEY` → « THE TROLL IS
+  CARRYING THE KEY. ». Entrer dans `$05` déclenche les répliques trolls
+  (`$1615` BLIMEY / `$162B` MOUTHFUL) ; attendre sur place = mangé (mort).
+- **Aube** : quitter `$05` (ex. `SW`→`$04`) et attendre ~4 ticks →
+  « Day dawns. » → les trolls **se changent en pierre** (`act_v14_17`
+  `$6EA7` : RAZ bit7 `$1F94`/`$1FA6`, desc record `$05`→`$1645`). Retour
+  `$05` = « a clearing with two stone trolls », la clé est au sol →
+  `GET KEY` (« You take the large key. »).
+- **Porte rock** : `$06 N`→`$07` = cond `$01` = état **`$01` = « the heavy
+  rock door »** (template `DOOR` `$07F2`, eloc `$07`). `+7` : bit0
+  (`$01`) = **verrou**, bit5 (`$20`) = **ouvert**.
+  - `OPEN DOOR` verrouillée → « THE DOOR IS LOCKED. » (`act_p14_03` →
+    `L5A70` : si `+7` bit0 → échec `L5A9D`).
+  - `UNLOCK DOOR` avec la grande clé → « You unlock the heavy rock door
+    with the large key. » (efface bit0 : `+7 $81`→`$80`).
+  - `OPEN DOOR` → « You open the heavy rock door. » mais Gandalf peut
+    **refermer** aussitôt (aléatoire) ; quand il ne referme pas (`+7=$A0`),
+    `NORTH` passe.
+- **`$07` = trolls cave** : « the short strong sword » (`$0E`) + « the
+  rope » (`$12`). `GET SWORD` → source de lumière acquise (séance 10).
+- **Outillage** : `sav/sword.bin` = checkpoint `$07` épée en main ;
+  `map_static`/`solver --route` rejouent la route. Idées ajoutées
+  `$01`=`rock_door`, `$04`=`key` dans `scripts/memmap_defs.py`.
+- **Suivant** : avec l'épée, franchir le **labyrinthe noir**
+  (`$1E/$1F/$20`, Elvenking) → cellier `$20` → tonneaux → Lac → Montagne
+  → dragon `$41`/`$29`.

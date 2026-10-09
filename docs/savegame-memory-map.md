@@ -75,10 +75,10 @@ description (tokens runtime). `+0` vaut aussi `$02 $03 $05 $08`
 | Clé | Addr | +0 | +1 porteur | +8 tpl | eloc (+$10, si +0==1) |
 |---|---|---|---|---|---|
 | `$00` | `$1B1A` | `$01` | `$FF` | `$0F` | `$01` |
-| `$01` | `$1B63` | `$02` | `$FF` | `$F2` | — |
+| `$01` | `$1B63` | `$02` | `$FF` | `$F2` | — (porte rock « heavy rock door » `$06`→`$07` ; `+7` bit0=verrou, bit5=ouvert) |
 | `$02` | `$1B96` | `$01` | `$1F` | `$CB` | `$0D` |
 | `$03` | `$1BBA` | `$01` | `$3E` | `$95` | `$01` (carte, portée par Gandalf) |
-| `$04` | `$1BA8` | `$01` | `$47` | `$CB` | `$05` |
+| `$04` | `$1BA8` | `$01` | `$47` | `$CB` | `$05` (la grande clé, portée par le troll hideux `$47` ; ouvre la porte rock) |
 | `$05` | `$1B42` | `$02` | `$FF` | `$F2` | — |
 | `$06` | `$1BCE` | `$02` | `$FF` | `$48` | — |
 | `$07` | `$1BE9` | `$05` | `$FF` | `$BB` | — |
