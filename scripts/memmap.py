@@ -9,6 +9,7 @@ et les rattache aux slots de scripts/memmap_defs.py.
 Usage :
   memmap.py report               # couverture par region + % nommes
   memmap.py slots [--virgin]     # slots (--virgin : var jamais mutes)
+  memmap.py unnamed              # offsets couverts sans slot nomme
   memmap.py addr <base_hex> <off_hex>   # annotation + preuves
   memmap.py sources              # apport par famille de source
   memmap.py xref [base [off]]    # refs litterales de block4.asm
