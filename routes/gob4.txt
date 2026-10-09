@@ -1,0 +1,5 @@
+SE
+UP
+W
+DOWN
+DOWN

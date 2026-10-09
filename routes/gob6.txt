@@ -1,0 +1,6 @@
+SW
+DOWN
+N
+UP
+S
+NW

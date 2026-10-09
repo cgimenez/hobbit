@@ -487,10 +487,11 @@ def scenario(cx) -> int:
 
 
 def route(cx, rt_file: str, seed_name: str | None,
-          save_name: str | None) -> int:
+          save_name: str | None, record: bool = False) -> int:
     """Jeu dirige : sequence de commandes (1/ligne, '#' commentaire) depuis
     un checkpoint (--seed) ou le boot, avec suivi de couverture. S'arrete a
-    la mort ou a une commande invalide. --save ecrit l'etat final."""
+    la mort ou a une commande invalide. --save ecrit l'etat final.
+    --record persiste chaque transition (noeud+edge_deltas) dans la DB."""
     if seed_name:
         p = ROOT / "sav" / f"{seed_name}.bin"
         if not p.is_file():
@@ -508,9 +509,15 @@ def route(cx, rt_file: str, seed_name: str | None,
     import memmap
     base = set(memmap.load_deltas())
     touched: set[tuple[int, int]] = set()
+    parent, depth = None, 0
+    if record:
+        parent = seed_root(cx, seed_name) if seed_name else step(
+            cx, None, None, 0)
+        depth = 1
     print(f"route {rt_file}: {len(cmds)} commandes, depart "
           f"ploc=${state_of(blob)[0]:02X}", flush=True)
     for i, cmd in enumerate(cmds, 1):
+        ploc_prev = state_of(blob)[0]
         r = play(blob, cmd)
         if not r["valid"]:
             print(f"{i:3d} {cmd:16} INVALIDE ({r.get('reason')})")
@@ -518,6 +525,11 @@ def route(cx, rt_file: str, seed_name: str | None,
         for b, o, _av, _ap in r["deltas"]:
             touched.add((b, o))
         ploc = state_of(r["blob"])[0]
+        if record:
+            nid = process_result(cx, parent, cmd, depth, blob, ploc_prev, r, 0)
+            if nid is not None:
+                parent = nid
+            depth += 1
         status, _fail = classify(cmd, r["full"], r["ndiff"], ploc, None)
         first = next((ln for ln in r["text"].splitlines() if ln.strip()), "")
         flag = " MORT" if status == "dead" else ""
@@ -552,7 +564,7 @@ def main(argv: list[str]) -> int:
         rt = argv[argv.index("--route") + 1]
         seed = argv[argv.index("--seed") + 1] if "--seed" in argv else None
         save = argv[argv.index("--save") + 1] if "--save" in argv else None
-        return route(cx, rt, seed, save)
+        return route(cx, rt, seed, save, record="--record" in argv)
     if "--scenario" in argv:
         rc = scenario(cx)
     else:

@@ -1,0 +1,9 @@
+N
+NE
+N
+SE
+DOWN
+DOWN
+DOWN
+DOWN
+E
