@@ -448,3 +448,33 @@ clé → `$06` → UNLOCK → `$07`→ épée.**
   `ORDER` → échec. Le solver (vocabulaire standard) ne trouve aucune
   évasion (frontière vide). → **piste : implémenter le rendu du caractère
   `"` (0x22) ou trouver la touche quote Oric** pour tester la commande.
+
+### Séance 12 (suite 3) — BREAKTHROUGH : commandes PNJ `SAY TO X "..."`.
+- **La syntaxe d'ordre aux PNJ fonctionne** : `SAY TO THORIN "<ORDRE>"`
+  (guillemets doubles obligatoires à l'ouverture ET à la fermeture).
+  Prouvé :
+  - `SAY TO THORIN "CARRY ME"` → « You talk to Thorin. **Thorin carry
+    ies you.** »
+  - `SAY TO THORIN "OPEN WINDOW"` → « **Thorin opens the window.** »
+  - `SAY TO THORIN "WEST"` → traverse (vers `$12`).
+- **Piège harnais** : `run_one()['text']` échoue à segmenter les commandes
+  à guillemets (le jeu insère un `.` : `> SAY "HI".`) → lire
+  `r['full']` / `r['blob']`, jamais `r['text']` pour ces commandes
+  (`echo_ok=False` trompeur).
+- **Évasion du donjon gobelin** (indice `SAY HELP` : « A WINDOW SHOULD BE
+  NO OBSTACLE TO A THIEF WITH FRIENDS. ») : `SAY TO THORIN "CARRY ME"` +
+  `"OPEN WINDOW"` + `"WEST"` → `$12` (dark winding passage) → `SW` → `$10`
+  (big cavern) → … → `$11` (brink of underground lake, Gollum).
+  Checkpoints `sav/goblin_escaped.bin` ($12), `sav/lake.bin` ($11).
+- **Gollum = entité ERRANTE** : état `$44` (`$1E3B`), `eloc` (`+$10`)
+  change (`$37`/`$3D`/`$36`). Riddle `act_v14_14` (`$6D78`) : si
+  `ploc==$1E4B` (co-localisé) → tirage 0-7 → msg `$16B9` (« pocket ? »,
+  si `$1CC5`==`$44`) / `$16C8` (« my precious »). L'Anneau n'est pas
+  encore localisé (ni au lac, ni dans le cache gobelin = key).
+- **Cellier sans Thorin** : `SAY TO THORIN ...` → « I DO NOT SEE THE
+  THORIN HERE ». `KILL BUTLER WITH SWORD` → « Your violent attack almost
+  kills the butler » (1 coup insuffisant, puis capture `$1F`). → Anneau
+  (ou 2e coup au butler) requis pour l'évasion elfique.
+- Guide complet (Spectrum/BBC, porté) désormais exécutable : ordres PNJ
+  OK. Reste à obtenir l'Anneau et enchaîner bateau → araignées → palais
+  elfe → tonneau → Lac.

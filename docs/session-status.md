@@ -647,3 +647,20 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   WEAR RING) → Lac `$23` → Montagne `$29` → dragon `$41`.
 - Docs `aventure.md` séance 12 (+suites). Toolchain PROPRE. Commits à
   jour.
+
+### Séance 12 (suite 3) — CRITIQUE : ordres PNJ `SAY TO X "..."` (reprise)
+- **`SAY TO THORIN "<ORDRE>"` fonctionne** (guillemets doubles, fermants
+  inclus). Prouvé : `"CARRY ME"` (Thorin carry ies you), `"OPEN WINDOW"`,
+  `"WEST"`. **Toujours lire `run_one()['full']`/`['blob']`, pas `['text']`**
+  (segmentation cassée sur le `.` inséré par le jeu après la commande ;
+  `echo_ok=False` trompeur).
+- **Évasion gobelin** : `SAY TO THORIN "CARRY ME"` `"OPEN WINDOW"` `"WEST"`
+  → `$12`→`SW`→`$10`→…→`$11` lac/Gollum. Checkpoints `sav/goblin_escaped.bin`,
+  `sav/lake.bin`.
+- **Gollum errant** (état `$44`, `eloc` mouvant) ; riddle `act_v14_14`.
+  Anneau introuvable (lac/cache = key). Cellier : Thorin absent ;
+  `KILL BUTLER WITH SWORD` = « almost kills » (1 coup insuffisant).
+- **Prochain** : obtenir l'Anneau (trouver Gollum au bon lieu / gagner le
+  riddle) OU 2e coup au butler ; puis guide complet (bateau/araignées/
+  palais/tonneau/Lac `$23`/Montagne `$29`/dragon `$41`).
+- Toolchain PROPRE ; commits à jour.
