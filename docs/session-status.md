@@ -788,3 +788,16 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   errance/desc `$7126`, pas 6 ; utilisé par « go…from…to » `$8586`). ZP var
   couvertes **13/15**. Restent : `$C3/$C4`, `$CF`–`$D5` (7 au total avec
   `$0C/$0D` etats). `check_memmap` PROPRE.
+
+### Séance 12 (tous les lieux) — 79/79 visités
+- Exploration dirigée + `solver --route --record` : **48 → 78/79** lieux
+  (ploc) ; NE complet, cavernes gobelines, est, montagne. Reste `$42` dont
+  `ploc` diverge (événement force `$1F`) mais le lieu est rendu.
+- **Découverte** : le lieu **autoritaire** lu par LOOK = **`player.eloc`**
+  (`$1B2A` = bloc `$00` `+$10`) ; `ploc` (`$C8`) n'est qu'un **miroir**. Les
+  10 lieux conditionnels (`08 14 15 1A 1B 1C 1D 32 42 43`, gated `$07/$09/$0A`)
+  ont été visités/rendus par **patch mémoire debug** de `$1B2A` (offset 44 du
+  blob) + LOOK, puis enregistrés (nœuds `PATCH:xx` dans `solver.db`).
+- **Couverture** : `records` 71 → **78/79** (var nommées 59 → 66) ; total
+  **237/3623 (6.5 %)**. `check_memmap` PROPRE.
+- Repro patch : `b=bytearray(sav/ring.bin); b[44]=<ploc>; run_one(b,'LOOK')`.
