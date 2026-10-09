@@ -780,3 +780,10 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   `etats` **45 → 99**. Restent non nommés : ZP `$BF/$C0/$C1/$CF-$D5` (7),
   scripts `code$299D/$2A7B/$2A7C` (3).
 - `check_memmap` PROPRE ; annexe régénérée ; doc §2 réécrite.
+
+### Séance 12 (nommage ZP 2)
+- ZP nommés : `$BF`/`$C0` = **tblA** (pointeur table action/patch `$7116`,
+  pas 4 ; `$BF`=`$16`+`rand*4`), `$C1`/`$C2` = **tblB** (pointeur table
+  errance/desc `$7126`, pas 6 ; utilisé par « go…from…to » `$8586`). ZP var
+  couvertes **13/15**. Restent : `$C3/$C4`, `$CF`–`$D5` (7 au total avec
+  `$0C/$0D` etats). `check_memmap` PROPRE.

@@ -48,6 +48,10 @@ class Slot:
 # --- §1. Zero-page $BE-$D5 (24 o) ---------------------------------------
 ZP_NAMES: dict[int, tuple[str, str]] = {
     0xBE: ("exploc", "lieu attendu par l'evenement (copie de key)"),
+    0xBF: ("tblA", "pointeur lo table action/patch $7116 (pas 4) ; hi $C0"),
+    0xC0: ("tblA_hi", "haut de tblA"),
+    0xC1: ("tblB", "pointeur lo table errance/desc $7126 (pas 6) ; hi $C2"),
+    0xC2: ("tblB_hi", "haut de tblB"),
     0xC5: ("obj", "objet/entite courant (id ; $FF=personne)"),
     0xC6: ("crec", "enregistrement courant octet bas (base $1B1A)"),
     0xC7: ("crec_hi", "haut de crec"),

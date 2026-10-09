@@ -147,14 +147,14 @@ def cmd_slots(ev: dict, virgin: bool) -> int:
 
 
 def cmd_unnamed(ev: dict) -> int:
-    """Offsets couverts mais sans aucun slot nomme (cibles du nommage)."""
+    """Offsets couverts dont TOUS les slots sont UNKNOWN (vraies cibles)."""
     addrs = address_slots()
     total = 0
     for base, ln, nom in D.REGIONS:
         rows = []
         for off in range(ln):
             slots = addrs[(base, off)]
-            if (base, off) in ev and not any(_is_named(s) for s in slots):
+            if (base, off) in ev and all(s.kind == D.UNKNOWN for s in slots):
                 rows.append((off, slots, ev[(base, off)]))
         total += len(rows)
         print(f"== ${base:04X} {nom}: {len(rows)} offsets couverts non nommes ==")

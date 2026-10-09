@@ -30,10 +30,10 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | Addr | Nom | Sens | Init |
 |---|---|---|---|
 | `$BE` | `exploc` | lieu attendu par l'événement (copie de `key`, grille `ploc`) | `$82` |
-| `$BF` | — | inconnu (scratch ?) | `$01` |
-| `$C0` | — | inconnu | `$87` |
-| `$C1` | — | inconnu | `$02` |
-| `$C2` | — | inconnu | `$85` |
+| `$BF` | `tblA` | pointeur lo table action/patch `$7116` (pas 4) ; hi `$C0` | `$01` |
+| `$C0` | `tblA_hi` | haut de `tblA` | `$87` |
+| `$C1` | `tblB` | pointeur lo table errance/desc `$7126` (pas 6) ; hi `$C2` | `$02` |
+| `$C2` | `tblB_hi` | haut de `tblB` | `$85` |
 | `$C3` | — | inconnu | `$43` |
 | `$C4` | — | inconnu | `$45` |
 | `$C5` | `obj` | objet/entité courant (id ; `$FF`=personne ; lieu via `L57BB`) | `$AC` |
@@ -54,7 +54,7 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | `$D4` | — | inconnu | `$96` |
 | `$D5` | — | inconnu | `$0D` |
 
-À lever sous harnais : `$BF`–`$C4`, `$CF`–`$D5` (rôles + valeurs runtime).
+À lever sous harnais : `$C3`/`$C4`, `$CF`–`$D5` (rôles + valeurs runtime).
 `$CC`/`$CD` = **score** (points ; SCORE `$3CD4`) ; `$CA`/`$CB` = **recptr**
 (pointeur de record de lieu sauvegardé, `$21`–`$26`).
 
@@ -548,7 +548,7 @@ couverture (fusion tickdiff+solver) : 222/3623 octets (6.1 %).
 
 | Region | Octets | Couverts | % | Var couverts |
 |---|---|---|---|---|
-| `$00BE` ZP | 24 | 17 | 70.8 | 10/11 |
+| `$00BE` ZP | 24 | 17 | 70.8 | 13/15 |
 | `$1B1A` etats | 1366 | 105 | 7.7 | 99/427 |
 | `$28CC` scripts | 753 | 36 | 4.8 | 33/78 |
 | `$211A` records | 1480 | 64 | 4.3 | 52/79 |
