@@ -685,3 +685,11 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   (`tickdiff`/`solver`) pour faire monter la **couverture memmap**
   (rapport inchangé à 140/3623 o car les `run_one` ne sont pas enregistrés).
 - Toolchain PROPRE ; commits à jour.
+
+### Séance 12 (couverture) — ingestion solver après victoire
+- BFS solver depuis les checkpoints `ring`/`lake`/`dragon`/`laketown`/
+  `goblin_escaped` (DB `build/sim/win.db`, fusionnée dans `solver.db` par
+  dédup de hash ; backup `solver_pre_win.db`).
+- Couverture passée **140 → 184/3623 octets (3.9 → 5.1 %)** ; `records`
+  **18 → 41/79 var**. Annexe AUTO-COUVERTURE régénérée
+  (`memmap.py gen --write`). `check_memmap` PROPRE.
