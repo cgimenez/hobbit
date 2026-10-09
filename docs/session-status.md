@@ -693,3 +693,31 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 - Couverture passée **140 → 184/3623 octets (3.9 → 5.1 %)** ; `records`
   **18 → 41/79 var**. Annexe AUTO-COUVERTURE régénérée
   (`memmap.py gen --write`). `check_memmap` PROPRE.
+
+## SYNTHÈSE DE REPRISE (fin séance 12) — pour contexte neuf
+**État** : le jeu est **terminable de bout en bout** ; **victoire atteinte
+(80 %)** — parcours complet en 10 étapes dans `docs/aventure.md` séance 12
+finale (référence unique). Les addenda « blockers » ci-dessus (guillemets,
+Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
+- **Ordres PNJ** : `SAY TO <PERS> "<ORDRE>"` (guillemets doubles). ⚠️ Lire
+  `run_one()['full']`/`['blob']`, jamais `['text']` (segmentation cassée
+  sur le `.` post-commande ; `echo_ok=False` trompeur).
+- **Anneau** = état `$10` (`$1CC4`) au lieu `$3D` ; `GET RING`.
+- **Évasion elfique** = tonneau via Anneau (`sav/barrel_ride.bin`).
+- **Dragon** = `SAY TO BARD "SHOOT DRAGON"` ; **araignées** = `WAIT`×2.
+- **Couverture memmap** : **184/3623 o (5.1 %)**, records **41/79 var**
+  (fusion `win.db`→`solver.db`, backup `solver_pre_win.db`).
+
+**Toolchain** : `check_disasm`/`check_memmap` PROPRE, `rebuild` byte-identique,
+git clean. Derniers commits : `1a8c62c`, `8545b6d`, `ecff9cf`, `0e833fc`.
+Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`,
+`dragon_hall.bin`, `treasure.bin`.
+
+**Pistes mapping (objectif projet)** — zones/états à couvrir :
+1. **Gollum `$44`** errant + riddle `act_v14_14` (`$6D78`, msgs `$16B9`
+   « pocket ? » / `$16C8` « my precious ») — jamais déclenché proprement.
+2. Gobelins profonds `$10`–`$13`, `$39`–`$41` ; hauts nord-est `$44`–`$4F`.
+3. Événements différés `$2B12` (10 entrées), `$28E6`/`$28CC` init.
+4. Portes à événement : magique elfes `$0D+7` bit5 (`$1D26`), trou Montagne
+   `$0B+7` bit7 (`$1C7B`), porte rouge `$08`.
+5. Slots vierges : `memmap.py slots --virgin` ; ingérer via solver/tickdiff.
