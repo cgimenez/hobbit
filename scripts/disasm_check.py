@@ -19,7 +19,7 @@ Contrôles (bloc 4 par défaut) :
 
 Sortie 0 si propre, 1 sinon.
 
-Usage : .venv/bin/python scripts/disasm_check.py [--block block1|block4]
+Usage : .venv/bin/python scripts/disasm_check.py [--block block1|block2|block4]
 """
 
 from __future__ import annotations
@@ -168,30 +168,33 @@ def main() -> int:
 
     # --- D. tables ressemblant à du code ---
     missed = []
-    for s, e, t in tabs:
-        if not (lo <= s <= hi):
-            continue
-        if e - s + 1 < 6:
-            continue  # trop court pour être significatif
-        pc, ok, total = s, 0, e - s + 1
-        while pc <= e:
-            op = B(pc)
-            if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) in INLINE_MSGS:
-                ok += 5
-                pc += 5
+    if block.check_code_tables:
+        for s, e, t in tabs:
+            if not (lo <= s <= hi):
                 continue
-            ln = ilen(op)
-            if ln == 0:
-                break
-            ok += ln
-            pc += ln
-        if pc == e + 1 and ok / total >= 0.85:
-            missed.append((s, e, t))
-    print(f"D. tables décodables comme code (>=85%): {len(missed)}")
-    for s, e, t in missed[:12]:
-        print(f"   ${s:04X}-${e:04X} ({t})")
-    if missed:
-        errors += 1
+            if e - s + 1 < 6:
+                continue  # trop court pour être significatif
+            pc, ok, total = s, 0, e - s + 1
+            while pc <= e:
+                op = B(pc)
+                if op == JSR and pc + 2 <= e and (B(pc + 1) | (B(pc + 2) << 8)) in INLINE_MSGS:
+                    ok += 5
+                    pc += 5
+                    continue
+                ln = ilen(op)
+                if ln == 0:
+                    break
+                ok += ln
+                pc += ln
+            if pc == e + 1 and ok / total >= 0.85:
+                missed.append((s, e, t))
+        print(f"D. tables décodables comme code (>=85%): {len(missed)}")
+        for s, e, t in missed[:12]:
+            print(f"   ${s:04X}-${e:04X} ({t})")
+        if missed:
+            errors += 1
+    else:
+        print("D. tables décodables comme code : sans objet (bloc de données)")
 
     # --- E. appels ROM ---
     r10, r11 = ROM10.read_bytes(), ROM11.read_bytes()

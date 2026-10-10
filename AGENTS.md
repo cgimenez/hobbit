@@ -73,12 +73,12 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 ```
 .venv/bin/python scripts/tape_extract.py          # TAP -> data/hobbit.bin
 .venv/bin/python scripts/disasm.py           # -> disasm/block4.info + block4.asm
-                                             # [--block block1] -> disasm/block1.*
+                                             # [--block block1|block2] -> disasm/<bloc>.*
 .venv/bin/python scripts/disasm_check.py     # viser exit 0 (RÉSULTAT: PROPRE)
-                                             # [--block block1|block4]
+                                             # [--block block1|block2|block4]
 .venv/bin/python scripts/disasm_rebuild.py   # round-trip ca65+ld65 (disasm/<bloc>.cfg),
                                              # byte-identique exigé, exit 0
-                                             # [--block block1|block4]
+                                             # [--block block1|block2|block4]
 .venv/bin/python scripts/sim_pack.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
                                              # shim I/O + patch $7353 + charset ROM
 .venv/bin/python scripts/sim_pack.py --snapshot NOM  # checkpoint rejouable
@@ -116,6 +116,13 @@ SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
   182 o de code (3 plages), round-trip byte-identique. Vecteurs ROM 1.0/1.1
   `$0405`–`$0416`, `b1_load $0417`, `b1_start $047C` ; blob de patch ROM
   `$0468`–`$047B` (donnée). Détails : `docs/tape-archive.md`.
+- Bloc 2 (`$0500`–`$2BBD`) : **données** (aucun code 6502) — checker PROPRE
+  (règle D désactivée), round-trip byte-identique (9918 o). Partition typée +
+  labels : dico (`dict`), 32 mots courants (`common_words`), messages
+  (`messages`), clés/états (`state_keys`/`states`), records
+  (`rec_table`/`records`), sorties (`dir_names`/`exits_ext`), INDIR + scripts
+  VM + events + entités. Listing `disasm/block2.asm` (12 plages, 114 labels).
+  Détails : `docs/tape-archive.md`.
 - Round-trip ca65 prouvé (byte-identique) ; harnais sim65 fonctionnel :
   `harness/shim.s` (clavier + dumps d'écrans via paravirt, en `$C000`),
   boot validé jusqu'au prompt (`You are in a comfortable tunnel like hall`,

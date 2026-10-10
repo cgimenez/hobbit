@@ -12,14 +12,14 @@ reprend à JSR+5. Les pointeurs nuls sont marqués ``TODO``. Une branche dont
 la cible est sa propre adresse (boucle infinie ``xx FE``) est un terminateur.
 
 Moteur commun ; les données (plage, entrées, vecteurs, docs) sont par bloc
-dans ``BLOCKS`` (``block4`` par défaut, ``block1`` = bootstrap/chargeur).
-da65 (cc65) produit le listing depuis ``disasm/<bloc>.info`` et
-``data/hobbit.bin``.
+dans ``BLOCKS`` (``block4`` par défaut, ``block1`` = bootstrap/chargeur,
+``block2`` = données du jeu). da65 (cc65) produit le listing depuis
+``disasm/<bloc>.info`` et ``data/hobbit.bin``.
 
 Prérequis : ``tools/cc65/bin/da65`` (cf. AGENTS.md).
 Vérification : scripts/disasm_check.py --block <bloc>.
 
-Usage : .venv/bin/python scripts/disasm.py [--block block1|block4]
+Usage : .venv/bin/python scripts/disasm.py [--block block1|block2|block4]
 """
 
 from __future__ import annotations
@@ -783,6 +783,13 @@ class Block:
     vector_table: tuple[int, int] | None = None
     use_r2_seeds: bool = True
     check_rom_diff: bool = True
+    # Bloc de donnees pures (pas de code) : la regle D du checker (tables qui
+    # se decodent comme du code) n'a pas de sens -> informatif seulement.
+    check_code_tables: bool = True
+    # Labels de donnees nommes (nom seul, sans resume) : adresses de tables /
+    # structures reconnues, emises en LABEL da65 (cf. ROUTINE_DOCS pour les
+    # routines). Fusionnes dans `named` avec les vecteurs et la zero-page.
+    labels: dict[int, str] = field(default_factory=dict)
     data_ranges: dict[int, str] = field(default_factory=dict)
 
 
@@ -860,6 +867,84 @@ B1_HEADER = (
 )
 
 
+# --- Bloc 2 ($0500-$2BBD) : donnees du jeu ------------------------------
+# Aucun code 6502 : dictionnaire packe 5-bit, catalogue de messages, table
+# des cles d'etat, blocs d'etat, records de lieux/objets, tables de sorties,
+# tables INDIR, scripts VM AnimAction, events differees et entites. Le listing
+# est un partitionnement type (WORDTABLE/BYTETABLE) + labels des structures.
+# Detail des formats : docs/block4-analysis.md, docs/memory-map.md.
+B2_LABELS: dict[int, str] = {
+    0x0500: "dict_index",       # index 26 lettres -> 1er mot
+    0x0540: "dict",             # dico packe 5-bit (~600 mots)
+    0x1117: "common_words",     # 32 mots courants ($60-$7F)
+    0x1157: "messages",         # catalogue de messages
+    0x18AA: "loc_desc",         # 29 descriptions de lieux
+    0x1A62: "state_keys",       # 61 triplets [cle,lo,hi] + $FF
+    0x1B1A: "states",           # 61 blocs d'etat
+    0x2070: "rec_table",        # 80 mots id -> record
+    0x2110: "rec_templates",    # 5 gabarits (pointeurs bloc 3)
+    0x211A: "records",          # records lieux/objets/creatures
+    0x26E2: "dir_names",        # noms des directions (10 x 8 o)
+    0x2732: "exits_ext",        # sorties etendues conditionnelles
+    0x28CC: "indir0",           # table de sauts 3 o [cle,lo,hi]
+    0x28D3: "indir1",
+    0x28DA: "indir2",
+    0x28E1: "script_goblins",   # VM : gobelins e11/e12
+    0x2910: "script_goblin13",  # VM : gobelin e13
+    0x2934: "script_goblins14",  # VM : gobelins e14-e16
+    0x2943: "indir3",
+    0x295C: "script_gandalf",   # VM : Gandalf e0 (errance)
+    0x2984: "indir4",
+    0x298E: "script_thorin",    # VM : Thorin e1
+    0x29B2: "indir5",
+    0x29BC: "script_elf",       # VM : elfe e2
+    0x29C3: "indir6",
+    0x29C7: "script_warg",      # VM : warg e3
+    0x29E4: "indir7",
+    0x29EE: "script_butler",    # VM : butler dormant e4
+    0x2A2E: "indir8",
+    0x2A38: "script_elrond",    # VM : Elrond e5
+    0x2A4D: "indir9",
+    0x2A54: "script_dragon",    # VM : dragon dormant e8
+    0x2A70: "indir10",
+    0x2A77: "script_bard",      # VM : Bard dormant e7
+    0x2A88: "indir11",
+    0x2A8F: "script_gollum",    # VM : Gollum e6
+    0x2AC9: "indir12",
+    0x2AD0: "script_trolls",    # VM : trolls e9/e10 (lieu 5)
+    0x2B12: "events",           # 10 x 5 o [id,cpt,actA,cond,actB]
+    0x2B45: "entities",         # 17 x 7 o [id,n,PC,base,s6]
+}
+
+B2_RANGES: dict[int, str] = {
+    0x0500: "WORDTABLE",   # index 26 lettres
+    0x0540: "BYTETABLE",   # dictionnaire packe
+    0x1117: "WORDTABLE",   # 32 mots courants
+    0x1157: "BYTETABLE",   # catalogue de messages
+    0x1A62: "BYTETABLE",   # cles d'etat
+    0x1B1A: "BYTETABLE",   # blocs d'etat
+    0x2070: "WORDTABLE",   # table des records
+    0x2110: "WORDTABLE",   # gabarits de description
+    0x211A: "BYTETABLE",   # records
+    0x26E2: "BYTETABLE",   # noms des directions
+    0x2732: "BYTETABLE",   # sorties etendues
+    0x28CC: "BYTETABLE",   # INDIR + scripts VM + events + entites
+}
+
+B2_HEADER = (
+    "; ============================================================\n"
+    "; The Hobbit (Oric, 1982)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
+    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; - bloc 2 ($0500-$2BBD) : donnees du jeu (aucun code 6502)\n"
+    "; Listing généré par scripts/disasm.py (partitionnement type + labels).\n"
+    "; Dictionnaire packe 5-bit, catalogue de messages, etats, records,\n"
+    "; tables INDIR, scripts VM AnimAction, events, entites.\n"
+    "; Formats : docs/block4-analysis.md, docs/memory-map.md.\n"
+    "; ============================================================\n\n"
+)
+
+
 BLOCKS: dict[str, Block] = {
     "block4": Block(
         key="block4",
@@ -899,6 +984,27 @@ BLOCKS: dict[str, Block] = {
         # $0468-$047B = blob de vecteurs ROM 1.1 (copie, pas du texte) ;
         # $04F9-$04FF = queue non referencee (fin de bloc).
         data_ranges={0x0468: "BYTETABLE", 0x04F9: "BYTETABLE"},
+    ),
+    "block2": Block(
+        key="block2",
+        lo=0x0500,
+        hi=0x2BBD,
+        base_entries=[],
+        manual_entries=[],
+        seed_exclude=set(),
+        vectors={},
+        routine_docs={},
+        routine_notes={},
+        info=DISASM / "block2.info",
+        listing=DISASM / "block2.asm",
+        cfg=ROOT / "disasm" / "block2.cfg",
+        header=B2_HEADER,
+        vector_table=None,
+        use_r2_seeds=False,
+        check_rom_diff=False,
+        check_code_tables=False,
+        labels=B2_LABELS,
+        data_ranges=B2_RANGES,
     ),
 }
 
@@ -1112,7 +1218,12 @@ def build_info(
                 cur = None
     if cur is not None:
         code_ranges.append(cur)
-    named = {**block.vectors, **ROM_LABELS, **{a: n for a, (n, _d) in ZP_NAMES.items()}}
+    named = {
+        **block.vectors,
+        **block.labels,
+        **ROM_LABELS,
+        **{a: n for a, (n, _d) in ZP_NAMES.items()},
+    }
     for addr, (name, _doc) in block.routine_docs.items():
         if name is not None:
             named[addr] = name
@@ -1191,6 +1302,8 @@ def label_name(block: Block, addr: int) -> str | None:
         return block.routine_docs[addr][0]
     if addr in block.vectors:
         return block.vectors[addr]
+    if addr in block.labels:
+        return block.labels[addr]
     if addr in ZP_NAMES:
         return ZP_NAMES[addr][0]
     return ROM_LABELS.get(addr)

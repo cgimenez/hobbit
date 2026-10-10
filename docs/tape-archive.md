@@ -73,6 +73,43 @@ Vecteurs nommés : `b1_vec_sync $0405` · `b1_vec_read $0408` ·
 `b1_vec_leader $040B` · `b1_vec_write $040E` · `b1_vec_setup $0411` ·
 `b1_vec_reset $0414`.
 
+## Détail du bloc 2 (données, `$0500`–`$2BBD`)
+
+> Listing : [`disasm/block2.asm`](../disasm/block2.asm) (généré par
+> `scripts/disasm.py --block block2`). Round-trip ca65+ld65 **byte-identique**
+> (9918 o) via `scripts/disasm_rebuild.py --block block2` ; checker
+> `scripts/disasm_check.py --block block2` : **RÉSULTAT PROPRE** (règle D
+> désactivée : bloc de données, sans code).
+
+Bloc **100 % données** (aucun code 6502) : banque de mots + messages, tables
+d'état, records de lieux/objets et « cerveau » des PNJ (scripts VM
+AnimAction). Formats élucidés dans [`block4-analysis.md`](block4-analysis.md)
+et [`memory-map.md`](memory-map.md).
+
+Partition (fichier `disasm/block2.info`) :
+
+| Plage | Type | Contenu |
+|---|---|---|
+| `$0500`–`$053F` | WORD | index 26 lettres → 1er mot du dictionnaire |
+| `$0540`–`$1116` | BYTE | dictionnaire packé 5-bit (~600 mots triés) |
+| `$1117`–`$1156` | WORD | 32 mots courants (`$60`–`$7F`) |
+| `$1157`–`$1A61` | BYTE | catalogue de messages (171 msgs + 29 desc. lieux `$18AA`) |
+| `$1A62`–`$1B19` | BYTE | clés d'état (61 triplets `[clé,lo,hi]` + `$FF`) |
+| `$1B1A`–`$206F` | BYTE | 61 blocs d'état (personnages, objets, lieux) |
+| `$2070`–`$210F` | WORD | table des records (80 mots `id`→record, `$2F` nul) |
+| `$2110`–`$2119` | WORD | 5 gabarits de description (pointeurs bloc 3) |
+| `$211A`–`$26E1` | BYTE | 79 records lieux/objets/créatures (cond. + desc + sorties) |
+| `$26E2`–`$2731` | BYTE | noms des directions (10 × 8 o : `NORTH`…`DOWN`) |
+| `$2732`–`$28CB` | BYTE | sorties étendues conditionnelles |
+| `$28CC`–`$2BBD` | BYTE | tables INDIR + scripts VM + events différées + entités |
+
+Structures nommées (labels) : `dict_index`, `dict`, `common_words`,
+`messages`, `loc_desc`, `state_keys`, `states`, `rec_table`, `rec_templates`,
+`records`, `dir_names`, `exits_ext`, `indir0`–`indir12`, `script_gandalf`,
+`script_thorin`, `script_elf`, `script_warg`, `script_butler`,
+`script_elrond`, `script_dragon`, `script_bard`, `script_gollum`,
+`script_trolls`, `script_goblins*`, `events`, `entities`.
+
 ## Patch de vecteurs selon la ROM
 
 `$0482  LDA $FC78` / `$0485  BNE $0497` :
