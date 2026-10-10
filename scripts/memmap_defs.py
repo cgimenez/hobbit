@@ -248,8 +248,8 @@ def _rec_table() -> dict[int, int]:
 RECORDS: dict[int, int] = _rec_table()
 _REC_SORTED = sorted(RECORDS.items(), key=lambda kv: kv[1])
 RECORD_FIELD = {
-    "b0": (0, VAR, "flags record (bit6=visite pose au LOOK, &$0E template)"),
-    "b1": (1, CONST, "flags record (bit6 inclusion recherche ; immuable)"),
+    "b0": (0, VAR, "flags : bit6=visite (pose au LOOK), bit7=visible/examinable (act_p14_14 : clair -> IT IS DARK), bits1-3 (&$0E)=index template $2110"),
+    "b1": (1, CONST, "flags : bit6=inclusion dans la recherche (immuable)"),
     "conds": (2, GABARIT, "signature d'appartenance (3 paires mot/masque)"),
     "desc": (8, GABARIT, "pointeur description LOOK"),
     "exits": (10, GABARIT, "sorties [dir,cond,dest]* terminees $FF"),

@@ -181,6 +181,9 @@ Correction : `$41` = **ELROND** (et non « dragon présumé ») ; le **DRAGON**
 est `$3C` (dormant). `$40` = ELF, `$43` = WARG, `$46` = BARD, `$3F` =
 THORIN.
 
+`eloc` `$00` = **nulle part** (objet non posé : `$15`/`$16`/`$26`) ; `$2F` =
+**record nul** (`$2070[$2F]`=`$0000`, clé `$28`).
+
 **`$1E4B` = `$44.$10` = `gollum.eloc`** (base `$1E3B`+`$10`) : `act_v14_12`
 (`$6C03`) et `act_v14_14` (`$6D78`) le comparent à `ploc` pour exiger la
 co-localisation joueur/Gollum (confirme `+$10` = `eloc`).
@@ -306,7 +309,9 @@ Table **`$2070`** : 80 mots (id→record, `L530B` ; id≥`$50` refusé,
 `$2F`→`$0000` = nul). 79 records non-nuls `$00`–`$4F` sauf `$2F`
 (`$50`+ = hors `L530B`, pointeurs vers `$8xxx` non-records).
 Record = `[b0, b1, (mot,masque)×3, desc_lo, desc_hi, …]` ; `+8` = desc
-(`$0000` = sans description propre) ; `b0`&`$0E` = template LOOK ;
+(`$0000` = sans description propre) ; `b0`&`$0E` = **index de template** dans
+`$2110` (pointeur bloc 3 / gabarit LOOK) ; `b0` bit6 = visite (posé au LOOK) ;
+`b0` bit7 = visible/examinable (`act_p14_14` : bit7 clair → « IT IS DARK ») ;
 `b1` bit6 = inclusion recherche (`$FF` sauf `$01`=`$A0`, `$2B`=`$B0`) ;
 conds = signature d'appartenance (`code_433A`, groupes § factions).
 
@@ -568,7 +573,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   valider à `-x` court ou via tickdiff uniquement.
 - **Reste ouvert** : sens fin `+0` `$02 $03 $05 $08` (tous « non
   localisé » ; sous-régime non testé dans le code), `n`, `s6` (à quoi
-  servent-ils ?), bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/`$2F`,
+  servent-ils ?),
   driver events (`evt_tick` décodé : `cpt--`, tir actA à 0
   + actB si `cond>=cpt` — mais `cpt` statique en jeu : qui
   appelle quoi ? `$B0` = nb de `world_tick` par commande ?),
