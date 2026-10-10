@@ -89,7 +89,7 @@ def build_d2(graph: dict, vis: set[int]) -> str:
     lines = [
         "# The Hobbit (Oric-1/Atmos 1982) - carte des lieux",
         "# GENERE par scripts/draw_map.py - NE PAS EDITER A LA MAIN.",
-        "direction: right",
+        "direction: down",
         "classes: {",
         '  visite: { style: { fill: "#e6f4ea"; stroke: "#2e7d32"; '
         'font-color: "#1b3a24" } }',
