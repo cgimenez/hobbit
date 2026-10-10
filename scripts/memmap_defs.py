@@ -96,7 +96,7 @@ STATE_KEYS: list[tuple[int, int]] = [
 # Offsets de champ (sens generique d'un bloc d'etat). +0 = regime, jamais
 # mute (doc §6 : "jamais modifie") -> constante.
 STATE_FIELD: dict[int, tuple[str, str, str]] = {
-    0x00: ("type", CONST, "octet de type ($01 localise, autres regimes)"),
+    0x00: ("type", CONST, "octet de type : $01 = localise (eloc valide via L57BB) ; $02/$03/$05/$08 = non localise"),
     0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne)"),
     0x05: ("hp", VAR, "degats/vie (act_p14_00 : +10/coup, bit7=>tue ; x2 transfo $6F1B)"),
     0x06: ("tough", VAR, "seuil de robustesse (compare aux degats +$05 ; act_p14_01)"),
@@ -104,6 +104,8 @@ STATE_FIELD: dict[int, tuple[str, str, str]] = {
     0x08: ("tpl", GABARIT, "template de description (tokens runtime)"),
     0x0A: ("altptr", VAR, "pointeur secondaire (2 o ; ex. $098F pose par $6F1B)"),
     0x0B: ("altptr_hi", VAR, "haut de altptr"),
+    0x0C: ("descp", VAR, "pointeur de description runtime (RAZ par code_5AF0 ; pose en action, ex. $04D6 -> texte)"),
+    0x0D: ("descp_hi", VAR, "haut de descp"),
     0x10: ("eloc", VAR, "lieu de l'entite (si +0==$01)"),
 }
 # Champs specifiques a une cle (cle, offset) -> (nom, genre, doc).

@@ -80,7 +80,9 @@ entité, `$FF`=personne : ex. carte `$03`→`$3E` = Gandalf la porte au boot) ;
 `+$05` = points de vie/dégâts (combat, `+10`/coup, `bit7`⇒tué) ; `+$06` =
 seuil de robustesse ; `+$07` = flags (`bit5`=ouvert portes, `bit1`/`bit3`
 combat) ; `+$08` = template de description ; `+$0A`/`+$0B` = pointeur
-secondaire ; `+$0C`/`+$0D` = paire (RAZ par `code_5AF0`, sens ouvert).
+secondaire ; `+$0C`/`+$0D` = pointeur de **description runtime** (`descp`,
+RAZ par `code_5AF0` puis posé par les actions : `$04D6` → texte « t while
+THE… »).
 `+0` vaut aussi `$02 $03 $05 $08` (sens à élucider ; majoritaire `$01`).
 
 | Clé | Addr | +0 | +1 porteur | +8 tpl | eloc (+$10, si +0==1) |
@@ -536,8 +538,8 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   **Spin EOF-idle non neutre** : ~32 o réécrits sur 2G cycles de
   polls `keyin` à `$00` (pas de tick monde, mais side-effects) —
   valider à `-x` court ou via tickdiff uniquement.
-- **Reste ouvert** : ZP `$BF`–`$C4`/`$CD`/`$CF`–`$D5` (statiques
-  partout), sens fin `+0` `$02 $03 $05 $08`, `n`, `s6` (à quoi
+- **Reste ouvert** : sens fin `+0` `$02 $03 $05 $08` (tous « non
+  localisé » ; sous-régime non testé dans le code), `n`, `s6` (à quoi
   servent-ils ?), bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/`$2F`,
   identité `$3C`, noms entités `$3D $3F $40 $43 $45 $49 $4A $4B
   $4C`, driver events (`evt_tick` décodé : `cpt--`, tir actA à 0
