@@ -1,0 +1,9 @@
+# ring_surface ($0A) -> comble les trous solver : $0E, $47, $4A, $49
+EAST
+NORTH
+SOUTH
+WEST
+NORTH
+EAST
+SOUTH
+WEST

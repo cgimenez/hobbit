@@ -707,9 +707,10 @@ Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
 - **Anneau** = état `$10` (`$1CC4`) au lieu `$3D` ; `GET RING`.
 - **Évasion elfique** = tonneau via Anneau (`sav/barrel_ride.bin`).
 - **Dragon** = `SAY TO BARD "SHOOT DRAGON"` ; **araignées** = `WAIT`×2.
-- **Lieux** : **79/79 visités** (graphe parcouru ; 10 conditionnels `08 14 15
-  1A 1B 1C 1D 32 42 43` via patch debug de `player.eloc`). Carte :
-  `docs/game-map.md`.
+- **Lieux** : **78/78 records valides visités** (79 slots `$01`–`$4F`, `$2F`
+  nul ; graphe parcouru ; 10 conditionnels `08 14 15 1A 1B 1C 1D 32 42 43`
+  atteints via patch debug de `player.eloc` ; `$42` rendu via `PATCH:42`,
+  `ploc` forcé à `$1F` par l'event *wood elf*). Carte : `docs/game-map.md`.
 - **Lieu autoritaire** lu par LOOK = **`player.eloc`** (`$1B2A`, bloc `$00`
   `+$10`) ; `ploc` (`$C8`) = **miroir** (patté seul, il est re-dérivé).
 - **Couverture memmap** : **237/3623 o (6.5 %)** ; `records` **78/79**
@@ -810,3 +811,8 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
 - **Couverture** : `records` 71 → **78/79** (var nommées 59 → 66) ; total
   **237/3623 (6.5 %)**. `check_memmap` PROPRE.
 - Repro patch : `b=bytearray(sav/ring.bin); b[44]=<ploc>; run_one(b,'LOOK')`.
+- *(2026-10-10) Cohérence `solver.db`* : 4 lieux (`$0E $47 $49 $4A`) rejoués
+  en **vrai jeu** depuis `sav/ring_surface.bin` (`$0A`, `routes/ne_gaps.txt`),
+  nœuds 300/304/305/306 ; `$42` reste *rendu seul* (capture *wood elf* →
+  `snap-incomplet`). Comptage rectifié : **78/78 records valides** (79 slots
+  `$01`–`$4F`, `$2F` nul), pas « 79/79 ».
