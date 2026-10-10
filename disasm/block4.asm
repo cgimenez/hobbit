@@ -127,7 +127,6 @@ putchar:jmp     ch_out
 
 main:   jmp     game_main
 
-; Point de depart du jeu : prepare la memoire, affiche le prompt, puis boucle de commandes
 ; Point de depart du jeu, juste apres le chargement de la cassette.
 ; Il met de cote l'etat de depart, prepare la memoire, puis entre dans la grande boucle
 ; du jeu : afficher la situation, lire la commande du joueur, faire avancer le monde.
@@ -342,7 +341,6 @@ L2DBD:  lda     #$22
         jsr     print_cr
         jmp     L2C99
 
-; Remet a zero les compteurs de depart (variables de travail, pile de messages, score)
 ; Remet a zero les compteurs de depart (variables de travail, pile de messages, score)
 ; juste avant de lancer la partie.
 ; Technique : $97-$9C = 0, rstk $AF = 0, score $CC/$CD = 0, puis jmp game_main.
@@ -755,7 +753,6 @@ L3078:  lda     (ptr),y
 L308F:  .byte   "> "
 L3091:  .byte   "LOOK."
         .byte   $0D
-; Copie l'etat de depart de la cassette vers la memoire de travail (le jeu joue sur cette copie)
 ; Le jeu ne travaille jamais directement sur la cassette : il en recopie le contenu en
 ; memoire haute et joue sur cette copie (le TAPE reste intact et rechargeable).
 ; Cette routine fait la copie initiale sauvegarde -> memoire de travail.
@@ -780,7 +777,6 @@ L30AB:  ldy     #$00
         bne     L309D
         rts
 
-; Copie la memoire de travail vers la zone de sauvegarde (sens inverse de boot_copy)
 ; Copie en sens inverse : ramene la memoire de travail vers la zone de sauvegarde
 ; (par exemple avant d'ecrire sur la cassette).
 ; Technique : meme table de descripteurs que boot_copy.
@@ -1657,7 +1653,6 @@ L36D5:  jsr     L4B37
         lda     passok
         rts
 
-; Coeur du deplacement : trouve la sortie, verifie ses conditions, puis deplace ou refuse
 ; Coeur du deplacement : quand le joueur demande a aller quelque part, cette routine
 ; retrouve la sortie correspondante du lieu, verifie ses eventuelles conditions (objet
 ; requis, passage cache...), puis effectue ou refuse le deplacement.
@@ -1729,7 +1724,6 @@ L3743:  tax
         txa
         rts
 
-; Prepare la condition a remplir pour emprunter une sortie
 ; Prepare la condition a remplir pour emprunter une sortie : une sortie peut etre cachee,
 ; verrouillee, ou dependre d'un objet. S'il n'y a pas de condition (X = $FF), rien a verifier.
 ; Technique : A = drapeau direct ; 0 -> fiche du lieu (etat+8, L43F3), sinon fiche de l'objet
@@ -1751,7 +1745,6 @@ L3769:  txa
         lda     #$01
         rts
 
-; Met de cote les options de la sortie (directe ou en variante)
 ; Range les options de la sortie sous forme de drapeaux simples (sortie directe ou en
 ; variante) que la suite du deplacement consultera.
 ; Technique : direct = bit7 de xmode, variant = bit6, $7F = bit6 de xaux, $80 = bit0 de xmode.
@@ -3142,7 +3135,6 @@ L4232:  lda     (exitp),y
         iny
         jmp     word_render
 
-; Affiche un mot du dictionnaire et sa terminaison (pluriel, -ing...), avec espaces et retour a la ligne
 ; Affiche un mot du dictionnaire. Pour gagner de la place, les lettres sont stockees sur
 ; 5 bits ; cette routine les reconstitue, ajoute la terminaison (pluriel, -ing...), gere
 ; l'espace et le retour a la ligne.
@@ -3232,7 +3224,6 @@ L42C3:  sta     L430E,x
         sec
         sbc     #$01
         bne     L42B9
-; Place les espaces entre les mots et coupe la ligne en fin d'ecran
 ; Gere les espaces entre les mots et coupe la ligne quand on arrive au bord de l'ecran.
 ; Technique : insere l'espace en attente puis retour a la ligne quand X >= largeur ($04/$05).
 word_space:
@@ -3377,7 +3368,6 @@ L43C7:  php
         plp
         rts
 
-; Retrouve la fiche de la sortie demandee dans la table des sorties du lieu
 ; Retrouve la fiche de la sortie demandee : chaque lieu a une liste de sorties stockee en
 ; table ; cette routine calcule l'adresse de l'entree voulue (utilisee ensuite pour le
 ; deplacement et pour lire les conditions).
@@ -3423,7 +3413,6 @@ L4402:  lda     $5E
         sta     phase
 L440A:  jmp     print_msg
 
-; Affiche le message ecrit juste apres l'appel, puis reprend l'execution apres lui
 ; Affiche un message. Le message n'est pas passe en argument : son adresse est ecrite
 ; juste apres l'instruction d'appel, dans le programme. print_msg la lit a cet endroit,
 ; affiche le texte, puis reprend l'execution juste apres.
@@ -3460,7 +3449,6 @@ L4437:  jsr     render_text
         jsr     fetch_retaddr
         jmp     (L006A)
 
-; Traduit un message compresse en texte a l'ecran (lettres, mots courants, mots du dictionnaire, marqueurs)
 ; Traduit en caracteres le texte compresse d'un message. Un message est une suite de
 ; codes : des lettres telles quelles, des mots courants (the, a, you...), des mots du
 ; dictionnaire, et des marqueurs qui inserrent un nom d'objet ou terminent la phrase.
@@ -3526,7 +3514,6 @@ L44A3:  lda     #$2E
 L44A8:  jsr     print_cr
         jmp     L44BD
 
-; Termine un message et applique sa ponctuation finale (rien, point ou saut de ligne)
 ; Termine proprement un message : affiche le dernier mot puis applique la ponctuation
 ; finale demandee (rien, un point, ou un saut de ligne).
 ; Technique : $6x = saut de ligne, $3x = point, $2x = rien.
@@ -3540,7 +3527,6 @@ text_end:
         beq     L44A3
 L44BD:  rts
 
-; Avance d'un cran le pointeur de lecture du message courant
 ; Petit utilitaire : avance d'un cran le pointeur de lecture du message courant.
 ; Technique : INC $6A, + $6B si retenue.
 msgptr_inc:
@@ -3790,7 +3776,6 @@ L4622:  lda     #$58
         sta     adr_hi
         jmp     word_render
 
-; Retrouve un mot courant (the, a, you...) a partir d'un seul octet
 ; Raccourci pour les mots les plus frequents (the, a, and, you...) : un seul octet suffit
 ; a designer le mot, qui est ensuite affiche par le rendu normal.
 ; Technique : octet $60-$7F -> entree de la table $1117 (pointeur de mot).
@@ -3807,7 +3792,6 @@ common_lookup:
         sta     adr_hi
         jmp     L4469
 
-; Liste des marqueurs speciaux d'un message : chacun renvoie vers la routine qui le traite
 ; Annuaire des marqueurs speciaux d'un message (codes inferieurs a $20). Chaque code
 ; renvoie vers la routine qui sait le traiter : inserer un nom d'objet, un pronom, un
 ; retour a la ligne, ou terminer le message.
@@ -4681,7 +4665,6 @@ L4E49:  sta     L4DF5
         jmp     L4E17
 
 L4E58:  .byte   $1A
-; Fait vivre le monde apres chaque commande : PNJ (scripts), puis evenements differes
 ; Fait vivre le monde autour du joueur : chaque personnage joue son script (il se deplace,
 ; parle...), et les evenements differes se declenchent (un PNJ qui arrive, une porte qui
 ; s'ouvre...). Appele apres chaque commande reussie.
@@ -4699,7 +4682,6 @@ world_tick:
         sta     ptr2
         lda     #$2B
         sta     ptr2_hi
-; Parcourt les evenements differes : decompte leur minuterie et declenche leur action quand elle est atteinte
 ; Parcourt la liste des evenements differes. Chaque evenement a un compte a rebours :
 ; quand il atteint zero, l'action prevue se declenche ; sinon on peut tester une condition.
 ; Technique : table $2B12, entrees de 5 octets [id, cpt, actA, cond, actB], fin $FF ;
@@ -4725,7 +4707,6 @@ evt_tick:
         ldy     #$02
         jmp     evt_fire
 
-; Teste si la condition d'un evenement est remplie pour le declencher
 ; Teste la condition d'un evenement en cours : si elle est remplie, l'action associee
 ; s'execute.
 ; Technique : si cond (octet 3) != 0 et cond >= cpt -> evt_fire (actB, octet 4).
@@ -4737,7 +4718,6 @@ evt_cond:
         cmp     (ptr2),y
         bcc     L4EBE
         ldy     #$04
-; Execute l'action d'un evenement en allant chercher son adresse dans une table
 ; Declenche l'action d'un evenement : va chercher son adresse dans une table, puis l'execute.
 ; Technique : table de sauts $7169 (index*2) -> patch du JMP $4C64/$4C65 -> appel $4C5D.
 evt_fire:
@@ -4757,7 +4737,6 @@ L4EBE:  lda     ptr2
         inc     ptr2_hi
 L4EC9:  jmp     evt_tick
 
-; Fin de la liste des evenements : rend la main
 ; Fin de la liste des evenements : on rend la main (et on reautorise l'affichage).
 ; Technique : outen=1 puis L471B.
 evt_end:lda     #$01
@@ -4766,7 +4745,6 @@ evt_end:lda     #$01
 
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
-; Fait jouer le script d'un personnage (se deplacer, parler...), meme loin du joueur
 ; Fait jouer le script d'un personnage : son 'cerveau'. Chaque personnage a une petite
 ; suite d'instructions (se deplacer, parler, attendre, choisir au hasard) qui s'execute
 ; un peu a chaque tour, meme quand le joueur est ailleurs.
@@ -4945,7 +4923,6 @@ L5008:  lda     #$00
         rts
 
 L501E:  lda     #$04
-; Avance d'un cran le script d'un personnage
 ; Avance d'un cran le programme (script) d'un personnage.
 ; Technique : $8C/$8D += A.
 script_adv:
@@ -4956,13 +4933,11 @@ script_adv:
         inc     $8D
 L5029:  rts
 
-; Passage a l'instruction suivante du script d'un personnage
 ; Passe a l'instruction suivante du script d'un personnage, en sautant la taille de
 ; l'instruction courante.
 ; Technique : +4 (+2 si le bit $10 est pose), puis reecrit le PC dans l'entree de l'entite.
 script_step4:
         lda     #$04
-; Passage a l'instruction suivante du script (version courte)
 ; Passe a l'instruction suivante du script d'un personnage, en sautant la taille de
 ; l'instruction courante (version courte).
 ; Technique : +2 (+2 si le bit $10 est pose), puis reecrit le PC dans l'entree de l'entite.
@@ -5905,7 +5880,6 @@ L56D1:  lda     #$00
         jmp     L471B
 
 L56D6:  .byte   $C0
-; Fabrique un nombre aleatoire borne
 ; Fabrique un nombre aleatoire borne, utilise pour les comportements imprevisibles
 ; (errance des personnages, combats...).
 ; Technique : melange des octets de la source de bruit $93/$94 puis ramene le resultat dans [0, A).
@@ -9808,7 +9782,6 @@ L733B:  lda     $37
 L7351:  sec
         rts
 
-; Lit le clavier : renvoie la touche appuyee, ou 'aucune touche'
 ; Lit l'etat du clavier : renvoie la touche appuyee, ou indique qu'aucune touche n'est
 ; enfoncee.
 ; Technique : scan de la matrice via le VIA ($0300) ; A = code touche, bit7 pose si presente.
@@ -9940,7 +9913,6 @@ L7472:  sta     $0301
         rts
 
         .byte   "`"
-; Attend que le joueur appuie sur une touche
 ; Attend que le joueur appuie sur une touche, puis renvoie son code.
 ; Technique : boucle sur kb_scan jusqu'a bit7 pose, retour & $7F.
 kb_wait:jsr     kb_scan
@@ -9948,7 +9920,6 @@ kb_wait:jsr     kb_scan
         and     #$7F
         rts
 
-; Affiche un retour a la ligne
 ; Affiche un retour a la ligne.
 ; Technique : $0D via ch_out.
 cr_out: pha
@@ -9957,7 +9928,6 @@ cr_out: pha
         pla
         rts
 
-; Point d'entree de l'affichage : peut ignorer certains caracteres selon le contexte
 ; Point d'entree pour tout caractere affiche a l'ecran. Il peut etre ignore selon le
 ; contexte (par exemple pendant qu'une scene se prepare).
 ; Technique : si (phase & outen)==0 -> jete ; mode raw -> majuscules ; sinon ch_put.
@@ -10129,7 +10099,6 @@ L75AB:  dec     L0000
         cmp     #$29
         rts
 
-; Dessine un caractere a l'ecran graphique avec la police du jeu
 ; Dessine un caractere a l'ecran graphique (hires) en recopiant son motif depuis la police
 ; du jeu, puis fait avancer le curseur.
 ; Technique : police pointee par $0403/$0404 ; 8 octets en OR $40 (encre) ; ligne += $28.
@@ -10170,7 +10139,6 @@ L75F0:  iny
         bne     L75DB
         rts
 
-; Affiche un caractere : gere espaces, saut de ligne, effacement, majuscules et pause
 ; Affiche un caractere en gerant les details du texte : espaces en attente, passage a la
 ; ligne, effacement, majuscule apres un point, minuscules par defaut. Toutes les 16 lignes
 ; il s'arrete pour laisser le joueur lire (pause).
@@ -10194,7 +10162,6 @@ L7607:  lda     #$20
 L7613:  lda     $02
         cmp     #$0D
         bne     L7653
-; Toutes les 16 lignes, marque une pause pour laisser le joueur lire
 ; Pause de lecture : tous les 16 sauts de ligne, le jeu attend une touche (ou un court
 ; delai), puis fait defiler l'ecran et remet le compteur de lignes a zero.
 ; Technique : 10 essais kb_scan avec delai, compteur crcnt mod 16, scroll L7694.

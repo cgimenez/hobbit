@@ -1030,17 +1030,29 @@ def label_name(addr: int) -> str | None:
 
 
 def inject_notes(asm: list[str], notes: dict[int, list[str]]) -> list[str]:
-    """Insere les notes multi-lignes juste avant le label correspondant."""
+    """Insère les notes multi-lignes juste avant le label correspondant.
+
+    Quand une routine a une note, celle-ci (déjà rédigée « humain d'abord »)
+    remplace le résumé une ligne de ROUTINE_DOCS pour éviter un doublon.
+    """
     by_name: dict[str, list[str]] = {}
     for addr, lines in notes.items():
         name = label_name(addr)
         if name:
             by_name[name] = lines
+    doc_by_name: dict[str, str] = {}
+    for addr, (_name, doc) in ROUTINE_DOCS.items():
+        name = label_name(addr)
+        if name and doc:
+            doc_by_name[name] = f"; {sanitize_comment(doc)}\n"
     out: list[str] = []
     for ln in asm:
         m = re.match(r"([A-Za-z_][A-Za-z0-9_]*):", ln)
         if m and m.group(1) in by_name:
-            for text in by_name.pop(m.group(1)):
+            name = m.group(1)
+            if out and out[-1] == doc_by_name.get(name):
+                out.pop()
+            for text in by_name.pop(name):
                 out.append(f"; {text}\n")
         out.append(ln)
     return out
