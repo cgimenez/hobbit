@@ -8,8 +8,10 @@ terrain OK : 6/6 mouvements observés F1–F5 présents dans le graphe).
 ![Carte des lieux (D2)](map.svg)
 
 Carte générée (`docs/map.svg` ← `docs/map.d2`) par `scripts/draw_map.py` :
-nœuds colorés *visité* / *patch-only* / *zone sombre*, arêtes = direction +
-`cond $YY`, cible `$00` en pointillé vers le nœud *vide/mort*.
+**5 sous-graphes** (Ouest/Trollshaws, Monts Brumeux, Cavernes gobelines,
+Forêt noire–Lac–Montagne, Hauts du nord-est), nœuds colorés *visité* /
+*patch-only* / *zone sombre*, arêtes = direction + `cond $YY`, cible `$00`
+en pointillé vers le nœud *vide/mort*.
 
 ## Format
 

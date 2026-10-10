@@ -1,4 +1,4 @@
-# The Hobbit (Oric-1/Atmos 1982) - carte des lieux
+# The Hobbit (Oric-1/Atmos 1982) - carte des lieux par zones
 # GENERE par scripts/draw_map.py - NE PAS EDITER A LA MAIN.
 direction: down
 classes: {
@@ -9,274 +9,289 @@ classes: {
   vide:   { style: { fill: "#f5f5f5"; stroke: "#9e9e9e"; font-color: "#616161"; stroke-dash: 4 } }
 }
 
-p01: "\$01  A COMFORTABLE TUNNEL LIKE HALL" { class: visite }
-p02: "\$02  (sans desc)" { class: visite }
-p03: "\$03  (sans desc)" { class: visite }
-p04: "\$04  A GLOOMY EMPTY LAND WITH DREARY HILL" { class: visite }
-p05: "\$05  (sans desc)" { class: visite }
-p06: "\$06  A HIDDEN PATH WITH TROLLS FOOT PRINT" { class: visite }
-p07: "\$07  THE TROLLS CAVE" { class: visite }
-p08: "\$08  (sans desc)" { class: patch }
-p09: "\$09  (sans desc)" { class: visite }
-p0A: "\$0A  A HARD DANGEROUS PATH IN THE MISTY M" { class: visite }
-p0B: "\$0B  A NARROW PLACE WITH A DREADFUL DROP " { class: visite }
-p0C: "\$0C  A NARROW DANGEROUS PATH" { class: visite }
-p0D: "\$0D  (sans desc)" { class: visite }
-p0E: "\$0E  A LARGE DRY CAVE WHICH IS QUITE COMF" { class: visite }
-p0F: "\$0F  (sans desc)" { class: visite }
-p10: "\$10  A BIG CAVERN WITH TORCHESALONG THE W" { class: visite }
-p11: "\$11  THE BRINK OF A DEEP DARK UNDER GROUN" { class: visite }
-p12: "\$12  (sans desc)" { class: visite }
-p13: "\$13  THE GOBLINS GATE" { class: visite }
-p14: "\$14  THE GOBLINS GATE" { class: patch }
-p15: "\$15  (sans desc)" { class: patch }
-p16: "\$16  (sans desc)" { class: visite }
-p17: "\$17  (sans desc)" { class: visite }
-p18: "\$18  THE GATE TO MIRKWOOD" { class: visite }
-p19: "\$19  A BEWITCHED GLOOMY PLACE SURROUNDED " { class: visite }
-p1A: "\$1A  A PLACE OF BLACK SPIDERS" { class: patch }
-p1B: "\$1B  A FOREST OF TANGLED SMOTHERING TREE" { class: patch }
-p1C: "\$1C  AN ELVISH CLEARING WITH LEVELLED GRO" { class: patch }
-p1D: "\$1D  (sans desc)" { class: patch }
-p1E: "\$1E  (sans desc)" { class: sombre }
-p1F: "\$1F  A DARK DUNGEON IN THE ELVENKINGS HAL" { class: sombre }
-p20: "\$20  THE CELLAR WHERE THE KING KEEPS HIS " { class: sombre }
-p21: "\$21  (sans desc)" { class: visite }
-p22: "\$22  (sans desc)" { class: visite }
-p23: "\$23  A WOODEN TOWN IN THE MIDDLE OF LONG " { class: visite }
-p24: "\$24  A STRONG RIVER :THE CURRENT IS NOW T" { class: visite }
-p25: "\$25  A BLEAK BARREN LAND THAT WAS ONCE GR" { class: visite }
-p26: "\$26  THE RUINS OF THE TOWN OF DALE" { class: visite }
-p27: "\$27  THE FRONT GATE OF THE LONELY MOUNTAI" { class: visite }
-p28: "\$28  THE WEST SIDE OF RAVENHILL" { class: visite }
-p29: "\$29  THE HALLS WHERE THE DRAGON SLEEP" { class: visite }
-p2A: "\$2A  A LITTLE STEEP BAY,STILL AND QUIET,W" { class: visite }
-p2B: "\$2B  A SMOOTH STRAIGHT PASSAGE" { class: visite }
-p2C: "\$2C  THE LONELY MOUNTAIN" { class: visite }
-p2D: "\$2D  (sans desc)" { class: visite }
-p2E: "\$2E  (sans desc)" { class: visite }
-p30: "\$30  (sans desc)" { class: visite }
-p31: "\$31  (sans desc)" { class: visite }
-p32: "\$32  (sans desc)" { class: patch }
-p33: "\$33  (sans desc)" { class: visite }
-p34: "\$34  (sans desc)" { class: visite }
-p35: "\$35  (sans desc)" { class: visite }
-p36: "\$36  (sans desc)" { class: visite }
-p37: "\$37  (sans desc)" { class: visite }
-p38: "\$38  (sans desc)" { class: visite }
-p39: "\$39  (sans desc)" { class: visite }
-p3A: "\$3A  (sans desc)" { class: visite }
-p3B: "\$3B  (sans desc)" { class: visite }
-p3C: "\$3C  (sans desc)" { class: visite }
-p3D: "\$3D  (sans desc)" { class: visite }
-p3E: "\$3E  (sans desc)" { class: visite }
-p3F: "\$3F  (sans desc)" { class: visite }
-p40: "\$40  (sans desc)" { class: visite }
-p41: "\$41  (sans desc)" { class: visite }
-p42: "\$42  THE WEST{GOTO>BANK OF A BLACK RIVER}" { class: patch }
-p43: "\$43  THE EAST{GOTO>BANK OF A BLACK RIVER}" { class: patch }
-p44: "\$44  (sans desc)" { class: visite }
-p45: "\$45  (sans desc)" { class: visite }
-p46: "\$46  (sans desc)" { class: visite }
-p47: "\$47  (sans desc)" { class: visite }
-p48: "\$48  (sans desc)" { class: visite }
-p49: "\$49  (sans desc)" { class: visite }
-p4A: "\$4A  (sans desc)" { class: visite }
-p4B: "\$4B  (sans desc)" { class: visite }
-p4C: "\$4C  (sans desc)" { class: visite }
-p4D: "\$4D  (sans desc)" { class: visite }
-p4E: "\$4E  (sans desc)" { class: visite }
-p4F: "\$4F  (sans desc)" { class: visite }
+z_ouest: "Ouest : tunnel & Trollshaws" {
+  direction: down
+  p01: "\$01  A COMFORTABLE TUNNEL LIKE HALL" { class: visite }
+  p04: "\$04  A GLOOMY EMPTY LAND WITH DREARY HILL" { class: visite }
+  p05: "\$05  (sans desc)" { class: visite }
+  p06: "\$06  A HIDDEN PATH WITH TROLLS FOOT PRINT" { class: visite }
+  p07: "\$07  THE TROLLS CAVE" { class: visite }
+  p09: "\$09  (sans desc)" { class: visite }
+}
+z_brumeux: "Monts Brumeux" {
+  direction: down
+  p0A: "\$0A  A HARD DANGEROUS PATH IN THE MISTY M" { class: visite }
+  p0B: "\$0B  A NARROW PLACE WITH A DREADFUL DROP " { class: visite }
+  p0C: "\$0C  A NARROW DANGEROUS PATH" { class: visite }
+  p0E: "\$0E  A LARGE DRY CAVE WHICH IS QUITE COMF" { class: visite }
+  p0F: "\$0F  (sans desc)" { class: visite }
+  p16: "\$16  (sans desc)" { class: visite }
+  p18: "\$18  THE GATE TO MIRKWOOD" { class: visite }
+  p19: "\$19  A BEWITCHED GLOOMY PLACE SURROUNDED " { class: visite }
+  p32: "\$32  (sans desc)" { class: patch }
+  p42: "\$42  THE WEST{GOTO>BANK OF A BLACK RIVER}" { class: patch }
+  p43: "\$43  THE EAST{GOTO>BANK OF A BLACK RIVER}" { class: patch }
+}
+z_gobelins: "Cavernes gobelines (nord)" {
+  direction: down
+  p0D: "\$0D  (sans desc)" { class: visite }
+  p10: "\$10  A BIG CAVERN WITH TORCHESALONG THE W" { class: visite }
+  p11: "\$11  THE BRINK OF A DEEP DARK UNDER GROUN" { class: visite }
+  p12: "\$12  (sans desc)" { class: visite }
+  p13: "\$13  THE GOBLINS GATE" { class: visite }
+  p14: "\$14  THE GOBLINS GATE" { class: patch }
+  p15: "\$15  (sans desc)" { class: patch }
+  p34: "\$34  (sans desc)" { class: visite }
+  p35: "\$35  (sans desc)" { class: visite }
+  p36: "\$36  (sans desc)" { class: visite }
+  p37: "\$37  (sans desc)" { class: visite }
+  p38: "\$38  (sans desc)" { class: visite }
+  p39: "\$39  (sans desc)" { class: visite }
+  p3A: "\$3A  (sans desc)" { class: visite }
+  p3B: "\$3B  (sans desc)" { class: visite }
+  p3C: "\$3C  (sans desc)" { class: visite }
+  p3D: "\$3D  (sans desc)" { class: visite }
+  p3E: "\$3E  (sans desc)" { class: visite }
+  p3F: "\$3F  (sans desc)" { class: visite }
+  p40: "\$40  (sans desc)" { class: visite }
+  p41: "\$41  (sans desc)" { class: visite }
+}
+z_foret: "Foret noire, Lac & Montagne solitaire" {
+  direction: down
+  p02: "\$02  (sans desc)" { class: visite }
+  p03: "\$03  (sans desc)" { class: visite }
+  p08: "\$08  (sans desc)" { class: patch }
+  p17: "\$17  (sans desc)" { class: visite }
+  p1A: "\$1A  A PLACE OF BLACK SPIDERS" { class: patch }
+  p1B: "\$1B  A FOREST OF TANGLED SMOTHERING TREE" { class: patch }
+  p1C: "\$1C  AN ELVISH CLEARING WITH LEVELLED GRO" { class: patch }
+  p1D: "\$1D  (sans desc)" { class: patch }
+  p1E: "\$1E  (sans desc)" { class: sombre }
+  p1F: "\$1F  A DARK DUNGEON IN THE ELVENKINGS HAL" { class: sombre }
+  p20: "\$20  THE CELLAR WHERE THE KING KEEPS HIS " { class: sombre }
+  p21: "\$21  (sans desc)" { class: visite }
+  p22: "\$22  (sans desc)" { class: visite }
+  p23: "\$23  A WOODEN TOWN IN THE MIDDLE OF LONG " { class: visite }
+  p24: "\$24  A STRONG RIVER :THE CURRENT IS NOW T" { class: visite }
+  p25: "\$25  A BLEAK BARREN LAND THAT WAS ONCE GR" { class: visite }
+  p26: "\$26  THE RUINS OF THE TOWN OF DALE" { class: visite }
+  p27: "\$27  THE FRONT GATE OF THE LONELY MOUNTAI" { class: visite }
+  p28: "\$28  THE WEST SIDE OF RAVENHILL" { class: visite }
+  p29: "\$29  THE HALLS WHERE THE DRAGON SLEEP" { class: visite }
+  p2A: "\$2A  A LITTLE STEEP BAY,STILL AND QUIET,W" { class: visite }
+  p2B: "\$2B  A SMOOTH STRAIGHT PASSAGE" { class: visite }
+  p2C: "\$2C  THE LONELY MOUNTAIN" { class: visite }
+  p2D: "\$2D  (sans desc)" { class: visite }
+  p2E: "\$2E  (sans desc)" { class: visite }
+  p30: "\$30  (sans desc)" { class: visite }
+  p31: "\$31  (sans desc)" { class: visite }
+  p33: "\$33  (sans desc)" { class: visite }
+}
+z_ne: "Hauts du nord-est" {
+  direction: down
+  p44: "\$44  (sans desc)" { class: visite }
+  p45: "\$45  (sans desc)" { class: visite }
+  p46: "\$46  (sans desc)" { class: visite }
+  p47: "\$47  (sans desc)" { class: visite }
+  p48: "\$48  (sans desc)" { class: visite }
+  p49: "\$49  (sans desc)" { class: visite }
+  p4A: "\$4A  (sans desc)" { class: visite }
+  p4B: "\$4B  (sans desc)" { class: visite }
+  p4C: "\$4C  (sans desc)" { class: visite }
+  p4D: "\$4D  (sans desc)" { class: visite }
+  p4E: "\$4E  (sans desc)" { class: visite }
+  p4F: "\$4F  (sans desc)" { class: visite }
+}
 vide: "vide / mort\n(cible \$00)" { class: vide; shape: circle }
 
-p01 -> p04: "E [cond \$05]"
-p02 -> p03: "E"
-p02 -> p2E: "W"
-p03 -> p02: "W"
-p03 -> p2D: "E"
-p04 -> p01: "W [cond \$05]"
-p04 -> p05: "E\nN"
-p04 -> p06: "NE"
-p05 -> p04: "SW"
-p05 -> p09: "SE"
-p05 -> p06: "N"
-p06 -> p05: "S"
-p06 -> p07: "N [cond \$01]"
-p07 -> p06: "S [cond \$01]"
-p08 -> p2D: "N"
-p08 -> p03: "W"
-p09 -> p0A: "E"
-p09 -> p05: "W"
-p0A -> p0B: "E"
-p0A -> p44: "N"
-p0A -> p09: "W"
-p0A -> p49: "S"
-p0B -> p0C: "E"
-p0B -> p0A: "W"
-p0B -> p0E: "N"
-p0C -> p16: "E"
-p0C -> p0B: "W"
-p0D -> p10: "N [cond \$11]"
-p0D -> p12: "W [cond \$1B]"
-p0E -> p0F: "DOWN [cond \$06]"
-p0E -> p0B: "S"
-p0F -> p0E: "UP [cond \$06]"
-p0F -> p34: "S"
-p0F -> p3A: "NE"
-p10 -> p39: "DOWN"
-p10 -> p12: "NE"
-p10 -> p0D: "SE [cond \$11]"
-p11 -> p37: "N"
-p12 -> p10: "SW"
-p12 -> p3F: "SE"
-p12 -> p0D: "N [cond \$1B]"
-p13 -> p10: "W\nN\nS\nE\nSE\nSW\nDOWN\nNW"
-p13 -> p14: "UP [cond \$0A]"
-p13 -> p41: "NE"
-p14 -> p13: "DOWN [cond \$0A]"
-p14 -> p15: "E"
-p15 -> p16: "E"
-p15 -> p14: "W"
-p16 -> p18: "NE"
-p16 -> p14: "NW"
-p16 -> p2E: "S"
-p16 -> p0C: "SW"
-p16 -> p31: "N"
-p17 -> p21: "SE [cond \$2A]"
-p17 -> p30: "N"
-p18 -> p16: "W"
-p18 -> p2E: "S"
-p18 -> p19: "E"
-p19 -> p18: "W"
-p19 -> p42: "E"
-p19 -> vide: "S [cond \$09]" { class: vide }
-p1A -> p1D: "E [cond \$07]"
-p1A -> p32: "W [cond \$07]"
-p1A -> p1C: "N [cond \$07]"
-p1A -> p1B: "S [cond \$07]"
-p1B -> p1A: "N [cond \$07]"
-p1B -> p32: "W [cond \$07]"
-p1C -> p19: "W"
-p1C -> p1A: "E [cond \$07]"
-p1C -> p1E: "NE [cond \$0D]"
-p1D -> p1A: "W [cond \$07]"
-p1E -> p1F: "E [cond \$08]"
-p1E -> p20: "S"
-p1E -> p1C: "W [cond \$0D]"
-p1F -> p20: "SW [cond \$08]"
-p1F -> p1E: "W [cond \$08]"
-p20 -> p1F: "NE [cond \$08]"
-p20 -> p1E: "N"
-p20 -> p21: "DOWN [cond \$0C]"
-p21 -> p22: "E [cond \$27]"
-p21 -> vide: "UP [cond \$0C]\nS [cond \$2A]" { class: vide }
-p22 -> p24: "N"
-p22 -> p23: "E"
-p22 -> p21: "NW [cond \$27]"
-p22 -> p2D: "S"
-p23 -> p22: "N\nS\nE\nW"
-p24 -> p25: "UP"
-p24 -> p22: "S"
-p25 -> p26: "N"
-p25 -> p24: "DOWN"
-p26 -> p27: "N"
-p26 -> p25: "S"
-p26 -> p28: "NW"
-p27 -> p29: "N"
-p27 -> p26: "S"
-p27 -> p28: "W"
-p28 -> p2A: "N"
-p28 -> p25: "SE"
-p28 -> p27: "E"
-p29 -> p27: "S"
-p29 -> p2B: "E"
-p29 -> p2C: "UP"
-p2A -> p28: "S"
-p2A -> p2B: "E [cond \$0B]"
-p2A -> p33: "N"
-p2B -> p2A: "W [cond \$0B]"
-p2B -> p29: "E"
-p2C -> p29: "DOWN"
-p2C -> p2A: "W"
-p2C -> p27: "S"
-p2C -> p28: "SW"
-p2D -> p08: "S"
-p2D -> p03: "W"
-p2E -> p02: "E"
-p2E -> p18: "N"
-p30 -> p31: "SW"
-p30 -> p17: "SE"
-p31 -> p30: "NE"
-p31 -> p16: "S"
-p31 -> p18: "E"
-p31 -> p0A: "SW"
-p32 -> p1A: "NE [cond \$07]"
-p32 -> p43: "W"
-p33 -> p2A: "S"
-p33 -> p2C: "UP"
-p34 -> p0F: "N"
-p34 -> p35: "DOWN"
-p34 -> p36: "UP"
-p35 -> p34: "UP"
-p36 -> p34: "DOWN"
-p36 -> p37: "SE"
-p36 -> p40: "S"
-p36 -> p11: "SW"
-p37 -> p11: "S"
-p37 -> p36: "NE"
-p37 -> p3D: "SW"
-p37 -> p3C: "W"
-p38 -> p3C: "SW"
-p39 -> p10: "UP"
-p39 -> p41: "W"
-p39 -> p3A: "N"
-p3A -> p3E: "SE"
-p3A -> p0F: "E"
-p3A -> p39: "S"
-p3A -> p3B: "UP"
-p3B -> p3A: "DOWN"
-p3B -> p3C: "S"
-p3C -> p3D: "SE"
-p3C -> p3B: "N"
-p3C -> p38: "NW"
-p3D -> p36: "N"
-p3D -> p3C: "NW"
-p3E -> p3D: "E"
-p3F -> p40: "UP"
-p3F -> p12: "N"
-p3F -> p3A: "E"
-p40 -> p41: "NW"
-p40 -> p36: "W"
-p40 -> p3F: "SW"
-p41 -> p40: "N"
-p41 -> p39: "SE"
-p41 -> p13: "E"
-p42 -> p19: "W"
-p42 -> p43: "E [cond \$09]"
-p43 -> p32: "E"
-p43 -> p42: "W [cond \$09]"
-p44 -> p47: "E"
-p44 -> p45: "NE"
-p44 -> p0A: "S"
-p45 -> p46: "N"
-p45 -> p44: "SW"
-p45 -> p0A: "S"
-p46 -> p48: "SE"
-p46 -> p45: "S"
-p47 -> p45: "NW"
-p47 -> p4A: "S"
-p47 -> p44: "W"
-p48 -> p46: "NW"
-p48 -> p47: "SW"
-p48 -> p4B: "DOWN"
-p49 -> p4A: "E"
-p49 -> p0A: "N"
-p4A -> p47: "N"
-p4A -> p49: "W"
-p4B -> p4C: "DOWN"
-p4C -> p4D: "DOWN"
-p4D -> p4E: "DOWN"
-p4E -> p4F: "E"
-p4E -> p4D: "UP"
-p4F -> p4E: "W"
-p4F -> p4A: "UP"
+z_ouest.p01 -> z_ouest.p04: "E [cond \$05]"
+z_foret.p02 -> z_foret.p03: "E"
+z_foret.p02 -> z_foret.p2E: "W"
+z_foret.p03 -> z_foret.p02: "W"
+z_foret.p03 -> z_foret.p2D: "E"
+z_ouest.p04 -> z_ouest.p01: "W [cond \$05]"
+z_ouest.p04 -> z_ouest.p05: "E\nN"
+z_ouest.p04 -> z_ouest.p06: "NE"
+z_ouest.p05 -> z_ouest.p04: "SW"
+z_ouest.p05 -> z_ouest.p09: "SE"
+z_ouest.p05 -> z_ouest.p06: "N"
+z_ouest.p06 -> z_ouest.p05: "S"
+z_ouest.p06 -> z_ouest.p07: "N [cond \$01]"
+z_ouest.p07 -> z_ouest.p06: "S [cond \$01]"
+z_foret.p08 -> z_foret.p2D: "N"
+z_foret.p08 -> z_foret.p03: "W"
+z_ouest.p09 -> z_brumeux.p0A: "E"
+z_ouest.p09 -> z_ouest.p05: "W"
+z_brumeux.p0A -> z_brumeux.p0B: "E"
+z_brumeux.p0A -> z_ne.p44: "N"
+z_brumeux.p0A -> z_ouest.p09: "W"
+z_brumeux.p0A -> z_ne.p49: "S"
+z_brumeux.p0B -> z_brumeux.p0C: "E"
+z_brumeux.p0B -> z_brumeux.p0A: "W"
+z_brumeux.p0B -> z_brumeux.p0E: "N"
+z_brumeux.p0C -> z_brumeux.p16: "E"
+z_brumeux.p0C -> z_brumeux.p0B: "W"
+z_gobelins.p0D -> z_gobelins.p10: "N [cond \$11]"
+z_gobelins.p0D -> z_gobelins.p12: "W [cond \$1B]"
+z_brumeux.p0E -> z_brumeux.p0F: "DOWN [cond \$06]"
+z_brumeux.p0E -> z_brumeux.p0B: "S"
+z_brumeux.p0F -> z_brumeux.p0E: "UP [cond \$06]"
+z_brumeux.p0F -> z_gobelins.p34: "S"
+z_brumeux.p0F -> z_gobelins.p3A: "NE"
+z_gobelins.p10 -> z_gobelins.p39: "DOWN"
+z_gobelins.p10 -> z_gobelins.p12: "NE"
+z_gobelins.p10 -> z_gobelins.p0D: "SE [cond \$11]"
+z_gobelins.p11 -> z_gobelins.p37: "N"
+z_gobelins.p12 -> z_gobelins.p10: "SW"
+z_gobelins.p12 -> z_gobelins.p3F: "SE"
+z_gobelins.p12 -> z_gobelins.p0D: "N [cond \$1B]"
+z_gobelins.p13 -> z_gobelins.p10: "W\nN\nS\nE\nSE\nSW\nDOWN\nNW"
+z_gobelins.p13 -> z_gobelins.p14: "UP [cond \$0A]"
+z_gobelins.p13 -> z_gobelins.p41: "NE"
+z_gobelins.p14 -> z_gobelins.p13: "DOWN [cond \$0A]"
+z_gobelins.p14 -> z_gobelins.p15: "E"
+z_gobelins.p15 -> z_brumeux.p16: "E"
+z_gobelins.p15 -> z_gobelins.p14: "W"
+z_brumeux.p16 -> z_brumeux.p18: "NE"
+z_brumeux.p16 -> z_gobelins.p14: "NW"
+z_brumeux.p16 -> z_foret.p2E: "S"
+z_brumeux.p16 -> z_brumeux.p0C: "SW"
+z_brumeux.p16 -> z_foret.p31: "N"
+z_foret.p17 -> z_foret.p21: "SE [cond \$2A]"
+z_foret.p17 -> z_foret.p30: "N"
+z_brumeux.p18 -> z_brumeux.p16: "W"
+z_brumeux.p18 -> z_foret.p2E: "S"
+z_brumeux.p18 -> z_brumeux.p19: "E"
+z_brumeux.p19 -> z_brumeux.p18: "W"
+z_brumeux.p19 -> z_brumeux.p42: "E"
+z_brumeux.p19 -> vide: "S [cond \$09]" { class: vide }
+z_foret.p1A -> z_foret.p1D: "E [cond \$07]"
+z_foret.p1A -> z_brumeux.p32: "W [cond \$07]"
+z_foret.p1A -> z_foret.p1C: "N [cond \$07]"
+z_foret.p1A -> z_foret.p1B: "S [cond \$07]"
+z_foret.p1B -> z_foret.p1A: "N [cond \$07]"
+z_foret.p1B -> z_brumeux.p32: "W [cond \$07]"
+z_foret.p1C -> z_brumeux.p19: "W"
+z_foret.p1C -> z_foret.p1A: "E [cond \$07]"
+z_foret.p1C -> z_foret.p1E: "NE [cond \$0D]"
+z_foret.p1D -> z_foret.p1A: "W [cond \$07]"
+z_foret.p1E -> z_foret.p1F: "E [cond \$08]"
+z_foret.p1E -> z_foret.p20: "S"
+z_foret.p1E -> z_foret.p1C: "W [cond \$0D]"
+z_foret.p1F -> z_foret.p20: "SW [cond \$08]"
+z_foret.p1F -> z_foret.p1E: "W [cond \$08]"
+z_foret.p20 -> z_foret.p1F: "NE [cond \$08]"
+z_foret.p20 -> z_foret.p1E: "N"
+z_foret.p20 -> z_foret.p21: "DOWN [cond \$0C]"
+z_foret.p21 -> z_foret.p22: "E [cond \$27]"
+z_foret.p21 -> vide: "UP [cond \$0C]\nS [cond \$2A]" { class: vide }
+z_foret.p22 -> z_foret.p24: "N"
+z_foret.p22 -> z_foret.p23: "E"
+z_foret.p22 -> z_foret.p21: "NW [cond \$27]"
+z_foret.p22 -> z_foret.p2D: "S"
+z_foret.p23 -> z_foret.p22: "N\nS\nE\nW"
+z_foret.p24 -> z_foret.p25: "UP"
+z_foret.p24 -> z_foret.p22: "S"
+z_foret.p25 -> z_foret.p26: "N"
+z_foret.p25 -> z_foret.p24: "DOWN"
+z_foret.p26 -> z_foret.p27: "N"
+z_foret.p26 -> z_foret.p25: "S"
+z_foret.p26 -> z_foret.p28: "NW"
+z_foret.p27 -> z_foret.p29: "N"
+z_foret.p27 -> z_foret.p26: "S"
+z_foret.p27 -> z_foret.p28: "W"
+z_foret.p28 -> z_foret.p2A: "N"
+z_foret.p28 -> z_foret.p25: "SE"
+z_foret.p28 -> z_foret.p27: "E"
+z_foret.p29 -> z_foret.p27: "S"
+z_foret.p29 -> z_foret.p2B: "E"
+z_foret.p29 -> z_foret.p2C: "UP"
+z_foret.p2A -> z_foret.p28: "S"
+z_foret.p2A -> z_foret.p2B: "E [cond \$0B]"
+z_foret.p2A -> z_foret.p33: "N"
+z_foret.p2B -> z_foret.p2A: "W [cond \$0B]"
+z_foret.p2B -> z_foret.p29: "E"
+z_foret.p2C -> z_foret.p29: "DOWN"
+z_foret.p2C -> z_foret.p2A: "W"
+z_foret.p2C -> z_foret.p27: "S"
+z_foret.p2C -> z_foret.p28: "SW"
+z_foret.p2D -> z_foret.p08: "S"
+z_foret.p2D -> z_foret.p03: "W"
+z_foret.p2E -> z_foret.p02: "E"
+z_foret.p2E -> z_brumeux.p18: "N"
+z_foret.p30 -> z_foret.p31: "SW"
+z_foret.p30 -> z_foret.p17: "SE"
+z_foret.p31 -> z_foret.p30: "NE"
+z_foret.p31 -> z_brumeux.p16: "S"
+z_foret.p31 -> z_brumeux.p18: "E"
+z_foret.p31 -> z_brumeux.p0A: "SW"
+z_brumeux.p32 -> z_foret.p1A: "NE [cond \$07]"
+z_brumeux.p32 -> z_brumeux.p43: "W"
+z_foret.p33 -> z_foret.p2A: "S"
+z_foret.p33 -> z_foret.p2C: "UP"
+z_gobelins.p34 -> z_brumeux.p0F: "N"
+z_gobelins.p34 -> z_gobelins.p35: "DOWN"
+z_gobelins.p34 -> z_gobelins.p36: "UP"
+z_gobelins.p35 -> z_gobelins.p34: "UP"
+z_gobelins.p36 -> z_gobelins.p34: "DOWN"
+z_gobelins.p36 -> z_gobelins.p37: "SE"
+z_gobelins.p36 -> z_gobelins.p40: "S"
+z_gobelins.p36 -> z_gobelins.p11: "SW"
+z_gobelins.p37 -> z_gobelins.p11: "S"
+z_gobelins.p37 -> z_gobelins.p36: "NE"
+z_gobelins.p37 -> z_gobelins.p3D: "SW"
+z_gobelins.p37 -> z_gobelins.p3C: "W"
+z_gobelins.p38 -> z_gobelins.p3C: "SW"
+z_gobelins.p39 -> z_gobelins.p10: "UP"
+z_gobelins.p39 -> z_gobelins.p41: "W"
+z_gobelins.p39 -> z_gobelins.p3A: "N"
+z_gobelins.p3A -> z_gobelins.p3E: "SE"
+z_gobelins.p3A -> z_brumeux.p0F: "E"
+z_gobelins.p3A -> z_gobelins.p39: "S"
+z_gobelins.p3A -> z_gobelins.p3B: "UP"
+z_gobelins.p3B -> z_gobelins.p3A: "DOWN"
+z_gobelins.p3B -> z_gobelins.p3C: "S"
+z_gobelins.p3C -> z_gobelins.p3D: "SE"
+z_gobelins.p3C -> z_gobelins.p3B: "N"
+z_gobelins.p3C -> z_gobelins.p38: "NW"
+z_gobelins.p3D -> z_gobelins.p36: "N"
+z_gobelins.p3D -> z_gobelins.p3C: "NW"
+z_gobelins.p3E -> z_gobelins.p3D: "E"
+z_gobelins.p3F -> z_gobelins.p40: "UP"
+z_gobelins.p3F -> z_gobelins.p12: "N"
+z_gobelins.p3F -> z_gobelins.p3A: "E"
+z_gobelins.p40 -> z_gobelins.p41: "NW"
+z_gobelins.p40 -> z_gobelins.p36: "W"
+z_gobelins.p40 -> z_gobelins.p3F: "SW"
+z_gobelins.p41 -> z_gobelins.p40: "N"
+z_gobelins.p41 -> z_gobelins.p39: "SE"
+z_gobelins.p41 -> z_gobelins.p13: "E"
+z_brumeux.p42 -> z_brumeux.p19: "W"
+z_brumeux.p42 -> z_brumeux.p43: "E [cond \$09]"
+z_brumeux.p43 -> z_brumeux.p32: "E"
+z_brumeux.p43 -> z_brumeux.p42: "W [cond \$09]"
+z_ne.p44 -> z_ne.p47: "E"
+z_ne.p44 -> z_ne.p45: "NE"
+z_ne.p44 -> z_brumeux.p0A: "S"
+z_ne.p45 -> z_ne.p46: "N"
+z_ne.p45 -> z_ne.p44: "SW"
+z_ne.p45 -> z_brumeux.p0A: "S"
+z_ne.p46 -> z_ne.p48: "SE"
+z_ne.p46 -> z_ne.p45: "S"
+z_ne.p47 -> z_ne.p45: "NW"
+z_ne.p47 -> z_ne.p4A: "S"
+z_ne.p47 -> z_ne.p44: "W"
+z_ne.p48 -> z_ne.p46: "NW"
+z_ne.p48 -> z_ne.p47: "SW"
+z_ne.p48 -> z_ne.p4B: "DOWN"
+z_ne.p49 -> z_ne.p4A: "E"
+z_ne.p49 -> z_brumeux.p0A: "N"
+z_ne.p4A -> z_ne.p47: "N"
+z_ne.p4A -> z_ne.p49: "W"
+z_ne.p4B -> z_ne.p4C: "DOWN"
+z_ne.p4C -> z_ne.p4D: "DOWN"
+z_ne.p4D -> z_ne.p4E: "DOWN"
+z_ne.p4E -> z_ne.p4F: "E"
+z_ne.p4E -> z_ne.p4D: "UP"
+z_ne.p4F -> z_ne.p4E: "W"
+z_ne.p4F -> z_ne.p4A: "UP"

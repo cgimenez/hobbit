@@ -29,6 +29,24 @@ DIR_CODE = {1: "N", 2: "S", 3: "E", 4: "W", 5: "NE", 6: "NW", 7: "SE",
 PATCH_ONLY = {0x08, 0x14, 0x15, 0x1A, 0x1B, 0x1C, 0x1D, 0x32, 0x42, 0x43}
 DARK = {0x1E, 0x1F, 0x20}
 
+# 5 zones (sous-graphes) : regroupement geographique du monde.
+ZONES = [
+    ("z_ouest", "Ouest : tunnel & Trollshaws",
+     {0x01, 0x04, 0x05, 0x06, 0x07, 0x09}),
+    ("z_brumeux", "Monts Brumeux",
+     {0x0A, 0x0B, 0x0C, 0x0E, 0x0F, 0x16, 0x18, 0x19, 0x42, 0x43, 0x32}),
+    ("z_gobelins", "Cavernes gobelines (nord)",
+     {0x0D, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x34, 0x35, 0x36, 0x37, 0x38,
+      0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41}),
+    ("z_foret", "Foret noire, Lac & Montagne solitaire",
+     {0x02, 0x03, 0x08, 0x17, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21,
+      0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D,
+      0x2E, 0x30, 0x31, 0x33}),
+    ("z_ne", "Hauts du nord-est",
+     {0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F}),
+]
+ZONE_OTHER = ("z_autres", "Autres")
+
 
 def visited() -> set[int]:
     """Ids de lieux observes (ploc) dans les deux bases d'exploration."""
@@ -86,8 +104,19 @@ def edge_label(exits: list[tuple[int, int]]) -> str:
 
 
 def build_d2(graph: dict, vis: set[int]) -> str:
+    zone_of: dict[int, str] = {}
+    zones = list(ZONES)
+    for key, _title, ids in ZONES:
+        for i in ids:
+            zone_of[i] = key
+    extra = sorted(set(graph) - set(zone_of))
+    if extra:
+        zones.append((ZONE_OTHER[0], ZONE_OTHER[1], set(extra)))
+        for i in extra:
+            zone_of[i] = ZONE_OTHER[0]
+
     lines = [
-        "# The Hobbit (Oric-1/Atmos 1982) - carte des lieux",
+        "# The Hobbit (Oric-1/Atmos 1982) - carte des lieux par zones",
         "# GENERE par scripts/draw_map.py - NE PAS EDITER A LA MAIN.",
         "direction: down",
         "classes: {",
@@ -104,21 +133,29 @@ def build_d2(graph: dict, vis: set[int]) -> str:
         "}",
         "",
     ]
-    for i in sorted(graph):
-        lines.append(f'p{i:02X}: "{node_label(i, graph[i])}" '
-                     f"{{ class: {node_class(i, vis)} }}")
+    for key, title, ids in zones:
+        lines.append(f'{key}: "{title}" {{')
+        lines.append("  direction: down")
+        for i in sorted(ids):
+            if i in graph:
+                lines.append(f'  p{i:02X}: "{node_label(i, graph[i])}" '
+                             f"{{ class: {node_class(i, vis)} }}")
+        lines.append("}")
     lines.append('vide: "vide / mort\\n(cible \\$00)" '
                  "{ class: vide; shape: circle }")
     lines.append("")
+
+    def ref(i: int) -> str:
+        return f"{zone_of[i]}.p{i:02X}"
 
     pairs: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for src in sorted(graph):
         for d, c, dst in graph[src]["exits"]:
             pairs.setdefault((src, dst), []).append((d, c))
     for (src, dst), exits in pairs.items():
-        tgt = f"p{dst:02X}" if dst in graph else "vide"
+        tgt = ref(dst) if dst in graph else "vide"
         style = " { class: vide }" if dst not in graph else ""
-        lines.append(f'p{src:02X} -> {tgt}: "{edge_label(exits)}"{style}')
+        lines.append(f'{ref(src)} -> {tgt}: "{edge_label(exits)}"{style}')
     return "\n".join(lines) + "\n"
 
 
