@@ -84,8 +84,47 @@ explique la présence des patchs ROM décrits dans
 | `$308F` | `"> LOOK.\r"` (prompt de départ) |
 | `$3E25` | `"<TAPE LOADING ERROR :- PRESS ANY KEY TO RESTART GAME."` |
 | `$72A9` | `" PREPARE TAPE FOR GAME SAVE"`, `"REWIND TAPE FOR VERIFICATION"`, `"PRESS ANY KEY WHEN READY"` |
-| `$47C1`+ | traces de compilation : `'SUBS'`, `D:SUBS.MAC`, `D:DATA.MAC`, `D:SUBRONE.MAC`, `D:SUBRTWO.MAC`, `D:GENER.MAC`, `D:ACTION.MAC`, `D:ADVORIC` |
+| `$47C1`+ | traces de compilation (voir ci-dessous) : `'SUBS'`, `D:SUBS.MAC`, `D:DATA.MAC`, `D:SUBRONE.MAC`, `D:SUBRTWO.MAC`, `D:GENER.MAC`, `D:ACTION.MAC`, `D:ADVORIC` |
 | `$4992`+ | `"?Command error"`, `"?File not found"`, `"?Can't enter file"` |
+
+### Artefacts de développement (`$477C`–`$49B3`)
+
+Cette zone n'est **pas du code du jeu** : le code s'en sert comme **tampon de travail**
+(`sta $4783,y`, `lda $47C3,y`, `cmp $490F,y`, `lda $4927,x`…). Les octets qu'on y lit
+sont l'**état périmé** du tampon au moment où la cassette a été enregistrée : les
+développeurs n'avaient pas effacé la mémoire, qui contenait encore des restes de leur
+session d'assembleur/DOS. C'est donc un fragment du **fichier de commande d'assemblage**
+du jeu, décodé en texte (`$477C`–`$494A`) :
+
+```
+X 'SUBS'
+        INCLUDE D:SUBS.MAC
+        .PRINTX 'DATA'
+        INCLUDE D:DATA.MAC
+        .PRINTX 'SUBRONE'
+        INCLUDE D:SUBRONE.MAC
+        .PRINTX 'SUBRTWO'
+        INCLUDE D:SUBRTWO.MAC
+        .PRINTX 'GENER'
+        INCLUDE D:GENER.MAC
+        .PRINTX 'GENER2'   ...
+   INCLUDE D:ACTION.MAC
+        .PRINTX 'GENACT'
+P..:=D:ADVORIC
+```
+
+Enseignements :
+
+- Directives `.PRINTX` / `INCLUDE` : macro-assembleur lisant les sources sur disquette
+  (`D:`), extension `.MAC`.
+- **Modules source du jeu** : `SUBS`, `DATA`, `SUBRONE`, `SUBRTWO`, `GENER`, `GENER2`,
+  `ACTION` (les `.PRINTX` servaient à tracer l'inclusion de chaque module).
+- **Nom du binaire final** : `ADVORIC` (= *ADVenture* + *ORIC*), via `:=D:ADVORIC`
+  (spécification de sortie de l'éditeur de liens).
+- Messages du gestionnaire de fichiers de l'outil (`$4992`+) : `?Command error`,
+  `?File not found`, `?Can't enter file`.
+
+Aucun nom d'auteur, copyright, date ni numéro de version n'apparaît dans l'image.
 
 ## Variables (zéro-page / page 2)
 

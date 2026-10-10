@@ -20,7 +20,7 @@ Fichier de **36 212 octets**, **4 blocs** TAP, tous du type **code machine** (`$
 
 - **Bloc 1** (`$0400`) = bootstrap d'autorun : `JMP $047C` → `SEI`, relocalise des vecteurs en `$0402..`, appelle la ROM. Contient `"Please wait while THE HOBBIT loads"` et `"TAPE ERROR"`.
 - **Bloc 2** (`$0500`–`$2BBD`) = moteur de jeu + textes (VIOLENT, VALIANTLY, KILLED, DWARVES, HOBBITS, …).
-- **Bloc 4** (`$2C00`–`$7A80`, le plus gros) = données/graphismes + routines cassette (`"PREPARE TAPE FOR GAME SAVE"`, `"REWIND TAPE FOR VERIFICATION"`, `"PRESS ANY KEY WHEN READY"`) ; on y trouve aussi les noms de modules source : `SUBS.MAC`, `DATA.MAC`, `SUBRONE.MAC`, `SUBRTWO.MAC`, `GENER.MAC`, `ACTION.MAC`, et `ADVORIC` (moteur d'aventure).
+- **Bloc 4** (`$2C00`–`$7A80`, le plus gros) = données/graphismes + routines cassette (`"PREPARE TAPE FOR GAME SAVE"`, `"REWIND TAPE FOR VERIFICATION"`, `"PRESS ANY KEY WHEN READY"`). Il conserve aussi un **artefact de développement** (`$477C`–`$49B3`) : dans un tampon de travail non effacé subsiste un fragment du fichier de commande d'assemblage, avec directives `.PRINTX` / `INCLUDE` et les **modules source** `SUBS`, `DATA`, `SUBRONE`, `SUBRTWO`, `GENER`, `GENER2`, `ACTION`, le binaire final `ADVORIC` (`:=D:ADVORIC`), et les messages de l'outil `?Command error` / `?File not found` / `?Can't enter file`. Détails : [`block4-analysis.md`](block4-analysis.md).
 - **Bloc 3** (`$7AC0`–`$91B1`) = code/overlay complémentaire.
 
 C'est donc une conversion cassette du jeu **The Hobbit (Oric, 1982)**, en pur 6502, chargé puis exécuté via autorun depuis `$0400`.
