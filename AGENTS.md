@@ -79,6 +79,9 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 .venv/bin/python scripts/disasm_rebuild.py   # round-trip ca65+ld65 (disasm/<bloc>.cfg),
                                              # byte-identique exigé, exit 0
                                              # [--block block1|block2|block3|block4]
+.venv/bin/python scripts/disasm_rebuild.py --all  # réassemble les 4 blocs,
+                                             # recolle l'image $0400-$91B1
+                                             # (trous $00) et compare à hobbit.bin
 .venv/bin/python scripts/sim_pack.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
                                              # shim I/O + patch $7353 + charset ROM
 .venv/bin/python scripts/sim_pack.py --snapshot NOM  # checkpoint rejouable
@@ -130,7 +133,10 @@ SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
   tuilés `$7AE8`→`$91B1`. Moteur `vec_*` en bloc 4 ; décodeur
   `scripts/vec_decode.py`. Listing `disasm/block3.asm`. Détails :
   `docs/tape-archive.md`.
-- Round-trip ca65 prouvé (byte-identique) ; harnais sim65 fonctionnel :
+- Round-trip ca65 prouvé (byte-identique) : les 4 blocs, et `--all` recolle
+  l'image complète `$0400`–`$91B1` (36274 o, 4 blocs + 129 o de remplissage
+  `$00` dans les trous `$2BBE-$2BFF`/`$7A81-$7ABF`) = `data/hobbit.bin` ;
+  harnais sim65 fonctionnel :
   `harness/shim.s` (clavier + dumps d'écrans via paravirt, en `$C000`),
   boot validé jusqu'au prompt (`You are in a comfortable tunnel like hall`,
   `> LOOK.`), entrées scriptées + réponses parser observées
