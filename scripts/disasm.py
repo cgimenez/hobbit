@@ -1383,6 +1383,38 @@ def reflow_text_tables(asm: list[str]) -> list[str]:
     return out
 
 
+# Equate da65 hors plage assemblee : `sym := $addr`.
+_ASSIGN_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*\$[0-9A-Fa-f]{4}\b")
+
+
+def drop_unused_equates(asm: list[str]) -> list[str]:
+    """Supprime les equates da65 inutilises (`sym := $addr`).
+
+    build_info emet un LABEL pour chaque nom connu (zero-page `ZP_NAMES`,
+    routines ROM `ROM_LABELS`) dans tous les blocs ; da65 rend ceux hors de la
+    plage assemblee en equates `sym := $addr`. On ne garde que les noms
+    reellement references ailleurs dans le listing (operandes ; commentaires
+    ignores). Sans effet sur les octets assembles (un equate n'emet rien) ;
+    l'`.info` reste complet (la regle H du checker porte sur l'`.info`).
+    """
+    defs: dict[int, str] = {}
+    counts: dict[str, int] = {}
+    for i, ln in enumerate(asm):
+        code = ln.split(";", 1)[0]
+        m = _ASSIGN_RE.match(ln)
+        if m:
+            defs[i] = m.group(1)
+        for name in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", code):
+            counts[name] = counts.get(name, 0) + 1
+    out: list[str] = []
+    for i, ln in enumerate(asm):
+        name = defs.get(i)
+        if name is not None and counts.get(name, 0) <= 1:
+            continue
+        out.append(ln)
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     import subprocess
@@ -1490,6 +1522,7 @@ def main(argv: list[str] | None = None) -> int:
     ]
     asm = reflow_text_tables(asm)
     asm = inject_notes(asm, block)
+    asm = drop_unused_equates(asm)
     block.listing.write_text(block.header + "".join(asm))
     print(f"Listing écrit : {block.listing}")
     return 0

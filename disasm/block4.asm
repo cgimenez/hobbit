@@ -83,20 +83,6 @@ L040E           := $040E
 L0411           := $0411
 L0414           := $0414
 L0417           := $0417
-PUTBYTE_10      := $E5C6
-READBYTE_10     := $E630
-PUTBYTE_11      := $E65E
-TAPESYNC_10     := $E696
-WRITELEADER_10  := $E6BA
-READBYTE_11     := $E6C9
-SETUPTAPE_10    := $E6CA
-SYNCTAPE_11     := $E735
-WRITELEADER_11  := $E75A
-SETUPTAPE_11    := $E76A
-CHAR2SCR_10     := $F73C
-CHAR2SCR_11     := $F77C
-RESETSTAT_10    := $F960
-RESETSTAT_11    := $F9AA
 autorun:jmp     start
 
 ptr_block3:
