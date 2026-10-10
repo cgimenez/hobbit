@@ -513,6 +513,43 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
   + `shim_kb` pour dumper, 13 cibles) → 13 frames hires → 13 illustrations
   distinctes et cohérentes (visages, scènes, dragon). Coût : `-x 600M`.
 
+### Protocole de dessin (commandes)
+
+Entrée : `vec_image` (`$77D4`, = `vec_init`) reçoit **X/Y = adresse de
+l'image**, stockée dans `$28/$29` (ZP). Octet 0 = **mode/couleurs** →
+`vec_setup` (`$7990`) : efface le hires `$A000`–`$B3FF` (aplats `$40`) puis
+fixe encre (bas 3 bits) / papier (bits 3-5). La boucle `L77E3` lit l'octet
+courant et dispatch dans cet ordre :
+
+| Test | Opcode | Commande | Opérandes |
+|---|---|---|---|
+| `beq` | `$00` | fin d'image | — |
+| `cmp #$08` | `$08` | `vec_pos` (place le curseur) | `x, y` (2 o) |
+| `and #$80` | bit7 | `vec_line` (segment) | opcode + 1 o |
+| `and #$40` | bit6 | `vec_fill` (remplissage) | `x, y` (2 o) |
+| `and #$20` | bit5 | `vec_skip` (saute) | octets jusqu'à `$FF` |
+| sinon | — | avance d'1 octet (donnée) | — |
+
+`$08` est testé **avant** les bits (sinon il tomberait dans « avance »). Les
+opcodes ligne/fill/skip se recouvrent : bit7 l'emporte sur bit6, qui l'emporte
+sur bit5.
+
+- **Curseur** : `$30` = x (0–255 ; zone dessinable `$0E`–`$F1`, sinon clippé
+  par `vec_testpx`/`vec_plot`), `$31` = y (0–`$7F`). `vec_addr` : `addr =
+  $A002 + 40*y`, masque pixel `L7A5F` = `$20 $10 $08 $04 $02 $01` (6 px/octet).
+- **`vec_line`** réutilise l'octet opcode + 1 suivant : `$2A/$2B/$2C = op &
+  $01/$02/$04` (axe/sens) ; `$2D` = longueur `(op & $78) >> 1` complétée par
+  les bits 6-7 de l'octet suivant, **+1** ; `$2E = octet_suivant & $3F` =
+  compteur de runs (`dec/bpl` → `$2E+1` passes). Tracé type Bresenham
+  « run-length » (pas majeur `$2D`, pas mineur à chaque franchissement).
+- **`vec_fill`** : remplissage par **spans** depuis `(x,y)` (balaye à gauche
+  jusqu'à un pixel allumé, trace, empile `(x,y)` sur la pile `$32` pour
+  remonter/descendre et récurse) — le plot pixel par pixel (`vec_plot`) est la
+  cause de la lenteur (~33 M cycles/image).
+- **Flux** : chaque image = `[mode, $08, x, y]` puis commandes, **terminée par
+  `$00`** ; images tuilées sans trou (`$7AE8`→`$91AF`), cas notables double
+  `$00` en `$809E`, final `$00 $CB`.
+
 ## Outillage
 
 - `scripts/disasm.py` : **descente récursive** (entries `$2C00`, `$2C35`, 16
