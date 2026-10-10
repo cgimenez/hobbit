@@ -162,16 +162,20 @@ def build_d2(graph: dict, vis: set[int]) -> str:
 def main() -> int:
     graph, warns = M.build_graph()
     vis = visited()
+    layout = (sys.argv[sys.argv.index("--layout") + 1]
+              if "--layout" in sys.argv else "dagre")
     D2.write_text(build_d2(graph, vis))
     print(f"{D2.relative_to(ROOT)} : {len(graph)} lieux, "
           f"{sum(len(g['exits']) for g in graph.values())} sorties, "
-          f"{len(vis & set(graph))} visites, {len(PATCH_ONLY)} patch-only")
+          f"{len(vis & set(graph))} visites, {len(PATCH_ONLY)} patch-only, "
+          f"layout {layout}")
     for w in warns:
         print("  avertissement:", w)
     if "--no-render" in sys.argv:
         return 0
     try:
-        subprocess.run(["d2", str(D2), str(SVG)], check=True)
+        subprocess.run(["d2", "--layout", layout, str(D2), str(SVG)],
+                       check=True)
     except FileNotFoundError:
         print("  d2 absent : source .d2 ecrite, SVG non rendu")
         return 0
