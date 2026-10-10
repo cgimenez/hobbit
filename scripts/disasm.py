@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
-"""Génère un listing assembleur annoté du bloc 4 de The Hobbit (Oric).
+"""Génère un listing assembleur annoté d'un bloc de The Hobbit (Oric).
 
 Le découpage code/données est obtenu par **descente récursive** depuis les
-points d'entrée (autorun ``$2C00``, ``$2C35`` et les 16 vecteurs ``$2C05``),
-en suivant ``JSR``/``JMP``/branchements, jusqu'à point fixe. Les seeds
-radare2 validés (décodage propre) et les entrées manuelles complètent la
-couverture (dispatch indirect).
+points d'entrée du bloc, en suivant ``JSR``/``JMP``/branchements, jusqu'à
+point fixe. Les seeds radare2 validés (décodage propre, bloc 4) et les
+entrées manuelles complètent la couverture (dispatch indirect).
 
-Règle spéciale : ``JSR $440D`` (print_msg) et ``JSR $5B24`` (act_msg,
-qui rebondit vers print_msg) sont suivis de 2 octets inline (adresse du
-message) ; le code reprend à JSR+5. Les pointeurs nuls sont marqués ``TODO``.
-Les actions indirectes (tables ``L7014``/``L7143``) et les routines
-avoisinantes sont des ``MANUAL_ENTRIES`` (validées par le checker, règle D).
+Règle spéciale (bloc 4) : ``JSR $440D`` (print_msg) et ``JSR $5B24``
+(act_msg) sont suivis de 2 octets inline (adresse du message) ; le code
+reprend à JSR+5. Les pointeurs nuls sont marqués ``TODO``. Une branche dont
+la cible est sa propre adresse (boucle infinie ``xx FE``) est un terminateur.
 
-da65 (cc65) produit ensuite le listing à partir du fichier d'information
-(``disasm/block4.info``) et de ``data/hobbit.bin``.
+Moteur commun ; les données (plage, entrées, vecteurs, docs) sont par bloc
+dans ``BLOCKS`` (``block4`` par défaut, ``block1`` = bootstrap/chargeur).
+da65 (cc65) produit le listing depuis ``disasm/<bloc>.info`` et
+``data/hobbit.bin``.
 
 Prérequis : ``tools/cc65/bin/da65`` (cf. AGENTS.md).
-Vérification : scripts/disasm_check.py.
+Vérification : scripts/disasm_check.py --block <bloc>.
 
-Usage : .venv/bin/python scripts/disasm.py
+Usage : .venv/bin/python scripts/disasm.py [--block block1|block4]
 """
 
 from __future__ import annotations
 
 import re
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -756,6 +757,152 @@ ROM_LABELS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Configuration par bloc (moteur commun). Chaque bloc : plage, points
+# d'entree, vecteurs nommes, documentation des routines, sorties da65.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Block:
+    """Parametres d'un bloc desassemble (moteur commun, donnees par bloc)."""
+
+    key: str
+    lo: int
+    hi: int
+    base_entries: list[int]
+    manual_entries: list[int]
+    seed_exclude: set[int]
+    vectors: dict[int, str]
+    routine_docs: dict[int, tuple[str | None, str]]
+    routine_notes: dict[int, list[str]]
+    info: Path
+    listing: Path
+    cfg: Path
+    header: str
+    vector_table: tuple[int, int] | None = None
+    use_r2_seeds: bool = True
+    check_rom_diff: bool = True
+    data_ranges: dict[int, str] = field(default_factory=dict)
+
+
+B4_HEADER = (
+    "; ============================================================\n"
+    "; The Hobbit (Oric, 1982)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
+    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; - bloc 4 ($2C00-$7A80)\n"
+    "; Listing généré par scripts/disasm.py (descente récursive + da65)\n"
+    "; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.\n"
+    "; Convention : JSR $440D + pointeur inline (2 octets, adresse du\n"
+    "; message) ; reprise du code à JSR+5.\n"
+    "; ============================================================\n\n"
+)
+
+# --- Bloc 1 ($0400-$04FF) : bootstrap / chargeur cassette ---
+# Entree autorun $0400 -> JMP $047C. Le loader $0417 lit un bloc complet ;
+# les 6 vecteurs ROM $0405-$0414 sont atteints par JSR depuis $0417, sauf
+# $040B/$040E (utilises seulement par le SAVE du bloc 4) -> MANUAL_ENTRIES.
+B1_ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
+    0x0400: (
+        None,
+        "Trampoline d'autorun : saute au demarrage du chargeur (b1_start)",
+    ),
+    0x0417: (
+        "b1_load",
+        "Lit un bloc complet sur cassette : synchro, en-tete 9 octets, donnees, checksum EOR",
+    ),
+    0x047C: (
+        "b1_start",
+        "Demarrage : detecte la ROM, relocalise les vecteurs, charge les blocs puis lance le jeu",
+    ),
+}
+
+B1_ROUTINE_NOTES: dict[int, list[str]] = {
+    0x047C: [
+        "Point d'entree autorun ($0400 -> JMP $047C). Coupe les interruptions,",
+        "puis detecte la version de ROM : si l'octet $FC78 est nul (Atmos 1.1),",
+        "recopie un blob de 20 octets ($0468-$047B) sur $0403 pour remplacer les",
+        "vecteurs ROM 1.0 par ceux de la ROM 1.1. Affiche 'Please wait while THE",
+        "HOBBIT loads', puis charge 3 blocs (blocs 2, 3, 4) via b1_load et saute",
+        "au dernier ($2C00). En cas d'echec, affiche 'TAPE ERROR' et boucle.",
+    ],
+    0x0417: [
+        "Lit un bloc complet sur la cassette. Attend le marqueur de synchro,",
+        "lit l'en-tete de 9 octets (range en $0035,Y), puis les donnees vers le",
+        "pointeur ($37), en cumulant un checksum EOR dans $3B ; compare le",
+        "checksum et renvoie C=1 (echec) ou C=0 (succes).",
+        "Technique : JSR $0411 setup, $0405 synchro, $0408 lecture octet ;",
+        "$39/$3A = adresse de fin, $37/$38 = curseur d'ecriture.",
+    ],
+}
+
+B1_VECTORS: dict[int, str] = {
+    0x0400: "b1_entry",
+    0x0405: "b1_vec_sync",
+    0x0408: "b1_vec_read",
+    0x040B: "b1_vec_leader",
+    0x040E: "b1_vec_write",
+    0x0411: "b1_vec_setup",
+    0x0414: "b1_vec_reset",
+}
+
+B1_HEADER = (
+    "; ============================================================\n"
+    "; The Hobbit (Oric, 1982)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
+    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; - bloc 1 ($0400-$04FF)\n"
+    "; Listing généré par scripts/disasm.py (descente récursive + da65)\n"
+    "; Charge par autorun à $0400 -> JMP $047C (b1_start).\n"
+    "; Vecteurs ROM $0405-$0416 (patchés 1.0/1.1) + b1_load $0417.\n"
+    "; ============================================================\n\n"
+)
+
+
+BLOCKS: dict[str, Block] = {
+    "block4": Block(
+        key="block4",
+        lo=BLOCK4[0],
+        hi=BLOCK4[1],
+        base_entries=[0x2C00, ENTRY],
+        manual_entries=list(MANUAL_ENTRIES),
+        seed_exclude=set(SEED_EXCLUDE),
+        vectors=VECTORS,
+        routine_docs=ROUTINE_DOCS,
+        routine_notes=ROUTINE_NOTES,
+        info=INFO,
+        listing=LISTING,
+        cfg=ROOT / "disasm" / "block4.cfg",
+        header=B4_HEADER,
+        vector_table=(0x2C05, 16),
+        use_r2_seeds=True,
+        check_rom_diff=True,
+    ),
+    "block1": Block(
+        key="block1",
+        lo=0x0400,
+        hi=0x04FF,
+        base_entries=[0x0400, 0x047C],
+        manual_entries=[0x040B, 0x040E],
+        seed_exclude=set(),
+        vectors=B1_VECTORS,
+        routine_docs=B1_ROUTINE_DOCS,
+        routine_notes=B1_ROUTINE_NOTES,
+        info=DISASM / "block1.info",
+        listing=DISASM / "block1.asm",
+        cfg=ROOT / "disasm" / "block1.cfg",
+        header=B1_HEADER,
+        vector_table=None,
+        use_r2_seeds=False,
+        check_rom_diff=False,
+        # $0468-$047B = blob de vecteurs ROM 1.1 (copie, pas du texte) ;
+        # $04F9-$04FF = queue non referencee (fin de bloc).
+        data_ranges={0x0468: "BYTETABLE", 0x04F9: "BYTETABLE"},
+    ),
+}
+
+
 def printable_ratio(data: bytes, a: int, b: int) -> float:
     chunk = data[a - BASE : b - BASE + 1]
     if not chunk:
@@ -931,6 +1078,8 @@ def descend(raw: bytes, lo: int, hi: int, entries: list[int]):
                 rel = B(pc + 1)
                 rel -= 256 if rel >= 128 else 0
                 t = pc + 2 + rel
+                if t == pc:
+                    break  # boucle infinie (branche sur elle-meme) : terminateur
                 if region(t) == "here":
                     worklist.append(t)
                 pc += 2
@@ -940,8 +1089,9 @@ def descend(raw: bytes, lo: int, hi: int, entries: list[int]):
 
 
 def build_info(
-    raw: bytes, code_bytes: set[int], ptrs: dict[int, int], lo: int, hi: int
+    raw: bytes, code_bytes: set[int], ptrs: dict[int, int], block: Block
 ) -> str:
+    lo, hi = block.lo, block.hi
     ptr_addrs = set()
     for p in ptrs:
         ptr_addrs.add(p)
@@ -962,8 +1112,8 @@ def build_info(
                 cur = None
     if cur is not None:
         code_ranges.append(cur)
-    named = {**VECTORS, **ROM_LABELS, **{a: n for a, (n, _d) in ZP_NAMES.items()}}
-    for addr, (name, _doc) in ROUTINE_DOCS.items():
+    named = {**block.vectors, **ROM_LABELS, **{a: n for a, (n, _d) in ZP_NAMES.items()}}
+    for addr, (name, _doc) in block.routine_docs.items():
         if name is not None:
             named[addr] = name
     used: set[int] = set()
@@ -973,8 +1123,8 @@ def build_info(
         if a in named:
             used.add(a)
         rng = f'RANGE {{ START ${a:04X}; END ${b:04X}; TYPE CODE; NAME "{name}";'
-        doc = ROUTINE_DOCS.get(a, (None, None))[1]
-        if a in ROUTINE_DOCS and doc:
+        doc = block.routine_docs.get(a, (None, None))[1]
+        if a in block.routine_docs and doc:
             rng += f' COMMENT "{sanitize_comment(doc)}";'
         lines.append(rng + " };")
     for p in sorted(ptrs):
@@ -986,7 +1136,7 @@ def build_info(
             f'LABEL {{ NAME "msg_{p:04X}"; ADDR ${p:04X}; COMMENT "{comment}"; }};'
         )
         used.add(p)
-    for addr, (name, doc) in sorted(ROUTINE_DOCS.items()):
+    for addr, (name, doc) in sorted(block.routine_docs.items()):
         if not (lo <= addr <= hi):
             continue
         if addr in range_starts:
@@ -998,11 +1148,16 @@ def build_info(
         )
         used.add(addr)
     marked = set(code_bytes) | ptr_addrs
+    # Plages de donnees a type impose (par bloc) : chaque adresse force une
+    # frontiere et impose le type de la plage qui commence la.
+    forced = dict(block.data_ranges)
     cur = None
     pending: list[list[int]] = []
     for a in range(lo, hi + 1):
         if a not in marked:
-            if cur is None:
+            if cur is None or a in forced:
+                if cur is not None:
+                    pending.append(cur)
                 cur = [a, a]
             else:
                 cur[1] = a
@@ -1013,7 +1168,9 @@ def build_info(
     if cur is not None:
         pending.append(cur)
     for ga, gb in pending:
-        kind = "TEXTTABLE" if printable_ratio(raw, ga, gb) >= 0.55 else "BYTETABLE"
+        kind = forced.get(ga)
+        if kind is None:
+            kind = "TEXTTABLE" if printable_ratio(raw, ga, gb) >= 0.55 else "BYTETABLE"
         lines.append(f"RANGE {{ START ${ga:04X}; END ${gb:04X}; TYPE {kind}; }};")
     for addr, name in named.items():
         if addr not in used:
@@ -1028,31 +1185,31 @@ def build_info(
     return "\n".join(lines) + "\n"
 
 
-def label_name(addr: int) -> str | None:
+def label_name(block: Block, addr: int) -> str | None:
     """Nom du label d'une routine (pour rattacher ROUTINE_NOTES au listing)."""
-    if addr in ROUTINE_DOCS and ROUTINE_DOCS[addr][0]:
-        return ROUTINE_DOCS[addr][0]
-    if addr in VECTORS:
-        return VECTORS[addr]
+    if addr in block.routine_docs and block.routine_docs[addr][0]:
+        return block.routine_docs[addr][0]
+    if addr in block.vectors:
+        return block.vectors[addr]
     if addr in ZP_NAMES:
         return ZP_NAMES[addr][0]
     return ROM_LABELS.get(addr)
 
 
-def inject_notes(asm: list[str], notes: dict[int, list[str]]) -> list[str]:
+def inject_notes(asm: list[str], block: Block) -> list[str]:
     """Insère les notes multi-lignes juste avant le label correspondant.
 
     Quand une routine a une note, celle-ci (déjà rédigée « humain d'abord »)
     remplace le résumé une ligne de ROUTINE_DOCS pour éviter un doublon.
     """
     by_name: dict[str, list[str]] = {}
-    for addr, lines in notes.items():
-        name = label_name(addr)
+    for addr, lines in block.routine_notes.items():
+        name = label_name(block, addr)
         if name:
             by_name[name] = lines
     doc_by_name: dict[str, str] = {}
-    for addr, (_name, doc) in ROUTINE_DOCS.items():
-        name = label_name(addr)
+    for addr, (_name, doc) in block.routine_docs.items():
+        name = label_name(block, addr)
         if name and doc:
             doc_by_name[name] = f"; {sanitize_comment(doc)}\n"
     out: list[str] = []
@@ -1068,24 +1225,36 @@ def inject_notes(asm: list[str], notes: dict[int, list[str]]) -> list[str]:
     return out
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    import argparse
     import subprocess
+
+    ap = argparse.ArgumentParser(description="Desassemble un bloc en listing da65 annote.")
+    ap.add_argument(
+        "--block",
+        default="block4",
+        choices=sorted(BLOCKS),
+        help="bloc a desassembler (defaut : block4)",
+    )
+    args = ap.parse_args(argv)
+    block = BLOCKS[args.block]
 
     if not BIN.exists():
         print(f"{BIN} manquant : lancez scripts/tape_extract.py")
         return 1
     DISASM.mkdir(exist_ok=True)
     raw = BIN.read_bytes()
-    lo, hi = BLOCK4
+    lo, hi = block.lo, block.hi
 
     def B(a: int) -> int:
         return raw[a - BASE]
 
-    vec_targets = [
-        B(0x2C05 + 3 * k + 1) | (B(0x2C05 + 3 * k + 2) << 8) for k in range(16)
-    ]
-    entries = [0x2C00, ENTRY] + vec_targets + MANUAL_ENTRIES
-    r2seeds = load_r2_seeds(R2CACHE)
+    entries = list(block.base_entries)
+    if block.vector_table is not None:
+        va, n = block.vector_table
+        entries += [B(va + 3 * k + 1) | (B(va + 3 * k + 2) << 8) for k in range(n)]
+    entries += block.manual_entries
+    r2seeds = load_r2_seeds(R2CACHE) if block.use_r2_seeds else []
 
     for it in range(10):
         code_bytes, ptrs, starts, ext, conflicts = descend(raw, lo, hi, entries)
@@ -1097,7 +1266,7 @@ def main() -> int:
         for s in r2seeds:
             if not (lo <= s <= hi):
                 continue
-            if s in SEED_EXCLUDE:
+            if s in block.seed_exclude:
                 continue
             if s in starts or s in code_bytes or s in ptr_bytes:
                 continue
@@ -1110,10 +1279,10 @@ def main() -> int:
         if not added:
             break
 
-    INFO.write_text(build_info(raw, code_bytes, ptrs, lo, hi))
+    block.info.write_text(build_info(raw, code_bytes, ptrs, block))
 
     print(
-        f"bloc4 ${lo:04X}-${hi:04X} : {len(code_bytes)} octets code, "
+        f"{block.key} ${lo:04X}-${hi:04X} : {len(code_bytes)} octets code, "
         f"{len(ptrs)} pointeurs inline ($440D/$5B24), "
         f"{len(set(conflicts))} conflits"
     )
@@ -1135,25 +1304,25 @@ def main() -> int:
             f"{DA65} manquant : toolchain attendue dans tools/cc65/bin (cf. AGENTS.md)"
         )
         return 1
-    slice_path = ROOT / "build" / "sim" / "hobbit_block4.bin"
+    slice_path = ROOT / "build" / "sim" / f"hobbit_{block.key}.bin"
     slice_path.parent.mkdir(parents=True, exist_ok=True)
     slice_path.write_bytes(raw[lo - BASE : hi - BASE + 1])
     subprocess.run(
         [
             str(DA65),
             "-i",
-            str(INFO),
+            str(block.info),
             "-S",
             f"0x{lo:x}",
             "-o",
-            str(LISTING),
+            str(block.listing),
             str(slice_path),
         ],
         check=True,
     )
     # En-tête da65 volatil (date d'extraction) : on le neutralise pour un
     # listing déterministe (seule la ligne de version est conservée).
-    asm = LISTING.read_text().splitlines(keepends=True)
+    asm = block.listing.read_text().splitlines(keepends=True)
     asm = [
         ln
         for ln in asm
@@ -1161,21 +1330,9 @@ def main() -> int:
         and not ln.startswith("; Input file:")
         and not ln.startswith("; Page:")
     ]
-    asm = inject_notes(asm, ROUTINE_NOTES)
-    header = (
-        "; ============================================================\n"
-        "; The Hobbit (Oric, 1982)\n"
-        "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
-        "; 6502 port : Greg Barrett (Beam Software)\n"
-        "; - bloc 4 ($2C00-$7A80)\n"
-        "; Listing généré par scripts/disasm.py (descente récursive + da65)\n"
-        "; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.\n"
-        "; Convention : JSR $440D + pointeur inline (2 octets, adresse du\n"
-        "; message) ; reprise du code à JSR+5.\n"
-        "; ============================================================\n\n"
-    )
-    LISTING.write_text(header + "".join(asm))
-    print(f"Listing écrit : {LISTING}")
+    asm = inject_notes(asm, block)
+    block.listing.write_text(block.header + "".join(asm))
+    print(f"Listing écrit : {block.listing}")
     return 0
 
 

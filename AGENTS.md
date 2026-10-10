@@ -36,16 +36,17 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 
 ## 4. Règles d'or
 
-- **Ne jamais éditer `disasm/block4.asm`, `disasm/block4.info` ni les sources
-  `src/*.s` à la main.** Le modèle vient de `scripts/disasm.py` (descente
-  récursive + `MANUAL_ENTRIES` / `SEED_EXCLUDE` arbitrés à la main). Toute
-  correction = patch du script + régénération + re-vérification.
-- **Avant chaque commit : `scripts/disasm_check.py` doit sortir exit 0**
-  (`RÉSULTAT: PROPRE`).
-- **Documenter les routines via `ROUTINE_DOCS` dans `scripts/disasm.py`**
-  (nom + résumé une ligne → labels/commentaires régénérés dans le listing),
-  jamais en éditant `block4.asm`. Détails longs → `docs/block4-analysis.md`
-  (référencés par adresse).
+- **Ne jamais éditer `disasm/block1.asm`, `disasm/block4.asm` (ni leurs
+  `.info`) ni les sources `src/*.s` à la main.** Le modèle vient de
+  `scripts/disasm.py` (descente récursive + `MANUAL_ENTRIES` / `SEED_EXCLUDE`
+  par bloc, dans `BLOCKS`). Toute correction = patch du script + régénération
+  + re-vérification.
+- **Avant chaque commit : `scripts/disasm_check.py --block <bloc>` doit sortir
+  exit 0** (`RÉSULTAT: PROPRE`).
+- **Documenter les routines via `ROUTINE_DOCS`/`ROUTINE_NOTES` dans
+  `scripts/disasm.py`** (nom + résumé une ligne → labels/commentaires
+  régénérés dans le listing), jamais en éditant `blockN.asm`. Détails longs →
+  `docs/block4-analysis.md` (bloc 4) / `docs/tape-archive.md` (bloc 1).
 - **Aucun test sim65 sur un build non byte-identique.**
 - Ne pas créer de nouveaux fichiers `.md` sauf demande explicite.
 - `tools/cc65/` (toolchain vendue, ~350 Mo) est gitignoré et le reste.
@@ -72,9 +73,12 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 ```
 .venv/bin/python scripts/tape_extract.py          # TAP -> data/hobbit.bin
 .venv/bin/python scripts/disasm.py           # -> disasm/block4.info + block4.asm
+                                             # [--block block1] -> disasm/block1.*
 .venv/bin/python scripts/disasm_check.py     # viser exit 0 (RÉSULTAT: PROPRE)
-.venv/bin/python scripts/disasm_rebuild.py   # round-trip ca65+ld65 (disasm/block4.cfg),
+                                             # [--block block1|block4]
+.venv/bin/python scripts/disasm_rebuild.py   # round-trip ca65+ld65 (disasm/<bloc>.cfg),
                                              # byte-identique exigé, exit 0
+                                             # [--block block1|block4]
 .venv/bin/python scripts/sim_pack.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
                                              # shim I/O + patch $7353 + charset ROM
 .venv/bin/python scripts/sim_pack.py --snapshot NOM  # checkpoint rejouable
@@ -104,9 +108,14 @@ SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
 
 ## 7. État et pistes
 
-- Bloc 4 (`$2C00`–`$7A80`) : checker PROPRE — 15 692 o de code (78 %), 79 sites
-  `$440D`, 0 conflit. 6 pointeurs nuls (`$3CB4 $4DF9 $4E2D $52C3 $5BB5 $631A`) =
-  adresses résolues à l'exécution (TODO dans le listing).
+- Bloc 4 (`$2C00`–`$7A80`) : checker PROPRE — 16 980 o de code (85 %), 102
+  sites `$440D`, 0 conflit. 8 pointeurs nuls (`$3CB7 $4DFC $4E30 $52C6
+  $5BB8 $631D $63C1 $6C2C`) = adresses résolues à l'exécution (TODO dans le
+  listing).
+- Bloc 1 (`$0400`–`$04FF`) : bootstrap/chargeur cassette — checker PROPRE,
+  182 o de code (3 plages), round-trip byte-identique. Vecteurs ROM 1.0/1.1
+  `$0405`–`$0416`, `b1_load $0417`, `b1_start $047C` ; blob de patch ROM
+  `$0468`–`$047B` (donnée). Détails : `docs/tape-archive.md`.
 - Round-trip ca65 prouvé (byte-identique) ; harnais sim65 fonctionnel :
   `harness/shim.s` (clavier + dumps d'écrans via paravirt, en `$C000`),
   boot validé jusqu'au prompt (`You are in a comfortable tunnel like hall`,

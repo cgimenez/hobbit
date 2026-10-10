@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vérifie la cohérence du découpage code/données de `disasm/block4.info`.
+"""Vérifie la cohérence du découpage code/données de `disasm/<bloc>.info`.
 
 Contrôles (bloc 4 par défaut) :
   A. chaque plage CODE se désassemble sans opcode illégal et finit sur
@@ -9,13 +9,17 @@ Contrôles (bloc 4 par défaut) :
      d'instructions (ou, signalé à part, dans des zones de tables) ;
   D. les zones de tables qui se désassemblent comme du code
      (couverture >= 85 %) sont signalées comme code manqué ;
-  E. les appels ROM directs sont comparés entre ROM 1.0 et 1.1 ;
-  F. la table de vecteurs ``$2C05`` pointe sur des débuts d'instructions ;
-  G. chaque ``JSR $440D`` est suivi de 2 octets marqués données.
+  E. les appels ROM directs sont comparés entre ROM 1.0 et 1.1
+     (bloc 1 : informatif, l'écart 1.0/1.1 est le but du bloc) ;
+  F. la table de vecteurs du bloc (bloc 4 : ``$2C05``) pointe sur des
+     débuts d'instructions ;
+  G. chaque ``JSR $440D`` est suivi de 2 octets marqués données ;
+  H. les routines documentées (ROUTINE_DOCS) et la zéro-page nommée
+     (ZP_NAMES) sont cohérentes avec le fichier d'information.
 
 Sortie 0 si propre, 1 sinon.
 
-Usage : .venv/bin/python scripts/disasm_check.py [--lo 0x2C00] [--hi 0x7A80]
+Usage : .venv/bin/python scripts/disasm_check.py [--block block1|block4]
 """
 
 from __future__ import annotations
@@ -27,21 +31,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from disasm import ROUTINE_DOCS, ZP_NAMES
+from disasm import BLOCKS, ZP_NAMES
 from disasm_opcodes import BRANCH, INLINE_MSGS, JMP_ABS, JMP_IND, JSR, PRINT_MSG, ilen
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "data" / "hobbit.bin"
-INFO = ROOT / "disasm" / "block4.info"
 ROM10 = ROOT / "data" / "basic10.rom"
 ROM11 = ROOT / "data" / "basic11b.rom"
 BASE = 0x0400
 
 
-def load_ranges() -> tuple[list[tuple[int, int]], list[tuple[int, int, str]]]:
+def load_ranges(info: Path) -> tuple[list[tuple[int, int]], list[tuple[int, int, str]]]:
     code: list[tuple[int, int]] = []
     tabs: list[tuple[int, int, str]] = []
-    for line in INFO.read_text().splitlines():
+    for line in info.read_text().splitlines():
         m = re.match(r"RANGE \{ START \$(....); END \$(....); TYPE (\w+)", line)
         if m:
             a, b, t = int(m.group(1), 16), int(m.group(2), 16), m.group(3)
@@ -50,18 +53,20 @@ def load_ranges() -> tuple[list[tuple[int, int]], list[tuple[int, int, str]]]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--lo", default="0x2C00")
-    ap.add_argument("--hi", default="0x7A80")
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--block", default="block4", choices=sorted(BLOCKS))
     args = ap.parse_args()
-    lo, hi = int(args.lo, 0), int(args.hi, 0)
+    block = BLOCKS[args.block]
+    INFO = block.info
+    routine_docs = block.routine_docs
+    lo, hi = block.lo, block.hi
 
     raw = BIN.read_bytes()
 
     def B(a: int) -> int:
         return raw[a - BASE]
 
-    code, tabs = load_ranges()
+    code, tabs = load_ranges(INFO)
     code = [(a, b) for a, b in code if lo <= a <= hi]
 
     def in_tab(a: int) -> bool:
@@ -190,27 +195,32 @@ def main() -> int:
 
     # --- E. appels ROM ---
     r10, r11 = ROM10.read_bytes(), ROM11.read_bytes()
-    print(f"E. appels ROM directs: {len(romjsr)} distincts")
+    print(f"E. appels ROM directs: {len(romjsr)} distincts"
+          + ("" if block.check_rom_diff else " (informatif : ecart 1.0/1.1 attendu)"))
     for t in sorted(romjsr):
         o = t - 0xC000
         same = r10[o:o + 16] == r11[o:o + 16]
         print(f"   ${t:04X} x{len(romjsr[t])} "
               f"{'IDENTIQUE 1.0/1.1' if same else '*** DIFFERENT 1.0/1.1 ***'}")
-        if not same:
+        if not same and block.check_rom_diff:
             errors += 1
 
-    # --- F. vecteurs $2C05 ---
-    bad_vec = []
-    for k in range(16):
-        ea = 0x2C05 + 3 * k
-        t = B(ea + 1) | (B(ea + 2) << 8)
-        if t not in starts:
-            bad_vec.append((ea, t))
-    print(f"F. vecteurs hors code: {len(bad_vec)}")
-    for ea, t in bad_vec:
-        print(f"   vec @ ${ea:04X} -> ${t:04X}")
-    if bad_vec:
-        errors += 1
+    # --- F. vecteurs du bloc ---
+    if block.vector_table is not None:
+        va, n = block.vector_table
+        bad_vec = []
+        for k in range(n):
+            ea = va + 3 * k
+            t = B(ea + 1) | (B(ea + 2) << 8)
+            if t not in starts:
+                bad_vec.append((ea, t))
+        print(f"F. vecteurs ${va:04X} hors code: {len(bad_vec)}")
+        for ea, t in bad_vec:
+            print(f"   vec @ ${ea:04X} -> ${t:04X}")
+        if bad_vec:
+            errors += 1
+    else:
+        print("F. vecteurs : sans objet pour ce bloc")
 
     # --- G. pointeurs $440D marqués données ---
     ptr_ok = ptr_bad = 0
@@ -241,7 +251,7 @@ def main() -> int:
             info_names.setdefault(m.group(1), []).append(int(m.group(2), 16))
     doc_bad: list[str] = []
     seen_names: set[str] = set()
-    for addr, (name, doc) in sorted(ROUTINE_DOCS.items()):
+    for addr, (name, doc) in sorted(routine_docs.items()):
         tag = f"${addr:04X}"
         if not (lo <= addr <= hi):
             doc_bad.append(f"{tag} hors bloc")
@@ -276,7 +286,7 @@ def main() -> int:
             doc_bad.append(f"{tag} label {name} absent ou duplique dans info")
         if not doc or "\n" in doc or '"' in doc or len(doc) > 160:
             doc_bad.append(f"{tag} resume invalide (1 ligne, sans guillemet, <=160c)")
-    print(f"H. routines documentees: {len(ROUTINE_DOCS)}, ZP nommee: {len(ZP_NAMES)}, "
+    print(f"H. routines documentees: {len(routine_docs)}, ZP nommee: {len(ZP_NAMES)}, "
           f"anomalies: {len(doc_bad)}")
     for b in doc_bad[:12]:
         print(f"   {b}")

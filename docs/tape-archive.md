@@ -27,16 +27,51 @@ C'est donc une conversion cassette du jeu **The Hobbit (Oric, 1982)**, en pur 65
 
 ## Détail du bloc 1 (bootstrap, `$0400`–`$0500`)
 
-Entrée `JMP $047C` :
+> Listing désassemblé : [`disasm/block1.asm`](../disasm/block1.asm) (généré par
+> [`scripts/disasm.py`](../scripts/disasm.py) `--block block1` : descente
+> récursive + da65). Découpage vérifié par
+> [`scripts/disasm_check.py`](../scripts/disasm_check.py) `--block block1` :
+> **RÉSULTAT PROPRE** ; round-trip ca65+ld65 **byte-identique** sur
+> `$0400`–`$04FF` via [`scripts/disasm_rebuild.py`](../scripts/disasm_rebuild.py).
 
-- `$047C` `SEI` puis `LDA #$7F / STA $030E` : désactive la ROM pour accéder aux vecteurs.
-- `$0482`–`$0495` : teste la ROM (`$FC78`, voir plus bas) et **relocalise la table de vecteurs** depuis `$0468` vers `$0403`.
-- `$04A4`–`$04AD` : copie le message `"Please wait while THE HOBBIT loads"` (`$04CC`, 34 octets) vers `$BC4B`.
-- `$04AF`–`$04BA` : boucle de chargement — appelle 3× la routine cassette `$0417`, avec retry (compteur `$40`).
+Le **tape** déclare le bloc 1 sur `$0400`–`$0500` (257 o), mais son dernier
+octet `$0500` est **écrasé par le bloc 2** (chargé ensuite) : la mémoire
+vivante du bloc 1 s'arrête donc à `$04FF`, plage couverte par le listing.
+
+Entrée `JMP $047C` (`b1_entry`) :
+
+- `$047C` `b1_start` : `SEI` puis `LDA #$7F / STA $030E` (désactive la ROM
+  pour accéder aux vecteurs).
+- `$0482`–`$0495` : teste la ROM (`$FC78`, voir plus bas) et **relocalise la
+  table de vecteurs** depuis `$0468` vers `$0403`.
+- `$04A4`–`$04AD` : copie le message `"Please wait while THE HOBBIT loads"`
+  (`$04CC`, 34 octets) vers `$BC4B`.
+- `$04AF`–`$04BA` : boucle de chargement — appelle 3× la routine cassette
+  `$0417` (`b1_load`), avec retry (compteur `$40`).
 - `$04BC` `JMP ($0032)` : saute vers le programme chargé.
-- `$04BF`–`$04CA` : en cas d'échec, copie `"TAPE ERROR"` (`$04EF`) vers `$BD19` puis boucle infinie.
+- `$04BF`–`$04CA` : en cas d'échec, copie `"TAPE ERROR"` (`$04EF`) vers
+  `$BD19`, puis `BMI $04CA` (boucle infinie, terminateur de descente).
 
-La routine de lecture `$0417` appelle les vecteurs : `JSR $0411` (setup) → `JSR $0405` (sync) → `JSR $0408` (read byte), attend le `$24`, lit l'en-tête de 9 octets (`STA $0035,Y`), puis les données vers `($37)` avec **checksum EOR** cumulé en `$3B`.
+La routine de lecture `$0417` (`b1_load`) appelle les vecteurs : `JSR $0411`
+(setup) → `JSR $0405` (sync) → `JSR $0408` (read byte), attend le `$24`, lit
+l'en-tête de 9 octets (`STA $0035,Y`), puis les données vers `($37)` avec
+**checksum EOR** cumulé en `$3B`.
+
+Plages code/données (fichier `disasm/block1.info`) :
+
+| Plage | Type | Contenu |
+|---|---|---|
+| `$0400`–`$0402` | CODE | `b1_entry` (`JMP $047C`) |
+| `$0403`–`$0404` | BYTE | pointeur police `$FC70` |
+| `$0405`–`$0467` | CODE | vecteurs ROM 1.0 `$0405`–`$0416` + `b1_load $0417` |
+| `$0468`–`$047B` | BYTE | blob de patch ROM 1.1 (20 o) |
+| `$047C`–`$04CB` | CODE | `b1_start` |
+| `$04CC`–`$04F8` | TEXT | `"Please wait while THE HOBBIT loads"` + `$0C` + `"TAPE ERROR"` |
+| `$04F9`–`$04FF` | BYTE | queue non référencée (fin de bloc) |
+
+Vecteurs nommés : `b1_vec_sync $0405` · `b1_vec_read $0408` ·
+`b1_vec_leader $040B` · `b1_vec_write $040E` · `b1_vec_setup $0411` ·
+`b1_vec_reset $0414`.
 
 ## Patch de vecteurs selon la ROM
 
