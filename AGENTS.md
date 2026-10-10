@@ -89,6 +89,8 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
                                              # (fusion tickdiff+solver, SSOT
                                              # memmap_defs.py) ; slots/xref/gen
 .venv/bin/python scripts/check_memmap.py     # viser exit 0 (RÉSULTAT: PROPRE)
+.venv/bin/python scripts/draw_map.py         # carte D2 des lieux (map_static +
+                                             # statut visite) -> docs/map.d2 + map.svg
 SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
     --seed NOM --goal coverage --budget B   # BFS depuis un checkpoint
 ```

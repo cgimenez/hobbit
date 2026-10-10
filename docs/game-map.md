@@ -5,6 +5,12 @@ terrain OK : 6/6 mouvements observés F1–F5 présents dans le graphe).
 **78 records, 203 sorties.** Détail d'élucidation : `docs/block4-analysis.md`
 (§ records, § exits `$26DA`), plan d'octets : `docs/savegame-memory-map.md`.
 
+![Carte des lieux (D2)](map.svg)
+
+Carte générée (`docs/map.svg` ← `docs/map.d2`) par `scripts/draw_map.py` :
+nœuds colorés *visité* / *patch-only* / *zone sombre*, arêtes = direction +
+`cond $YY`, cible `$00` en pointillé vers le nœud *vide/mort*.
+
 ## Format
 
 Chaque record (`$2070`, id `<$50`) porte après sa description une liste

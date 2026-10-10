@@ -172,7 +172,12 @@ def plan_path(graph, src, dst):
     return out[::-1]
 
 
-def main():
+def build_graph():
+    """Graphe des lieux : {id: {"addr", "b0", "desc", "exits": [(dir,cond,dst)]}}.
+
+    Renvoie (graph, warns). Le record $00 (pointeur non nul, corps illisible)
+    est la sentinelle "vide/mort" : il n'est pas inclus dans le graphe mais il
+    reste une destination valide des sorties."""
     recs = {}
     for i in range(0x50):
         r = W(0x2070 + 2 * i)
@@ -199,6 +204,11 @@ def main():
                 warns.append("$%02X : dir %d inconnue" % (i, d))
             exits.append((d, c, dst))
         graph[i] = {"addr": r, "b0": B(r), "desc": desc, "exits": exits}
+    return graph, warns
+
+
+def main():
+    graph, warns = build_graph()
     # Mode planification : map_static.py --path <from> <to> [--via A,B,...]
     if "--path" in sys.argv:
         k = sys.argv.index("--path")
