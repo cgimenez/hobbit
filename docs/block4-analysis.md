@@ -544,6 +544,8 @@ sur bit5.
 - **Curseur** : `$30` = x (0–255 ; zone dessinable `$0E`–`$F1`, sinon clippé
   par `vec_testpx`/`vec_plot`), `$31` = y (0–`$7F`). `vec_addr` : `addr =
   $A002 + 40*y`, masque pixel `L7A5F` = `$20 $10 $08 $04 $02 $01` (6 px/octet).
+  La base **`$A002`** (= 2 colonnes) réserve les colonnes 0/1 aux attributs
+  paper/ink → **12 px de marge à gauche** de l'illustration (`screen_x = x-2`).
 - **`vec_line`** réutilise l'octet opcode + 1 suivant : `$2A/$2B/$2C = op &
   $01/$02/$04` (axe/sens) ; `$2D` = longueur `(op & $78) >> 1` complétée par
   les bits 6-7 de l'octet suivant, **+1** ; `$2E = octet_suivant & $3F` =

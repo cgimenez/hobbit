@@ -25,6 +25,7 @@ BASE = 0x0400
 TBL = 0x7AC0
 
 W, H = 240, 128
+X_ORIGIN = 12  # le moteur écrit en $A002 : 2 colonnes d'attributs (paper/ink)
 MASK = (0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
 
 ORIC = ("#000000", "#ff0000", "#00ff00", "#ffff00",
@@ -189,7 +190,11 @@ def decode(rom: bytes, addr: int) -> tuple[Canvas, int]:
 
 
 def runs(cv: Canvas):
-    """Itère (row, x0, x1) des runs horizontaux de pixels allumés."""
+    """Itère (row, x0, x1) des runs horizontaux de pixels allumés.
+
+    Le bitmap interne est indexé en colonnes mémoire (0..39, base $A002) ;
+    le rendu décale de X_ORIGIN (2 colonnes d'attributs paper/ink à gauche).
+    """
     for r in range(H):
         c = 0
         while c < 40:
@@ -198,7 +203,7 @@ def runs(cv: Canvas):
                 c += 1
                 continue
             start = None
-            x0 = c * 6
+            x0 = X_ORIGIN + c * 6
             for b in range(6):
                 if byte & MASK[b]:
                     if start is None:
