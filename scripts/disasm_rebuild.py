@@ -4,7 +4,7 @@ byte-identique avec la tranche correspondante de data/hobbit.bin.
 
 Sortie 0 si identique, 1 sinon (premier octet divergent affiché).
 
-Usage : .venv/bin/python scripts/disasm_rebuild.py [--block block1|block2|block4]
+Usage : .venv/bin/python scripts/disasm_rebuild.py [--block block1|block2|block3|block4]
 """
 
 from __future__ import annotations

@@ -110,6 +110,37 @@ Structures nommées (labels) : `dict_index`, `dict`, `common_words`,
 `script_elrond`, `script_dragon`, `script_bard`, `script_gollum`,
 `script_trolls`, `script_goblins*`, `events`, `entities`.
 
+## Détail du bloc 3 (illustrations, `$7AC0`–`$91B1`)
+
+> Listing : [`disasm/block3.asm`](../disasm/block3.asm) (généré par
+> `scripts/disasm.py --block block3`). Round-trip ca65+ld65 **byte-identique**
+> (5874 o) via `scripts/disasm_rebuild.py --block block3` ; checker
+> `scripts/disasm_check.py --block block3` : **RÉSULTAT PROPRE** (règle D
+> désactivée : bloc de données).
+
+Bloc **100 % données** : banque d'**illustrations vectorielles** (aucun code ;
+le moteur de rendu `vec_*` est en bloc 4). Table à clés `$7AC0` (13 entrées
+`[clé,lo,hi]`, `$FF` en `$7AE7`, lookup `L5399` pas de 3) + 13 flux d'octets
+`$00`-terminés, tuilés sans trou (`$7AE8`→`$91B1`). Chaque image commence par
+`[mode,$08,x,y]`. Décodage : [`scripts/vec_decode.py`](../scripts/vec_decode.py)
+→ `docs/vectors/vec_<clé>.svg`.
+
+| Clé | Image | Mode | Remarque |
+|---|---|---|---|
+| `$01` | `$7AE8` | `$05` | |
+| `$06` | `$7D09` | `$02` | |
+| `$0B` | `$7FA4` | `$01` | |
+| `$25` | `$809F` | `$13` | |
+| `$26` | `$82EC` | `$04` | |
+| `$07` | `$8569` | `$14` | |
+| `$0D` | `$8766` | `$03` | contient l'image `$15` (+29 o) |
+| `$15` | `$8783` | `$01` | incluse dans `$0D` |
+| `$20` | `$887B` | `$04` | |
+| `$19` | `$8AE4` | `$04` | |
+| `$29` | `$8D13` | `$05` | |
+| `$1A` | `$8ED0` | `$01` | |
+| `$27` | `$90B1` | `$56` | |
+
 ## Patch de vecteurs selon la ROM
 
 `$0482  LDA $FC78` / `$0485  BNE $0497` :

@@ -19,7 +19,7 @@ Contrôles (bloc 4 par défaut) :
 
 Sortie 0 si propre, 1 sinon.
 
-Usage : .venv/bin/python scripts/disasm_check.py [--block block1|block2|block4]
+Usage : .venv/bin/python scripts/disasm_check.py [--block block1|block2|block3|block4]
 """
 
 from __future__ import annotations

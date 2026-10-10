@@ -13,13 +13,14 @@ la cible est sa propre adresse (boucle infinie ``xx FE``) est un terminateur.
 
 Moteur commun ; les données (plage, entrées, vecteurs, docs) sont par bloc
 dans ``BLOCKS`` (``block4`` par défaut, ``block1`` = bootstrap/chargeur,
-``block2`` = données du jeu). da65 (cc65) produit le listing depuis
-``disasm/<bloc>.info`` et ``data/hobbit.bin``.
+``block2`` = données du jeu, ``block3`` = illustrations vectorielles). da65
+(cc65) produit le listing depuis ``disasm/<bloc>.info`` et
+``data/hobbit.bin``.
 
 Prérequis : ``tools/cc65/bin/da65`` (cf. AGENTS.md).
 Vérification : scripts/disasm_check.py --block <bloc>.
 
-Usage : .venv/bin/python scripts/disasm.py [--block block1|block2|block4]
+Usage : .venv/bin/python scripts/disasm.py [--block block1|block2|block3|block4]
 """
 
 from __future__ import annotations
@@ -945,6 +946,47 @@ B2_HEADER = (
 )
 
 
+# --- Bloc 3 ($7AC0-$91B1) : banque d'illustrations vectorielles -----------
+# Aucun code 6502 : table a cles $7AC0 (13 entrees [cle,lo,hi], $FF en $7AE7)
+# + 13 flux d'octets $00-terminés, tuiles sans trou ($7AE8->$91B1). Chaque
+# image = [mode,$08,x,y] + commandes ($08 curseur, $20 skip, bit6 fill,
+# bit7 ligne). Moteur vec_* en bloc 4 ; decodeur : scripts/vec_decode.py.
+B3_LABELS: dict[int, str] = {
+    0x7AC0: "img_table",   # 13 entrees [cle, lo, hi] + $FF
+    0x7AE8: "img_01",      # mode $05
+    0x7D09: "img_06",      # mode $02
+    0x7FA4: "img_0b",      # mode $01
+    0x809F: "img_25",      # mode $13
+    0x82EC: "img_26",      # mode $04
+    0x8569: "img_07",      # mode $14
+    0x8766: "img_0d",      # mode $03 (contient l'image $15 + 29 o)
+    0x8783: "img_15",      # mode $01
+    0x887B: "img_20",      # mode $04
+    0x8AE4: "img_19",      # mode $04
+    0x8D13: "img_29",      # mode $05
+    0x8ED0: "img_1a",      # mode $01
+    0x90B1: "img_27",      # mode $56
+}
+
+B3_RANGES: dict[int, str] = {
+    0x7AC0: "BYTETABLE",   # table a cles [cle,lo,hi]
+    0x7AE8: "BYTETABLE",   # flux d'images $00-terminés
+}
+
+B3_HEADER = (
+    "; ============================================================\n"
+    "; The Hobbit (Oric, 1982)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
+    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; - bloc 3 ($7AC0-$91B1) : banque d'illustrations vectorielles\n"
+    "; Listing généré par scripts/disasm.py (partitionnement type + labels).\n"
+    "; Table a cles $7AC0 + 13 flux d'octets $00-terminés (dessins, pas de\n"
+    "; texte). Moteur de rendu vec_* en bloc 4 ; décodeur scripts/vec_decode.py\n"
+    "; -> docs/vectors/*.svg. Formats : docs/block4-analysis.md.\n"
+    "; ============================================================\n\n"
+)
+
+
 BLOCKS: dict[str, Block] = {
     "block4": Block(
         key="block4",
@@ -1005,6 +1047,27 @@ BLOCKS: dict[str, Block] = {
         check_code_tables=False,
         labels=B2_LABELS,
         data_ranges=B2_RANGES,
+    ),
+    "block3": Block(
+        key="block3",
+        lo=0x7AC0,
+        hi=0x91B1,
+        base_entries=[],
+        manual_entries=[],
+        seed_exclude=set(),
+        vectors={},
+        routine_docs={},
+        routine_notes={},
+        info=DISASM / "block3.info",
+        listing=DISASM / "block3.asm",
+        cfg=ROOT / "disasm" / "block3.cfg",
+        header=B3_HEADER,
+        vector_table=None,
+        use_r2_seeds=False,
+        check_rom_diff=False,
+        check_code_tables=False,
+        labels=B3_LABELS,
+        data_ranges=B3_RANGES,
     ),
 }
 
