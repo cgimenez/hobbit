@@ -62,6 +62,15 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0xC8: ("ploc", "lieu du joueur"),
     0xC9: ("eloc", "lieu de l'entite (visibilite : eloc==ploc)"),
     0xCE: ("once", "verrou one-shot (pose, teste+consomme)"),
+    0xC3: ("dflag", "flag action dragon (init 0 par l'intro, jamais arme)"),
+    0xC4: ("sflag", "flag sortie texte (evt_disarme7 : ajoute H apres s/S)"),
+    0xCF: ("cand", "index de candidat, tables deplacement $48D3/$48D5"),
+    0xD0: ("mwt", "budget/poids deplacement (errance : $0A moins couts)"),
+    0xD1: ("qrd", "curseur lecture file d'actions $4905 (RAZ/commande)"),
+    0xD2: ("qwr", "curseur ecriture file d'actions $4905 (RAZ/commande)"),
+    0xD3: ("macc", "accumulateur de poids (errance)"),
+    0xD4: ("mcnt", "compteur de candidats retenus (errance)"),
+    0xD5: ("said", "flag PNJ a parle/refuse (code_6C2E/act_v14_13)"),
 }
 
 # --- §2. Etats $1B1A (1366 o), 61 cles $1A62 ----------------------------

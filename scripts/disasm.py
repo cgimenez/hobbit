@@ -508,6 +508,16 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0xC8: ("ploc", "Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)"),
     0xC9: ("eloc", "Lieu d'un personnage (visible quand il est identique a celui du joueur)"),
     0xCE: ("once", "Verrou 'une seule fois' : pose puis consomme"),
+    # Scratch transitoire (moteur d'errance/placement des PNJ + file d'actions).
+    0xC3: ("dflag", "Flag de l'action du dragon : initialise a 0 par l'intro, jamais arme (inactif)"),
+    0xC4: ("sflag", "Flag de sortie texte : arme au desarmement de l'evenement e7, ajoute un H apres s/S"),
+    0xCF: ("cand", "Index de candidat dans les tables de deplacement $48D3/$48D5 (moteur d'errance)"),
+    0xD0: ("mwt", "Budget/poids du deplacement (moteur d'errance : $0A moins les couts)"),
+    0xD1: ("qrd", "Curseur de lecture de la file d'actions $4905 (remis a 0 a chaque commande)"),
+    0xD2: ("qwr", "Curseur d'ecriture de la file d'actions $4905 (remis a 0 a chaque commande)"),
+    0xD3: ("macc", "Accumulateur de poids du moteur d'errance"),
+    0xD4: ("mcnt", "Compteur de candidats retenus par le moteur d'errance"),
+    0xD5: ("said", "Flag : le PNJ a parle/refuse (pose par code_6C2E, remis a 0 par act_v14_13)"),
     # Octets hauts des paires (da65 ne rend pas `nom+1` : nommage explicite).
     0x18: ("orec_hi", "Octet haut de orec"),
     0x1A: ("orec2_hi", "Octet haut de orec2"),

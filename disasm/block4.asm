@@ -55,12 +55,21 @@ svA             := $00AD                        ; Sauvegarde de l'accumulateur A
 svX             := $00AE                        ; Sauvegarde du registre X
 rstk            := $00AF                        ; Index de la pile interne d'adresses
 exploc          := $00BE                        ; Lieu attendu par l'evenement en cours
+dflag           := $00C3                        ; Flag de l'action du dragon : initialise a 0 par l'intro, jamais arme (inactif)
+sflag           := $00C4                        ; Flag de sortie texte : arme au desarmement de l'evenement e7, ajoute un H apres s/S
 obj             := $00C5                        ; Objet ou personnage courant ($FF = un personnage)
 crec            := $00C6                        ; Pointeur vers la fiche courante (compteurs du personnage/objet en cours)
 crec_hi         := $00C7                        ; Octet haut de crec
 ploc            := $00C8                        ; Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)
 eloc            := $00C9                        ; Lieu d'un personnage (visible quand il est identique a celui du joueur)
 once            := $00CE                        ; Verrou 'une seule fois' : pose puis consomme
+cand            := $00CF                        ; Index de candidat dans les tables de deplacement $48D3/$48D5 (moteur d'errance)
+mwt             := $00D0                        ; Budget/poids du deplacement (moteur d'errance : $0A moins les couts)
+qrd             := $00D1                        ; Curseur de lecture de la file d'actions $4905 (remis a 0 a chaque commande)
+qwr             := $00D2                        ; Curseur d'ecriture de la file d'actions $4905 (remis a 0 a chaque commande)
+macc            := $00D3                        ; Accumulateur de poids du moteur d'errance
+mcnt            := $00D4                        ; Compteur de candidats retenus par le moteur d'errance
+said            := $00D5                        ; Flag : le PNJ a parle/refuse (pose par code_6C2E, remis a 0 par act_v14_13)
 cond1           := $00DC                        ; Condition memorisee n°1
 cond2           := $00E2                        ; Condition memorisee n°2
 svptr           := $00E8                        ; Sauvegarde du pointeur de travail
@@ -154,7 +163,7 @@ L2C5B:  sta     L47E2,x
         bne     L2C5B
         sta     $5E
         sta     $57
-        sta     $C4
+        sta     sflag
         sta     $0A
         lda     #$01
         sta     outen
@@ -208,8 +217,8 @@ L2CC8:  lda     #$00
 L2CCE:  lda     #$00
         sta     $65
         sta     $90
-        sta     $D2
-        sta     $D1
+        sta     qwr
+        sta     qrd
         lda     #$27
         sta     ptr2
         lda     #$49
@@ -2415,9 +2424,9 @@ L3C4B:  jmp     L3449
         and     #$FD
         sta     $6D
 L3C6A:  lda     $5F
-        ldx     $D2
+        ldx     qwr
         sta     L4905,x
-        inc     $D2
+        inc     qwr
 L3C73:  jsr     L3485
         cmp     #$90
         bne     L3C73
@@ -2661,15 +2670,15 @@ cmd_next:
 code_3E5B:
         cmp     #$00
         php
-        lda     $D2
+        lda     qwr
         beq     L3E88
-        cmp     $D1
+        cmp     qrd
         beq     L3E88
-        ldx     $D1
+        ldx     qrd
         lda     L4905,x
         sta     $91
         inx
-        stx     $D1
+        stx     qrd
         lda     arg1
         plp
         php
@@ -2718,7 +2727,7 @@ L3EB2:  lda     $91
         sta     ptr2_hi
         lda     #$00
         sta     $65
-        sta     $D3
+        sta     macc
 L3EC4:  jsr     code_3111
         beq     L3ED0
         cmp     #$02
@@ -2727,8 +2736,8 @@ L3EC4:  jsr     code_3111
 
 L3ED0:  lda     $65
         clc
-        adc     $D3
-        sta     $D3
+        adc     macc
+        sta     macc
         lda     #$00
         sta     $65
         ldx     $5F
@@ -2739,14 +2748,14 @@ L3ED0:  lda     $65
         lda     #$90
         sta     L4783,x
         lda     #$0A
-        sta     $D0
+        sta     mwt
         ldx     #$00
 L3EF1:  lda     L48D3,x
         beq     L3F0A
-        lda     $D0
+        lda     mwt
         sec
         sbc     L48D4,x
-        sta     $D0
+        sta     mwt
         txa
         clc
         adc     #$05
@@ -2755,15 +2764,15 @@ L3EF1:  lda     L48D3,x
         bne     L3EF1
         jmp     L3FCF
 
-L3F0A:  lda     $D0
+L3F0A:  lda     mwt
         bne     L3F11
         jmp     L3FCF
 
 L3F11:  lda     #$00
         sta     L48D5,x
-        sta     $D4
+        sta     mcnt
         sta     $65
-        lda     $D3
+        lda     macc
         sta     $6C
         lda     #$27
         sta     ptr2
@@ -2776,12 +2785,12 @@ L3F26:  inc     $65
         and     #$40
         bne     L3F26
         lda     $65
-        cmp     $D0
+        cmp     mwt
         bcs     L3F3F
-        sta     $D4
+        sta     mcnt
         dec     $6C
         bne     L3F26
-L3F3F:  lda     $D4
+L3F3F:  lda     mcnt
         bne     L3F46
         jmp     L3FCF
 
@@ -2792,14 +2801,14 @@ L3F46:  sta     L48D4,x
         sta     $90
         lda     #$0A
         sec
-        sbc     $D0
+        sbc     mwt
         asl     a
         asl     a
         asl     a
-        sta     $D0
+        sta     mwt
         asl     a
         clc
-        adc     $D0
+        adc     mwt
         adc     #$E3
         sta     ptr
         lda     #$00
@@ -2812,7 +2821,7 @@ L3F6E:  lda     L4927,y
         iny
         dex
         bne     L3F6E
-        dec     $D4
+        dec     mcnt
         bne     L3F6C
         jmp     L3F8E
 
@@ -2838,7 +2847,7 @@ L3F8E:  jsr     L4035
         bne     L3FD4
         jsr     L36D5
         beq     L3FCA
-        ldx     $CF
+        ldx     cand
         lda     svptr
         sta     L48D6,x
         lda     svptr_hi
@@ -2857,7 +2866,7 @@ L3FCF:  lda     #$00
 
 L3FD4:  lda     $7E
         beq     L3FCA
-        ldx     $CF
+        ldx     cand
         lda     #$00
         sta     L48D5,x
         jsr     L3FE5
@@ -2870,12 +2879,12 @@ L3FEB:  jsr     L356E
         lda     (ptr2),y
         and     #$40
         beq     L3FFA
-        inc     $D0
+        inc     mwt
         bne     L3FEB
 L3FFA:  lda     #$09
         sec
-        sbc     $D0
-        sta     $D0
+        sbc     mwt
+        sta     mwt
         beq     L4013
         ldy     #$00
 L4005:  ldx     #$18
@@ -2884,9 +2893,9 @@ L4007:  lda     (ptr2),y
         iny
         dex
         bne     L4007
-        dec     $D0
+        dec     mwt
         bne     L4005
-L4013:  ldx     $CF
+L4013:  ldx     cand
         dec     L48D4,x
         beq     L401B
         rts
@@ -2912,15 +2921,15 @@ L4038:  lda     #$E3
         sta     ptr2
         lda     #$47
         sta     ptr2_hi
-        stx     $CF
+        stx     cand
         tya
         tax
-        sta     $D0
+        sta     mwt
         beq     L404E
 L4048:  jsr     L355A
         dex
         bne     L4048
-L404E:  ldx     $CF
+L404E:  ldx     cand
         rts
 
 L4051:  jsr     L46E6
@@ -4555,7 +4564,7 @@ code_4D84:
         sta     crec_hi
         lda     #$00
         sta     obj
-        sta     $D5
+        sta     said
         jmp     L6487
 
 L4D95:  lda     phase
@@ -7127,7 +7136,7 @@ L5F6A:  lda     orec
         lda     #$00
         plp
         beq     L5FA0
-        lda     $D5
+        lda     said
         bne     L5FA0
         ldy     #$06
         lda     (ptr2),y
@@ -7821,7 +7830,7 @@ L647B:  jsr     act_probe
         rts
 
 L6487:  lda     #$00
-        sta     $C3
+        sta     dflag
         lda     #$04
         jsr     rand_range
         asl     a
@@ -8429,7 +8438,7 @@ code_6A0F:
 ; Desarme l'evenement e7 dans un cas particulier (objet present)
 evt_disarme7:
         lda     #$01
-        sta     $C4
+        sta     sflag
         lda     $2B35
         sta     $2B36
         rts
@@ -8661,7 +8670,7 @@ L6B7B:  jsr     act_probe
         lda     ($C1),y
         sta     ptr2_hi
         iny
-        lda     $C3
+        lda     dflag
         bne     L6BA2
         ldx     #$00
 L6B90:  tya
@@ -8758,7 +8767,7 @@ msg_6C2C:
         .word   $0000
 code_6C2E:
         lda     #$01
-        sta     $D5
+        sta     said
         rts
 
 ; Action jouee une seule fois : remet un verrou et memorise des valeurs
@@ -9070,7 +9079,7 @@ L6DF6:  cmp     #$1C
 act_v14_13:
         jsr     act_probe
         lda     #$00
-        sta     $D5
+        sta     said
         lda     $90
         cmp     #$44
         bne     L6E29
@@ -9121,7 +9130,7 @@ L6E3D:  jsr     L5331
 L6E51:  jmp     L667C
 
         lda     #$00
-        sta     $C4
+        sta     sflag
         rts
 
 ; Dragon : selon le lieu, tirage entre vol et attaque au feu
@@ -9943,7 +9952,7 @@ L749A:  lda     raw
         pla
         jsr     ch_put
         pha
-        lda     $C4
+        lda     sflag
         bne     L74A9
         pla
         rts

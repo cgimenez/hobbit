@@ -644,6 +644,15 @@ LABEL { NAME "obj"; ADDR $00C5; COMMENT "Objet ou personnage courant ($FF = un p
 LABEL { NAME "ploc"; ADDR $00C8; COMMENT "Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)"; };
 LABEL { NAME "eloc"; ADDR $00C9; COMMENT "Lieu d'un personnage (visible quand il est identique a celui du joueur)"; };
 LABEL { NAME "once"; ADDR $00CE; COMMENT "Verrou 'une seule fois' : pose puis consomme"; };
+LABEL { NAME "dflag"; ADDR $00C3; COMMENT "Flag de l'action du dragon : initialise a 0 par l'intro, jamais arme (inactif)"; };
+LABEL { NAME "sflag"; ADDR $00C4; COMMENT "Flag de sortie texte : arme au desarmement de l'evenement e7, ajoute un H apres s/S"; };
+LABEL { NAME "cand"; ADDR $00CF; COMMENT "Index de candidat dans les tables de deplacement $48D3/$48D5 (moteur d'errance)"; };
+LABEL { NAME "mwt"; ADDR $00D0; COMMENT "Budget/poids du deplacement (moteur d'errance : $0A moins les couts)"; };
+LABEL { NAME "qrd"; ADDR $00D1; COMMENT "Curseur de lecture de la file d'actions $4905 (remis a 0 a chaque commande)"; };
+LABEL { NAME "qwr"; ADDR $00D2; COMMENT "Curseur d'ecriture de la file d'actions $4905 (remis a 0 a chaque commande)"; };
+LABEL { NAME "macc"; ADDR $00D3; COMMENT "Accumulateur de poids du moteur d'errance"; };
+LABEL { NAME "mcnt"; ADDR $00D4; COMMENT "Compteur de candidats retenus par le moteur d'errance"; };
+LABEL { NAME "said"; ADDR $00D5; COMMENT "Flag : le PNJ a parle/refuse (pose par code_6C2E, remis a 0 par act_v14_13)"; };
 LABEL { NAME "orec_hi"; ADDR $0018; COMMENT "Octet haut de orec"; };
 LABEL { NAME "orec2_hi"; ADDR $001A; COMMENT "Octet haut de orec2"; };
 LABEL { NAME "adr_hi"; ADDR $005D; COMMENT "Octet haut de adr"; };

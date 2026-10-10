@@ -34,8 +34,8 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | `$C0` | `tblA_hi` | haut de `tblA` | `$87` |
 | `$C1` | `tblB` | pointeur lo table errance/desc `$7126` (pas 6) ; hi `$C2` | `$02` |
 | `$C2` | `tblB_hi` | haut de `tblB` | `$85` |
-| `$C3` | — | inconnu | `$43` |
-| `$C4` | — | inconnu | `$45` |
+| `$C3` | `dflag` | flag action dragon (init `0` par l'intro, jamais armé → inactif) | `$43` |
+| `$C4` | `sflag` | flag sortie texte (armé par `evt_disarme7` : ajoute `H` après `s`/`S`) | `$45` |
 | `$C5` | `obj` | objet/entité courant (id ; `$FF`=personne ; lieu via `L57BB`) | `$AC` |
 | `$C6` | `crec` | enregistrement courant, octet bas (contexte/compteurs ; base `$1B1A`) | `$05` |
 | `$C7` | `crec_hi` | haut de `crec` | `$08` |
@@ -46,15 +46,17 @@ Noms `ZP_NAMES` (`scripts/disasm.py`). Valeurs = image initiale
 | `$CC` | `score` | score courant en points (lu par SCORE `$3CD4` ; hi `$CD`) | `$80` |
 | `$CD` | `score_hi` | haut du score (remis à 0 après victoire) | `$83` |
 | `$CE` | `once` | verrou one-shot (posé, testé+consommé) | `$87` |
-| `$CF` | — | inconnu | `$83` |
-| `$D0` | — | inconnu | `$43` |
-| `$D1` | — | inconnu | `$AD` |
-| `$D2` | — | inconnu | `$14` |
-| `$D3` | — | inconnu | `$08` |
-| `$D4` | — | inconnu | `$96` |
-| `$D5` | — | inconnu | `$0D` |
+| `$CF` | `cand` | index de candidat (tables déplacement `$48D3/$48D5-$D7`, errance) | `$83` |
+| `$D0` | `mwt` | budget/poids du déplacement (errance : `$0A` moins les coûts) | `$43` |
+| `$D1` | `qrd` | curseur de lecture de la file d'actions `$4905` (RAZ/commande) | `$AD` |
+| `$D2` | `qwr` | curseur d'écriture de la file d'actions `$4905` (RAZ/commande) | `$14` |
+| `$D3` | `macc` | accumulateur de poids (errance) | `$08` |
+| `$D4` | `mcnt` | compteur de candidats retenus (errance) | `$96` |
+| `$D5` | `said` | flag « le PNJ a parlé/refusé » (`code_6C2E` pose, `act_v14_13` RAZ) | `$0D` |
 
-À lever sous harnais : `$C3`/`$C4`, `$CF`–`$D5` (rôles + valeurs runtime).
+`$C3`/`$C4`/`$CF`–`$D5` = **scratch transitoire** (planificateur d'errance
+des PNJ + file d'actions `$4905`), nommés ci-dessus ; seuls `$CF`/`$D0`/`$D3`/
+`$D4` sont observés muter (sous `@win`/`@goblin_escaped`/`KILL THORIN`).
 `$CC`/`$CD` = **score** (points ; SCORE `$3CD4`) ; `$CA`/`$CB` = **recptr**
 (pointeur de record de lieu sauvegardé, `$21`–`$26`).
 
