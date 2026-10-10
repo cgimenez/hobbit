@@ -153,6 +153,34 @@ Chaînes de porteurs (qui tient quoi) : `$03`→`$3E`, `$04`→`$47`,
 `$0F`→`$42`, `$14`→`$13`, `$19`/`$1A`→`$46`, `$1E`→`$1D`,
 `$1F`→`$1E`, `$21`→`$24`, `$22`→`$21`, `$24`→`$20`, `$02`→`$1F`.
 
+**Nom de chaque clé** : `+$08`/`+$09` est la **clé de dictionnaire** du nom
+de l'objet, rendue par `word_render` (`$4241`, page `$05+hi`, offset `lo`).
+Décodée sur les 61 clés (l'identifiant unique ajoute la clé quand le mot se
+répète) :
+
+| Clé | Nom | Clé | Nom | Clé | Nom | Clé | Nom |
+|---|---|---|---|---|---|---|---|
+| `$00` | YOU | `$01` | DOOR | `$02` | KEY | `$03` | MAP |
+| `$04` | KEY | `$05` | DOOR | `$06` | CRACK | `$07` | WEB |
+| `$08` | DOOR | `$09` | RIVER | `$0A` | DOOR | `$0B` | DOOR |
+| `$0C` | DOOR | `$0D` | DOOR | `$0E` | SWORD | `$0F` | KEY |
+| `$10` | RING | `$11` | DOOR | `$12` | ROPE | `$13` | BARREL |
+| `$14` | WINE | `$15` | WATER | `$16` | WATER | `$17` | WATER |
+| `$18` | WATER | `$19` | BOW | `$1A` | ARROW | `$1B` | WINDOW |
+| `$1C` | TORCH | `$1D` | SAND | `$1E` | DOOR | `$1F` | CACHE |
+| `$20` | CURTAIN | `$21` | CUPBOARD | `$22` | FOOD | `$23` | TREASURE |
+| `$24` | WALL | `$25` | CHEST | `$26` | LUNCH | `$27` | PORTCULLIS |
+| `$28` | STONE | `$29` | BOAT | `$2A` | RIVER | `$2B` | KEY |
+| `$3C` | DRAGON | `$3D` | GOBLIN | `$3E` | GANDALF | `$3F` | THORIN |
+| `$40` | ELF | `$41` | ELROND | `$42` | BUTLER | `$43` | WARG |
+| `$44` | GOLLUM | `$45` | GOBLIN | `$46` | BARD | `$47` | TROLL |
+| `$48` | TROLL | `$49` | GOBLIN | `$4A` | GOBLIN | `$4B` | GOBLIN |
+| `$4C` | GOBLIN | | | | | | |
+
+Correction : `$41` = **ELROND** (et non « dragon présumé ») ; le **DRAGON**
+est `$3C` (dormant). `$40` = ELF, `$43` = WARG, `$46` = BARD, `$3F` =
+THORIN.
+
 **`$1E4B` = `$44.$10` = `gollum.eloc`** (base `$1E3B`+`$10`) : `act_v14_12`
 (`$6C03`) et `act_v14_14` (`$6D78`) le comparent à `ploc` pour exiger la
 co-localisation joueur/Gollum (confirme `+$10` = `eloc`).
@@ -240,23 +268,23 @@ sens exacts ouverts (relire). id `$00` = dormant (activé par id seul :
 
 | Slot | Addr | id | n | PC init | base (table) | s6 | Qui |
 |---|---|---|---|---|---|---|---|
-| e0 | `$2B45` | `$3E` | `$07` | `$295C` | `$2943` | `$05` | Gandalf (eloc `$01`) |
-| e1 | `$2B4C` | `$3F` | `$02` | `$298E` | `$2984` | `$06` | ? (eloc ?) |
-| e2 | `$2B53` | `$40` | `$02` | `$29BC` | `$29B2` | `$01` | ? |
-| e3 | `$2B5A` | `$43` | `$00` | `$29C7` | `$29C3` | `$00` | ? (eloc `$15`) |
-| e4 | `$2B61` | `$00`→`$42` | `$02` | `$29EE` | `$29E4` | `$01` | dormant → `$42` (eloc `$20`) |
-| e5 | `$2B68` | `$41` | `$02` | `$2A38` | `$2A2E` | `$05` | dragon présumé (eloc `$09`) |
-| e6 | `$2B6F` | `$44` | `$01` | `$2A8F` | `$2A88` | `$03` | Gollum présumé (eloc `$11`) |
-| e7 | `$2B76` | `$00`→`$46` | `$01` | `$2A77` | `$2A70` | `$03` | dormant → `$46` (eloc `$23`) |
-| e8 | `$2B7D` | `$00`→`$3C` | `$01` | `$2A54` | `$2A4D` | `$00` | dormant → `$3C` (eloc `$29`) |
-| e9 | `$2B84` | `$47` | `$01` | `$2AD0` | `$2AC9` | `$01` | lieu 5, trolls (eloc `$05`) |
-| e10 | `$2B8B` | `$48` | `$01` | `$2AD0` | `$2AC9` | `$01` | lieu 5, trolls (eloc `$05`) |
-| e11 | `$2B92` | `$3D` | `$01` | `$28E1` | `$28CC` | `$00` | ? (eloc `$0F`) |
-| e12 | `$2B99` | `$45` | `$01` | `$28E1` | `$28CC` | `$00` | ? (eloc `$3A`) |
-| e13 | `$2BA0` | `$4B` | `$01` | `$2910` | `$28D3` | `$00` | ? (eloc `$40`) |
-| e14 | `$2BA7` | `$49` | `$01` | `$2934` | `$28DA` | `$00` | ? (eloc `$12`) |
-| e15 | `$2BAE` | `$4A` | `$01` | `$2934` | `$28DA` | `$00` | ? (eloc `$38`) |
-| e16 | `$2BB5` | `$4C` | `$01` | `$2934` | `$28DA` | `$00` | ? (eloc `$10`) |
+| e0 | `$2B45` | `$3E` | `$07` | `$295C` | `$2943` | `$05` | GANDALF (eloc `$01`) |
+| e1 | `$2B4C` | `$3F` | `$02` | `$298E` | `$2984` | `$06` | THORIN (eloc ?) |
+| e2 | `$2B53` | `$40` | `$02` | `$29BC` | `$29B2` | `$01` | ELF |
+| e3 | `$2B5A` | `$43` | `$00` | `$29C7` | `$29C3` | `$00` | WARG (eloc `$15`) |
+| e4 | `$2B61` | `$00`→`$42` | `$02` | `$29EE` | `$29E4` | `$01` | dormant → `$42` BUTLER (eloc `$20`) |
+| e5 | `$2B68` | `$41` | `$02` | `$2A38` | `$2A2E` | `$05` | ELROND (eloc `$09`) |
+| e6 | `$2B6F` | `$44` | `$01` | `$2A8F` | `$2A88` | `$03` | GOLLUM (eloc `$11`) |
+| e7 | `$2B76` | `$00`→`$46` | `$01` | `$2A77` | `$2A70` | `$03` | dormant → `$46` BARD (eloc `$23`) |
+| e8 | `$2B7D` | `$00`→`$3C` | `$01` | `$2A54` | `$2A4D` | `$00` | dormant → `$3C` DRAGON (eloc `$29`) |
+| e9 | `$2B84` | `$47` | `$01` | `$2AD0` | `$2AC9` | `$01` | TROLL (eloc `$05`) |
+| e10 | `$2B8B` | `$48` | `$01` | `$2AD0` | `$2AC9` | `$01` | TROLL (eloc `$05`) |
+| e11 | `$2B92` | `$3D` | `$01` | `$28E1` | `$28CC` | `$00` | GOBLIN (eloc `$0F`) |
+| e12 | `$2B99` | `$45` | `$01` | `$28E1` | `$28CC` | `$00` | GOBLIN (eloc `$3A`) |
+| e13 | `$2BA0` | `$4B` | `$01` | `$2910` | `$28D3` | `$00` | GOBLIN (eloc `$40`) |
+| e14 | `$2BA7` | `$49` | `$01` | `$2934` | `$28DA` | `$00` | GOBLIN (eloc `$12`) |
+| e15 | `$2BAE` | `$4A` | `$01` | `$2934` | `$28DA` | `$00` | GOBLIN (eloc `$38`) |
+| e16 | `$2BB5` | `$4C` | `$01` | `$2934` | `$28DA` | `$00` | GOBLIN (eloc `$10`) |
 
 ## 4. Blocs cassette SAVE (sources basses, §0)
 
@@ -541,8 +569,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
 - **Reste ouvert** : sens fin `+0` `$02 $03 $05 $08` (tous « non
   localisé » ; sous-régime non testé dans le code), `n`, `s6` (à quoi
   servent-ils ?), bit7 `b0`/`b1`, `b1` bit6, eloc `$00`/`$2F`,
-  identité `$3C`, noms entités `$3D $3F $40 $43 $45 $49 $4A $4B
-  $4C`, driver events (`evt_tick` décodé : `cpt--`, tir actA à 0
+  driver events (`evt_tick` décodé : `cpt--`, tir actA à 0
   + actB si `cond>=cpt` — mais `cpt` statique en jeu : qui
   appelle quoi ? `$B0` = nb de `world_tick` par commande ?),
   compteur exact tête `$2AD0`, dormants (déclencheurs).

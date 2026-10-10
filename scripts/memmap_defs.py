@@ -134,22 +134,72 @@ def state_owner(addr: int) -> tuple[int, int] | None:
             break
     return None if key is None else (key, addr - base)
 
-# Identites connues des cles (savegame-memory-map.md §2 ; "presume" = a
-# confirmer). Token court -> nom lisible du slot.
+# Identites des cles = mot designe par +$08/+$09 (cle de dictionnaire rendue
+# par word_render $4241, cf. memmap.py ident). Suffixe = cle hex quand le mot
+# se repete (DOOR x9, KEY x4, WATER x4, GOBLIN x6, RIVER x2, TROLL x2), pour
+# garantir l'unicite du nom de slot.
 STATE_IDENTITY: dict[int, str] = {
-    0x00: "player",       # bloc global (compteur de chutes +$05)
-    0x01: "rock_door",    # the heavy rock door ($06 N->$07 ; +7 bit0=verrou, bit5=ouvert)
-    0x03: "map",
-    0x04: "key",          # the large key (porte par le troll hideux $47 a $05)
-    0x0E: "sword",        # the short strong sword (source de lumiere : +4 b7, +7 $94)
-    0x10: "ring",         # the valuable golden ring (cache en $3D ; pocket de Gollum $1CC5<-$44)
-    0x26: "lunch",
-    0x3E: "gandalf",
-    0x41: "dragon",       # presume
-    0x42: "butler",       # dormant, eloc $20 ; presume
-    0x44: "gollum",       # presume
-    0x47: "troll_hideous",
-    0x48: "troll_vicious",
+    0x00: "player",       # YOU
+    0x01: "rock_door",    # DOOR ($06 N->$07 ; +7 bit0=verrou, bit5=ouvert)
+    0x02: "key02",        # KEY
+    0x03: "map",          # MAP
+    0x04: "key",          # KEY (la grande cle, portee par le troll hideux $47)
+    0x05: "door05",       # DOOR
+    0x06: "crack",        # CRACK
+    0x07: "web",          # WEB
+    0x08: "door08",       # DOOR
+    0x09: "river09",      # RIVER
+    0x0A: "door0a",       # DOOR
+    0x0B: "door0b",       # DOOR
+    0x0C: "door0c",       # DOOR
+    0x0D: "door0d",       # DOOR
+    0x0E: "sword",        # SWORD (source de lumiere : +4 b7, +7 $94)
+    0x0F: "key0f",        # KEY (cle rouge presume, portee par le butler $42)
+    0x10: "ring",         # RING (l'anneau d'or ; pocket de Gollum $1CC5<-$44)
+    0x11: "door11",       # DOOR
+    0x12: "rope",         # ROPE
+    0x13: "barrel",       # BARREL
+    0x14: "wine",         # WINE
+    0x15: "water15",      # WATER
+    0x16: "water16",      # WATER
+    0x17: "water17",      # WATER
+    0x18: "water18",      # WATER
+    0x19: "bow",          # BOW
+    0x1A: "arrow",        # ARROW
+    0x1B: "window",       # WINDOW
+    0x1C: "torch",        # TORCH
+    0x1D: "sand",         # SAND
+    0x1E: "door1e",       # DOOR
+    0x1F: "cache",        # CACHE
+    0x20: "curtain",      # CURTAIN
+    0x21: "cupboard",     # CUPBOARD
+    0x22: "food",         # FOOD
+    0x23: "treasure",     # TREASURE
+    0x24: "wall",         # WALL
+    0x25: "chest",        # CHEST
+    0x26: "lunch",        # LUNCH
+    0x27: "portcullis",   # PORTCULLIS
+    0x28: "stone",        # STONE
+    0x29: "boat",         # BOAT
+    0x2A: "river2a",      # RIVER
+    0x2B: "key2b",        # KEY
+    0x3C: "dragon",       # DRAGON (dormant, arme par event)
+    0x3D: "goblin3d",     # GOBLIN
+    0x3E: "gandalf",      # GANDALF
+    0x3F: "thorin",       # THORIN
+    0x40: "elf",          # ELF
+    0x41: "elrond",       # ELROND (corrige l'ancien « dragon presume »)
+    0x42: "butler",       # BUTLER (dormant, eloc $20)
+    0x43: "warg",         # WARG
+    0x44: "gollum",       # GOLLUM
+    0x45: "goblin45",     # GOBLIN
+    0x46: "bard",         # BARD (dormant)
+    0x47: "troll_hideous",  # TROLL
+    0x48: "troll_vicious",  # TROLL
+    0x49: "goblin49",     # GOBLIN
+    0x4A: "goblin4a",     # GOBLIN
+    0x4B: "goblin4b",     # GOBLIN
+    0x4C: "goblin4c",     # GOBLIN
 }
 
 # --- §3. Scripts/tables $28CC (753 o) -----------------------------------
