@@ -1225,6 +1225,51 @@ def inject_notes(asm: list[str], block: Block) -> list[str]:
     return out
 
 
+# Ligne de texte da65 : label optionnel + `.byte "..."` (sans commentaire).
+_TEXT_BYTE_RE = re.compile(
+    r'^(?P<indent>\s*)(?P<label>[A-Za-z_][A-Za-z0-9_]*:)?(?P<pad>\s*)'
+    r'\.byte\s+"(?P<txt>[^"]*)"\s*$'
+)
+
+
+def reflow_text_tables(asm: list[str]) -> list[str]:
+    """Recolle les morceaux `.byte "..."` d'un meme texte (TEXTTABLE).
+
+    da65 (TextTable(), src/da65/data.c) coupe chaque texte a
+    ``BytesPerLine*4-1`` = 31 caracteres et emet un ``LineFeed`` vide par
+    tranche de ``BytesPerLine`` (8) octets : le listing est coupe et parseme
+    de lignes vides. Non configurable ; on recolle ici les morceaux
+    consecutifs (sans label intercale) en un seul ``.byte "..."`` et on jette
+    les lignes vides parasites (octets assembles identiques).
+    """
+    out: list[str] = []
+    i, n = 0, len(asm)
+    while i < n:
+        m = _TEXT_BYTE_RE.match(asm[i])
+        if m is None:
+            out.append(asm[i])
+            i += 1
+            continue
+        prefix = asm[i][: m.start("txt")]
+        text = m.group("txt")
+        j = i + 1
+        while True:
+            k = j
+            while k < n and asm[k].strip() == "":
+                k += 1
+            if k < n:
+                m2 = _TEXT_BYTE_RE.match(asm[k])
+                if m2 is not None and not m2.group("label"):
+                    text += m2.group("txt")
+                    j = k + 1
+                    continue
+            j = k
+            break
+        out.append(prefix + text + '"\n')
+        i = j
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     import subprocess
@@ -1330,6 +1375,7 @@ def main(argv: list[str] | None = None) -> int:
         and not ln.startswith("; Input file:")
         and not ln.startswith("; Page:")
     ]
+    asm = reflow_text_tables(asm)
     asm = inject_notes(asm, block)
     block.listing.write_text(block.header + "".join(asm))
     print(f"Listing écrit : {block.listing}")

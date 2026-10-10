@@ -2659,13 +2659,7 @@ cmd_next:
         jsr     L471B
         jmp     L3C07
 
-        .byte   "TAPE LOADING ERROR :- PRESS ANY"
-
-
-
-        .byte   " KEY TO RESTART GAME."
-
-
+        .byte   "TAPE LOADING ERROR :- PRESS ANY KEY TO RESTART GAME."
         .byte   $14
 code_3E5B:
         cmp     #$00
@@ -3985,52 +3979,26 @@ L4783:  .byte   $1A,$1A,$1A,$1A,$1A,$1A,$1A,$1A
 L47C3:  .byte   "'SUBS'"
         .byte   $0D
         .byte   "        I"
-
 L47D3:  .byte   "NCLUDE D:SUBS.M"
-
 L47E2:  .byte   "AC"
         .byte   $0D
         .byte   "        .PRINTX 'DATA'"
-
-
         .byte   $0D
         .byte   "        INCLUDE D:DATA.MAC"
-
-
-
         .byte   $0D
         .byte   "        .PRINTX 'SUBRONE'"
-
-
-
         .byte   $0D
         .byte   "        INCLUDE D:SUBRONE.MAC"
-
-
-
         .byte   $0D
         .byte   "        .PRINTX 'SUBRTWO'"
-
-
-
         .byte   $0D
         .byte   "        INCLUDE D:SUBRTWO.MAC"
-
-
-
         .byte   $0D
         .byte   "        .PRINTX 'GENER'"
-
-
         .byte   $0D
         .byte   "        INCLUDE D:GENER.MAC"
-
-
-
         .byte   $0D
         .byte   "        .PRINTX 'GENER2'"
-
-
 L48D3:  .byte   $00
 L48D4:  .byte   $00
 L48D5:  .byte   $00
@@ -4044,17 +4012,12 @@ L48D7:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
 L4905:  .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00
 L490F:  .byte   "   INCLUDE D:ACTION.MAC"
-
-
         .byte   $0D
 L4927:  .byte   "        .PRINTX 'GENACT'"
-
-
         .byte   $0D
         .byte   "P"
         .byte   $0C,$03
         .byte   ":=D:ADVORIC"
-
         .byte   $0D,$0A,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
@@ -4065,14 +4028,10 @@ L4927:  .byte   "        .PRINTX 'GENACT'"
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $00,$00,$00,$00
         .byte   "/H?Command error"
-
         .byte   $00
         .byte   "?File not found"
-
         .byte   $00
         .byte   "?Can't enter file"
-
-
         .byte   $00
         .byte   "~"
         .byte   $E6,$7F,$C8,$CD,$93
@@ -4111,9 +4070,6 @@ L4927:  .byte   "        .PRINTX 'GENACT'"
         .byte   "H"
         .byte   $AF
         .byte   "2jB2aB2hB2gB2`B2dB2eB2cB2iB<2bB"
-
-
-
         .byte   $01,$AF
         .byte   "H"
         .byte   $C5,$AF
@@ -9373,7 +9329,6 @@ L6FA9:  jmp     L622D
         .byte   "^$"
         .byte   $07
         .byte   "_'(_*@_0`g"
-
         .byte   $00
         .byte   "5R3"
         .byte   $CA
@@ -9734,18 +9689,10 @@ code_72A5:
         rts
 
         .byte   "PREPARE TAPE FOR GAME SAVE"
-
-
-
         .byte   $14,$0D
         .byte   "REWIND TAPE FOR VERIFICATION"
-
-
-
         .byte   $14
         .byte   "PRESS ANY KEY WHEN READY"
-
-
         .byte   $14
 code_72FC:
         jsr     L720A
@@ -9868,9 +9815,6 @@ L73CA:  ora     #$80
         lda     #$00
         beq     L73BE
 L73D4:  .byte   "7JMK UY8NT69,IHL5RB;.OG0VF4-"
-
-
-
         .byte   $8B
         .byte   "PE/"
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
@@ -9883,9 +9827,6 @@ L73D4:  .byte   "7JMK UY8NT69,IHL5RB;.OG0VF4-"
         .byte   $A7,$95
         .byte   "[W="
 L7414:  .byte   "&JMK UY*NT^(<IHL%RB:>OG)VF$_"
-
-
-
         .byte   $8B
         .byte   "PE?"
         .byte   $00,$00,$00,$00,$00,$00,$00,$00

@@ -206,12 +206,7 @@ L04C1:  lda     L04EE,y
         dey
         bpl     L04C1
 L04CA:  bmi     L04CA
-L04CC:  .byte   "Please wait while THE HOBBIT lo"
-
-
-
-        .byte   "ads"
+L04CC:  .byte   "Please wait while THE HOBBIT loads"
 L04EE:  .byte   $0C
         .byte   "TAPE ERROR"
-
         .byte   $4C,$AA,$F9,$78,$A9,$7F,$8D
