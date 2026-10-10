@@ -19,6 +19,8 @@
 ;     Le curseur '+' ($2B, reecrit par le caractere suivant) est emis aussi :
 ;     filtre cote Python. A/X/Y/$02/$03 preserves, octet remplace rejoue.
 ;   - L7694 (scroll, appele sur chaque CR ch_put) -> asc_eol : emis "@@EOL\n".
+;   - L7514 (scroll du mode RAW : echo de la ligne de commande, un par CR)
+;     -> asc_eol2 : emis "@@EOL\n".
 ;   - asc_plot emis "@@P\n" quand le caractere est '>' ($3E = prompt) : fin
 ;     de tour (segmentation cote Python sur les prompts).
 ;   - shim_kb (variante solveur) emis "@@K"+octet a chaque lecture stdin :
@@ -273,10 +275,45 @@ asc_eol:
         lda #$00                 ; octet remplace (L7694+1)
         jmp $7697                ; reprise (L7694+3)
 
+; asc_eol2 : JMP depuis L7514 (scroll du mode RAW : ligne de commande, un par
+; CR d'echo ; remplace pha + lda #$00). Rejoue les 2 octets, reprend en $7517.
+; Emis "@@EOLR\n" (marqueur distinct) : le filtre Python supprime ce saut s'il
+; est immediatement suivi d'un "@@EOL" texte (RETURN + reponse = 1 seul saut).
+asc_eol2:
+        sta ASC_CHAR
+        txa
+        pha
+        tya
+        pha
+        lda $02
+        pha
+        lda $03
+        pha
+        lda #<MARK_E2
+        sta P_W
+        lda #>MARK_E2
+        sta P_W+1
+        lda #7
+        ldx #0
+        jsr pv_write
+        pla
+        sta $03
+        pla
+        sta $02
+        pla
+        tay
+        pla
+        tax
+        lda ASC_CHAR
+        pha                      ; octet remplace (L7514)
+        lda #$00                 ; octet remplace (L7514+1)
+        jmp $7517                ; reprise (L7514+3)
+
 ; ---- donnees hooks (adresses resolues a l'edition de liens ;
 ; sim_pack.py lit asc_plot/asc_eol dans le listing ca65 -l) ----
 ASC_BUF:.byte "@@A", $00
 MARK_E: .byte "@@EOL", $0A
+MARK_E2:.byte "@@EOLR", $0A
 MARK_P: .byte "@@P", $0A
 
 .else

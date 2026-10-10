@@ -46,11 +46,13 @@ SHIM_SRC = ROOT / "harness" / "shim.s"
 SHIM_CFG = ROOT / "harness" / "shim.cfg"
 SHIM_ADDR = 0xC000  # zone "ROM" : le jeu n'y ecrit jamais (ROM sur Oric)
 KB_SCAN = 0x7353  # scan clavier VIA -> remplace par JMP shim
-# Hooks ASCII (variante --solver) : L75B8 (plot, `stx L75E0`) et L7694
-# (scroll/CR, `pha`) -> JMP shims (verifies sur data/hobbit.bin).
+# Hooks ASCII (variante --solver) : L75B8 (plot, `stx L75E0`), L7694
+# (scroll/CR mode texte, `pha`) et L7514 (scroll/CR mode RAW = echo ligne de
+# commande, `pha`) -> JMP shims (verifies sur data/hobbit.bin).
 PLOT_ADDR, PLOT_WANT = 0x75B8, bytes((0x8E, 0xE0, 0x75))
 EOL_ADDR, EOL_WANT = 0x7694, bytes((0x48, 0xA9, 0x00))
-PLOT_BACK, EOL_BACK = 0x75BE, 0x7697  # reprises (codes en dur dans shim.s)
+EOL2_ADDR, EOL2_WANT = 0x7514, bytes((0x48, 0xA9, 0x00))
+PLOT_BACK, EOL_BACK, EOL2_BACK = 0x75BE, 0x7697, 0x7517  # reprises (shim.s)
 TAPE_SRC = ROOT / "harness" / "tape.s"
 TAPE_CFG = ROOT / "harness" / "tape.cfg"
 TAPE_ADDR = 0xF700  # stubs cassette B1 (zone ROM, cf. tape.s)
@@ -169,10 +171,10 @@ def main() -> int:
     if solver:
         import re as _re
         for line in SHIM_LST.read_text().splitlines():
-            m = _re.match(r"^([0-9A-F]{6})r\s+1\s+(asc_plot|asc_eol):$", line)
+            m = _re.match(r"^([0-9A-F]{6})r\s+1\s+(asc_plot|asc_eol|asc_eol2):$", line)
             if m:
                 hook_addrs[m.group(2)] = SHIM_ADDR + int(m.group(1), 16)
-        if set(hook_addrs) != {"asc_plot", "asc_eol"}:
+        if set(hook_addrs) != {"asc_plot", "asc_eol", "asc_eol2"}:
             print(f"hooks introuvables dans {SHIM_LST}")
             return 1
         print(f"hooks solver : "
@@ -214,7 +216,8 @@ def main() -> int:
     if solver:
         # Hooks ASCII : verifie les octets d'origine puis JMP shims.
         for addr, want, name in ((PLOT_ADDR, PLOT_WANT, "asc_plot"),
-                                 (EOL_ADDR, EOL_WANT, "asc_eol")):
+                                 (EOL_ADDR, EOL_WANT, "asc_eol"),
+                                 (EOL2_ADDR, EOL2_WANT, "asc_eol2")):
             off = addr - BASE
             if bytes(img[off:off + 3]) != want:
                 print(f"refus hook {name} : ${addr:04X} = "

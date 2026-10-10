@@ -3,7 +3,10 @@
 
 Affiche :
   @@A+octet : caractere ('+' curseur jete, $08 = backspace, $0D/$0A =
-              newline, autres controles ignores). @@EOL : newline.
+              newline, autres controles ignores).
+  @@EOL  : newline (scroll mode texte).
+  @@EOLR : newline du mode RAW (fin de ligne de commande) ; supprime s'il
+           est immediatement suivi d'un @@EOL (RETURN + reponse = 1 saut).
   @@P (prompt) / @@K (octet lu) : ignores.
 
 Persistance SAVE/LOAD (mode --snapshot) : le jeu emet 4 blocs
@@ -21,7 +24,8 @@ import os
 import sys
 
 M_A = b"@@A"              # 3 + 1 octet
-M_EOL = b"@@EOL\n"        # 6
+M_EOL = b"@@EOL\n"        # 6  (scroll mode texte)
+M_EOLR = b"@@EOLR\n"      # 7  (scroll mode RAW = echo ligne de commande)
 M_P = b"@@P\n"            # 4
 M_K = b"@@K"              # 3 + 1 octet
 M_SNAP = b"@@SNAP\n"      # 7 + NLEN(1) + NOM + IDX(1) + LEN(2) + payload
@@ -65,8 +69,8 @@ def main() -> int:
         n = len(buf)
         while True:
             cand = [(buf.find(m, pos), k) for k, m in
-                    (("a", M_A), ("e", M_EOL), ("p", M_P), ("k", M_K),
-                     ("s", M_SNAP))]
+                    (("a", M_A), ("e", M_EOL), ("r", M_EOLR), ("p", M_P),
+                     ("k", M_K), ("s", M_SNAP))]
             cand = [(j, k) for j, k in cand if j != -1]
             if not cand:
                 if eof:
@@ -101,6 +105,22 @@ def main() -> int:
                 out.write("\n")
                 out.flush()
                 pos = j + 6
+            elif k == "r":
+                # Scroll RAW (fin de ligne de commande). S'il est suivi
+                # (en sautant les curseurs '+') d'un scroll texte (reponse),
+                # ne pas doubler le saut : le "@@EOL" texte fera la ligne.
+                if n - j < 7:
+                    break
+                q = j + 7
+                while buf[q:q + 4] == M_A + b"+":
+                    q += 4
+                if n - q >= 6 or eof:
+                    if bytes(buf[q:q + 6]) != M_EOL:
+                        out.write("\n")
+                        out.flush()
+                    pos = j + 7
+                else:
+                    break  # attendre la suite pour decider
             elif k in ("p", "k"):
                 if n - j < 4:
                     break
