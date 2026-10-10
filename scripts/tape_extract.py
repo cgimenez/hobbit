@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extrait le code binaire d'une archive Oric .tap en une image mémoire.
 
-Format Oric TAP (voir docs/tap-format.md) :
+Format Oric TAP (voir docs/tape-format.md) :
 
     synchronisation : N x $16 (N >= 1) suivi de $24
     en-tête         : 9 octets

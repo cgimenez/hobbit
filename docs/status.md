@@ -4,8 +4,8 @@
 
 - `disasm/block4.asm` fiabilisé : **16 890 o de code**, 99 sites
   `JSR $440D` (115 pointeurs inline `$440D`/`$5B24`), **0 conflit**,
-   `scripts/check_disasm.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
-   Round-trip ca65 prouvé (byte-identique, `scripts/rebuild.py`). Arbre
+   `scripts/disasm_check.py` → **RÉSULTAT: PROPRE (exit 0, sections A–H)**.
+   Round-trip ca65 prouvé (byte-identique, `scripts/disasm_rebuild.py`). Arbre
    propre, tout commité.
 - Méthode : descente récursive (`$2C00`, `$2C35`, 16 vecteurs) + point fixe
   (seeds r2 validés + 77 `MANUAL_ENTRIES` dont 16 vecteurs + 61 orphelins
@@ -29,7 +29,7 @@
 
 ## Harnais sim65 : fonctionnel
 
-- `scripts/pack_sim.py` : assemble `harness/shim.s` (`$C000`, zone "ROM" —
+- `scripts/sim_pack.py` : assemble `harness/shim.s` (`$C000`, zone "ROM" —
   le jeu n'y écrit jamais), patch `JMP $C000` sur `$7353` (scan clavier
   VIA), charge le charset ROM 1.0 (`$FC70-$FFBF`, font lue en `($0403)`),
   packe `build/sim/hobbit.sim` (load `$0400`, reset `$2C00`, SPAddr `$02`).
@@ -46,13 +46,13 @@
   `@@FRAME text\n`+1120 o / `@@FRAME hires\n`+8192 o (captures partielle
   si timeout en plein dump → ignorées par le décodeur), puis si écran
   changé : `@@MEM 0000 0100\n`+256 o (ZP) et `@@MEM 2B00 0100\n`+256 o
-  (tables scheduler) — `scripts/decode_mems.py` (diff par trame).
-- `scripts/decode_frames.py` : rend les écrans hires en texte (charset
+  (tables scheduler) — `scripts/sim_mems.py` (diff par trame).
+- `scripts/sim_frames.py` : rend les écrans hires en texte (charset
   ROM, grille 8 px, bit5-gauche ; n'affiche que les lignes non vides).
 - Recette input : `printf '\rLOOK\r' | sim65 -x 150000000 build/sim/hobbit.sim
   > frames.bin` (CR=`$0D` ; `\r` initial = touche du tourne-page d'intro),
-  puis `decode_frames.py frames.bin` (OCR hires → texte).
-- **Mode rapide** (`pack_sim.py --fast` → `build/sim/hobbit_fast.sim`,
+  puis `sim_frames.py frames.bin` (OCR hires → texte).
+- **Mode rapide** (`sim_pack.py --fast` → `build/sim/hobbit_fast.sim`,
   patch `$2C4A` `01`→`00` : `$56=0`, `img_show` no-op) : texte seul,
   500 ticks + dumps complets en **3,4 s** mur ; lecture par OCR hires
   (les dumps `@@FRAME text` bruts sont des pixels en mode hires).
@@ -221,7 +221,7 @@
   lookup `L5399`, table `L6359,x`, calculé, ou `STX/STY` de `L5279` pour
   `msg_52C6`). Aucun n'est un bug du découpage.
 - Sondes : shim dump MEM (`@@MEM 0000 0100` ZP + `@@MEM 2B00 0100` tables,
-  `scripts/decode_mems.py` diff par trame) ; frappes d'écho = seuls
+  `scripts/sim_mems.py` diff par trame) ; frappes d'écho = seuls
   `$0000/$0004` bougent ; chaque tick mute `$2B47/$2B4E/$2B55/$2B5C`
   (PC/entités), `$2B6A/$2B71/$2B94/$2B9B/$2BA2` (état), ZP divers.
 - Traversée nominale : `OPEN DOOR` / `EAST` → `You go east.` / `gloomy
@@ -240,7 +240,7 @@
 - **Gabarit cmdfile F4/F5 (obligatoire)** : le boot mange la 1re ligne et
   `pause_key` les suivantes → `\n\nLOOK\n` initial puis `\n\nCMD\n` par
   ordre (2 lignes vides avant chaque commande). Sans ça : ordres mangés
-  ou exécutés au tunnel. `tickdiff SIM CMDFILE` : sim65 hardcodé
+  ou exécutés au tunnel. `sim_tickdiff SIM CMDFILE` : sim65 hardcodé
   (`tools/cc65/bin/sim65`), flags `-t/-s/--db/--name` avant positionnels.
 - Coût rendu illustration sous sim65 ≈ plusieurs centaines de M cycles :
   budgets `-x` généreux (2G pour 2 rendus), préférer les commandes
@@ -255,7 +255,7 @@
 - **Piège construction cmdfile** : `VAR=$(printf ...)` mange les `\n`
   finaux → ticks fusionnés (`SOUTHDOWN`) + rythmes décalés. Toujours
   vérifier (`grep -c`, 1er `diff` d'octets vs référence).
-- **Tick tickdiff vs tick monde** : 1 ligne = 1 tick (lignes vides
+- **Tick sim_tickdiff vs tick monde** : 1 ligne = 1 tick (lignes vides
   incluses, no-op sans tour) ; 1 commande acceptée = 1 `world_tick`
   (`entity_tick`+`evt_tick`). Règle : 0 delta = pas de tour (rejet
   avant `world_tick`), >0 = un tour. PNJ strictement tour-par-tour
@@ -263,24 +263,24 @@
 
 ## Prochaine étape (snapshots : FAIT, 0-delta prouvé)
 
-**Bascule snapshots implémentée** (`harness/snap.s`, `pack_sim
---snapshot NOM`, `tickdiff @@SNAP`, `tickdb.py snaps/snap-show/
+**Bascule snapshots implémentée** (`harness/snap.s`, `sim_pack
+--snapshot NOM`, `sim_tickdiff @@SNAP`, `sim_tickdb.py snaps/snap-show/
 snap-diff/snap-verify/snap-init`) : `vec_02/03/04`
 (`$2C0B/$2C0E/$2C11`) → `snap_load`/`snap_save`/`s_clc`, sans état
 (index déduit de src/dst : `$00BE/$1B1A/$28CC/$211A`), prompts
 `vec_05/06` conservés (1 touche sacrificielle chacun). Stockage double :
 `sav/NOM.bin` (`"SNAP"`+3623) + table `snapshots` (run,tick,ploc…,
-`data` BLOB). Images par défaut byte-identiques, tickdiff régressé
+`data` BLOB). Images par défaut byte-identiques, sim_tickdiff régressé
 (`diverge f37c f37c_new` vide).
 **Validation** : `sna` (Rivendell `$09`, SAVE tick19, salissure
 `EAST`→`$0A`) → `pack --snapshot revise` → `snb` (reboot, LOAD :
 `$09` restauré, `INVENTORY`/`EAST` vivants) → **0-delta byte-exact**
 (3623 o post-LOAD == SAVE, run direct pacé, `-x` court).
-**Pièges trouvés** : `tickdiff` envoyait `sav/` dans `build/sav/`
+**Pièges trouvés** : `sim_tickdiff` envoyait `sav/` dans `build/sav/`
 (dépilage chemin) ; `VALUES` à 10 pour 9 colonnes (prepare silencieux) ;
 run direct non pacé : `pause_key` mange les lignes (¿`LOAD` jamais
 exécuté) ; **spin EOF-idle pollue la mémoire** (~32 o sur 2G cycles —
-comparer à `-x` court ou runs tickdiff, jamais après idle long).
+comparer à `-x` court ou runs sim_tickdiff, jamais après idle long).
 Pas de `--tape` (bascule franche, `tape.s` dormant).
 
 Ensuite : checkpoints (`rivendell`, `cellar`…), fin du jeu (tonneau :
@@ -297,15 +297,15 @@ Ensuite : checkpoints (`rivendell`, `cellar`…), fin du jeu (tonneau :
 vider ? butler endormi ? ; cond `$06`→`$0F` ; `$16` NW ; dragon
 `$29`), puis B1 byte-layer en validation croisée. Sondes en
 attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
-**B1** (`harness/tape.s` + `pack_sim.py` + `save_tape.py` +
-`diff_tape.py`, 6 vecteurs `$0405`–`$0414` ; `$0417` = loader jeu
+**B1** (`harness/tape.s` + `sim_pack.py` + `tape_save.py` +
+`tape_diff.py`, 6 vecteurs `$0405`–`$0414` ; `$0417` = loader jeu
 conservé, pas un vecteur) : SAVE écrit 4 blocs valides (headers+EOR
 vérifiés) ; bugs stub trouvés+fixés (`MARK_1` sans `\n`, header 9 o
 pas 10, `rd_byte` qui retombait dans son entrée, `ST_OP` qui écrivait
 à côté du buffer). Reste : VERIFY reporte une erreur et LOAD même
 session échoue (buffer relu différent ?) — diagnostic en pause,
-priorité à l'observation via tickdiff (pas de SAVE/LOAD).
-**tickdiff** (`scripts/tickdiff.c` → `build/sim/tickdiff`, + shim
+priorité à l'observation via sim_tickdiff (pas de SAVE/LOAD).
+**sim_tickdiff** (`scripts/sim_tickdiff.c` → `build/sim/sim_tickdiff`, + shim
 `dump_mem` 4 régions) : superviseur C, sim65 vivant par pipes, un
 ordre = un tick = INSERT direct en SQLite (`--db/--name`, plus
 aucun `ticks.log`/`snap*.bin`). Protocole durci : `-t 300 -s 500`
@@ -320,7 +320,7 @@ R4 1463×WAIT (stop limite 2G cycles, pas un crash),
 R5 exploration (`r5.txt`, 18 ordres : EXAMINE/OPEN/TALK/EAST/NORTH,
 mort dans la clairière → reboot), R6 combat (`r6.txt` : KILL
 VICIOUS → attaque vaine + troll mange joueur + reboot).
-Résultats → `savegame-memory-map.md` §7 (cluster `+$xxx` = `eloc`,
+Résultats → `memory-map.md` §7 (cluster `+$xxx` = `eloc`,
 `+0` classé, 961/966 piloté scripts, events tous `cpt=0`,
 gloutonnerie `act_v14_15`, `n` jamais, `s6` quasi-statique).
 Repro 966 : `build/sim/r966.txt` (`\n` + 1000×`WAIT`) → 3 runs
@@ -331,11 +331,11 @@ Verdict events : bin == runtime, `cpt=0` partout (R4/R5/R6) →
 était une lecture désalignée, corrigée (§3c : e6 `00 00 08 00
 00`, e7 `05 00 09 00 00`, e8 `04 00 0A 03 0B`, e9 `05 00 0C 01
 0D`). Combat n'arme aucun event.
-Deux images : `hobbit_fast.sim` (texte seul, tickdiff) +
-`hires.sim` (`--fast --hires`, OCR) ; cmdfile tickdiff en `\n`
+Deux images : `hobbit_fast.sim` (texte seul, sim_tickdiff) +
+`hires.sim` (`--fast --hires`, OCR) ; cmdfile sim_tickdiff en `\n`
 (1re ligne = touche boot), run brut en `\r` (`tr`).
 **DB SQLite** `build/sim/hobbit.db` (gitignorée) via
-`scripts/tickdb.py` (`import` + `traj`/`touches`/`diverge`/
+`scripts/sim_tickdb.py` (`import` + `traj`/`touches`/`diverge`/
 `morts`/`lieu`/`query`) : 15 runs importés (R1–R7, repros) ;
 table `state` (ploc/eloc/obj/crec par tick, lue des snaps).
 Premier gain : `morts` trouve 2 extinctions manquées — e3
@@ -448,12 +448,12 @@ variables SAVE/LOAD. Socle posé :
   slots candidats (blocs d'état chevauchants → multi-slot). Identités connues
   (`map`, `gandalf`, `troll_*`…) portées au nom.
 - **Registre** `scripts/memmap.py` : fusion des deltas des **deux** bases
-  (`hobbit.db` tickdiff + `solver.db`/`SOLVER_DB` BFS) → preuves par slot.
+  (`hobbit.db` sim_tickdiff + `solver.db`/`SOLVER_DB` BFS) → preuves par slot.
   `report` (couverture + var nommés), `slots [--virgin]`, `addr`, `sources`,
   `xref` (réfs littérales de `block4.asm`), `gen [--write]` (annexe du doc
   entre marqueurs AUTO-COUVERTURE).
-- **Garde-fou** `scripts/check_memmap.py` → `RÉSULTAT: PROPRE` (sections
-  A–F ; `check_disasm.py` reste PROPRE).
+- **Garde-fou** `scripts/memmap_check.py` → `RÉSULTAT: PROPRE` (sections
+  A–F ; `disasm_check.py` reste PROPRE).
 - **Moteur de couverture** : `solver.py --seed NOM --goal coverage`
   (amorçage checkpoint `sav/NOM.bin`, profondeur 8 par défaut, rapport de
   couverture en fin) ; `SOLVER_DB=...` isole les runs. Multi-seed idempotent.
@@ -481,9 +481,9 @@ les variables SAVE/LOAD. Infrastructure désormais en place (commits
 - `scripts/memmap.py` : `report` (couverture + var nommés), `slots
   [--virgin]`, `addr <base> <off>` (annotation + preuves = commandes/valeurs),
   `sources`, `xref [base [off]]` (réfs littérales `block4.asm`), `gen
-  [--write]` (annexe between markers dans `savegame-memory-map.md`).
+  [--write]` (annexe between markers dans `memory-map.md`).
   Env `SOLVER_DB=` cible une base de run.
-- `scripts/check_memmap.py` : PROPRE (A–F ; noms/contiguïté/docs/genres,
+- `scripts/memmap_check.py` : PROPRE (A–F ; noms/contiguïté/docs/genres,
   61 clés / 13 INDIR / 10 events / 17 entités / 79 records).
 - Métrique : **85/290 variables réelles couvertes (29 %)** (var = hors
   constantes : état `+0` type, `b1`, `n`, `balo/bahi`, event `actA/cond`).
@@ -510,7 +510,7 @@ les variables SAVE/LOAD. Infrastructure désormais en place (commits
   (init eloc `$07`). Preuve : patch `state$0E.eloc := ploc` dans `ante2`
   (`$1F`)/`gloomy`(`$04`)/`revise`(`$09`) → LOOK révèle la pièce (plus
   « IT IS DARK ») + liste « the short strong sword ».
-- **Corrige** l'ancien « pas de lampe au jeu » (séance 9 `aventure.md`).
+- **Corrige** l'ancien « pas de lampe au jeu » (séance 9 `journal.md`).
 - Blocage : épée en `$07` derrière la **porte rock** (`$06 N`, cond `$01`)
   → `NORTH` = `YOU CANNOT GO NORTH` ; `PUSH/BREAK ROCK` inopérants.
 
@@ -529,7 +529,7 @@ match via `L3679`/`L4B37`/`code_433A`. Donc **cond `$01` = signature
 l'état `$01` (ou déplace l'épée), et pourquoi la porte rock reste fermée.
 
 Autres pistes ouvertes : `scripts.cpt` (armement events), `records.b0`
-(visiter les 55 lieux non vus, cf. `docs/game-map.md`), identités clés
+(visiter les 55 lieux non vus, cf. `docs/map.md`), identités clés
 restantes, `ZP.exploc/once`.
 
 Commandes utiles :
@@ -537,7 +537,7 @@ Commandes utiles :
 .venv/bin/python scripts/memmap.py report           # couverture
 .venv/bin/python scripts/memmap.py slots --virgin   # cibles
 .venv/bin/python scripts/memmap.py xref 1B63        # qui touche l'état $01
-.venv/bin/python scripts/check_memmap.py            # PROPRE
+.venv/bin/python scripts/memmap_check.py            # PROPRE
 .venv/bin/python scripts/solver.py --route F --seed N --save M
 .venv/bin/python scripts/map_static.py --path 06 07
 ```
@@ -574,7 +574,7 @@ Commandes utiles :
 - **`$07` = trolls cave** : prendre « the short strong sword » `$0E`
   (source de lumière). Checkpoint `sav/sword.bin`.
 - Idées ajoutées : `scripts/memmap_defs.py` `$01`=`rock_door`,
-  `$04`=`key` ; `docs/aventure.md` séance 11 ; §2 `savegame-memory-map.md`.
+  `$04`=`key` ; `docs/journal.md` séance 11 ; §2 `memory-map.md`.
 - **Suivant** : franchir le labyrinthe noir Elvenking (`$1E/$1F/$20`) avec
   l'épée → cellier `$20` → tonneaux → Lac → Montagne → dragon.
 
@@ -603,8 +603,8 @@ Commandes utiles :
   est ce qui fera monter la couverture.
 
 ### État toolchain (fin séance 11)
-`check_memmap.py` exit 0 (RÉSULTAT: PROPRE), `check_disasm.py` PROPRE
-(131 routines, 51 ZP), `rebuild.py` byte-identique, git clean. Aucun
+`memmap_check.py` exit 0 (RÉSULTAT: PROPRE), `disasm_check.py` PROPRE
+(131 routines, 51 ZP), `disasm_rebuild.py` byte-identique, git clean. Aucun
 process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 
 ### Séance 12 — l'Anneau (reprise)
@@ -647,7 +647,7 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   WITH FRIENDS. »
 - **Rappel objectif** : Anneau (Gollum `$44`) → évasion elfique (barrel,
   WEAR RING) → Lac `$23` → Montagne `$29` → dragon `$41`.
-- Docs `aventure.md` séance 12 (+suites). Toolchain PROPRE. Commits à
+- Docs `journal.md` séance 12 (+suites). Toolchain PROPRE. Commits à
   jour.
 
 ### Séance 12 (suite 3) — CRITIQUE : ordres PNJ `SAY TO X "..."` (reprise)
@@ -671,7 +671,7 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 - **Anneau = état `$10`** = « the valuable golden ring », au lieu `$3D`.
   Chemin `sav/lake.bin`→`N`($37)→`SW`($3D)→`GET RING`. Checkpoint
   **`sav/ring.bin`** (inventaire : map, large key, sword, golden ring,
-  rope). `STATE_IDENTITY[0x10]="ring"` ajouté ; `check_memmap` PROPRE.
+  rope). `STATE_IDENTITY[0x10]="ring"` ajouté ; `memmap_check` PROPRE.
 - Famille clés `tpl=$CB` : `$02`/`$04`/`$0F` ; `$0F`=clé rouge (butler).
 - **Prochain** : `WEAR RING` puis guide complet vers le Lac/Montagne.
 
@@ -679,12 +679,12 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 - **Victoire atteinte** : `OPEN CHEST` + `PUT TREASURE IN CHEST` au tunnel
   `$01` → « …master adventurer!!! You have mastered 80.0% ». Checkpoint
   **`sav/win.bin`**.
-- Parcours complet (10 étapes) consigné dans `docs/aventure.md` séance 12
+- Parcours complet (10 étapes) consigné dans `docs/journal.md` séance 12
   finale. Mécaniques : `SAY TO X "..."`, Anneau = état `$10` @ `$3D`
   (`sav/ring.bin`), tonneau (`sav/barrel_ride.bin`), Bard
   (`sav/strongriver.bin`→`sav/dragon_hall.bin`), araignées WAIT×2.
 - **Reste côté projet** : ingérer les nouveaux états dans la DB
-  (`tickdiff`/`solver`) pour faire monter la **couverture memmap**
+  (`sim_tickdiff`/`solver`) pour faire monter la **couverture memmap**
   (rapport inchangé à 140/3623 o car les `run_one` ne sont pas enregistrés).
 - Toolchain PROPRE ; commits à jour.
 
@@ -694,11 +694,11 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   dédup de hash ; backup `solver_pre_win.db`).
 - Couverture passée **140 → 184/3623 octets (3.9 → 5.1 %)** ; `records`
   **18 → 41/79 var**. Annexe AUTO-COUVERTURE régénérée
-  (`memmap.py gen --write`). `check_memmap` PROPRE.
+  (`memmap.py gen --write`). `memmap_check` PROPRE.
 
 ## SYNTHÈSE DE REPRISE (fin séance 12) — pour contexte neuf
 **État** : le jeu est **terminable de bout en bout** ; **victoire atteinte
-(80 %)** — parcours complet en 10 étapes dans `docs/aventure.md` séance 12
+(80 %)** — parcours complet en 10 étapes dans `docs/journal.md` séance 12
 finale (référence unique). Les addenda « blockers » ci-dessus (guillemets,
 Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
 - **Ordres PNJ** : `SAY TO <PERS> "<ORDRE>"` (guillemets doubles). ⚠️ Lire
@@ -710,13 +710,13 @@ Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
 - **Lieux** : **78/78 records valides visités** (79 slots `$01`–`$4F`, `$2F`
   nul ; graphe parcouru ; 10 conditionnels `08 14 15 1A 1B 1C 1D 32 42 43`
   atteints via patch debug de `player.eloc` ; `$42` rendu via `PATCH:42`,
-  `ploc` forcé à `$1F` par l'event *wood elf*). Carte : `docs/game-map.md`.
+  `ploc` forcé à `$1F` par l'event *wood elf*). Carte : `docs/map.md`.
 - **Lieu autoritaire** lu par LOOK = **`player.eloc`** (`$1B2A`, bloc `$00`
   `+$10`) ; `ploc` (`$C8`) = **miroir** (patté seul, il est re-dérivé).
 - **Couverture memmap** : **237/3623 o (6.5 %)** ; `records` **78/79**
   (var 66/79), `etats` 99 var — fusion `build/sim/{hobbit,solver}.db`.
 
-**Toolchain** : `check_disasm`/`check_memmap` PROPRE, `rebuild` byte-identique,
+**Toolchain** : `disasm_check`/`memmap_check` PROPRE, `rebuild` byte-identique,
 git clean. Derniers commits : `42f6d3a` (exploration lieux), `eb95415`
 (lieux 79/79 + eloc), `1444777` (partition blocs), `6a74942` (ZP tblA/tblB),
 `f64363d`, `48fb64d` (nommage).
@@ -728,14 +728,14 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
    dynamiquement depuis `sav/ring.bin` à `$3D` — Gollum dit « my precious »
    (`$16C8`) / « pockets ? » (`$16B9`), **reprend l'Anneau**, récite l'énigme
    « It cannot be seen… » ; capture au lac (`$11`) → `$0D`. Détails
-   `docs/aventure.md` séance 12 (Gollum), checkpoint `sav/gollum_riddle.bin`.
+   `docs/journal.md` séance 12 (Gollum), checkpoint `sav/gollum_riddle.bin`.
 2. ~~Gobelins `$10`–`$13`, `$39`–`$41` ; hauts nord-est `$44`–`$4F`~~ **FAIT** :
-   tous visités (cf. `game-map.md`). Conditions `$07`/`$09`/`$0A` non levées
+   tous visités (cf. `map.md`). Conditions `$07`/`$09`/`$0A` non levées
    en jeu (accès debug uniquement).
 3. Événements différés `$2B12` (10 entrées), `$28E6`/`$28CC` init.
 4. Portes à événement : magique elfes `$0D+7` bit5 (`$1D26`), trou Montagne
    `$0B+7` bit7 (`$1C7B`), porte rouge `$08`.
-5. Slots vierges : `memmap.py slots --virgin` ; ingérer via solver/tickdiff.
+5. Slots vierges : `memmap.py slots --virgin` ; ingérer via solver/sim_tickdiff.
 6. **Nommage des champs de bloc** — **FAIT** : modèle corrigé en partition
    par ordre d'adresse (`memmap_defs.state_owner`, 32 réfs vérifiées) ;
    champs `+5`(hp)/`+6`(tough)/`+7`(flags)/`+A`(altptr) encodés. `etats` non
@@ -750,7 +750,7 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
   --depth 6 --budget ~200`, DB `build/sim/win.db` puis fusion dédup dans
   `solver.db`) : ~240 nœuds.
 - Couverture **184 → 222/3623 o (5.1 → 6.1 %)** ; `records` **41 → 52/79
-  var**. Annexe régénérée ; `check_memmap` PROPRE.
+  var**. Annexe régénérée ; `memmap_check` PROPRE.
 - **Limite** : une seule trajectoire ne mute qu'une fraction des zones ;
   le reste exige l'exploration de **branches** (combat/morts, tous les
   lieux, riddle Gollum, PNJ). ROI désormais dans le BFS longue haleine,
@@ -762,7 +762,7 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
 
 Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
 `INSERT INTO deltas(run,n,base,off,avant,apres)` sous un run `canon`
-(`tickdb.connect()`).
+(`sim_tickdb.connect()`).
 
 ### Séance 12 (nommage) — ZP `score`/`recptr`
 - `memmap_defs.ZP_NAMES` : `$CC`/`$CD` = **score** (points ; lu par SCORE
@@ -771,7 +771,7 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
 - Confirmé statiquement : **`$1E4B` = `$44.$10` = `gollum.eloc`** (`act_v14_12`/
   `act_v14_14` le comparent à `ploc`) → valide `+$10`=eloc.
 - Nouvelle commande **`memmap.py unnamed`** = offsets couverts sans slot nommé
-  (workflow de nommage). ZP var couvertes 6→10/11 ; `check_memmap` PROPRE.
+  (workflow de nommage). ZP var couvertes 6→10/11 ; `memmap_check` PROPRE.
 - Restent non nommés : ZP `$BF`/`$C0`/`$C1`/`$CF`–`$D5` ; champs de bloc
   `+5/+6/+7/+0A/+0B` (blocks se chevauchant → propriétaire ambigu).
 
@@ -790,14 +790,14 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   `+$0C`/`+$0D`, paire RAZ par `code_5AF0`, sens ouvert) ; var couvertes
   `etats` **45 → 99**. Restent non nommés : ZP `$BF/$C0/$C1/$CF-$D5` (7),
   scripts `code$299D/$2A7B/$2A7C` (3).
-- `check_memmap` PROPRE ; annexe régénérée ; doc §2 réécrite.
+- `memmap_check` PROPRE ; annexe régénérée ; doc §2 réécrite.
 
 ### Séance 12 (nommage ZP 2)
 - ZP nommés : `$BF`/`$C0` = **tblA** (pointeur table action/patch `$7116`,
   pas 4 ; `$BF`=`$16`+`rand*4`), `$C1`/`$C2` = **tblB** (pointeur table
   errance/desc `$7126`, pas 6 ; utilisé par « go…from…to » `$8586`). ZP var
   couvertes **13/15**. Restent : `$C3/$C4`, `$CF`–`$D5` (7 au total avec
-  `$0C/$0D` etats). `check_memmap` PROPRE.
+  `$0C/$0D` etats). `memmap_check` PROPRE.
 
 ### Séance 12 (tous les lieux) — 79/79 visités
 - Exploration dirigée + `solver --route --record` : **48 → 78/79** lieux
@@ -809,7 +809,7 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   ont été visités/rendus par **patch mémoire debug** de `$1B2A` (offset 44 du
   blob) + LOOK, puis enregistrés (nœuds `PATCH:xx` dans `solver.db`).
 - **Couverture** : `records` 71 → **78/79** (var nommées 59 → 66) ; total
-  **237/3623 (6.5 %)**. `check_memmap` PROPRE.
+  **237/3623 (6.5 %)**. `memmap_check` PROPRE.
 - Repro patch : `b=bytearray(sav/ring.bin); b[44]=<ploc>; run_one(b,'LOOK')`.
 - *(2026-10-10) Cohérence `solver.db`* : 4 lieux (`$0E $47 $49 $4A`) rejoués
   en **vrai jeu** depuis `sav/ring_surface.bin` (`$0A`, `routes/ne_gaps.txt`),

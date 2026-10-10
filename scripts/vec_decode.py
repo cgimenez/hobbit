@@ -10,7 +10,7 @@ zone dessinable aux 128 premières lignes du hires Oric 240x200).
 Couleurs : octet mode -> papier = mode & 7, encre = (mode >> 4) & 7
 (attributs écrits en col 0/1 ; cf. vec_setup $7990). Palette Oric 8 couleurs.
 
-Usage : .venv/bin/python scripts/decode_vectors.py [--out DIR] [--mono]
+Usage : .venv/bin/python scripts/vec_decode.py [--out DIR] [--mono]
         [--scale N]
 """
 
@@ -258,7 +258,7 @@ def main() -> int:
             paper, ink = "#ffffff", "#000000"
         else:
             paper, ink = ORIC[mode & 7], ORIC[(mode >> 4) & 7]
-        name = out / f"hobbit_vec_{key:02x}.svg"
+        name = out / f"vec_{key:02x}.svg"
         name.write_text(svg(cv, paper, ink, args.scale))
         npx = sum(bin(b).count("1") for row in cv.buf for b in row)
         print(f"${key:02X} @ ${addr:04X} mode=${mode:02X} "

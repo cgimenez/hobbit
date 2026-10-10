@@ -6,7 +6,7 @@ Graphe statique via scripts/map_static.build_graph (78 lieux, sorties dirigees)
 layout dagre). Annotations : direction, conditions, lieux patch-only, zones
 sombres, sorties "vide/mort" ($00).
 
-Usage : .venv/bin/python scripts/draw_map.py [--no-render]
+Usage : .venv/bin/python scripts/map_draw.py [--no-render]
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ def build_d2(graph: dict, vis: set[int]) -> str:
 
     lines = [
         "# The Hobbit (Oric-1/Atmos 1982) - carte des lieux par zones",
-        "# GENERE par scripts/draw_map.py - NE PAS EDITER A LA MAIN.",
+        "# GENERE par scripts/map_draw.py - NE PAS EDITER A LA MAIN.",
         "direction: down",
         "classes: {",
         '  visite: { style: { fill: "#e6f4ea"; stroke: "#2e7d32"; '

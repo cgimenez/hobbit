@@ -6,7 +6,7 @@ principal**. Le loader (bloc 1) lit successivement les blocs 2, 3 puis 4 et saut
 
 > Listing désassemblé : [`disasm/block4.asm`](../disasm/block4.asm) (généré par
 > [`scripts/disasm.py`](../scripts/disasm.py) : descente récursive + point fixe,
-> da65). Découpage vérifié par [`scripts/check_disasm.py`](../scripts/check_disasm.py)
+> da65). Découpage vérifié par [`scripts/disasm_check.py`](../scripts/disasm_check.py)
 > : **RÉSULTAT PROPRE** (0 opcode illégal, 0 BRK, toutes cibles alignées).
 
 ## Cartographie mémoire
@@ -64,7 +64,7 @@ start:  JSR $3097          ; init mineure (met $6C=4, copie 6 octets)
 
 Le bloc 4 réutilise les **vecteurs du bloc 1** (loader resté en `$0400`+), ce qui
 explique la présence des patchs ROM décrits dans
-[`tape-archive-hobbit-1982-analysis.md`](tape-archive-hobbit-1982-analysis.md) :
+[`tape-archive.md`](tape-archive.md) :
 
 - `$0411` setup · `$0405` synchro · `$0408` lecture octet · `$040B` leader ·
   `$040E` écriture octet · `$0414` reset statut · `$0417` lecture bloc complète.
@@ -368,7 +368,7 @@ $2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non promu).
   `MOVE`+`GOTO self`.
 - États `$1A62` : 61 clés (`$00-$2B`, `$3C-$4C` ; **trou `$2C-$3B`** ;
   triplets `[clé,lo,hi]` + `$FF` en `$1B19`) → blocs `$1Bxx` (plan
-  d'octets : `docs/savegame-memory-map.md`) ; `L5331` (état mutable) ≠ `L530B` (record
+  d'octets : `docs/memory-map.md`) ; `L5331` (état mutable) ≠ `L530B` (record
   template) ; `L57BB` : état+0==1 → eloc=état+`$10` (`$3E`=`$01`,
   map `$03`=`$01` holder `$3E` ; `$41`=`$09`, `$43`=`$15`,
   `$44`=`$11`, `$47`/`$48`=`$05`) ; état+1 = porteur? (`$03`→`$3E`
@@ -476,7 +476,7 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
 
 ## Carte mémoire de l'état sauvegardé
 
-Voir `docs/savegame-memory-map.md` : workspace haut `$91D0`–`$9FF7`
+Voir `docs/memory-map.md` : workspace haut `$91D0`–`$9FF7`
 (`$0E28` o, 4 copies `L30F9` contiguës), offsets internes, blocs
 cassette SAVE, cycle de vie boot/SAVE/LOAD.
 
@@ -514,9 +514,9 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
 - Validation : pilote sim65 (reset détourné sur driver `$E800` : `vec_init`
   + `shim_kb` pour dumper, 13 cibles) → 13 frames hires → 13 illustrations
   distinctes et cohérentes (visages, scènes, dragon). Coût : `-x 600M`.
-- Décodage statique : `scripts/decode_vectors.py` réplique le moteur (dispatch,
+- Décodage statique : `scripts/vec_decode.py` réplique le moteur (dispatch,
   `vec_pos`/`vec_line`/`vec_fill`/`vec_skip`, `vec_plot`/`vec_addr`) et rasterise
-  les 13 images depuis `data/hobbit.bin` → `docs/vectors/hobbit_vec_<clé>.svg`
+  les 13 images depuis `data/hobbit.bin` → `docs/vectors/vec_<clé>.svg`
   (240×128, palette Oric : papier = `mode & 7`, encre = `(mode >> 4) & 7`).
 
 ### Protocole de dessin (commandes)
@@ -566,11 +566,11 @@ sur bit5.
   pour le dispatch indirect, `SEED_EXCLUDE` pour les faux positifs comme
   `fcn.00006dce` qui chevauchait un pointeur `$440D`). Le résultat de `afl` est
   mis en cache dans `disasm/.r2_afl.txt`.
-- `scripts/opcodes6502.py` : table des 150 opcodes légaux 6502.
-- `scripts/check_disasm.py` : contrôles A–H (sync linéaire avec règle `$440D`,
+- `scripts/disasm_opcodes.py` : table des 150 opcodes légaux 6502.
+- `scripts/disasm_check.py` : contrôles A–H (sync linéaire avec règle `$440D`,
   cibles de branches/JSR/JMP, tables ressemblant à du code, ROM, vecteurs,
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
-- `disasm/hobbit.info` : fichier d'information da65 (ranges code/données + labels).
+- `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 980 o de code**, 99 sites
   `$440D` (118 inline `$440D`/`$5B24`), 130 routines documentées (dont 10
   `vec_*`/`img_show`, 33 actions `L7014`/`L7143` et 6 handlers SAVE/LOAD),
@@ -580,7 +580,7 @@ Régénérer et vérifier :
 
 ```
 .venv/bin/python scripts/disasm.py
-.venv/bin/python scripts/check_disasm.py   # viser exit 0 (RÉSULTAT: PROPRE)
+.venv/bin/python scripts/disasm_check.py   # viser exit 0 (RÉSULTAT: PROPRE)
 ```
 
 ## Limites

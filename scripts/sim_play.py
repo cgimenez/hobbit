@@ -26,7 +26,7 @@ M_P = b"@@P\n"            # 4
 M_K = b"@@K"              # 3 + 1 octet
 M_SNAP = b"@@SNAP\n"      # 7 + NLEN(1) + NOM + IDX(1) + LEN(2) + payload
 TAIL = 32
-# Regions SAVE, meme ordre que harness/snap.s REGTAB / tickdiff.c /
+# Regions SAVE, meme ordre que harness/snap.s REGTAB / sim_tickdiff.c /
 # solver_db.REGIONS : idx 0 = ZP $00BE/24 ; 1 = etats $1B1A/1366 ;
 # 2 = scripts $28CC/753 ; 3 = records $211A/1480.
 REGION_LENS = (0x0018, 0x0556, 0x02F1, 0x05C8)
@@ -127,7 +127,7 @@ def main() -> int:
             pos = 0
     out.flush()
     if skipped:
-        err.write(f"\n[play_filter: {skipped} octets hors marqueurs ignores]\n")
+        err.write(f"\n[sim_play: {skipped} octets hors marqueurs ignores]\n")
     if blob_path:
         err.write(f"[sauvegarde : {blob_path}"
                   + (" (ecrite)" if saved else " (inchangee)")

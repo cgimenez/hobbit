@@ -2,11 +2,11 @@
 """Décode les captures du harnais sim65 (marqueurs @@FRAME text/hires).
 
 Rend chaque écran hires en texte via le charset ROM 1.0 ($FC70, cf.
-scripts/pack_sim.py) : grille 8 px, 40 colonnes, ordre bit5-gauche.
+scripts/sim_pack.py) : grille 8 px, 40 colonnes, ordre bit5-gauche.
 N'affiche que les lignes non vides (tout avec --all). Les captures
 tronquées (timeout sim65 en plein dump) sont signalées et ignorées.
 
-Usage : .venv/bin/python scripts/decode_frames.py frames.bin [--all]
+Usage : .venv/bin/python scripts/sim_frames.py frames.bin [--all]
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def main() -> int:
     show_all = "--all" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if not args:
-        print("usage: decode_frames.py frames.bin [--all]")
+        print("usage: sim_frames.py frames.bin [--all]")
         return 1
     font = load_font()
     data = Path(args[0]).read_bytes()

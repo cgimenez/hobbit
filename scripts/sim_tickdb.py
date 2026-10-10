@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """DB SQLite unique des turns sim65 (The Hobbit, Oric).
 
-tickdiff (C) ecrit directement dans build/sim/hobbit.db (--db/--name) ;
+sim_tickdiff (C) ecrit directement dans build/sim/hobbit.db (--db/--name) ;
 ce module offre des requetes pretes pour l'analyse.
 
 Usage :
-  tickdb.py traj <base_hex> <off_hex> [--run R6]
-  tickdb.py touches <base_hex> <off_hex>
-  tickdb.py diverge <runA> <runB>
-  tickdb.py morts [--run R6]
-  tickdb.py runs | tickdb.py query "<sql>"
-  tickdb.py snaps | tickdb.py snap-show NOM
-  tickdb.py snap-diff A B | tickdb.py snap-verify NOM
+  sim_tickdb.py traj <base_hex> <off_hex> [--run R6]
+  sim_tickdb.py touches <base_hex> <off_hex>
+  sim_tickdb.py diverge <runA> <runB>
+  sim_tickdb.py morts [--run R6]
+  sim_tickdb.py runs | sim_tickdb.py query "<sql>"
+  sim_tickdb.py snaps | sim_tickdb.py snap-show NOM
+  sim_tickdb.py snap-diff A B | sim_tickdb.py snap-verify NOM
 
 Schema : runs(run) / ticks(run,n,cmd,frames) /
 deltas(run,n,base,off,avant,apres) / texts(run,n,reponse).

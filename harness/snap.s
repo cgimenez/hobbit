@@ -1,6 +1,6 @@
 ; Shims SAVE/LOAD par snapshots pour The Hobbit sous sim65 ($F700).
 ;
-; Patche par scripts/pack_sim.py --snapshot NOM (remplace tape.s) :
+; Patche par scripts/sim_pack.py --snapshot NOM (remplace tape.s) :
 ;   vec_02 ($2C0B, JMP tape_load $71DB) -> JMP snap_load
 ;   vec_03 ($2C0E, JMP tape_save $7215) -> JMP snap_save
 ;   vec_04 ($2C11, JMP L71CB)           -> JMP s_clc
@@ -17,7 +17,7 @@
 ;     le jeu dit TAPE LOADING ERROR + reboot, comme cassette vide).
 ;   - s_clc : verify toujours OK (C=0, A/X/Y intacts).
 ;
-; Blob $E800 (pack_sim --snapshot) : "SNAP" + 3623 o (ordres idx :
+; Blob $E800 (sim_pack --snapshot) : "SNAP" + 3623 o (ordres idx :
 ; ZP/etats/scripts/records). $E800-$F62B : pas de code (snap.s est en
 ; $F700, comme tape.s ; zone "ROM" : RAM sous sim65).
 ; ZP jeu touche : $02 transitoire (pattern paravirt) ; pointeurs de
@@ -25,7 +25,7 @@
 ; (RAM). A/X/Y preserves partout ; C = statut (seul teste par les
 ; appelants save_block/L3D6A).
 ;
-; Table d'entrees en $F700 (lue par pack_sim.py) : 9 mots
+; Table d'entrees en $F700 (lue par sim_pack.py) : 9 mots
 ; [s_0405, s_0408, s_040B, s_040E, s_noop, s_noop,
 ;  snap_save, snap_load, s_clc] ; nom bake a +18/+19.
 
@@ -36,14 +36,14 @@ PV_WRITE = $FFF7
 SPADDR   = $02                  ; mot ZP = pile logicielle paravirt
 PVTOP    = $C2FF                ; params paravirt en $C2FB-$C2FE
 
-SNAP_BLOB = $E800               ; "SNAP" + 3623 o (pack_sim --snapshot)
+SNAP_BLOB = $E800               ; "SNAP" + 3623 o (sim_pack --snapshot)
 SNAP_DATA = $E804
 
         .org $F700
         .word s_0405, s_0408, s_040B, s_040E, s_noop, s_noop
         .word snap_save, snap_load, s_clc
 SNAP_NAMELEN:
-        .byte 0                 ; rempli par pack_sim (offset 18)
+        .byte 0                 ; rempli par sim_pack (offset 18)
 SNAP_NAME:
         .res 16, 0              ; nom du snapshot (offset 19, NUL-padded)
 

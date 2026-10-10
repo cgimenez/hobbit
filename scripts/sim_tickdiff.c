@@ -1,4 +1,4 @@
-/* tickdiff : pilote sim65 tick par tick et stocke en SQLite.
+/* sim_tickdiff : pilote sim65 tick par tick et stocke en SQLite.
  *
  * Un processus sim65 est garde vivant (pipes stdin/stdout). Les ordres
  * arrivent un par un (fichier de commandes ou stdin interactif) ; apres
@@ -6,9 +6,9 @@
  * frames/dumps) puis on snapshotte les 4 regions SAVE via les marqueurs
  * @@MEM du shim et on diffe contre le tick precedent.
  *
- * Usage : tickdiff [-t timeout_ms] --db base.db --name RUN simfile [cmdfile]
+ * Usage : sim_tickdiff [-t timeout_ms] --db base.db --name RUN simfile [cmdfile]
  *   sans cmdfile : interactif (ordres tapes au clavier, un par ligne).
- * Sortie : DB SQLite (runs/ticks/deltas/state, voir scripts/tickdb.py).
+ * Sortie : DB SQLite (runs/ticks/deltas/state, voir scripts/sim_tickdb.py).
  *   Rejouer le meme --name ecrase le run precedent (DELETE + re-INSERT).
  *
  * Ne stocke que les deltas (octets changes) + l'etat ZP par tick.
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
         else { fprintf(stderr, "arg inattendu : %s\n", argv[i]); return 1; }
     }
     if (!simfile || !dbpath || !runname) {
-        fprintf(stderr, "usage : tickdiff [-t ms] --db base.db --name RUN simfile [cmdfile]\n");
+        fprintf(stderr, "usage : sim_tickdiff [-t ms] --db base.db --name RUN simfile [cmdfile]\n");
         return 1;
     }
     sqlite3 *db = NULL;
@@ -343,7 +343,7 @@ int main(int argc, char **argv) {
     size_t ll = 0;
     FILE *in = cmdf ? cmdf : stdin;
     if (!cmdf)
-        fprintf(stderr, "tickdiff interactif : tapez les ordres (Ctrl-D pour finir)\n"
+        fprintf(stderr, "sim_tickdiff interactif : tapez les ordres (Ctrl-D pour finir)\n"
                         "  (1re ligne = touche boot)\n");
     ssize_t n0 = getline(&line, &ll, in);
     if (n0 < 0) { fprintf(stderr, "aucun ordre\n"); return 1; }

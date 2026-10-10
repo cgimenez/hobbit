@@ -3,11 +3,11 @@
 Source : `scripts/map_static.py` sur `data/hobbit.bin` (recoupement
 terrain OK : 6/6 mouvements observés F1–F5 présents dans le graphe).
 **78 records, 203 sorties.** Détail d'élucidation : `docs/block4-analysis.md`
-(§ records, § exits `$26DA`), plan d'octets : `docs/savegame-memory-map.md`.
+(§ records, § exits `$26DA`), plan d'octets : `docs/memory-map.md`.
 
 ![Carte des lieux (D2)](map.svg)
 
-Carte générée (`docs/map.svg` ← `docs/map.d2`) par `scripts/draw_map.py` :
+Carte générée (`docs/map.svg` ← `docs/map.d2`) par `scripts/map_draw.py` :
 **5 sous-graphes** (Ouest/Trollshaws, Monts Brumeux, Cavernes gobelines,
 Forêt noire–Lac–Montagne, Hauts du nord-est), nœuds colorés *visité* /
 *patch-only* / *zone sombre*, arêtes = direction + `cond $YY`, cible `$00`
@@ -137,7 +137,7 @@ ex. `$05` clairière, `$09` Rivendell).
 - `$4E` (sans desc) : E→$4F, UP→$4D.
 - `$4F` (sans desc) : W→$4E, UP→$4A.
 
-## Conditions (états `$1A62` — identités : `savegame-memory-map.md` §2)
+## Conditions (états `$1A62` — identités : `memory-map.md` §2)
 
 `$00` = libre (quasi toutes les sorties). Non-nulles : `$01` (porte rock
 `$06`N/`$07`S), `$05` (porte verte `$01`E/`$04`W), `$06` (`$0E`/`$0F`),

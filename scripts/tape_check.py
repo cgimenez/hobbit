@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verifie un LOAD : l'etat memoire restaure == le contenu du .tape.
 
-Prend le .tape (scripts/save_tape.py) comme reference : chaque bloc
+Prend le .tape (scripts/tape_save.py) comme reference : chaque bloc
 [dest len] donne l'image attendue en basse memoire. Prend le dernier
 dump @@MEM par region dans frames.bin et compare. Seuls $00BE-$00D5
 sont compares dans la page 0 (le reste bouge avec l'echo clavier).
@@ -10,7 +10,7 @@ NOTE : les dumps @@MEM des 4 regions n'existent que si un stub les
 emet (le stub s_0417 historique le faisait ; le loader $0417 d'origine
 restaure ne dumpe pas — le shim ne couvre que $0000/$2B00). Voie
 recommandee : LOAD puis SAVE#2 et comparaison des deux .tape
-bloc a bloc (cf. docs/session-status.md, validation B1).
+bloc a bloc (cf. docs/status.md, validation B1).
 
 Usage : .venv/bin/python scripts/tape_check.py sav/game.tape frames.bin
 Sortie 0 si identique, 1 sinon (diffs affiches).

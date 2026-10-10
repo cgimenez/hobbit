@@ -36,12 +36,12 @@ if [ "${1:-}" != "--no-pack" ]; then
   need_pack=0
   [ ! -f "$IMG" ] && need_pack=1
   for f in harness/shim.s harness/shim.cfg harness/snap.s harness/snap.cfg \
-           scripts/pack_sim.py data/hobbit.bin data/basic10.rom; do
+           scripts/sim_pack.py data/hobbit.bin data/basic10.rom; do
     [ "$ROOT/$f" -nt "$IMG" ] 2>/dev/null && need_pack=1
   done
   [ "$BLOB" -nt "$IMG" ] && need_pack=1
   if [ "$need_pack" = 1 ]; then
-    if ! "$PY" "$ROOT/scripts/pack_sim.py" --snapshot play --solver \
+    if ! "$PY" "$ROOT/scripts/sim_pack.py" --snapshot play --solver \
          >/tmp/hobbit_play_pack.log 2>&1; then
       cat /tmp/hobbit_play_pack.log >&2
       echo "play.sh: echec du pack" >&2
@@ -68,4 +68,4 @@ if [ -t 0 ]; then
   } >&2
 fi
 
-"$SIM65" "$IMG" 2>/dev/null | "$PY" -u "$ROOT/scripts/play_filter.py" "$BLOB"
+"$SIM65" "$IMG" 2>/dev/null | "$PY" -u "$ROOT/scripts/sim_play.py" "$BLOB"

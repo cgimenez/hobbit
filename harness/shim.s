@@ -1,6 +1,6 @@
 ; Shims clavier/ecran pour The Hobbit sous sim65 (adresse $C000).
 ;
-; Patch applique par scripts/pack_sim.py : JMP shim_kb a la place des
+; Patch applique par scripts/sim_pack.py : JMP shim_kb a la place des
 ; 3 premiers octets de $7353 (scan clavier VIA, inutilisable sous sim65).
 ; Tous les lecteurs clavier du jeu (keyin $7481, pauses $7628/$7640, SAVE)
 ; passent par $7353 : un seul point d'interception.
@@ -11,9 +11,9 @@
 ; X, Y et le zero-page utilise sont preserves ; A = resultat (l'original
 ; n'est pas conserve : pas de PHA d'entree pour A, pile equilibree).
 ;
-; Variante SOLVER (ca65 -D SOLVER, cf. pack_sim.py --solver) : aucun dump
+; Variante SOLVER (ca65 -D SOLVER, cf. sim_pack.py --solver) : aucun dump
 ; ecran/memoire (shim_kb = lecture clavier pure) ; a la place, capture
-; ASCII a la source via 2 hooks poses par pack_sim :
+; ASCII a la source via 2 hooks poses par sim_pack :
 ;   - L75B8 (corps commun du plot : glyph_out + L76ED->L75B8) -> asc_plot :
 ;     A = caractere final rendu (capitales appliquees) ; emis "@@A"+octet.
 ;     Le curseur '+' ($2B, reecrit par le caractere suivant) est emis aussi :
@@ -32,8 +32,8 @@
 ; (6 regions, marqueurs "@@MEM addr len\n" 16 o + payload) :
 ;   $00BE/$0018 (ZP SAVE), $1B1A/$0556 (etats), $28CC/$02F1 (scripts),
 ;   $211A/$05C8 (records), $0000/$0100 et $2B00/$0100 (historiques).
-; Decode via scripts/decode_mems.py ; suivi par tick dans
-; scripts/tickdiff.c.
+; Decode via scripts/sim_mems.py ; suivi par tick dans
+; scripts/sim_tickdiff.c.
 
         .setcpu "6502"
         .segment "CODE"
@@ -274,7 +274,7 @@ asc_eol:
         jmp $7697                ; reprise (L7694+3)
 
 ; ---- donnees hooks (adresses resolues a l'edition de liens ;
-; pack_sim.py lit asc_plot/asc_eol dans le listing ca65 -l) ----
+; sim_pack.py lit asc_plot/asc_eol dans le listing ca65 -l) ----
 ASC_BUF:.byte "@@A", $00
 MARK_E: .byte "@@EOL", $0A
 MARK_P: .byte "@@P", $0A
@@ -450,8 +450,8 @@ dump_hires:
         rts
 
 ; ---- dump memoire (seulement si MEMFLAG) ----
-; 6 regions : les 4 sources SAVE (octets suivis par tickdiff) + les
-; 2 historiques ($0000/$2B00, cf. decode_mems.py). Marqueurs 16 o.
+; 6 regions : les 4 sources SAVE (octets suivis par sim_tickdiff) + les
+; 2 historiques ($0000/$2B00, cf. sim_mems.py). Marqueurs 16 o.
 M_S0:   .byte "@@MEM 00BE 0018", $0A
 M_S1:   .byte "@@MEM 1B1A 0556", $0A
 M_S2:   .byte "@@MEM 28CC 02F1", $0A

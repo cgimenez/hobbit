@@ -2,7 +2,7 @@
 """SSOT de la carte memoire SAVE/LOAD (The Hobbit, Oric).
 
 Decomposition des 4 regions basses sauvegardees + nommage des slots.
-Consomme par scripts/memmap.py (registre/couverture) et check_memmap.py.
+Consomme par scripts/memmap.py (registre/couverture) et memmap_check.py.
 
 Regions (meme ordre que harness/snap.s REGTAB / solver_db.REGIONS) :
   $00BE   24  ZP joueur/contexte
@@ -12,7 +12,7 @@ Regions (meme ordre que harness/snap.s REGTAB / solver_db.REGIONS) :
 
 Un slot = une variable/structure nommee rattachee a une adresse. Les blocs
 d'etat partitionnent la region par ORDRE D'ADRESSE (bases non monotones en
-ordre de cle, cf. savegame-memory-map.md §2) : chaque octet appartient a la
+ordre de cle, cf. memory-map.md §2) : chaque octet appartient a la
 cle dont la base est la plus grande <= adresse (cf. state_owner).
 """
 

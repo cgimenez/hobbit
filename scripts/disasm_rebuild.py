@@ -4,7 +4,7 @@ byte-identique avec la tranche $2C00-$7A80 de data/hobbit.bin.
 
 Sortie 0 si identique, 1 sinon (premier octet divergent affiché).
 
-Usage : .venv/bin/python scripts/rebuild.py
+Usage : .venv/bin/python scripts/disasm_rebuild.py
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from disasm import BASE, BIN, BLOCK4, CA65, LD65, LISTING, ROOT  # noqa: E402
 
-CFG = ROOT / "build" / "block4.cfg"
+CFG = ROOT / "disasm" / "block4.cfg"
 BUILD = ROOT / "build" / "sim"
 OBJ = BUILD / "hobbit_block4.o"
 OUT = BUILD / "hobbit_block4_rebuilt.bin"

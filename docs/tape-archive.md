@@ -11,7 +11,7 @@ Fichier de **36 212 octets**, **4 blocs** TAP, tous du type **code machine** (`$
 
 ## Points notables sur le format
 
-- La synchronisation réelle est `16 16 16 24` (3×`$16` + `$24`), pas 16 octets comme les cas « Fast » du [format TAP](tap-format.md).
+- La synchronisation réelle est `16 16 16 24` (3×`$16` + `$24`), pas 16 octets comme les cas « Fast » du [format TAP](tape-format.md).
 - Les en-têtes confirment le schéma : `reserved(2) | type | autorun | endAddr(2) | startAddr(2) | unused`.
 - Les blocs 2–4 ont un **nom vide** (`$00`), typique des blocs de code machine Oric.
 - La taille des blocs suit `size = EndAddr - StartAddr + 1` ; la somme des `size` + syncs/en-têtes/noms = 36 212 (fichier entièrement consommé).
@@ -88,4 +88,4 @@ c40223684de6966cbe2079b95b1a3f25d161af19d3288f8b83a174837b781736  hobbit-1982.ta
 2654c695d6ebfbbd982387e53b7f4463c2cbc205eb73d2ad00a2b96e0d4cbd75  hobbit.bin
 ```
 
-`hobbit.bin` est produit par `scripts/extract.py` (image mémoire `$0400`–`$91B1`).
+`hobbit.bin` est produit par `scripts/tape_extract.py` (image mémoire `$0400`–`$91B1`).

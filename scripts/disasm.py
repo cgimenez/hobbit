@@ -14,10 +14,10 @@ Les actions indirectes (tables ``L7014``/``L7143``) et les routines
 avoisinantes sont des ``MANUAL_ENTRIES`` (validées par le checker, règle D).
 
 da65 (cc65) produit ensuite le listing à partir du fichier d'information
-(``disasm/hobbit.info``) et de ``data/hobbit.bin``.
+(``disasm/block4.info``) et de ``data/hobbit.bin``.
 
 Prérequis : ``tools/cc65/bin/da65`` (cf. AGENTS.md).
-Vérification : scripts/check_disasm.py.
+Vérification : scripts/disasm_check.py.
 
 Usage : .venv/bin/python scripts/disasm.py
 """
@@ -30,7 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from opcodes6502 import (
+from disasm_opcodes import (
     BRANCH,
     JMP_ABS,
     JMP_IND,
@@ -42,12 +42,12 @@ from opcodes6502 import (
     BRK,
     ilen,
 )
-from msgdecode import decode_message
+from msg_decode import decode_message
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "data" / "hobbit.bin"
 DISASM = ROOT / "disasm"
-INFO = DISASM / "hobbit.info"
+INFO = DISASM / "block4.info"
 LISTING = DISASM / "block4.asm"
 R2CACHE = DISASM / ".r2_afl.txt"
 TOOLS = ROOT / "tools" / "cc65" / "bin"
@@ -160,7 +160,7 @@ SEED_EXCLUDE = {0x6DCE}
 # Le nom renomme le label (doit être unique, identifiant ca65 valide) ;
 # le résumé est émis en commentaire da65 avant le label. Règles :
 # - une seule ligne, sans guillemet `"`, <= 160 caractères ;
-# - l'adresse doit être un début d'instruction (vérifié par check_disasm.py).
+# - l'adresse doit être un début d'instruction (vérifié par disasm_check.py).
 # Détails longs -> docs/block4-analysis.md (référencé par adresse).
 ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     # nom None = garde le nom existant (VECTORS), ajoute seulement le résumé.
@@ -833,7 +833,7 @@ def try_decode(
 
 
 def msg_preview(raw: bytes, addr: int, n: int = 64) -> str:
-    """Texte décodé du message pointé (moteur render_text ; cf. msgdecode)."""
+    """Texte décodé du message pointé (moteur render_text ; cf. msg_decode)."""
     if addr == 0:
         return "TODO pointeur nul"
     if not (BASE <= addr < BASE + len(raw)):
@@ -1072,7 +1072,7 @@ def main() -> int:
     import subprocess
 
     if not BIN.exists():
-        print(f"{BIN} manquant : lancez scripts/extract.py")
+        print(f"{BIN} manquant : lancez scripts/tape_extract.py")
         return 1
     DISASM.mkdir(exist_ok=True)
     raw = BIN.read_bytes()

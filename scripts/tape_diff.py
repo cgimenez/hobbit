@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Compare deux .tape (scripts/save_tape.py) bloc a bloc.
+"""Compare deux .tape (scripts/tape_save.py) bloc a bloc.
 
-Usage : .venv/bin/python scripts/diff_tape.py sav/avant.tape sav/apres.tape
+Usage : .venv/bin/python scripts/tape_diff.py sav/avant.tape sav/apres.tape
 Sortie 0 si donnees identiques (headers dest/len compares separement),
 1 sinon. Affiche par bloc : dest/len, nb d'octets differents, positions
 et valeurs des premiers ecarts. Sert a valider LOAD (SAVE#2 vs SAVE#1 :
@@ -33,7 +33,7 @@ def parse(path: Path) -> list[tuple[int, int, bytes]]:
 
 def main() -> int:
     if len(sys.argv) != 3:
-        print("usage: diff_tape.py avant.tape apres.tape")
+        print("usage: tape_diff.py avant.tape apres.tape")
         return 1
     a = parse(Path(sys.argv[1]))
     b = parse(Path(sys.argv[2]))

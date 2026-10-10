@@ -316,7 +316,7 @@ Record = `[b0, b1, (mot,masque)×3, desc_lo, desc_hi, …]` ; `+8` = desc
 conds = signature d'appartenance (`code_433A`, groupes § factions).
 
 `$00` = gabarit vide (`$FF $FF`, conds nulles, desc `$0000`).
-Graphe des sorties par record : `docs/game-map.md` (triplets
+Graphe des sorties par record : `docs/map.md` (triplets
 `[dir,cond,dest]` + `$FF` après la desc).
 `$13`/`$14` partagent desc `$1931` (b0 `$02`/`$80`).
 Groupes : `$0F`+`$34`–`$41` (`AD07 9102 150A`, créatures),
@@ -419,7 +419,7 @@ LOAD : prompt (`vec_05` PRESS ANY KEY) + `vec_02` + écriture directe en
 bas (pas de `boot_copyback` : les dest sont les adresses basses) ;
 échec → `TAPE LOADING ERROR` + reboot input (`JMP $2C3D`).
 
-## 7. Résultats harnais (tickdiff direct-SQLite : R2–R7, F1–F4,
+## 7. Résultats harnais (sim_tickdiff direct-SQLite : R2–R7, F1–F4,
 repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
 
 - **Commandes sans effet = 0 octet** : `GET MAP` (déjà portée),
@@ -530,7 +530,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   l'épée éclaire. Preuve : état `$0E`.eloc patché sur `ploc=$1F`/`$04`/`$09`
   → LOOK révèle la pièce (plus « IT IS DARK ») et liste « the short strong
   sword » ; sans patch : `I SEE NOTHING HERE. IT IS DARK.`. Corrige
-  l'ancien « pas de lampe au jeu » (`docs/aventure.md` séance 9) : la
+  l'ancien « pas de lampe au jeu » (`docs/journal.md` séance 9) : la
   lumière existe, c'est l'épée (caverne des trolls `$07`, porte rock).
 - **Verrous-fenêtres `+7` (`$80`/`$81`/`$A0`)** : `+$00F2` (état `$08`,
   porte rouge `$1F`), `+$0180` (état `$0C`, `$20`→`$21`), `+$00BB`
@@ -570,7 +570,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   table `snapshots`. 0-delta prouvé (LOAD==SAVE byte-exact).
   **Spin EOF-idle non neutre** : ~32 o réécrits sur 2G cycles de
   polls `keyin` à `$00` (pas de tick monde, mais side-effects) —
-  valider à `-x` court ou via tickdiff uniquement.
+  valider à `-x` court ou via sim_tickdiff uniquement.
 - **Reste ouvert** : sens fin `+0` `$02 $03 $05 $08` (tous « non
   localisé » ; sous-régime non testé dans le code), `n`, `s6` (à quoi
   servent-ils ?),
@@ -580,7 +580,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   compteur exact tête `$2AD0`, dormants (déclencheurs).
 
 <!-- BEGIN AUTO-COUVERTURE -->
-couverture (fusion tickdiff+solver) : 237/3623 octets (6.5 %).
+couverture (fusion sim_tickdiff+solver) : 237/3623 octets (6.5 %).
 
 | Region | Octets | Couverts | % | Var couverts |
 |---|---|---|---|---|

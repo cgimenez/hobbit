@@ -2,7 +2,7 @@
 """Registre de couverture de la memoire SAVE/LOAD (The Hobbit, Oric).
 
 Fusionne les preuves dynamiques des deux bases :
-  build/sim/hobbit.db  (tickdiff, table deltas)
+  build/sim/hobbit.db  (sim_tickdiff, table deltas)
   build/sim/solver.db  (BFS,     table edge_deltas)
 et les rattache aux slots de scripts/memmap_defs.py.
 
@@ -34,7 +34,7 @@ HOBBIT_DB = ROOT / "build" / "sim" / "hobbit.db"
 SOLVER_DB = Path(os.environ.get("SOLVER_DB",
                                 ROOT / "build" / "sim" / "solver.db"))
 ASM = ROOT / "disasm" / "block4.asm"
-DOC = ROOT / "docs" / "savegame-memory-map.md"
+DOC = ROOT / "docs" / "memory-map.md"
 MARK_BEGIN = "<!-- BEGIN AUTO-COUVERTURE -->"
 MARK_END = "<!-- END AUTO-COUVERTURE -->"
 
@@ -217,7 +217,7 @@ def cmd_gen(write: bool) -> int:
     """Annexe de couverture (stdout, ou injectee dans le doc entre marqueurs)."""
     ev = load_deltas()
     addrs = address_slots()
-    lines = [f"couverture (fusion tickdiff+solver) : {len(ev)}/{D.TOTAL_BYTES}"
+    lines = [f"couverture (fusion sim_tickdiff+solver) : {len(ev)}/{D.TOTAL_BYTES}"
              f" octets ({100 * len(ev) / D.TOTAL_BYTES:.1f} %).",
              "",
              "| Region | Octets | Couverts | % | Var couverts |",
@@ -252,7 +252,7 @@ def cmd_gen(write: bool) -> int:
 
 
 def cmd_sources(ev: dict) -> int:
-    """Apport par famille de source (tickdiff run / bfs noeud)."""
+    """Apport par famille de source (sim_tickdiff run / bfs noeud)."""
     fam_tick, fam_bfs, runs = set(), set(), set()
     for e in ev.values():
         for s in e.sources:
@@ -266,7 +266,7 @@ def cmd_sources(ev: dict) -> int:
     tick_oct = sum(1 for e in ev.values()
                    if any(s.startswith("tick:") for s in e.sources))
     bfs_oct = sum(1 for e in ev.values() if "bfs" in e.sources)
-    print(f"tickdiff : {len(runs)} runs, {tick_oct} octets distincts")
+    print(f"sim_tickdiff : {len(runs)} runs, {tick_oct} octets distincts")
     print(f"bfs      : {bfs_oct} octets distincts")
     print(f"union    : {len(ev)} octets distincts")
     return 0

@@ -7,7 +7,7 @@ scheduler $2B00, cf. harness/shim.s). Par defaut affiche, pour chaque
 trame, les octets modifies depuis la trame precedente ; --full vide
 aussi les regions completes.
 
-Usage : .venv/bin/python scripts/decode_mems.py frames.bin [--full]
+Usage : .venv/bin/python scripts/sim_mems.py frames.bin [--full]
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def main() -> int:
     full = "--full" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if not args:
-        print("usage: decode_mems.py frames.bin [--full]")
+        print("usage: sim_mems.py frames.bin [--full]")
         return 1
     frames = frames_with_mems(Path(args[0]).read_bytes())
     print(f"trames: {len(frames)}")

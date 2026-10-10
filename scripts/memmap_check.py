@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verification de la carte memoire (scripts/memmap_defs.py).
 
-Sections (comme check_disasm.py) :
+Sections (comme disasm_check.py) :
   A. REGIONS : somme = TOTAL_BYTES (3623), nom unique.
   B. annotate() non vide pour les 3623 adresses.
   C. noms de slots uniques (region+nom).

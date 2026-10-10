@@ -19,15 +19,15 @@ Format (cf. docs/block4-analysis.md) — le message est un flux d'octets :
 Le décodage est approximatif (suffixes S/ES/ING et espaces dépendent du
 contexte runtime) mais lisible. Usage :
 
-    from msgdecode import decode_message, dict_words
+    from msg_decode import decode_message, dict_words
     texte = decode_message(raw, 0x18AA)   # -> "A COMFORTABLE TUNNEL LIKE HALL"
     mots  = dict_words(raw)               # 600 mots du dictionnaire ($0540-$1156)
 
 En ligne de commande :
 
-    python scripts/msgdecode.py            # aperçu de 3 messages
-    python scripts/msgdecode.py 18AA       # message à $18AA
-    python scripts/msgdecode.py words      # dump des 600 mots (1 par ligne)
+    python scripts/msg_decode.py            # aperçu de 3 messages
+    python scripts/msg_decode.py 18AA       # message à $18AA
+    python scripts/msg_decode.py words      # dump des 600 mots (1 par ligne)
 """
 
 from __future__ import annotations

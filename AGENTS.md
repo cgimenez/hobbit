@@ -15,7 +15,7 @@ Deux systèmes à comprendre et documenter :
   du joueur. S'étudie par inspection mémoire + traces d'exécution.
 
 Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoire
-`$0400`–`$91B1`) via `scripts/extract.py`.
+`$0400`–`$91B1`) via `scripts/tape_extract.py`.
 
 ## 2. Objectif et méthode
 
@@ -36,11 +36,11 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 
 ## 4. Règles d'or
 
-- **Ne jamais éditer `disasm/block4.asm`, `disasm/hobbit.info` ni les sources
+- **Ne jamais éditer `disasm/block4.asm`, `disasm/block4.info` ni les sources
   `src/*.s` à la main.** Le modèle vient de `scripts/disasm.py` (descente
   récursive + `MANUAL_ENTRIES` / `SEED_EXCLUDE` arbitrés à la main). Toute
   correction = patch du script + régénération + re-vérification.
-- **Avant chaque commit : `scripts/check_disasm.py` doit sortir exit 0**
+- **Avant chaque commit : `scripts/disasm_check.py` doit sortir exit 0**
   (`RÉSULTAT: PROPRE`).
 - **Documenter les routines via `ROUTINE_DOCS` dans `scripts/disasm.py`**
   (nom + résumé une ligne → labels/commentaires régénérés dans le listing),
@@ -70,32 +70,32 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 ## 6. Recettes
 
 ```
-.venv/bin/python scripts/extract.py          # TAP -> data/hobbit.bin
-.venv/bin/python scripts/disasm.py           # -> disasm/hobbit.info + block4.asm
-.venv/bin/python scripts/check_disasm.py     # viser exit 0 (RÉSULTAT: PROPRE)
-.venv/bin/python scripts/rebuild.py          # round-trip ca65+ld65 (build/block4.cfg),
+.venv/bin/python scripts/tape_extract.py          # TAP -> data/hobbit.bin
+.venv/bin/python scripts/disasm.py           # -> disasm/block4.info + block4.asm
+.venv/bin/python scripts/disasm_check.py     # viser exit 0 (RÉSULTAT: PROPRE)
+.venv/bin/python scripts/disasm_rebuild.py   # round-trip ca65+ld65 (disasm/block4.cfg),
                                              # byte-identique exigé, exit 0
-.venv/bin/python scripts/pack_sim.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
+.venv/bin/python scripts/sim_pack.py [--hires]  # image sim65 (build/sim/hobbit.sim) :
                                              # shim I/O + patch $7353 + charset ROM
-.venv/bin/python scripts/pack_sim.py --snapshot NOM  # checkpoint rejouable
+.venv/bin/python scripts/sim_pack.py --snapshot NOM  # checkpoint rejouable
                                              # (build/sim/NOM.sim, implique
                                              # --fast) : bypass SAVE/LOAD
                                              # (vec_02/03/04 -> snap.s),
                                              # blob sav/NOM.bin en $E800
-.venv/bin/python scripts/tickdb.py snaps     # snapshots (show/diff/verify/init)
+.venv/bin/python scripts/sim_tickdb.py snaps     # snapshots (show/diff/verify/init)
 ./tools/cc65/bin/sim65 -x N build/sim/hobbit.sim < input.txt > frames.bin
-.venv/bin/python scripts/decode_frames.py frames.bin   # écrans -> texte
-.venv/bin/python scripts/msgdecode.py words  # dump des 600 mots du dictionnaire
+.venv/bin/python scripts/sim_frames.py frames.bin   # écrans -> texte
+.venv/bin/python scripts/msg_decode.py words  # dump des 600 mots du dictionnaire
                                              # ($0540-$1156, 1/ligne) ; <ADDR> =
                                              # aperçu d'un message ($4444)
 .venv/bin/python scripts/memmap.py report    # couverture des variables SAVE/LOAD
-                                             # (fusion tickdiff+solver, SSOT
+                                             # (fusion sim_tickdiff+solver, SSOT
                                              # memmap_defs.py) ; slots/xref/gen
-.venv/bin/python scripts/check_memmap.py     # viser exit 0 (RÉSULTAT: PROPRE)
-.venv/bin/python scripts/draw_map.py         # carte D2 des lieux (map_static +
+.venv/bin/python scripts/memmap_check.py     # viser exit 0 (RÉSULTAT: PROPRE)
+.venv/bin/python scripts/map_draw.py         # carte D2 des lieux (map_static +
                                              # statut visite) -> docs/map.d2 + map.svg
                                              # [--layout dagre|elk] (defaut dagre)
-.venv/bin/python scripts/decode_vectors.py   # 13 illustrations vectorielles
+.venv/bin/python scripts/vec_decode.py   # 13 illustrations vectorielles
                                              # (bloc 3) -> docs/vectors/*.svg
                                              # [--out DIR] [--mono] [--scale N]
 SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
@@ -112,8 +112,8 @@ SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
   boot validé jusqu'au prompt (`You are in a comfortable tunnel like hall`,
   `> LOOK.`), entrées scriptées + réponses parser observées
   (`I DO NOT KNOW THE WORD " OOK."`), écho caractère par caractère OK.
-- Détails à jour : `docs/session-status.md`, `docs/block4-analysis.md`,
-  `docs/tape-archive-hobbit-1982-analysis.md`, `docs/tap-format.md`.
+- Détails à jour : `docs/status.md`, `docs/block4-analysis.md`,
+  `docs/tape-archive.md`, `docs/tape-format.md`.
 - Pistes : AnimTalk (parser, via harnais) ; AnimAction (PNJ autonomes :
   l'init recopie une table `$28E6`+ vers le workspace haut — base de données
   jeu probable) ; zéro-page nommée (51 `ZP_NAMES`) ; bloc 3 élucidé

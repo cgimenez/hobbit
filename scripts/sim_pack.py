@@ -10,14 +10,14 @@
 
 Artefacts dans build/sim/ (regenerables, gitignore). Sortie 0 si OK.
 
-Usage : .venv/bin/python scripts/pack_sim.py [--hires] [--fast]
+Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
                                              [--tape FILE]
            --hires : active aussi le dump de l'ecran hires ($A000-$BFFF).
            --fast : force $56=0 au boot (pas d'illustrations vectorielles ;
              img_show devient no-op -> avance rapide texte seul).
              Sortie build/sim/hobbit_fast.sim (le .sim stock est inchange).
            --tape FILE : pre-remplit le buffer cassette $E804+ avec FILE
-             (save produite par scripts/save_tape.py) ; RD/WR inits.
+             (save produite par scripts/tape_save.py) ; RD/WR inits.
              Combine avec --fast (sortie build/sim/hobbit_fast.sim).
           --snapshot NOM : image checkpoint (sortie build/sim/NOM.sim) :
             assemble harness/snap.s AU LIEU de tape.s (slot $F700),
@@ -65,7 +65,7 @@ VEC04, VEC04_WANT = 0x2C11, 0x71CB  # JMP L71CB (verify)
 SNAP_SRC = ROOT / "harness" / "snap.s"
 SNAP_CFG = ROOT / "harness" / "snap.cfg"
 SNAP_ADDR = 0xF700  # meme slot que tape.s (remplace en mode --snapshot)
-SNAP_BLOB = 0xE800  # "SNAP" + 3623 o (pack_sim --snapshot)
+SNAP_BLOB = 0xE800  # "SNAP" + 3623 o (sim_pack --snapshot)
 SNAP_LEN = 4 + 0x0018 + 0x0556 + 0x02F1 + 0x05C8  # 3627 o
 SNAP_NAMELEN_OFF = SNAP_ADDR + 18
 SNAP_NAME_OFF = SNAP_ADDR + 19

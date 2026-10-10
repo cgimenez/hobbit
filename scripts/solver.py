@@ -34,7 +34,7 @@ PARKED_PATTERNS = [
 DEATH_PATTERNS = ["YOU ARE DEAD", "KILLS YOU", "EATS YOU", "RESTART GAME"]
 WIN_SCORE = 99.5  # 'mastered X%' : victoire au-dela
 
-# --- vocabulaire d'actions (ct. docs/aventure.md §102 + seances) ---
+# --- vocabulaire d'actions (ct. docs/journal.md §102 + seances) ---
 MOVES = ["NORTH", "SOUTH", "EAST", "WEST", "NORTHEAST", "NORTHWEST",
          "SOUTHEAST", "SOUTHWEST", "UP", "DOWN",
          "RUN NORTH", "RUN SOUTH", "RUN EAST", "RUN WEST"]

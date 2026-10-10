@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vérifie la cohérence du découpage code/données de `disasm/hobbit.info`.
+"""Vérifie la cohérence du découpage code/données de `disasm/block4.info`.
 
 Contrôles (bloc 4 par défaut) :
   A. chaque plage CODE se désassemble sans opcode illégal et finit sur
@@ -15,7 +15,7 @@ Contrôles (bloc 4 par défaut) :
 
 Sortie 0 si propre, 1 sinon.
 
-Usage : .venv/bin/python scripts/check_disasm.py [--lo 0x2C00] [--hi 0x7A80]
+Usage : .venv/bin/python scripts/disasm_check.py [--lo 0x2C00] [--hi 0x7A80]
 """
 
 from __future__ import annotations
@@ -28,11 +28,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from disasm import ROUTINE_DOCS, ZP_NAMES
-from opcodes6502 import BRANCH, INLINE_MSGS, JMP_ABS, JMP_IND, JSR, PRINT_MSG, ilen
+from disasm_opcodes import BRANCH, INLINE_MSGS, JMP_ABS, JMP_IND, JSR, PRINT_MSG, ilen
 
 ROOT = Path(__file__).resolve().parent.parent
 BIN = ROOT / "data" / "hobbit.bin"
-INFO = ROOT / "disasm" / "hobbit.info"
+INFO = ROOT / "disasm" / "block4.info"
 ROM10 = ROOT / "data" / "basic10.rom"
 ROM11 = ROOT / "data" / "basic11b.rom"
 BASE = 0x0400

@@ -1,6 +1,6 @@
 ; Stubs cassette B1 pour The Hobbit sous sim65 (adresse $F700).
 ;
-; Patche par scripts/pack_sim.py : JMP stub sur chaque VECTEUR bloc 1
+; Patche par scripts/sim_pack.py : JMP stub sur chaque VECTEUR bloc 1
 ; $0405-$0414 (ROM 1.0, morte sous sim65). $0417 N'EST PAS un vecteur :
 ; c'est le loader du jeu (scan $24, header 9 o, stockage, verif
 ; $32/$33, cf. desassemblage $0417-$0465) — son code d'origine est
@@ -16,7 +16,7 @@
 ;   $0411/$0414 setup/reset -> succes no-op (RTS partage)
 ;
 ; Buffer en $E800 : RD/WR ($E800-$E803, adresses absolues, init $E804
-; par pack_sim), donnees $E804-$EFFF (T_END=$F700, ~3820 o utiles :
+; par sim_pack), donnees $E804-$EFFF (T_END=$F700, ~3820 o utiles :
 ; un SAVE+VERIFY+LOAD par session).
 ; ZP jeu touche : $02 transitoire (pattern paravirt, comme shim_kb) +
 ; $35-$3E / $37-$39 / $3B / $32-$33 (scratch cassette, exactement comme
@@ -24,7 +24,7 @@
 ; (resultat). Pas d'indirection ZP : auto-modification
 ; absolue (LD_OP/ST_OP), la zone $F700+ est RAM sous sim65.
 ;
-; Table d'entrees en $F700 (lue par pack_sim.py) : 6 mots
+; Table d'entrees en $F700 (lue par sim_pack.py) : 6 mots
 ; [s_0405, s_0408, s_040B, s_040E, s_noop, s_noop].
 
         .setcpu "6502"

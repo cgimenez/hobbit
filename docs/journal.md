@@ -1,17 +1,17 @@
 # Journal d'aventure — The Hobbit (Oric), joué sous sim65
 
-Carte exhaustive (statique, 78 lieux) : `docs/game-map.md`. Ce journal
+Carte exhaustive (statique, 78 lieux) : `docs/map.md`. Ce journal
 ne décrit que le terrain vérifié en jeu.
 
 Parties **informées** (depuis 2026-10-08 PM) : fini l'aveugle — coups
 décidés en connaissance des commandes (sonde vocabulaire),
 PNJ et lieux. Deux images : `build/sim/hobbit_fast.sim` (texte seul,
-tickdiff) + `build/sim/hires.sim` (`--fast --hires`, OCR texte).
-Cmdfile tickdiff = lignes `\n` (1re = touche boot, `\n`→`\r` par
-tickdiff) ; run sim65 brut = mêmes octets en `\r` (`rX.cr`).
+sim_tickdiff) + `build/sim/hires.sim` (`--fast --hires`, OCR texte).
+Cmdfile sim_tickdiff = lignes `\n` (1re = touche boot, `\n`→`\r` par
+sim_tickdiff) ; run sim65 brut = mêmes octets en `\r` (`rX.cr`).
 
 Conventions : `> COMMANDE.` = écho jeu (le `.` final est ajouté
-par le jeu, jamais tapé) ; tick tickdiff = 1 ligne (même vide :
+par le jeu, jamais tapé) ; tick sim_tickdiff = 1 ligne (même vide :
 le prompt-loop tourne — death-check `$00` : un mouvement raté à
 `$01` chutes tue au tick suivant, même sur ligne vide) ; tick
 monde = 1 commande acceptée (PNJ + timers).
@@ -127,7 +127,7 @@ F40a (tunnel, verbes seuls) : `ENTER` ✓ (31 deltas), `SIT`/`SLEEP`
 
 ## Séance 0 — calibration du mode rapide (2026-10-08)
 
-- `pack_sim.py --fast` : patch `$2C4A` (`01`→`00`, `$56=0`, `img_show`
+- `sim_pack.py --fast` : patch `$2C4A` (`01`→`00`, `$56=0`, `img_show`
   no-op). Image `build/sim/hobbit_fast.sim` (stock inchangée).
 - Correction : le `N` du boot ne désactive rien (`L2C3D` morte depuis
   `start` : `LDX #$FF` / `BNE L2C49` → `$56=1` toujours ; `L2C3D`
@@ -135,7 +135,7 @@ F40a (tunnel, verbes seuls) : `ENTER` ✓ (31 deltas), `SIT`/`SLEEP`
 - Mesure : 500×`WAIT` + dumps complets (frames+MEM, ~24 Mo) en **3,4 s**
   mur (budget `-x 2000000000` : script consommé en entier, preuve =
   `SCORE` final atteint, `mastered` affiché ; fin en spin EOF).
-- Texte lu par OCR hires (`decode_frames.py`) : le texte du jeu
+- Texte lu par OCR hires (`sim_frames.py`) : le texte du jeu
   est blitter en bitmap hires TOUJOURS (même fast) ; l'écran
   texte `$BB80` n'est que du remplissage (`$40` à 83 %, motifs
   périodiques — jamais décodé, inutile). Images `--snapshot
@@ -145,7 +145,7 @@ F40a (tunnel, verbes seuls) : `ENTER` ✓ (31 deltas), `SIT`/`SLEEP`
   compter les exécutions par événements, pas par occurrences.
 - Observé (gratuit) : Gandalf ouvre la porte, `goes east`, prend la
   carte ; Thorin `waits`/`enters` ; PCs entités et `$2Bxx` progressent
-  en MEM (détail : `decode_mems.py`).
+  en MEM (détail : `sim_mems.py`).
 
 ## Séance 1 — traversée test + est (2026-10-08, run `build/sim/seance1.bin`)
 
@@ -326,7 +326,7 @@ warg enters.`) — 2 traqueurs à l'est (`$43` + warg).
   `NORTH` → `YOU CANNOT GO NORTH.` (PUSH/BREAK inopérants vus séance 5).
   Prochaine cible : ouvrir la porte rock (ou obtenir l'épée autrement).
 - Outillage : `scripts/memmap_defs.py` nomme la clé `$0E` (`sword`) ;
-  `scripts/memmap.py` / `check_memmap.py` PROPRE.
+  `scripts/memmap.py` / `memmap_check.py` PROPRE.
 
 ## Séance 11 — trolls → pierre, porte rock, épée (2026-10-09)
 
