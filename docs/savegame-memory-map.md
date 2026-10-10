@@ -227,19 +227,19 @@ Détail des programmes : `docs/block4-analysis.md` (§ scripts PNJ).
 
 | Entrée | Propriétaires (slot entité) |
 |---|---|
-| `$28E1` | `$3D` (e11), `$45` (e12) — MOVE `$10` arg `$06` + boucle MOVE `$30` |
-| `$2910` | `$4B` (e13) — boucle MOVE+GOTO self |
-| `$2934` | `$49` `$4A` `$4C` (e14–e16) — boucles MOVE+GOTO self |
-| `$295C` | `$3E` Gandalf (e0) — errance (MOVE `$1D`/`$10`/`$24`/`$13`/`$0D`/`$0E`, ACT 1/2, RAND→4 cibles) |
-| `$298E` | `$3F` (e1) — boucle |
-| `$29BC` | `$40` (e2) — boucle |
-| `$29C7` | `$43` (e3) |
-| `$29EE` | `$42` dormant (e4) — MOVE `$26`/`$10`/`$0D` arg `$08` |
-| `$2A38` | `$41` dragon présumé (e5) — ACT 7/8 |
-| `$2A54` | `$3C` dormant (e8) — ACT `$6E59`→`$6C8D`→MOVE `$24` |
-| `$2A77` | `$46` dormant (e7) — ACT `$6C33` + MOVE `$13` arg `$25` |
-| `$2A8F` | `$44` Gollum présumé (e6) — ACT 13/14, MOVE `$0E`/`$01` arg `$10` |
-| `$2AD0` | `$47` `$48` (e9–e10, lieu 5) — ACT 16/17 (trolls) |
+| `$28E1` | `$3D` GOBLIN (e11), `$45` GOBLIN (e12) — MOVE `$10` arg `$06` + boucle MOVE `$30` |
+| `$2910` | `$4B` GOBLIN (e13) — boucle MOVE+GOTO self |
+| `$2934` | `$49` `$4A` `$4C` GOBLIN (e14–e16) — boucles MOVE+GOTO self |
+| `$295C` | `$3E` GANDALF (e0) — errance (MOVE `$1D`/`$10`/`$24`/`$13`/`$0D`/`$0E`, ACT 1/2, RAND→4 cibles) |
+| `$298E` | `$3F` THORIN (e1) — boucle |
+| `$29BC` | `$40` ELF (e2) — boucle |
+| `$29C7` | `$43` WARG (e3) |
+| `$29EE` | `$42` BUTLER dormant (e4) — MOVE `$26`/`$10`/`$0D` arg `$08` |
+| `$2A38` | `$41` ELROND (e5) — ACT 7/8 |
+| `$2A54` | `$3C` DRAGON dormant (e8) — ACT `$6E59`→`$6C8D`→MOVE `$24` |
+| `$2A77` | `$46` BARD dormant (e7) — ACT `$6C33` + MOVE `$13` arg `$25` |
+| `$2A8F` | `$44` GOLLUM (e6) — ACT 13/14, MOVE `$0E`/`$01` arg `$10` |
+| `$2AD0` | `$47` `$48` TROLL (e9–e10, lieu 5) — ACT 16/17 (trolls) |
 
 ### 3c. Événements différés `$2B12` (10×5 o `[id,cpt,actA,cond,actB]`, `$FF` en `$2B44`)
 
@@ -584,8 +584,8 @@ couverture (fusion tickdiff+solver) : 237/3623 octets (6.5 %).
 
 | Region | Octets | Couverts | % | Var couverts |
 |---|---|---|---|---|
-| `$00BE` ZP | 24 | 17 | 70.8 | 13/15 |
-| `$1B1A` etats | 1366 | 105 | 7.7 | 99/427 |
+| `$00BE` ZP | 24 | 17 | 70.8 | 17/24 |
+| `$1B1A` etats | 1366 | 105 | 7.7 | 105/549 |
 | `$28CC` scripts | 753 | 37 | 4.9 | 34/78 |
 | `$211A` records | 1480 | 78 | 5.3 | 66/79 |
 
