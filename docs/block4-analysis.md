@@ -488,7 +488,9 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
 `$00 $CB` final). Zéro texte ASCII ≥24 o : tout est dessin.
 
 - Moteur (`vec_init` `$77D4`, X/Y = adresse image) : `vec_setup` (`$7990`,
-  octet mode = couleurs : bas = encre, haut = papier) efface hires
+  octet mode = couleurs : bas = papier (`mode & 7`), bits 4-6 = encre
+  (`(mode >> 4) & 7`) ; écrits en col 0/1 comme attributs `16+papier`/`encre`)
+  efface hires
   `$A000`–`$B3FF` (`$40`) + 2 aplats ; puis dispatch d'octets : `$00` fin,
   `$08` `vec_pos` (curseur `$30`/`$31`, 2 o), `$20` `vec_skip` (saute
   jusqu'à `$FF`, repris en ligne), bit6 `vec_fill` (remplissage), bit7
@@ -512,13 +514,18 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
 - Validation : pilote sim65 (reset détourné sur driver `$E800` : `vec_init`
   + `shim_kb` pour dumper, 13 cibles) → 13 frames hires → 13 illustrations
   distinctes et cohérentes (visages, scènes, dragon). Coût : `-x 600M`.
+- Décodage statique : `scripts/decode_vectors.py` réplique le moteur (dispatch,
+  `vec_pos`/`vec_line`/`vec_fill`/`vec_skip`, `vec_plot`/`vec_addr`) et rasterise
+  les 13 images depuis `data/hobbit.bin` → `docs/vectors/hobbit_vec_<clé>.svg`
+  (240×128, palette Oric : papier = `mode & 7`, encre = `(mode >> 4) & 7`).
 
 ### Protocole de dessin (commandes)
 
 Entrée : `vec_image` (`$77D4`, = `vec_init`) reçoit **X/Y = adresse de
 l'image**, stockée dans `$28/$29` (ZP). Octet 0 = **mode/couleurs** →
 `vec_setup` (`$7990`) : efface le hires `$A000`–`$B3FF` (aplats `$40`) puis
-fixe encre (bas 3 bits) / papier (bits 3-5). La boucle `L77E3` lit l'octet
+fixe papier (`mode & 7`, bas 3 bits) / encre (`(mode >> 4) & 7`, bits 4-6).
+La boucle `L77E3` lit l'octet
 courant et dispatch dans cet ordre :
 
 | Test | Opcode | Commande | Opérandes |
