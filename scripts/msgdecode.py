@@ -19,8 +19,15 @@ Format (cf. docs/block4-analysis.md) — le message est un flux d'octets :
 Le décodage est approximatif (suffixes S/ES/ING et espaces dépendent du
 contexte runtime) mais lisible. Usage :
 
-    from msgdecode import decode_message
+    from msgdecode import decode_message, dict_words
     texte = decode_message(raw, 0x18AA)   # -> "A COMFORTABLE TUNNEL LIKE HALL"
+    mots  = dict_words(raw)               # 600 mots du dictionnaire ($0540-$1156)
+
+En ligne de commande :
+
+    python scripts/msgdecode.py            # aperçu de 3 messages
+    python scripts/msgdecode.py 18AA       # message à $18AA
+    python scripts/msgdecode.py words      # dump des 600 mots (1 par ligne)
 """
 
 from __future__ import annotations
@@ -46,6 +53,51 @@ _TOKENS = {
 }
 
 
+def decode_word_at(raw: bytes, addr: int) -> tuple[str, int]:
+    """Mot du dictionnaire packé 5-bit à l'adresse absolue ``addr``.
+
+    Réimplémente ``word_render`` ($4241) : renvoie ``(mot, longueur consommée)``.
+    La fin d'un mot est signalée par le bit7 d'un octet (avec les cas
+    particuliers 2/3 caractères) ou par un code 0.
+    """
+    codes: list[int] = []
+    x = y = 0
+    for _ in range(64):
+        off = addr - BASE + y
+        a = raw[off] if 0 <= off < len(raw) else 0
+        code = a & 0x1F
+        if code == 0:
+            return "".join(chr(0x40 + c) for c in codes), y + 1
+        codes.append(code)
+        x += 1
+        y += 1
+        if (a & 0x80) == 0:
+            continue
+        if x == 2:
+            continue
+        if x != 3:
+            return "".join(chr(0x40 + c) for c in codes), y
+        if raw[addr - BASE + y - 2] & 0x80:
+            continue
+        return "".join(chr(0x40 + c) for c in codes), y
+    return "".join(chr(0x40 + c) for c in codes), y
+
+
+DICT_LO, DICT_HI = 0x0540, 0x1157
+
+
+def dict_words(raw: bytes) -> list[str]:
+    """Dictionnaire complet ``$0540-$1156`` (600 mots, ordre alphabétique)."""
+    words: list[str] = []
+    i = DICT_LO
+    while i < DICT_HI:
+        w, n = decode_word_at(raw, i)
+        if w:
+            words.append(w)
+        i += n
+    return words
+
+
 class Decoder:
     """Décodeur adossé à l'image mémoire ``raw`` (base ``$0400``)."""
 
@@ -64,26 +116,7 @@ class Decoder:
         if key in self._words:
             return self._words[key]
         base = ((0x05 + (hi & 0x0F)) << 8) | lo
-        codes: list[int] = []
-        x = y = 0
-        for _ in range(64):
-            a = self._b(base + y)
-            code = a & 0x1F
-            if code == 0:
-                break
-            codes.append(code)
-            x += 1
-            y += 1
-            if (a & 0x80) == 0:
-                continue
-            if x == 2:
-                continue
-            if x != 3:
-                break
-            if self._b(base + y - 2) & 0x80:
-                continue
-            break
-        text = "".join(chr(0x40 + c) for c in codes)
+        text, _ = decode_word_at(self.raw, base)
         self._words[key] = text
         return text
 
@@ -165,6 +198,12 @@ if __name__ == "__main__":
     import sys
 
     raw = open("data/hobbit.bin", "rb").read()
-    addrs = [int(x, 16) for x in sys.argv[1:]] or [0x18AA, 0x143F, 0x1582]
-    for a in addrs:
-        print(f"${a:04X}: {decode_message(raw, a)}")
+    args = sys.argv[1:]
+    if args and args[0] in ("words", "dict", "--words"):
+        ws = dict_words(raw)
+        print(f"; {len(ws)} mots du dictionnaire ($0540-$1156)")
+        print("\n".join(ws))
+    else:
+        addrs = [int(x, 16) for x in args] or [0x18AA, 0x143F, 0x1582]
+        for a in addrs:
+            print(f"${a:04X}: {decode_message(raw, a)}")
