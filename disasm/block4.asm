@@ -2,11 +2,48 @@
 ; The Hobbit (Oric, 1982)
 ; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)
 ; 6502 port : Greg Barrett (Beam Software)
-; - bloc 4 ($2C00-$7A80)
+; - bloc 4 ($2C00-$7A80) : programme principal
 ; Listing généré par scripts/disasm.py (descente récursive + da65)
 ; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.
-; Convention : JSR $440D + pointeur inline (2 octets, adresse du
-; message) ; reprise du code à JSR+5.
+; ============================================================
+;
+; COMMENT LIRE CE LISTING
+; -----------------------
+; Les autres blocs alimentent celui-ci : bloc 1 = chargeur cassette
+; (vecteurs ROM conserves en $0400+, reutilises par SAVE/LOAD) ; bloc 2 =
+; banque de donnees (dictionnaire, messages, records, scripts des PNJ) ;
+; bloc 3 = banque d'illustrations vectorielles.
+;
+; Cycle du jeu, une iteration par commande du joueur :
+;   start ($2C35)      boot (copie cassette -> memoire) puis boucle :
+;     read_line        saisit une ligne de commande dans le tampon $40BE
+;     tokenize         decoupe la ligne en mots (file de tokens $4783)
+;     parse_cmd        construit la commande (wid $13, arg1 $15, arg2 $16)
+;     cmd_run          execute la commande du joueur (verbe + objets)
+;     world_tick       fait vivre le monde (PNJ puis evenements differes)
+;
+; Deux moteurs d'animation distincts :
+;   AnimTalk   : le parser textuel (saisie -> lexeur 5-bit -> grammaire),
+;                qui transforme une phrase en commande interne.
+;   AnimAction : les PNJ autonomes ; $4ED5 fait jouer a chaque personnage
+;                un opcode de son 'cerveau' (script du bloc 2), meme quand
+;                le joueur est ailleurs.
+;
+; Mode sonde / action reelle : avant d'agir pour de vrai, le jeu rejoue la
+; meme sequence en simulation (phase $0C = 0) pour savoir si l'action passe
+; (passok $12) ; seule une action qui passe est rejouee en reel (phase = 1).
+;
+; Conventions de code :
+;   - Message inline : JSR $440D ($4444 render_text) ou JSR $5B24 (act_msg),
+;     suivi des 2 octets d'adresse du message ; reprise a JSR+5. Chaque site
+;     porte un label 'msg_XXXX' avec un apercu du texte en commentaire.
+;   - Appel indirect : l'adresse cible est posee dans $4C64/$4C65 puis
+;     appelee par indirect_call ($4C5D) ; c'est le mecanisme des tables
+;     d'actions $7014 (verbes joueur) / $7143 (PNJ) et de $7169 (evenements).
+;   - Pointeurs de travail : ptr/ptr2/ptr3 ($8A/$88/$7A) se sauvent et se
+;     restaurent via la pile interne $0200 (push_ptr/pop_ptr, fetch_retaddr).
+;   - Les labels 'Lxxxx' / 'code_xxxx' restants sont des adresses que le
+;     desassemblage n'a pas encore baptisees.
 ; ============================================================
 
 ; da65 V2.19 - Git 71746c829
@@ -123,9 +160,12 @@ putchar:jmp     ch_out
 main:   jmp     game_main
 
 ; Point de depart du jeu, juste apres le chargement de la cassette.
-; Il met de cote l'etat de depart, prepare la memoire, puis entre dans la grande boucle
-; du jeu : afficher la situation, lire la commande du joueur, faire avancer le monde.
-; Technique : boot_copy, init de la pile, RAZ des variables, puis game_main.
+; boot_copy copie l'etat initial (cassette) vers la memoire de travail, la
+; pile est initialisee, puis la grande boucle prend la main :
+;   afficher la situation -> lire une commande -> tokenize -> parse_cmd
+;   -> cmd_run (execution) -> world_tick (le monde avance), et on recommence.
+; Les commandes speciales (SAVE/LOAD/QUIT/HELP...) sont aiguillees par $57
+; vers special_cmd, sinon l'action ordinaire passe par perform_action.
 start:  jsr     boot_copy
         ldx     #$FF
         txs
@@ -157,7 +197,7 @@ L2C5B:  sta     L47E2,x
         lda     $65
         cmp     #$FF
         bne     L2C99
-        jsr     code_4D84
+        jsr     intro_look
         lda     #$01
         sta     raw
         ldx     #$00
@@ -224,12 +264,12 @@ L2CCE:  lda     #$00
         sta     $7E
 L2CFB:  lda     #$00
         sta     $57
-        jsr     L357C
+        jsr     cmd_run
         bne     L2D55
         lda     #$01
         sta     phase
-        jsr     L417C
-        jsr     L4B37
+        jsr     describe_room
+        jsr     perform_action
 L2D0E:  lda     $57
         pha
         lda     $7E
@@ -291,7 +331,7 @@ L2D64:  pla
 
 L2D73:  lda     $79
         beq     L2D7F
-        jsr     L3B75
+        jsr     special_cmd
 L2D7A:  pla
         pla
         jmp     L2C99
@@ -824,7 +864,7 @@ cmp_diff:
 ; vers $4A17, en n'emportant que les mots marques (bit $40 de l'octet +1).
 ; Prepare la forme consommee plus loin dans la boucle de commandes.
 cmd_store:
-        jsr     L46E6
+        jsr     push_ptr
         lda     #$27
         sta     ptr
         lda     #$49
@@ -845,7 +885,7 @@ L3078:  lda     (ptr),y
         bne     L3076
         dec     $6C
         bne     L3076
-        jmp     L471B
+        jmp     pop_ptr2
 
 L308F:  .byte   "> "
 L3091:  .byte   "LOOK."
@@ -1088,7 +1128,7 @@ L3211:  inx
         sec
         sbc     #$01
         bne     L31F6
-L3219:  jsr     L4702
+L3219:  jsr     push_ptr2
         lda     #$0F
         sta     ptr2
         lda     #$49
@@ -1114,8 +1154,8 @@ L3249:  jmp     L3234
 
 L324C:  lda     $65
         sta     $6C
-        jsr     L471E
-        jsr     L4702
+        jsr     pop_ptr
+        jsr     push_ptr2
         jsr     rec_prev_dec
 L3259:  lda     $6C
         beq     L3289
@@ -1142,18 +1182,20 @@ L3259:  lda     $6C
         jsr     rec_copy_check
         jmp     L3259
 
-L3289:  jsr     L471E
+L3289:  jsr     pop_ptr
         lda     #$00
         rts
 
-; Classe 2 (direction) : enregistre la direction demandee
+; Direction (classe 2) : enregistre la direction demandee (N/S/E/W...), qui
+; devient le wid du deplacement.
 cls_direction:
         lda     $6D                             ; classe 2 ($20) : direction
         and     #$02
         bne     L32EF
         ldx     #$00
         stx     $5B
-; Classe 0 (adverbe) : annonce le mode de l'action (doucement, vite...)
+; Adverbe (classe 0) : impose un mode d'execution a l'action suivante
+; (doucement, vite...).
 cls_adverb:
         lda     $6D                             ; classe 0 ($00) : adverbe
         and     #$04
@@ -1171,7 +1213,8 @@ L32AB:  lda     $6D
         jsr     rec_store_at
         jmp     next_phrase
 
-; Classe 10 (AND / virgule) : enchainement de plusieurs objets
+; AND / virgule (classe 10) : enchaine plusieurs objets dans une meme
+; commande en sauvegardant l'etat du groupe nominal.
 cls_conj:
         lda     $6D                             ; classe 10 ($A0) : AND / virgule (objets multiples)
         and     #$F7
@@ -1200,13 +1243,16 @@ L32C3:  jsr     next_token
         sta     $A2
         jmp     cmd_end
 
-; Classe 4 (GO/RUN) : verbes de deplacement
+; GO / RUN (classe 4) : verbe de deplacement ; reclasse en verbe ($30) et
+; traite comme tel.
 cls_go: lda     $6D                             ; classe 4 ($40) : GO / RUN
         and     #$FE
         sta     $6D
 L32EF:  lda     #$30
         sta     $5B
-; Classe 3 (verbe) : fixe le verbe de la commande et attend ses objets
+; Verbe (classe 3) : traite le mot comme predicat de la commande. Selon
+; l'etat d'attente ($6D bit3), restaure l'enregistrement du groupe nominal
+; precedent puis cloture (cmd_end), ou installe le verbe et attend ses objets.
 cls_verb:
         lda     $6D                             ; classe 3 ($30) : verbe
         and     #$08
@@ -1280,14 +1326,16 @@ L3360:  jsr     rec_store_here
         jsr     rec_store_at
         jmp     next_phrase
 
-; Classe 8 (article/determinant : THE, A...) : annonce un nom et lit la suite
+; Article/determinant (classe 8 : THE, A...) : simple annonce d'un nom ;
+; passe aussitot au mot suivant.
 cls_article:
         lda     $6D                             ; classe 8 ($80) : article/determinant (THE, A...)
         and     #$EF
         sta     $6D
         jmp     dispatch
 
-; Classe 1 (IN/INTO) : preposition de lieu
+; IN/INTO (classe 1) : preposition de lieu ; peut basculer en verbe de
+; deplacement (GO) selon le mot precedent.
 cls_prep_in:
         lda     $6D                             ; classe 1 ($10) : IN / INTO
         and     #$04
@@ -1299,7 +1347,8 @@ cls_prep_in:
 
 L338C:  lda     #$70
         sta     $5B
-; Classe 7 (preposition : ON, THROUGH, WITH...) : separe sujet et complement
+; Preposition (classe 7 : ON, WITH, THROUGH...) : separe le sujet de son
+; complement dans le groupe nominal.
 cls_preposition:
         jsr     L3429                           ; classe 7 ($70) : preposition (ON, THROUGH, WITH...)
 L3393:  jsr     next_token
@@ -1325,13 +1374,16 @@ L33B0:  cmp     #$60
         sta     $5F
         jmp     L33D0
 
-; Classe 6 (adjectif) : ajoute un qualificatif au groupe nominal courant
+; Adjectif (classe 6) : ajoute un qualificatif au groupe nominal courant
+; (sert a lever l'ambiguite entre plusieurs objets).
 cls_adjective:
         jsr     L340B                           ; classe 6 ($60) : adjectif
         jsr     next_token
         jmp     L33B0
 
-; Classe 5 (nom) : enregistre l'objet ou le lieu designe
+; Nom (classe 5) : memorise le nom courant (objet, creature ou lieu) dans le
+; groupe nominal et l'enregistrement de commande, en tenant compte de la
+; portee EXCEPT.
 cls_noun:
         lda     adr                             ; classe 5 ($50) : nom (objet, creature, lieu)
         sta     $A7
@@ -1645,16 +1697,21 @@ rec_next:
         sta     ptr2_hi
         rts
 
-L357C:  jsr     L359B
+; Enchainement d'execution d'une commande joueur. Tente d'abord de la traiter
+; comme un deplacement : L359B charge la fiche de sortie du mot (wid) et, si
+; elle existe, passe en execution a deux temps (L35E4). Sinon L36D5 evalue
+; l'action en mode sonde et positionne $57 (1 = commande speciale a reviser,
+; 2 = action de lieu, 3 = rien), que start interprete ensuite.
+cmd_run:jsr     L359B                           ; tente d'abord de traiter la commande comme un deplacement (L359B)
         beq     L3582
         rts
 
-L3582:  jsr     L36D5
+L3582:  jsr     cmd_probe                       ; sinon evalue l'action en sonde (cmd_probe)
         beq     L358A
         lda     #$00
         rts
 
-L358A:  lda     #$03
+L358A:  lda     #$03                            ; $57=3 : rien a reviser pour la boucle de start
         sta     $57
         rts
 
@@ -1735,7 +1792,7 @@ L3613:  lda     arg1
         inc     $DA
         jmp     L35E4
 
-L361C:  jsr     L36D5
+L361C:  jsr     cmd_probe
         jmp     L360A
 
 L3622:  jsr     L3948
@@ -1755,7 +1812,7 @@ L3635:  lda     arg2
         inc     $DB
         jmp     L3622
 
-L363E:  jsr     L4702
+L363E:  jsr     push_ptr2
 L3641:  jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
@@ -1779,7 +1836,7 @@ L3661:  jsr     L53C3
         bne     L3661
         lda     #$01
 L366E:  tax
-        jsr     L471E
+        jsr     pop_ptr
         txa
         rts
 
@@ -1844,7 +1901,11 @@ L36C9:  lda     xmode
 L36D2:  lda     #$00
         rts
 
-L36D5:  jsr     L4B37
+; Rejoue la commande courante via perform_action ($4B37) en mode sonde, puis
+; renvoie passok dans A : 0 (Z) = l'action passe et pourra etre rejouee en
+; reel (phase=1).
+cmd_probe:
+        jsr     perform_action
         lda     passok
         rts
 
@@ -1862,7 +1923,7 @@ move_core:
         pha
         lda     exitp_hi
         pha
-        jsr     L46E6
+        jsr     push_ptr
         lda     wid
         jsr     exit_ptr
         jsr     L358F
@@ -1892,7 +1953,7 @@ L371E:  jsr     L3679
         lda     xmode
         and     #$0C
         bne     L3733
-        jsr     L4B37
+        jsr     perform_action
         lda     passok
         jmp     L3743
 
@@ -1915,7 +1976,7 @@ L3743:  tax
         sta     svptr_hi
         pla
         sta     svptr
-        jsr     L471B
+        jsr     pop_ptr2
         txa
         rts
 
@@ -2160,7 +2221,7 @@ L38E3           := * + 1
 L38E4           := * + 2
         jmp     L0000
 
-L38E5:  jsr     L4702
+L38E5:  jsr     push_ptr2
         lda     svptr
         sta     ptr
         lda     svptr_hi
@@ -2183,7 +2244,7 @@ L3908:  jsr     L3928
         sta     svptr
         lda     ptr_hi
         sta     svptr_hi
-        jsr     L471E
+        jsr     pop_ptr
         pla
         cmp     #$FF
         rts
@@ -2212,7 +2273,7 @@ L3938:  sta     arg1
         beq     L3928
         rts
 
-L3948:  jsr     L4702
+L3948:  jsr     push_ptr2
         lda     #$00
         sta     $80
         lda     $EA
@@ -2238,7 +2299,7 @@ L396D:  jsr     L3993
         lda     xmode
         and     #$01
         sta     $80
-        jsr     L471E
+        jsr     pop_ptr
         pla
         cmp     #$FF
         rts
@@ -2262,7 +2323,7 @@ L39A3:  sta     arg2
         lda     $D8
         ora     #$02
         sta     $D8
-        jsr     L36D5
+        jsr     cmd_probe
         beq     L3993
         rts
 
@@ -2335,7 +2396,7 @@ L3A1A:  lda     $D7
         jsr     L36BB
         bne     L39EE
 L3A2D:  jsr     L39B7
-        jsr     L4B37
+        jsr     perform_action
         lda     #$00
         rts
 
@@ -2499,7 +2560,12 @@ L3B65:  ldy     #$04
         inx
         rts
 
-L3B75:  lda     $F2
+; Mot-cle special du parser (classe $90). Compare l'adresse du mot (adr) a la
+; table $3BC6 (13 cles de 2 octets) et saute via la table $3BE0 vers le
+; handler correspondant : ALL, EXCEPT, IT, ONE, PRINT, NOPRINT, LOAD, SAVE,
+; QUIT, HELP, SCORE, PAUSE. Ces commandes court-circuitent les actions $7014.
+special_cmd:
+        lda     $F2
         sta     L466F
         lda     $F3
         sta     L4670
@@ -2517,7 +2583,7 @@ L3B75:  lda     $F2
         ora     ($60,x)
         ldy     #$0D                            ; classe 9 ($90) : mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT...)
         ldx     #$00
-L3B9F:  lda     adr
+L3B9F:  lda     adr                             ; compare l'adresse du mot (adr) a la table $3BC6 (classe 9)
         cmp     L3BC6,x
         bne     L3BAF
         lda     adr_hi
@@ -2528,9 +2594,9 @@ L3BAF:  inx
         inx
         dey
         bne     L3B9F
-        jmp     next_word
+        jmp     next_word                       ; aucun mot-cle reconnu -> mot suivant
 
-L3BB7:  lda     L3BE0,x
+L3BB7:  lda     L3BE0,x                         ; trouve -> cible lue dans $3BE0, saut indirect via $3BC4
         sta     L3BC4
         lda     L3BE1,x
         sta     L3BC5
@@ -2637,7 +2703,7 @@ L3C95:  jsr     L46E9
         ldx     #$85
         ldy     #$71
         lda     ploc
-        jsr     L5399
+        jsr     tbl_lookup
         beq     L3CBF
         ldy     #$01
         lda     (ptr),y
@@ -2772,7 +2838,7 @@ code_3D7C:
 
 ; Commande LOAD : demande une touche puis charge un bloc depuis la cassette
 load_handler:
-        jsr     L46E6
+        jsr     push_ptr
         jsr     vec_05
         jsr     L3D6A
         clc
@@ -2827,7 +2893,7 @@ code_3DD6:
 
 ; Commande SAVE : ecrit les 4 blocs du jeu puis verifie la cassette
 cmd_save:
-        jsr     L46E6
+        jsr     push_ptr
         jsr     vec_06
         jsr     save_block
         clc
@@ -2842,7 +2908,7 @@ cmd_save:
         .byte   $21,$20,$23,$2C
 ; Termine la commande courante et revient a la boucle de commandes
 cmd_next:
-        jsr     L471B
+        jsr     pop_ptr2
         jmp     L3C07
 
         .byte   "TAPE LOADING ERROR :- PRESS ANY KEY TO RESTART GAME."
@@ -3024,7 +3090,7 @@ L3F7E:  .byte   $CA
 ; act_v14_11.
 wander_start:
         sta     L3F7E
-        jsr     L46E6
+        jsr     push_ptr
         lda     $90
         cmp     obj
         bne     wander_step
@@ -3043,9 +3109,9 @@ wander_step:
         sta     svptr
         lda     L48D7,x
         sta     svptr_hi
-        jsr     L357C
+        jsr     cmd_run
         bne     L3FD4
-        jsr     L36D5
+        jsr     cmd_probe
         beq     L3FCA
         ldx     cand
         lda     svptr
@@ -3057,12 +3123,12 @@ wander_step:
         bne     L3FC5
         jsr     wander_rewind
 L3FC5:  lda     #$01
-        jmp     L471B
+        jmp     pop_ptr2
 
 L3FCA:  jsr     wander_rewind
         bne     L3FCA
 L3FCF:  lda     #$00
-        jmp     L471B
+        jmp     pop_ptr2
 
 L3FD4:  lda     $7E
         beq     L3FCA
@@ -3076,7 +3142,7 @@ L3FD4:  lda     $7E
 ; consomme le poids du deplacement (dec L48D4[x]) ; libere le slot quand il est
 ; epuise (recopie de la suite).
 wander_rewind:
-        jsr     L4702
+        jsr     push_ptr2
         jsr     fetch_retaddr
 L3FEB:  jsr     rec_next
         ldy     #$01
@@ -3143,7 +3209,7 @@ L404E:  ldx     cand
 ; Retire un personnage de la liste des candidats $48D3 (retrouve son slot d'apres
 ; l'id et le vide). Appelee par code_4D47 quand un personnage change d'etat.
 wander_remove:
-        jsr     L46E6
+        jsr     push_ptr
         tax
         lda     obj
         pha
@@ -3155,7 +3221,7 @@ L4062:  jsr     wander_rewind
         bne     L4062
 L4067:  pla
         sta     obj
-        jmp     L471B
+        jmp     pop_ptr2
 
 L406D:  jsr     vec_11
         bmi     L409F
@@ -3252,11 +3318,17 @@ L416A:  lda     #$00
         sta     phase
         lda     $5E
         bne     L4179
-        jsr     L417C
+        jsr     describe_room
 L4179:  lda     #$00
         rts
 
-L417C:  tya
+; Decrit le lieu courant : utilise notamment apres un deplacement reussi.
+; S'appuie sur le pointeur de sortie exitp (rempli par exit_ptr ; L4232 rend
+; les mots du record) : affiche le nom du lieu puis les sorties autorisees,
+; en raccourcissant le rendu en mode sonde (passok) et en tenant compte de
+; l'obscurite (is_dark) et des variantes de sortie (xmode/xaux).
+describe_room:
+        tya
         pha
         txa
         pha
@@ -3269,19 +3341,19 @@ L417C:  tya
         beq     L4190
         lda     #$00
 L4190:  sta     raw
-        lda     wid
+        lda     wid                             ; fiche de sortie du mot courant (wid) -> exitp
         jsr     exit_ptr
         lda     passok
         beq     L41A2
         lda     obj
         bne     L41A2
         jsr     print_cr
-L41A2:  jsr     code_4141
+L41A2:  jsr     code_4141                       ; drapeaux de la sortie courante (code_4141)
         and     #$10
         beq     L41AC
         jmp     L4229
 
-L41AC:  jsr     L454F
+L41AC:  jsr     L454F                           ; nom du lieu puis champs du record de sortie (L4232)
         lda     #$B4
         sta     adr
         lda     #$01
@@ -3291,10 +3363,10 @@ L41AC:  jsr     L454F
         jsr     word_render
 L41BE:  ldy     #$06
         jsr     L4232
-        jsr     is_dark
+        jsr     is_dark                         ; lieu sombre ? (is_dark)
         ldy     #$00
         bcc     L41E0
-        lda     wid
+        lda     wid                             ; dans le noir : decrit la sortie directionnelle (wid < $0A)
         cmp     #$0A
         bcs     L41E0
         lda     #$5F
@@ -3335,7 +3407,7 @@ L4215:  ldy     #$04
         bmi     L421E
         jsr     L4232
 L421E:  jsr     L4573
-L4221:  lda     #$2E
+L4221:  lda     #$2E                            ; point final + CR
         jsr     putchar
         jsr     print_cr
 L4229:  lda     #$00
@@ -3609,7 +3681,7 @@ exit_ptr:
         sta     exitp_hi
         rts
 
-L43E4:  jsr     L530B
+L43E4:  jsr     room_record
         lda     ptr
         clc
         adc     #$02
@@ -3618,7 +3690,7 @@ L43E4:  jsr     L530B
         inc     ptr_hi
 L43F2:  rts
 
-L43F3:  jsr     L5331
+L43F3:  jsr     obj_record
         lda     ptr
         clc
         adc     #$08
@@ -3976,13 +4048,13 @@ tok_nameSTK:
 
 ; Affiche un message imbrique en preservant l'etat du rendu courant
 nested_render:
-        jsr     L4702
+        jsr     push_ptr2
         lda     ptr
         sta     ptr2
         lda     ptr_hi
         sta     ptr2_hi
         jsr     L5535
-        jmp     L471E
+        jmp     pop_ptr
 
 ; Traduit un identifiant d'objet en son nom ('someone' si inconnu)
 obj_lookup:
@@ -4094,7 +4166,13 @@ cr_aware_out:
 L46E3:  lda     #$00
         rts
 
-L46E6:  jsr     L4702
+; Pile interne $0200, indexee par rstk ($AF) : L46E6 empile ptr ($8A) puis
+; ptr2 ($88) ; L4702 empile ptr2 seul. En depilement, fetch_retaddr ($4737)
+; restaure ptr et pop_ptr2 ($471B) restaure ptr2 puis rend la main.
+; Utilisees partout ou une sous-routine doit preserver les pointeurs de
+; travail (actions, rendu de messages, VM des PNJ).
+push_ptr:
+        jsr     push_ptr2
 L46E9:  sta     svA
         stx     svX
         ldx     rstk
@@ -4109,7 +4187,9 @@ L46E9:  sta     svA
         lda     svA
         rts
 
-L4702:  sta     svA
+; Sauvegarde ptr2 ($88) sur la pile interne $0200
+push_ptr2:
+        sta     svA
         stx     svX
         ldx     rstk
         lda     ptr2
@@ -4123,8 +4203,11 @@ L4702:  sta     svA
         lda     svA
         rts
 
-L471B:  jsr     fetch_retaddr
-L471E:  sta     svA
+; Restaure ptr2 ($88) depuis la pile interne $0200 puis rend la main
+pop_ptr2:
+        jsr     fetch_retaddr
+; Restaure ptr ($8A) depuis la pile interne $0200
+pop_ptr:sta     svA
         stx     svX
         ldx     rstk
         dex
@@ -4170,7 +4253,7 @@ L475F:  pla
         jsr     L46E9
         ldx     ptr_block3
         ldy     L2C04
-        jsr     L5399
+        jsr     tbl_lookup
         beq     L477E
         ldy     #$01
         lda     (ptr),y
@@ -4411,27 +4494,39 @@ code_4B07:
         lda     wid
         ldx     #$AC
         ldy     #$6F
-        jsr     L5399
+        jsr     tbl_lookup
         ldx     #$01
         cmp     #$FF
         bne     L4B32
         lda     arg1
-        jsr     L5331
+        jsr     obj_record
         lda     wid
-        jsr     L52EA
+        jsr     verb_obj_ok
         ldx     #$01
         bcs     L4B32
         ldx     #$00
 L4B32:  stx     passok
         jmp     fetch_retaddr
 
-L4B37:  jsr     L46E9
+; Execution de la commande du joueur (le coeur d'AnimTalk cote action) :
+;   1. sauve le contexte (L46E9) et resout les objets de la commande.
+;   2. dans un lieu sombre sans lumiere portee (is_dark) : I SEE NOTHING HERE.
+;   3. range arg1 (puis arg2) dans orec/orec2 via obj_record ; un objet
+;      inconnu ou inaccessible est intercepte par obj_check.
+;   4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle
+;      l'action : table $7014 pour un objet ordinaire, table etendue $7114
+;      (indexee par le bit7 de (orec)+1) sinon ; appel via indirect_call.
+;   5. en action reelle (phase=1) : gere l'obscurite puis annonce les objets
+;      transportes qui reagissent.
+; Le meme corps sert de sonde a cmd_probe ($36D5).
+perform_action:
+        jsr     L46E9
         jsr     code_52CA
         bne     L4B42
         jmp     L4C51
 
-L4B42:  jsr     is_dark
-        bcc     L4B5F
+L4B42:  jsr     is_dark                         ; obscurite du lieu (is_dark)
+        bcc     L4B5F                           ; clair -> continue ; sombre -> teste la lumiere portee
         lda     $7F
         bne     L4B57
         jsr     L5349
@@ -4446,21 +4541,21 @@ msg_4B5A:
 code_4B5C:
         jmp     L4BE9
 
-L4B5F:  lda     direct
+L4B5F:  lda     direct                          ; sortie directe (direct) -> verbe sans objet
         cmp     #$01
         bne     L4B68
-L4B65:  jmp     L4C20
+L4B65:  jmp     L4C20                           ; verbe sans objet -> dispatch de la table $6FAC (L4C20)
 
 L4B68:  lda     arg1
         cmp     #$FF
         beq     L4B65
-        jsr     L5331
+        jsr     obj_record                      ; fiche du 1er objet -> orec
         lda     ptr
         sta     orec
         lda     ptr_hi
         sta     orec_hi
         lda     arg1
-        jsr     L4CDF
+        jsr     obj_check                       ; controle du 1er objet (obj_check)
         bne     L4BE9
         lda     arg2
         cmp     #$FF
@@ -4471,26 +4566,26 @@ L4B68:  lda     arg1
         jmp     L4C20
 
 L4B8F:  lda     arg2
-        jsr     L5331
+        jsr     obj_record                      ; fiche du 2nd objet -> orec2
         lda     ptr
         sta     orec2
         lda     ptr_hi
         sta     orec2_hi
         lda     arg2
-        jsr     L4CDF
+        jsr     obj_check                       ; controle du 2nd objet
         bne     L4BE9
 L4BA3:  lda     orec
         sta     ptr
         lda     orec_hi
         sta     ptr_hi
         lda     wid
-        jsr     L52EA
-        bcc     L4C20
-L4BB2:  ldy     #$01
+        jsr     verb_obj_ok                     ; le verbe est-il autorise pour cet objet ?
+        bcc     L4C20                           ; non autorise -> I CANNOT DO THAT (L4C20)
+L4BB2:  ldy     #$01                            ; boucle des actions associees a l'objet
         lda     (ptr),y
         asl     a
         tax
-        bcs     L4BC9
+        bcs     L4BC9                           ; bit7 de (orec)+1 -> table etendue $7114, sinon $7014
         lda     L7014,x
         sta     L4C64
         lda     L7015,x
@@ -4501,7 +4596,7 @@ L4BC9:  lda     L7114,x
         sta     L4C64
         lda     L7115,x
         sta     L4C65
-L4BD5:  jsr     indirect_call
+L4BD5:  jsr     indirect_call                   ; appel indirect de l'action (indirect_call)
         lda     ptr
         clc
         adc     #$02
@@ -4511,13 +4606,13 @@ L4BD5:  jsr     indirect_call
 L4BE3:  ldy     #$00
         lda     (ptr),y
         beq     L4BB2
-L4BE9:  lda     phase
+L4BE9:  lda     phase                           ; action reelle ? sinon fin
         cmp     #$01
         bne     L4C1D
         lda     obj
         cmp     #$00
         bne     code_4BFF
-        jsr     is_dark
+        jsr     is_dark                         ; noir et sans lumiere -> IT IS DARK
         bcc     code_4BFF
         jsr     print_msg
 ; -> $11F6 IT IS DARK
@@ -4540,10 +4635,10 @@ code_4BFF:
         jsr     L4C6D
 L4C1D:  jmp     fetch_retaddr
 
-L4C20:  lda     wid
+L4C20:  lda     wid                             ; dispatch verbe sans objet (table $6FAC)
         ldx     #$AC
         ldy     #$6F
-        jsr     L5399
+        jsr     tbl_lookup
         cmp     #$FF
         beq     L4C51
 L4C2D:  ldy     #$01
@@ -4579,7 +4674,7 @@ code_4C5C:
 ; appelle la cible, restaure les registres et l'affichage (L471B).
 indirect_call:
         pha
-        jsr     L46E6
+        jsr     push_ptr
         txa
         pha
 L4C64           := * + 1
@@ -4587,7 +4682,7 @@ L4C65           := * + 2
         jsr     L0000
         pla
         tax
-        jsr     L471B
+        jsr     pop_ptr2
         pla
         rts
 
@@ -4605,8 +4700,11 @@ L4C6D:  pha
 L4C80:  pla
         rts
 
-; Distingue un lieu sombre d'un lieu eclaire (lumiere portee) ; dit 'IT IS DARK.' si sombre
-is_dark:jsr     L46E6
+; Determine si la scene est sombre pour le joueur. La fiche du joueur (crec)
+; et les objets presents sont examines : s'il n'y a aucune source de lumiere
+; visible aupres de lui, rend C=1 (sombre) ; C=0 sinon. Les appelants en
+; deduisent 'IT IS DARK.' ou 'I SEE NOTHING HERE.'.
+is_dark:jsr     push_ptr
         ldy     #$04
         lda     (crec),y
         and     #$80
@@ -4645,15 +4743,21 @@ L4CAD:  jsr     L540F
         lda     (ptr),y
         jsr     code_5439
         beq     L4CAD
-L4CD5:  jsr     L471B
+L4CD5:  jsr     pop_ptr2
         clc
         rts
 
-L4CDA:  jsr     L471B
+L4CDA:  jsr     pop_ptr2
         sec
         rts
 
-L4CDF:  cmp     #$FF
+; Controle un objet avant que perform_action ne l'utilise : dans le contexte
+; du joueur (obj=0) il resout la fiche (obj_record) et, selon l'etat et le
+; drapeau $1B21, annonce que quelqu'un le porte ('... IS CARRYING ...').
+; Sortie : A=0 si l'objet est utilisable, A<>0 si un cas particulier a ete
+; traite (l'action est alors sautee).
+obj_check:
+        cmp     #$FF
         bne     L4CE4
         rts
 
@@ -4669,7 +4773,7 @@ L4CF2:  php
         rts
 
 L4CF8:  lda     L4D44
-        jsr     L5331
+        jsr     obj_record
         ldy     #$08
         lda     (ptr),y
         sta     L4671
@@ -4683,7 +4787,7 @@ L4CF8:  lda     L4D44
         lda     L4D44
         jsr     L534B
         bcs     L4CF0
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$40
@@ -4706,14 +4810,18 @@ code_4D3F:
         jmp     L4CF2
 
 L4D44:  .byte   $3A,$A5,$15
-code_4D47:
+; Retire un personnage du jeu (mort ou disparu) : marque son record
+; ((record)+7 bit3), remet son compteur (code_5AF0), le sort de la table des
+; entites (entity_find) et de la liste d'errance (wander_remove). Appele
+; quand un personnage change d'etat.
+unit_remove:
         cmp     #$00
         bne     L4D4E
         jmp     L5FAE
 
-L4D4E:  jsr     L46E6
+L4D4E:  jsr     push_ptr
         sta     L4D83
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         ora     #$08
@@ -4731,10 +4839,13 @@ L4D74:  lda     L4D83
         jsr     code_5AF0
         lda     L4D83
         jsr     wander_remove
-        jmp     L471B
+        jmp     pop_ptr2
 
 L4D83:  .byte   $00
-code_4D84:
+; Au lancement de la partie : cale crec sur la fiche du joueur ($1B1A), remet
+; obj et said a zero, puis enchaine sur L6487 qui affiche le lieu de depart
+; (premier LOOK).
+intro_look:
         lda     #$1A
         sta     crec
         lda     #$1B
@@ -4778,7 +4889,7 @@ L4DB7:  pha
         jmp     L4DE9
 
 L4DC6:  pha
-        jsr     L530B
+        jsr     room_record
         ldy     #$00
         lda     (ptr),y
         and     #$0E
@@ -4794,13 +4905,13 @@ L4DC6:  pha
         sta     msg_4DFC+1
         pla
 L4DE9:  sta     L4DF5
-        jsr     L46E6
+        jsr     push_ptr
         jsr     code_4DF6
-        jmp     L471B
+        jmp     pop_ptr2
 
 L4DF5:  .byte   $22
 code_4DF6:
-        jsr     L530B
+        jsr     room_record
         jsr     print_msg
 ; TODO pointeur $0000
 msg_4DFC:
@@ -4833,7 +4944,7 @@ msg_4E30:
 code_4E32:
         rts
 
-L4E33:  jsr     L4702
+L4E33:  jsr     push_ptr2
         lda     ptr
         clc
         adc     #$02
@@ -4842,10 +4953,10 @@ L4E33:  jsr     L4702
         adc     #$00
         sta     ptr2_hi
         jsr     L5535
-        jmp     L471E
+        jmp     pop_ptr
 
 L4E49:  sta     L4DF5
-        jsr     L530B
+        jsr     room_record
         jsr     L4E33
         jsr     print_cr
         jmp     L4E17
@@ -4856,7 +4967,7 @@ L4E58:  .byte   $1A
 ; s'ouvre...). Appele apres chaque commande reussie.
 ; Technique : L69E7, entity_tick (VM des PNJ), puis evt_tick (table $2B12).
 world_tick:
-        jsr     L46E6
+        jsr     push_ptr
         jsr     victory_check
         jsr     entity_tick
         lda     #$00
@@ -4927,7 +5038,7 @@ L4EC9:  jmp     evt_tick
 ; Technique : outen=1 puis L471B.
 evt_end:lda     #$01
         sta     outen
-        jmp     L471B
+        jmp     pop_ptr2
 
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
@@ -4981,7 +5092,7 @@ L4EF7:  sta     obj                             ; entite active : obj=id, resolv
         sta     outen
         ldy     #$00
         lda     (ptr2),y
-        jsr     L4702
+        jsr     push_ptr2
         pha
         lda     #$1A
         sta     ptr2
@@ -4990,7 +5101,7 @@ L4EF7:  sta     obj                             ; entite active : obj=id, resolv
         pla
         jsr     L54A9
         php
-        jsr     L471E
+        jsr     pop_ptr
         plp
         beq     L4F43
         lda     L4ED4
@@ -5334,13 +5445,13 @@ L5163:  lda     obj
         sta     obj
         lda     #$01
         sta     outen
-        jsr     L4702
+        jsr     push_ptr2
         lda     L4ED4
         cmp     #$02
         beq     L518A
         cmp     #$01
         beq     L5182
-        jsr     L417C
+        jsr     describe_room
         jmp     L518A
 
 L5182:  jsr     print_msg
@@ -5349,17 +5460,17 @@ msg_5185:
         .word   $1406
 code_5187:
         inc     L4ED4
-L518A:  jsr     L471E
+L518A:  jsr     pop_ptr
         lda     #$00
         sta     outen
         pla
         sta     obj
         jmp     L51A0
 
-L5197:  jsr     L4702
-        jsr     L417C
-        jsr     L471E
-L51A0:  jsr     L4B37
+L5197:  jsr     push_ptr2
+        jsr     describe_room
+        jsr     pop_ptr
+L51A0:  jsr     perform_action
         lda     #$C9
         sta     L529B
         lda     obj
@@ -5469,7 +5580,7 @@ L5245:  sta     L4ED4
 ; lit dans sa table de base l'entree de cle X (L5399) et reprend le script a
 ; l'adresse [cle] : permet des sauts 'nommes' a l'interieur d'un script.
 entity_goto:
-        jsr     L46E6
+        jsr     push_ptr
         jsr     entity_find
         cmp     #$FF
         beq     L5276
@@ -5482,7 +5593,7 @@ entity_goto:
         lda     (ptr2),y
         tay
         pla
-        jsr     L5399
+        jsr     tbl_lookup
         cmp     #$FF
         beq     L5276
         ldy     #$01
@@ -5495,7 +5606,7 @@ entity_goto:
         dey
         txa
         sta     (ptr2),y
-L5276:  jmp     L471B
+L5276:  jmp     pop_ptr2
 
 ; Affiche un message de dialogue seulement si le personnage est visible du joueur.
 ; Conditions : id valide ($FF/$00 = rien), pas en pleine annonce (L4ED4 != 2),
@@ -5526,7 +5637,7 @@ L529B           := * + 1
         lda     #$01
         sta     outen
         lda     L5234
-        jsr     L5331
+        jsr     obj_record
         lda     #$08
         clc
         adc     ptr
@@ -5568,7 +5679,11 @@ L52E5:  ldx     arg2
         cpx     obj
         rts
 
-L52EA:  pha
+; Teste la compatibilite verbe/objet : la liste des verbes autorises est
+; accolee au record (adresse = ptr + (ptr)+0 + $10, entrees de 2 octets).
+; Rend C=1 si le verbe A y figure, C=0 sinon.
+verb_obj_ok:
+        pha
         ldy     #$00
         lda     (ptr),y
         clc
@@ -5585,7 +5700,7 @@ L52EA:  pha
         adc     ptr_hi
         tay
         pla
-        jsr     L5394
+        jsr     tbl_lookup2
         beq     L5309
         sec
         rts
@@ -5593,7 +5708,11 @@ L52EA:  pha
 L5309:  clc
         rts
 
-L530B:  cmp     #$50
+; Fiche d'un lieu : id < $50, entree de pointeur dans la table $2070. Au-dela
+; de $4F, aucune fiche (A=0). Le record obtenu porte description et
+; conditions.
+room_record:
+        cmp     #$50
         bcc     L5312
         lda     #$00
         rts
@@ -5619,9 +5738,12 @@ L5312:  pha
         pla
         rts
 
-L5331:  ldx     #$62
+; Fiche d'un objet/personnage : cherche l'id dans la table a cles $1A62
+; (entrees [cle,lo,hi], fin $FF) et pose ptr sur le record pointe.
+obj_record:
+        ldx     #$62
         ldy     #$1A
-        jsr     L5399
+        jsr     tbl_lookup
         php
         pha
         ldy     #$01
@@ -5647,7 +5769,7 @@ L5356:  jsr     L46E9
         jsr     L535F
         jmp     fetch_retaddr
 
-L535F:  jsr     L5331
+L535F:  jsr     obj_record
         tax
         ldy     #$01
         lda     (ptr),y
@@ -5670,7 +5792,7 @@ L5374:  pha
         sta     ptr_hi
         ldy     #$10
         lda     (ptr),y
-        jsr     L530B
+        jsr     room_record
         pla
         rts
 
@@ -5687,10 +5809,16 @@ L538D:  lda     #$01
         pla
         rts
 
-L5394:  pha
+; Memes conventions que tbl_lookup, mais entrees de 2 octets.
+tbl_lookup2:
+        pha
         lda     #$02
         bne     L539C
-L5399:  pha
+; Recherche lineaire dans une table (X/Y = adresse) d'entrees de 3 octets
+; [cle,lo,hi] : compare la cle A, avance de 3 tant que non trouve et s'arrete
+; sur $FF. Rend Z=1 (A=$FF) si absente, Z=0 sinon ; ptr pointe l'entree.
+tbl_lookup:
+        pha
         lda     #$03
 L539C:  sta     L53B6
         pla
@@ -5715,7 +5843,7 @@ L53BD:  jmp     L53A8
 L53C0:  cmp     #$FF
         rts
 
-L53C3:  jsr     L4702
+L53C3:  jsr     push_ptr2
 L53C6:  jsr     L540F
         beq     L5405
         lda     #$02
@@ -5750,7 +5878,7 @@ L53E6:  lda     ptr2
 L5405:  ldy     #$00
         lda     (ptr),y
         tax
-        jsr     L471E
+        jsr     pop_ptr
         txa
         rts
 
@@ -5803,7 +5931,7 @@ code_5454:
         ldy     #$10
         lda     (ptr),y
         sta     L5453
-        jsr     L4702
+        jsr     push_ptr2
         jsr     L54C8
         sta     L5452
         jsr     fetch_retaddr
@@ -5856,7 +5984,7 @@ L54CB:  ldy     #$01
         sta     L54E8
         cmp     #$FF
         beq     L54E1
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$28
@@ -5881,7 +6009,7 @@ L54F8:  jsr     L540F
         ldy     #$02
         jsr     L46E9
         lda     (ptr),y
-        jsr     L530B
+        jsr     room_record
         lda     ptr
         clc
         adc     #$02
@@ -5896,7 +6024,7 @@ L54F8:  jsr     L540F
         lda     (ptr),y
 L5520:  rts
 
-L5521:  jsr     L4702
+L5521:  jsr     push_ptr2
         lda     ptr2
         clc
         adc     #$08
@@ -5904,7 +6032,7 @@ L5521:  jsr     L4702
         bcc     L552F
         inc     ptr2_hi
 L552F:  jsr     L5535
-        jmp     L471E
+        jmp     pop_ptr
 
 L5535:  lda     nest
         bne     L5563
@@ -5941,7 +6069,7 @@ L5563:  ldy     #$00
 L5575:  rts
 
 L5576:  sta     L55AC
-        jsr     L46E6
+        jsr     push_ptr
         lda     #$00
         sta     L55AD
         lda     #$5F
@@ -5961,7 +6089,7 @@ L5589:  jsr     L542C
         inc     L55AD
         jmp     L5589
 
-L55A5:  jsr     L471B
+L55A5:  jsr     pop_ptr2
         lda     L55AD
         rts
 
@@ -5976,11 +6104,11 @@ L55B3:  pha
 L55B6:  sta     L55E3
         pla
         sta     L560F
-        jsr     L46E6
+        jsr     push_ptr
         ldx     #$00
         jsr     L55C9
         txa
-        jmp     L471B
+        jmp     pop_ptr2
 
 L55C9:  jsr     L46E9
         lda     #$62
@@ -6058,7 +6186,7 @@ L564B:  lda     #$00
         rts
 
 L5651:  sta     L5610
-        jsr     L46E6
+        jsr     push_ptr
         lda     #$5F
         sta     ptr
         lda     #$1A
@@ -6083,11 +6211,11 @@ L5680:  jsr     L5651
         sta     L5610
         jmp     L565F
 
-L568A:  jmp     L471B
+L568A:  jmp     pop_ptr2
 
 L568D:  sta     L5610
-        jsr     L46E6
-        jsr     L530B
+        jsr     push_ptr
+        jsr     room_record
         ldy     #$01
         lda     (ptr),y
         sta     L56D6
@@ -6114,10 +6242,10 @@ L56A5:  jsr     L540F
         jmp     L56A5
 
 L56CB:  lda     L56D6
-        jmp     L471B
+        jmp     pop_ptr2
 
 L56D1:  lda     #$00
-        jmp     L471B
+        jmp     pop_ptr2
 
 L56D6:  .byte   $C0
 ; Fabrique un nombre aleatoire borne, utilise pour les comportements imprevisibles
@@ -6158,8 +6286,8 @@ L5710:  .byte   $00
 code_5711:
         lda     arg1
 L5713:  sta     L5710
-        jsr     L46E6
-        jsr     L5331
+        jsr     push_ptr
+        jsr     obj_record
         ldy     #$01
         lda     (ptr),y
         sta     L570F
@@ -6200,7 +6328,7 @@ L5760:  ldy     #$01
         sta     (ptr2),y
         jmp     L572B
 
-L576A:  jmp     L471B
+L576A:  jmp     pop_ptr2
 
 L576D:  lda     arg1
 L576F:  pha
@@ -6210,7 +6338,7 @@ L5774:  pha
         lda     #$02
 L5777:  sta     L5789
         pla
-        jsr     L4702
+        jsr     push_ptr2
         sta     $6C
         jsr     code_54E9
 L5783:  jsr     L540F
@@ -6220,7 +6348,7 @@ L5789           := * + 1
         lda     (ptr),y
         cmp     $6C
         bne     L5783
-L5790:  jmp     L471E
+L5790:  jmp     pop_ptr
 
 L5793:  stx     L4C64
         sty     L4C65
@@ -6245,7 +6373,7 @@ L57BB:  cmp     #$FF
         bne     L57C0
         rts
 
-L57C0:  jsr     L5331
+L57C0:  jsr     obj_record
         ldy     #$00
         lda     (ptr),y
         cmp     #$01
@@ -6259,7 +6387,7 @@ L57D0:  ldy     #$10
         lda     (ptr),y
         rts
 
-L57D5:  jsr     L4702
+L57D5:  jsr     push_ptr2
         sta     L57FB
         stx     L57FC
         jsr     code_54E9
@@ -6273,7 +6401,7 @@ L57E1:  jsr     L540F
         cmp     L57FB
         bne     L57E1
 L57F5:  ldx     L57FC
-        jmp     L471E
+        jmp     pop_ptr
 
 L57FB:  .byte   $C0
 L57FC:  .byte   $20
@@ -6294,7 +6422,7 @@ code_5803:
 
 L580F:  stx     L5832
         sta     L5833
-        jsr     L4702
+        jsr     push_ptr2
         lda     #$00
         sta     L5834
         lda     #$04
@@ -6307,7 +6435,7 @@ L580F:  stx     L5832
 msg_582D:
         .word   $171B
 code_582F:
-        jmp     L471E
+        jmp     pop_ptr
 
 L5832:  .byte   $00
 L5833:  .byte   "L"
@@ -6404,7 +6532,7 @@ L58E0:  jsr     fetch_retaddr
 L58E7:  sta     L5958
         jsr     L46E9
         lda     L5958
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$28
@@ -6463,9 +6591,9 @@ L5951:  jsr     print_cr
 L5958:  .byte   $00
 code_5959:
         sta     L5958
-        jsr     L46E6
+        jsr     push_ptr
         lda     L5958
-        jsr     L530B
+        jsr     room_record
         lda     ptr
         clc
         adc     #$0A
@@ -6476,7 +6604,7 @@ code_5959:
 L5972:  ldy     #$01
         lda     (ptr2),y
         beq     code_59CE
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$80
@@ -6537,7 +6665,7 @@ L59D9:  ldy     #$00
         beq     L59E4
         jmp     L5972
 
-L59E4:  jmp     L471B
+L59E4:  jmp     pop_ptr2
 
 L59E7:  pha
         rol     a
@@ -6558,9 +6686,9 @@ L59F7:  pla
         .byte   $09,$7A,$09,$42,$0B,$F6,$02
 code_5A0D:
         sta     L5958
-        jsr     L46E6
+        jsr     push_ptr
         lda     L5958
-        jsr     L530B
+        jsr     room_record
         lda     ptr
         clc
         adc     #$07
@@ -6581,7 +6709,7 @@ code_5A2E:
         jsr     L5A43
         bne     code_5A2E
         jsr     print_cr
-L5A40:  jmp     L471B
+L5A40:  jmp     pop_ptr2
 
 L5A43:  lda     ptr
         clc
@@ -6606,7 +6734,7 @@ L5A57:  iny
 L5A62:  lda     phase
         cmp     #$01
         bne     L5A6B
-        jmp     L417C
+        jmp     describe_room
 
 L5A6B:  lda     #$00
         sta     passok
@@ -6680,7 +6808,7 @@ L5AD0:  .byte   $35,$0B,$00,$00,$65,$03,$00,$00
         .byte   $7D,$07,$8B,$07,$80,$00,$00,$00
 code_5AF0:
         jsr     L46E9
-        jsr     L5331
+        jsr     obj_record
         ldy     #$0C
         lda     #$00
         sta     (ptr),y
@@ -6757,7 +6885,7 @@ msg_5B64:
 code_5B66:
         pla
         pha
-        jsr     L5331
+        jsr     obj_record
         jsr     L5B9B
         ldy     #$08
         lda     (ptr),y
@@ -6829,7 +6957,7 @@ code_5BD3:
 
 L5BD4:  jsr     L5C2B
         lda     obj
-L5BD9:  jsr     L5331
+L5BD9:  jsr     obj_record
         lda     arg1
         ldy     #$01
         cmp     (ptr),y
@@ -6854,7 +6982,7 @@ L5C00:  lda     obj
         rts
 
 L5C07:  jsr     L46E9
-        jsr     L5331
+        jsr     obj_record
         ldy     #$04
         lda     (ptr),y
         and     #$07
@@ -6930,12 +7058,12 @@ code_5C87:
         rts
 
 L5C88:  jsr     L46E9
-        jsr     L5331
+        jsr     obj_record
 L5C8E:  ldy     #$01
         lda     (ptr),y
         cmp     #$FF
         beq     L5CA3
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$20
@@ -6949,7 +7077,7 @@ L5CA3:  php
 ; Prend ou pose un objet apres avoir verifie ses conditions
 act_p14_04:
         lda     arg1
-        jsr     L5331
+        jsr     obj_record
         jsr     L64D7
         bne     act_p14_14
         jmp     L5A9D
@@ -6971,7 +7099,7 @@ L5CC8:  ldy     #$02
         beq     L5CC5
         jsr     act_probe
         jsr     L46E9
-        jsr     L530B
+        jsr     room_record
         ldy     #$00
         lda     (ptr),y
         jsr     fetch_retaddr
@@ -7053,7 +7181,7 @@ L5D53:  lda     crec
         lda     (ptr2),y
         cmp     #$FF
         beq     L5D74
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$40
@@ -7129,7 +7257,7 @@ evt_lookup:
         ldx     #$9F
         ldy     #$70
         lda     key
-        jsr     L5399
+        jsr     tbl_lookup
         beq     L5DFD
         ldy     #$01
         lda     (ptr),y
@@ -7160,7 +7288,7 @@ L5E18:  lda     ($CA),y
         lda     key
         ldx     #$74
         ldy     #$70
-        jsr     L5399
+        jsr     tbl_lookup
         beq     L5E39
         ldy     #$01
         lda     (ptr),y
@@ -7204,7 +7332,7 @@ L5E50:  ldy     #$02
 
 L5E66:  and     #$FF
         beq     L5E8B
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$28
@@ -7221,7 +7349,7 @@ L5E81:  ldy     #$02
         sbc     (ptr),y
         bcs     L5EAE
 L5E8B:  lda     key
-        jsr     L530B
+        jsr     room_record
         lda     ptr
         sta     $CA
         lda     ptr_hi
@@ -7535,7 +7663,7 @@ L609A:  lda     #$05
         ldy     #$01
         cmp     #$FF
         beq     act_p14_00
-        jsr     L5331
+        jsr     obj_record
         ldy     #$07
         lda     (ptr),y
         and     #$FD
@@ -7571,7 +7699,7 @@ msg_60E6:
         .word   $1525
 code_60E8:
         lda     obj
-        jmp     code_4D47
+        jmp     unit_remove
 
 ; Deplace l'objet et prepare son affichage
 act_p14_01:
@@ -7607,7 +7735,7 @@ L6109:  ldy     #$06
         lda     orec2_hi
         sta     ptr_hi
         lda     #$0C
-        jsr     L52EA
+        jsr     verb_obj_ok
         jsr     fetch_retaddr
         cmp     #$FF
         beq     L60FD
@@ -7899,7 +8027,7 @@ code_6327:
         ora     #$08
         sta     (ptr),y
         lda     arg1
-        jsr     code_4D47
+        jsr     unit_remove
         lda     #$06
         jmp     L5A9D
 
@@ -7930,7 +8058,7 @@ L635A:  .byte   $00,$16,$13,$05,$13,$FA,$12,$EF
 code_63A4:
         jsr     act_probe
         lda     arg1
-        jsr     L5331
+        jsr     obj_record
         ldy     #$0E
         lda     (ptr),y
         sta     msg_63C1
@@ -8287,7 +8415,7 @@ msg_6676:
         .word   $1181
 code_6678:
         pla
-        jmp     code_4D47
+        jmp     unit_remove
 
 L667C:  lda     $1CCB
         and     #$80
@@ -8630,7 +8758,7 @@ code_69CD:
         jmp     act_p14_01
 
 L69DD:  lda     arg1
-        jsr     code_4D47
+        jsr     unit_remove
         lda     #$06
         jmp     L5A9D
 
@@ -9363,7 +9491,7 @@ L6E35:  lda     $1CC5
         bne     L6E3D
         rts
 
-L6E3D:  jsr     L5331
+L6E3D:  jsr     obj_record
         lda     ptr
         sta     crec
         lda     ptr_hi
@@ -9448,9 +9576,9 @@ code_6EA6:
 act_v14_17:
         jsr     act_probe
         lda     #$47
-        jsr     code_4D47
+        jsr     unit_remove
         lda     #$48
-        jsr     code_4D47
+        jsr     unit_remove
         lda     $1F94
         and     #$7F
         sta     $1F94
@@ -9493,7 +9621,7 @@ L6EF7:  lda     ptr_block3
 L6F00:  ldx     ptr_block3
         ldy     L2C04
         lda     #$05
-        jsr     L5399
+        jsr     tbl_lookup
         ldy     #$01
         lda     (ptr),y
         sta     ptr2
@@ -9894,10 +10022,10 @@ L7204:  lda     #$00
         sta     $030B
         rts
 
-L720A:  jsr     L46E6
+L720A:  jsr     push_ptr
         lda     #$2E
         jsr     ch_out
-        jmp     L471B
+        jmp     pop_ptr2
 
 ; Ecrit un bloc sur la cassette (leader, en-tete, donnees, checksum)
 tape_save:
@@ -10601,7 +10729,10 @@ L7772:  sta     $BF3F,y
         bne     L7772
         rts
 
-; Boucle principale du jeu : afficher, lire la commande, faire avancer le monde
+; Initialise l'ecran hires : efface l'affichage, trace les bordures a partir
+; des motifs $77CA/$77CF, cale les pointeurs d'affichage ($08/$09 = $B680) et
+; les parametres texte, puis rend la main a start. Malgre son nom, ce n'est
+; pas la boucle du jeu : c'est l'installation de l'ecran.
 game_main:
         lda     #$1E
         sta     $BFDF

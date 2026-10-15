@@ -572,7 +572,10 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Toutes les 16 lignes, marque une pause pour laisser le joueur lire",
     ),
     0x7747: ("hires_clear", "Efface l'ecran graphique"),
-    0x7779: ("game_main", "Boucle principale du jeu : afficher, lire la commande, faire avancer le monde"),
+    0x7779: (
+        "game_main",
+        "Prepare l'affichage hires (clear, bordures, pointeurs police/ecran) puis rend la main a start",
+    ),
     # Moteur d'illustrations vectorielles (consomme le bloc 3 : table $7AC0
     # [cle,mot] x13 + flux d'octets termine par $00 ; valide par rendu sim65 des
     # 13 images via un pilote vec_init + dump hires).
@@ -601,6 +604,26 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x79FB: ("vec_testpx", "Illustration : teste si un pixel est dans la zone dessinable"),
     0x7A0F: ("vec_plot", "Illustration : allume un pixel"),
     0x7A22: ("vec_addr", "Illustration : calcule l'adresse d'un pixel"),
+    # ---- Execution d'une commande joueur / description ----
+    0x357C: ("cmd_run", "Chaine d'execution d'une commande joueur : tente le deplacement, sinon lance l'action"),
+    0x36D5: ("cmd_probe", "Rejoue la commande en mode sonde (phase=0) et renvoie passok : l'action passe-t-elle ?"),
+    0x4B37: ("perform_action", "Execute la commande du joueur : verifie noirceur et compatibilite verbe/objet, puis lance l'action"),
+    0x417C: ("describe_room", "Decrit le lieu courant : nom, sorties visibles (LOOK et arrivee dans un lieu)"),
+    0x4D84: ("intro_look", "Premier regard au demarrage : cale la fiche du joueur puis decrit le lieu de depart"),
+    0x4D47: ("unit_remove", "Retire un personnage du jeu : marque son record puis le sort des listes d'etat et d'errance"),
+    0x3B75: ("special_cmd", "Dispatch des commandes speciales (SAVE/LOAD/QUIT/HELP/SCORE/PAUSE/ALL/EXCEPT/IT/ONE/PRINT)"),
+    # ---- Objets, records et tables ----
+    0x530B: ("room_record", "Retrouve la fiche d'un lieu a partir de son identifiant (table $2070, id < $50)"),
+    0x5331: ("obj_record", "Retrouve la fiche d'un objet a partir de son identifiant (table $1A62)"),
+    0x5399: ("tbl_lookup", "Cherche une cle dans une table d'entrees de 3 octets [cle,lo,hi], fin $FF"),
+    0x5394: ("tbl_lookup2", "Comme tbl_lookup, mais pour des entrees de 2 octets"),
+    0x52EA: ("verb_obj_ok", "Teste si le verbe courant est autorise pour l'objet (liste attachee au record)"),
+    0x4CDF: ("obj_check", "Verifie l'etat d'un objet avant l'action (porteur, presence) ; peut annoncer qui le porte"),
+    # ---- Pile interne des pointeurs de travail ($0200) ----
+    0x46E6: ("push_ptr", "Sauvegarde ptr ($8A) puis ptr2 ($88) sur la pile interne $0200"),
+    0x4702: ("push_ptr2", "Sauvegarde ptr2 ($88) sur la pile interne $0200"),
+    0x471B: ("pop_ptr2", "Restaure ptr2 ($88) depuis la pile interne $0200 puis rend la main"),
+    0x471E: ("pop_ptr", "Restaure ptr ($8A) depuis la pile interne $0200"),
 }
 
 # Zéro-page nommée : adresse -> (nom, résumé une ligne).
@@ -981,9 +1004,12 @@ ROUTINE_NOTES: dict[int, list[str]] = {
     ],
     0x2C35: [
         "Point de depart du jeu, juste apres le chargement de la cassette.",
-        "Il met de cote l'etat de depart, prepare la memoire, puis entre dans la grande boucle",
-        "du jeu : afficher la situation, lire la commande du joueur, faire avancer le monde.",
-        "Technique : boot_copy, init de la pile, RAZ des variables, puis game_main.",
+        "boot_copy copie l'etat initial (cassette) vers la memoire de travail, la",
+        "pile est initialisee, puis la grande boucle prend la main :",
+        "  afficher la situation -> lire une commande -> tokenize -> parse_cmd",
+        "  -> cmd_run (execution) -> world_tick (le monde avance), et on recommence.",
+        "Les commandes speciales (SAVE/LOAD/QUIT/HELP...) sont aiguillees par $57",
+        "vers special_cmd, sinon l'action ordinaire passe par perform_action.",
     ],
     0x2DC8: [
         "Remet a zero les compteurs de depart (variables de travail, pile de messages, score)",
@@ -1142,10 +1168,153 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "delai), puis fait defiler l'ecran et remet le compteur de lignes a zero.",
         "Technique : 10 essais kb_scan avec delai, compteur crcnt mod 16, scroll L7694.",
     ],
+    0x4C82: [
+        "Determine si la scene est sombre pour le joueur. La fiche du joueur (crec)",
+        "et les objets presents sont examines : s'il n'y a aucune source de lumiere",
+        "visible aupres de lui, rend C=1 (sombre) ; C=0 sinon. Les appelants en",
+        "deduisent 'IT IS DARK.' ou 'I SEE NOTHING HERE.'.",
+    ],
+    0x7779: [
+        "Initialise l'ecran hires : efface l'affichage, trace les bordures a partir",
+        "des motifs $77CA/$77CF, cale les pointeurs d'affichage ($08/$09 = $B680) et",
+        "les parametres texte, puis rend la main a start. Malgre son nom, ce n'est",
+        "pas la boucle du jeu : c'est l'installation de l'ecran.",
+    ],
     0x56D7: [
         "Fabrique un nombre aleatoire borne, utilise pour les comportements imprevisibles",
         "(errance des personnages, combats...).",
         "Technique : melange des octets de la source de bruit $93/$94 puis ramene le resultat dans [0, A).",
+    ],
+    # --- Boucle du jeu : execution d'une commande joueur ---
+    0x357C: [
+        "Enchainement d'execution d'une commande joueur. Tente d'abord de la traiter",
+        "comme un deplacement : L359B charge la fiche de sortie du mot (wid) et, si",
+        "elle existe, passe en execution a deux temps (L35E4). Sinon L36D5 evalue",
+        "l'action en mode sonde et positionne $57 (1 = commande speciale a reviser,",
+        "2 = action de lieu, 3 = rien), que start interprete ensuite.",
+    ],
+    0x36D5: [
+        "Rejoue la commande courante via perform_action ($4B37) en mode sonde, puis",
+        "renvoie passok dans A : 0 (Z) = l'action passe et pourra etre rejouee en",
+        "reel (phase=1).",
+    ],
+    0x4B37: [
+        "Execution de la commande du joueur (le coeur d'AnimTalk cote action) :",
+        "  1. sauve le contexte (L46E9) et resout les objets de la commande.",
+        "  2. dans un lieu sombre sans lumiere portee (is_dark) : I SEE NOTHING HERE.",
+        "  3. range arg1 (puis arg2) dans orec/orec2 via obj_record ; un objet",
+        "     inconnu ou inaccessible est intercepte par obj_check.",
+        "  4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle",
+        "     l'action : table $7014 pour un objet ordinaire, table etendue $7114",
+        "     (indexee par le bit7 de (orec)+1) sinon ; appel via indirect_call.",
+        "  5. en action reelle (phase=1) : gere l'obscurite puis annonce les objets",
+        "     transportes qui reagissent.",
+        "Le meme corps sert de sonde a cmd_probe ($36D5).",
+    ],
+    0x417C: [
+        "Decrit le lieu courant : utilise notamment apres un deplacement reussi.",
+        "S'appuie sur le pointeur de sortie exitp (rempli par exit_ptr ; L4232 rend",
+        "les mots du record) : affiche le nom du lieu puis les sorties autorisees,",
+        "en raccourcissant le rendu en mode sonde (passok) et en tenant compte de",
+        "l'obscurite (is_dark) et des variantes de sortie (xmode/xaux).",
+    ],
+    0x4D84: [
+        "Au lancement de la partie : cale crec sur la fiche du joueur ($1B1A), remet",
+        "obj et said a zero, puis enchaine sur L6487 qui affiche le lieu de depart",
+        "(premier LOOK).",
+    ],
+    0x4D47: [
+        "Retire un personnage du jeu (mort ou disparu) : marque son record",
+        "((record)+7 bit3), remet son compteur (code_5AF0), le sort de la table des",
+        "entites (entity_find) et de la liste d'errance (wander_remove). Appele",
+        "quand un personnage change d'etat.",
+    ],
+    0x3B75: [
+        "Mot-cle special du parser (classe $90). Compare l'adresse du mot (adr) a la",
+        "table $3BC6 (13 cles de 2 octets) et saute via la table $3BE0 vers le",
+        "handler correspondant : ALL, EXCEPT, IT, ONE, PRINT, NOPRINT, LOAD, SAVE,",
+        "QUIT, HELP, SCORE, PAUSE. Ces commandes court-circuitent les actions $7014.",
+    ],
+    # --- Objets, records et tables ---
+    0x530B: [
+        "Fiche d'un lieu : id < $50, entree de pointeur dans la table $2070. Au-dela",
+        "de $4F, aucune fiche (A=0). Le record obtenu porte description et",
+        "conditions.",
+    ],
+    0x5331: [
+        "Fiche d'un objet/personnage : cherche l'id dans la table a cles $1A62",
+        "(entrees [cle,lo,hi], fin $FF) et pose ptr sur le record pointe.",
+    ],
+    0x5399: [
+        "Recherche lineaire dans une table (X/Y = adresse) d'entrees de 3 octets",
+        "[cle,lo,hi] : compare la cle A, avance de 3 tant que non trouve et s'arrete",
+        "sur $FF. Rend Z=1 (A=$FF) si absente, Z=0 sinon ; ptr pointe l'entree.",
+    ],
+    0x5394: [
+        "Memes conventions que tbl_lookup, mais entrees de 2 octets.",
+    ],
+    0x52EA: [
+        "Teste la compatibilite verbe/objet : la liste des verbes autorises est",
+        "accolee au record (adresse = ptr + (ptr)+0 + $10, entrees de 2 octets).",
+        "Rend C=1 si le verbe A y figure, C=0 sinon.",
+    ],
+    0x4CDF: [
+        "Controle un objet avant que perform_action ne l'utilise : dans le contexte",
+        "du joueur (obj=0) il resout la fiche (obj_record) et, selon l'etat et le",
+        "drapeau $1B21, annonce que quelqu'un le porte ('... IS CARRYING ...').",
+        "Sortie : A=0 si l'objet est utilisable, A<>0 si un cas particulier a ete",
+        "traite (l'action est alors sautee).",
+    ],
+    # --- Pile interne des pointeurs de travail ---
+    0x46E6: [
+        "Pile interne $0200, indexee par rstk ($AF) : L46E6 empile ptr ($8A) puis",
+        "ptr2 ($88) ; L4702 empile ptr2 seul. En depilement, fetch_retaddr ($4737)",
+        "restaure ptr et pop_ptr2 ($471B) restaure ptr2 puis rend la main.",
+        "Utilisees partout ou une sous-routine doit preserver les pointeurs de",
+        "travail (actions, rendu de messages, VM des PNJ).",
+    ],
+    # --- Parser AnimTalk : sens (jeu) de chaque handler de classe ---
+    0x32F3: [
+        "Verbe (classe 3) : traite le mot comme predicat de la commande. Selon",
+        "l'etat d'attente ($6D bit3), restaure l'enregistrement du groupe nominal",
+        "precedent puis cloture (cmd_end), ou installe le verbe et attend ses objets.",
+    ],
+    0x33C8: [
+        "Nom (classe 5) : memorise le nom courant (objet, creature ou lieu) dans le",
+        "groupe nominal et l'enregistrement de commande, en tenant compte de la",
+        "portee EXCEPT.",
+    ],
+    0x3299: [
+        "Adverbe (classe 0) : impose un mode d'execution a l'action suivante",
+        "(doucement, vite...).",
+    ],
+    0x3374: [
+        "Article/determinant (classe 8 : THE, A...) : simple annonce d'un nom ;",
+        "passe aussitot au mot suivant.",
+    ],
+    0x337D: [
+        "IN/INTO (classe 1) : preposition de lieu ; peut basculer en verbe de",
+        "deplacement (GO) selon le mot precedent.",
+    ],
+    0x3390: [
+        "Preposition (classe 7 : ON, WITH, THROUGH...) : separe le sujet de son",
+        "complement dans le groupe nominal.",
+    ],
+    0x33BF: [
+        "Adjectif (classe 6) : ajoute un qualificatif au groupe nominal courant",
+        "(sert a lever l'ambiguite entre plusieurs objets).",
+    ],
+    0x32B9: [
+        "AND / virgule (classe 10) : enchaine plusieurs objets dans une meme",
+        "commande en sauvegardant l'etat du groupe nominal.",
+    ],
+    0x32E9: [
+        "GO / RUN (classe 4) : verbe de deplacement ; reclasse en verbe ($30) et",
+        "traite comme tel.",
+    ],
+    0x328F: [
+        "Direction (classe 2) : enregistre la direction demandee (N/S/E/W...), qui",
+        "devient le wid du deplacement.",
     ],
 }
 
@@ -1218,6 +1387,35 @@ INLINE_COMMENTS: dict[int, str] = {
     0x50FB: "bit $10 : saut de secours vers une autre instruction",
     0x51CA: "opcode RAND : tirage parmi les cibles de la table de base",
     0x5235: "init du tick : lieu joueur, noir, compteur de bruit",
+    # --- Execution d'une commande joueur ---
+    0x357C: "tente d'abord de traiter la commande comme un deplacement (L359B)",
+    0x3582: "sinon evalue l'action en sonde (cmd_probe)",
+    0x358A: "$57=3 : rien a reviser pour la boucle de start",
+    0x3B9F: "compare l'adresse du mot (adr) a la table $3BC6 (classe 9)",
+    0x3BB4: "aucun mot-cle reconnu -> mot suivant",
+    0x3BB7: "trouve -> cible lue dans $3BE0, saut indirect via $3BC4",
+    0x4192: "fiche de sortie du mot courant (wid) -> exitp",
+    0x41A2: "drapeaux de la sortie courante (code_4141)",
+    0x41AC: "nom du lieu puis champs du record de sortie (L4232)",
+    0x41C3: "lieu sombre ? (is_dark)",
+    0x41CA: "dans le noir : decrit la sortie directionnelle (wid < $0A)",
+    0x4221: "point final + CR",
+    0x4B42: "obscurite du lieu (is_dark)",
+    0x4B45: "clair -> continue ; sombre -> teste la lumiere portee",
+    0x4B5F: "sortie directe (direct) -> verbe sans objet",
+    0x4B65: "verbe sans objet -> dispatch de la table $6FAC (L4C20)",
+    0x4B6E: "fiche du 1er objet -> orec",
+    0x4B7B: "controle du 1er objet (obj_check)",
+    0x4B91: "fiche du 2nd objet -> orec2",
+    0x4B9E: "controle du 2nd objet",
+    0x4BAD: "le verbe est-il autorise pour cet objet ?",
+    0x4BB0: "non autorise -> I CANNOT DO THAT (L4C20)",
+    0x4BB2: "boucle des actions associees a l'objet",
+    0x4BB8: "bit7 de (orec)+1 -> table etendue $7114, sinon $7014",
+    0x4BD5: "appel indirect de l'action (indirect_call)",
+    0x4BE9: "action reelle ? sinon fin",
+    0x4BF5: "noir et sans lumiere -> IT IS DARK",
+    0x4C20: "dispatch verbe sans objet (table $6FAC)",
 }
 
 # Routines ROM (issues du désassemblage 1.0 et 1.1, cf. docs/).
@@ -1285,11 +1483,48 @@ B4_HEADER = (
     "; The Hobbit (Oric, 1982)\n"
     "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
     "; 6502 port : Greg Barrett (Beam Software)\n"
-    "; - bloc 4 ($2C00-$7A80)\n"
+    "; - bloc 4 ($2C00-$7A80) : programme principal\n"
     "; Listing généré par scripts/disasm.py (descente récursive + da65)\n"
     "; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.\n"
-    "; Convention : JSR $440D + pointeur inline (2 octets, adresse du\n"
-    "; message) ; reprise du code à JSR+5.\n"
+    "; ============================================================\n"
+    ";\n"
+    "; COMMENT LIRE CE LISTING\n"
+    "; -----------------------\n"
+    "; Les autres blocs alimentent celui-ci : bloc 1 = chargeur cassette\n"
+    "; (vecteurs ROM conserves en $0400+, reutilises par SAVE/LOAD) ; bloc 2 =\n"
+    "; banque de donnees (dictionnaire, messages, records, scripts des PNJ) ;\n"
+    "; bloc 3 = banque d'illustrations vectorielles.\n"
+    ";\n"
+    "; Cycle du jeu, une iteration par commande du joueur :\n"
+    ";   start ($2C35)      boot (copie cassette -> memoire) puis boucle :\n"
+    ";     read_line        saisit une ligne de commande dans le tampon $40BE\n"
+    ";     tokenize         decoupe la ligne en mots (file de tokens $4783)\n"
+    ";     parse_cmd        construit la commande (wid $13, arg1 $15, arg2 $16)\n"
+    ";     cmd_run          execute la commande du joueur (verbe + objets)\n"
+    ";     world_tick       fait vivre le monde (PNJ puis evenements differes)\n"
+    ";\n"
+    "; Deux moteurs d'animation distincts :\n"
+    ";   AnimTalk   : le parser textuel (saisie -> lexeur 5-bit -> grammaire),\n"
+    ";                qui transforme une phrase en commande interne.\n"
+    ";   AnimAction : les PNJ autonomes ; $4ED5 fait jouer a chaque personnage\n"
+    ";                un opcode de son 'cerveau' (script du bloc 2), meme quand\n"
+    ";                le joueur est ailleurs.\n"
+    ";\n"
+    "; Mode sonde / action reelle : avant d'agir pour de vrai, le jeu rejoue la\n"
+    "; meme sequence en simulation (phase $0C = 0) pour savoir si l'action passe\n"
+    "; (passok $12) ; seule une action qui passe est rejouee en reel (phase = 1).\n"
+    ";\n"
+    "; Conventions de code :\n"
+    ";   - Message inline : JSR $440D ($4444 render_text) ou JSR $5B24 (act_msg),\n"
+    ";     suivi des 2 octets d'adresse du message ; reprise a JSR+5. Chaque site\n"
+    ";     porte un label 'msg_XXXX' avec un apercu du texte en commentaire.\n"
+    ";   - Appel indirect : l'adresse cible est posee dans $4C64/$4C65 puis\n"
+    ";     appelee par indirect_call ($4C5D) ; c'est le mecanisme des tables\n"
+    ";     d'actions $7014 (verbes joueur) / $7143 (PNJ) et de $7169 (evenements).\n"
+    ";   - Pointeurs de travail : ptr/ptr2/ptr3 ($8A/$88/$7A) se sauvent et se\n"
+    ";     restaurent via la pile interne $0200 (push_ptr/pop_ptr, fetch_retaddr).\n"
+    ";   - Les labels 'Lxxxx' / 'code_xxxx' restants sont des adresses que le\n"
+    ";     desassemblage n'a pas encore baptisees.\n"
     "; ============================================================\n\n"
 )
 

@@ -41,7 +41,7 @@ principal**. Le loader (bloc 1) lit successivement les blocs 2, 3 puis 4 et saut
 | `keyin` | `$2C29` | `$7481` | attend une touche, retourne le code `& $7F` |
 | `print_cr` | `$2C2C` | `$7489` | affiche un CR (`$0D`) |
 | `putchar` | `$2C2F` | `$7491` | sortie d'un caractère (activée par `$0B`/`$0C`) |
-| `main` | `$2C32` | `$7779` | boucle principale / démarrage du jeu |
+| `main` | `$2C32` | `$7779` | `game_main` : initialisation de l'écran hires (bordure, clear, police) |
 
 ## Séquence d'initialisation (`$2C35` → `$2D9E`)
 
@@ -58,7 +58,10 @@ start:  JSR $3097          ; init mineure (met $6C=4, copie 6 octets)
 
 - `$2DAA` boucle de saisie : affiche les caractères de `$40BE` jusqu'à `$0D`/`$22`,
   écho via `putchar`, puis `JMP $2C99`.
-- `$2DC8` finit par `JMP vec_15` (`$7779`) : passage à la **boucle principale**.
+- `$2DC8` finit par `JMP vec_15` (`$7779`, `game_main`) : celui-ci prépare
+  l'écran hires (bordures, clear, police) puis `RTS` **dans** `start`, qui
+  poursuit sa boucle. La « boucle principale » est donc `start` (`$2C35`), pas
+  `game_main` (correction d'une note antérieure).
 
 ## Sous-système cassette
 
@@ -333,6 +336,27 @@ avance, `$34D0` fusionne).
 **Retour** de `parse_cmd` : `A=0` commande construite, `A=1` → `WHAT ?`
 (`$1177`), `A=2` → recommencer la saisie (`$2D42`).
 
+### 4. Exécution — `cmd_run` (`$357C`) → `perform_action` (`$4B37`)
+
+Une fois la commande construite, `start` l'exécute :
+
+- `cmd_run` (`$357C`) tente d'abord de la traiter comme un **déplacement** ;
+  sinon `cmd_probe` (`$36D5`) la rejoue en **mode sonde** et positionne `$57`
+  (1 = commande spéciale, 2 = action de lieu, 3 = rien) pour `start`.
+- `perform_action` (`$4B37`) exécute l'action ordinaire : résolution des objets
+  (`orec`/`orec2` via `obj_record` `$5331`, contrôle `obj_check` `$4CDF`),
+  obscurité (`is_dark` `$4C82` → `I SEE NOTHING HERE.`), compatibilité
+  verbe/objet (`verb_obj_ok` `$52EA`), puis dispatch dans la table d'actions
+  `$7014` (objet normal) ou `$7114` (étendue) par `indirect_call` (`$4C5D`).
+- `describe_room` (`$417C`) rend le texte du lieu à partir de la fiche de sortie
+  (`exitp`, `$26DA+wid*8`).
+- `special_cmd` (`$3B75`, classe 9) court-circuite les actions : `SAVE`, `LOAD`,
+  `QUIT`, `HELP`, `SCORE`, `PAUSE`, `ALL`, `EXCEPT`, `IT`, `ONE`, `PRINT` (tables
+  `$3BC6`/`$3BE0`).
+
+Après une action réussie, `world_tick` (`$4E59`) fait avancer le monde : VM des
+PNJ (`entity_tick` `$4ED5`) puis événements différés (`evt_tick` `$4E75`).
+
 - Validé sous harnais (cf. `docs/status.md` §AnimTalk) : directions nues,
   `GO EAST` (= verbe transitif), mots inconnus, `OPEN CHEST`, `GET MAP`,
   insensibilité à la casse (écho normalisé en capitales).
@@ -514,8 +538,9 @@ et teste la noirceur (compteur d'ambiance `L4ED4`). Puis, pour chaque entrée de
   `move_core` (`$36DB`) : trouvé la sortie du lieu selon `wid`/`arg1`/`arg2`,
   vérifie ses conditions (`cond_eval`), puis déplace ou refuse.
 - `move_announce` (`$5127`) traite ce que le joueur **perçoit** du déplacement :
-  description de l'arrivée (`L417C`) ou bruit `YOU HEAR A NOISE` (une fois par
-  tour), puis exécution de l'action (`L4B37`) et répliques éventuelles.
+  description de l'arrivée (`describe_room` `$417C`) ou bruit `YOU HEAR A
+  NOISE` (une fois par tour), puis exécution de l'action (`perform_action`
+  `$4B37`) et répliques éventuelles.
 - `say_if_visible` (`$5279`) n'affiche un dialogue que si le personnage est
   **visible du joueur** (même lieu, pas en pleine annonce, drapeau `L5611`).
 - `entity_goto` (`$5249`) = saut « nommé » : X = clé, A = id ; la clé est
@@ -773,11 +798,13 @@ sur bit5.
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 980 o de code**, 99 sites
-  `$440D` (118 inline `$440D`/`$5B24`), 232 routines documentées (dont le
+  `$440D` (118 inline `$440D`/`$5B24`), 249 routines documentées (dont le
   parser AnimTalk, la VM AnimAction — `entity_tick`, jeu d'opcodes, 18
-  `act_v14_*`, moteur d'errance —, 10 `vec_*`/`img_show`, 33 actions
+  `act_v14_*`, moteur d'errance —, l'exécution des commandes joueur
+  (`cmd_run`, `perform_action`, `describe_room`, `special_cmd`), les records
+  (`room_record`/`obj_record`/`tbl_lookup`), 10 `vec_*`/`img_show`, 33 actions
   `L7014`/`L7143` et 6 handlers SAVE/LOAD) + commentaires au niveau instruction
-  (dispatch de classe du parser et de la VM des PNJ), 0 conflit.
+  (dispatch de classe du parser, VM des PNJ, exécution des commandes), 0 conflit.
 
 Régénérer et vérifier :
 
