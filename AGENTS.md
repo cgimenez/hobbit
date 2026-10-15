@@ -92,6 +92,9 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 .venv/bin/python scripts/sim_tickdb.py snaps     # snapshots (show/diff/verify/init)
 ./tools/cc65/bin/sim65 -x N build/sim/hobbit.sim < input.txt > frames.bin
 .venv/bin/python scripts/sim_frames.py frames.bin   # écrans -> texte
+.venv/bin/python scripts/sim_trace.py --input cmdfile.txt \\
+    [--range LO HI] [--watch ADDR,..] [--cycles N]  # trace instruction filtrée
+                                             # par plage PC (image --fast)
 .venv/bin/python scripts/msg_decode.py words  # dump des 600 mots du dictionnaire
                                              # ($0540-$1156, 1/ligne) ; <ADDR> =
                                              # aperçu d'un message ($4444)

@@ -107,10 +107,27 @@ qwr             := $00D2                        ; Curseur d'ecriture de la file 
 macc            := $00D3                        ; Accumulateur de poids du moteur d'errance
 mcnt            := $00D4                        ; Compteur de candidats retenus par le moteur d'errance
 said            := $00D5                        ; Flag : le PNJ a parle/refuse (pose par code_6C2E, remis a 0 par act_v14_13)
+op1             := $00D7                        ; Etat du 1er operateur lors de la resolution d'une sortie (bits 0 et 1 testes)
+op2             := $00D8                        ; Etat du 2e operateur lors de la resolution (bits 0 et 1 testes)
+rn1             := $00D9                        ; Compteur n°1 de la boucle de resolution d'operande
+rn2             := $00DA                        ; Compteur n°2 de la boucle de resolution d'operande
+rn3             := $00DB                        ; Compteur n°3 de la boucle de resolution d'operande
 cond1           := $00DC                        ; Condition memorisee n°1
 cond2           := $00E2                        ; Condition memorisee n°2
 svptr           := $00E8                        ; Sauvegarde du pointeur de travail
 svptr_hi        := $00E9                        ; Octet haut de svptr
+rbit            := $00EC                        ; Bit7 du 1er mot de la commande (flag direct/variante)
+ralt            := $00ED                        ; Compteur d'alternatives de la resolution
+roff1           := $00EE                        ; Offset du 1er operateur dans le record de commande
+roff2           := $00EF                        ; Offset du 2e operateur dans le record de commande
+rid1            := $00F0                        ; Id du 1er operateur resolu
+rid2            := $00F1                        ; Id du 2e operateur resolu
+rword           := $00F2                        ; Mot/verbe de la commande en cours (alimente les arguments VM $466F)
+rword_hi        := $00F3                        ; Octet haut de rword
+rarg1           := $00F4                        ; Operande n°1 de la commande (paire de mots VM)
+rarg1_hi        := $00F5                        ; Octet haut de rarg1
+rarg2           := $00F6                        ; Operande n°2 de la commande (paire de mots VM)
+rarg2_hi        := $00F7                        ; Octet haut de rarg2
 exitp           := $00F8                        ; Curseur dans la table des sorties du lieu
 exitp_hi        := $00F9                        ; Octet haut de exitp
 L0405           := $0405
@@ -326,7 +343,7 @@ L2D64:  pla
         beq     L2D73
         cmp     #$02
         beq     L2D97
-        jsr     L3A2D
+        jsr     rev_real
         jmp     L2D2D
 
 L2D73:  lda     $79
@@ -336,9 +353,9 @@ L2D7A:  pla
         pla
         jmp     L2C99
 
-L2D7F:  lda     $F2
+L2D7F:  lda     rword
         sta     L466F
-        lda     $F3
+        lda     rword_hi
         sta     L4670
         lda     #$00
         sta     raw
@@ -350,7 +367,7 @@ msg_2D92:
 code_2D94:
         jmp     L2D0E
 
-L2D97:  jsr     L3A0B
+L2D97:  jsr     rev_dispatch2
         bne     L2D7A
         jmp     L2D2D
 
@@ -1697,12 +1714,15 @@ rec_next:
         sta     ptr2_hi
         rts
 
-; Enchainement d'execution d'une commande joueur. Tente d'abord de la traiter
-; comme un deplacement : L359B charge la fiche de sortie du mot (wid) et, si
-; elle existe, passe en execution a deux temps (L35E4). Sinon L36D5 evalue
-; l'action en mode sonde et positionne $57 (1 = commande speciale a reviser,
-; 2 = action de lieu, 3 = rien), que start interprete ensuite.
-cmd_run:jsr     L359B                           ; tente d'abord de traiter la commande comme un deplacement (L359B)
+; Enchainement d'execution d'une commande joueur (appele par start).
+; Tente d'abord de la traiter comme un deplacement (move_begin $359B) : si le
+; mouvement se termine par A<>0, cmd_run le rend tel quel a start. Sinon
+; cmd_probe ($36D5) evalue l'action en sonde : passok<>0 -> A=0 (start
+; execute l'action en reel : phase=1, describe_room, perform_action) ;
+; passok=0 -> $57=3 et A=3 (start declenche rev_real $3A2D).
+; start interprete $57 : 1 (pas une sortie) -> WAIT ou special_cmd ;
+; 2 (deplacement partiel) -> rev_dispatch2 $3A0B ; 3 (action) -> rev_real.
+cmd_run:jsr     move_begin                      ; tente d'abord de traiter la commande comme un deplacement (L359B)
         beq     L3582
         rts
 
@@ -1715,41 +1735,56 @@ L358A:  lda     #$03                            ; $57=3 : rien a reviser pour la
         sta     $57
         rts
 
-L358F:  lda     #$00
+; Remet a zero l'espace de resolution ($D7-$E7) et le mode brut avant un essai de deplacement
+move_raz:
+        lda     #$00
         sta     raw
         ldx     #$10
-L3595:  sta     $D7,x
+L3595:  sta     op1,x
         dex
         bpl     L3595
         rts
 
-L359B:  lda     #$FF
+; Chaine d'execution d'un deplacement joueur.
+; 1. Force arg1/arg2=$FF puis remet a zero l'espace de resolution ($D7-$E7).
+; 2. exit_resolve ($3790) : construit les arguments VM ($F2-$F7) depuis le
+;    record de commande et cherche, dans les sorties du lieu (table $26E2,
+;    pas de 8), celle dont la signature correspond au mot courant. Rend 1 si
+;    trouvee ; sinon 0 et $57=1 (cmd_run bascule alors sur l'action).
+; 3. Si trouvee (move_go $35AE) : wid := index de sortie ($6C), derive les
+;    options (move_flags) puis tente le deplacement en deux temps : une
+;    sonde (phase=0) et, si elle passe, l'execution reelle.
+; Espace de travail : $D7/$D8 = etats des operateurs resolus (bits 0/1),
+; $D9-$DB = compteurs de la boucle, $DC/$E2 = conditions memorisees.
+move_begin:
+        lda     #$FF
         sta     arg2
         sta     arg1
-        jsr     L358F
-        jsr     L3790
-        bne     L35AE
+        jsr     move_raz
+        jsr     exit_resolve
+        bne     move_go
         lda     #$01
         sta     $57
         rts
 
-L35AE:  lda     $6C
+; Suite d'un deplacement : cale wid sur l'index de sortie ($6C), derive les options et tente l'essai
+move_go:lda     $6C
         sta     wid
         sta     $14
         jsr     move_flags
-        jsr     L3674
+        jsr     move_saveopt
         lda     #$00
         sta     phase
         lda     xmode
         and     #$0C
-        beq     L35E1
-        lda     $EC
+        beq     L35E1                           ; xmode & $0C : sortie non directe a reviser ?
+        lda     rbit
         sta     $7E
         rol     a
         rol     a
         and     #$01
-        sta     $ED
-L35CE:  jsr     L35E4
+        sta     ralt
+L35CE:  jsr     move_iter
         beq     L35D8
         lda     #$02
         sta     $57
@@ -1757,62 +1792,72 @@ L35CE:  jsr     L35E4
 
 L35D8:  lda     $7E
         beq     L35E1
-        jsr     L363E
+        jsr     move_find_obj
         bne     L35CE
 L35E1:  lda     #$00
         rts
 
-L35E4:  jsr     L38E5
-        bne     L35FD
-        lda     $DA
+; Un essai de deplacement : resout un objet-porte, sinon enchaine sur l'essai suivant
+move_iter:
+        jsr     op_resolve1
+        bne     move_iter2
+        lda     rn2
         cmp     #$01
         beq     L35F0
         rts
 
-L35F0:  lda     $F0
+L35F0:  lda     rid1
         sta     arg1
-        jsr     L3690
-        jsr     L36BB
-        bne     L3622
+        jsr     move_saveptr2
+        jsr     move_gate
+        bne     move_second
         rts
 
-L35FD:  inc     $D9
-        jsr     L36BB
-        beq     L361C
-        jsr     L3690
-        jsr     L3948
-L360A:  beq     L35E4
-        lda     $ED
+; Essai suivant : incremente le compteur d'objet ($D9) et reprend la resolution
+move_iter2:
+        inc     rn1
+        jsr     move_gate
+        beq     move_iter_none
+        jsr     move_saveptr2
+        jsr     op_resolve2
+L360A:  beq     move_iter
+        lda     ralt
         cmp     #$01
         bne     L3613
         rts
 
 L3613:  lda     arg1
-        sta     $F0
-        inc     $DA
-        jmp     L35E4
+        sta     rid1
+        inc     rn2
+        jmp     move_iter
 
-L361C:  jsr     cmd_probe
+; Aucun objet-porte : rejoue l'action en sonde (cmd_probe) puis reprend
+move_iter_none:
+        jsr     cmd_probe
         jmp     L360A
 
-L3622:  jsr     L3948
+; Resout le 2e operateur d'un deplacement a plusieurs objets
+move_second:
+        jsr     op_resolve2
         bne     L3635
-        lda     $DB
+        lda     rn3
         cmp     #$01
         beq     L362E
         rts
 
-L362E:  lda     $F1
+L362E:  lda     rid2
         sta     arg2
         lda     #$00
         rts
 
 L3635:  lda     arg2
-        sta     $F1
-        inc     $DB
-        jmp     L3622
+        sta     rid2
+        inc     rn3
+        jmp     move_second
 
-L363E:  jsr     push_ptr2
+; Cherche dans les records un objet-porte (record+1 bit6) dont l'id vaut arg1
+move_find_obj:
+        jsr     push_ptr2
 L3641:  jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
@@ -1840,14 +1885,18 @@ L366E:  tax
         txa
         rts
 
-L3674:  lda     $7E
-        beq     L3679
+; Met de cote les options de la sortie (svptr) sauf si une annonce est en cours ($7E)
+move_saveopt:
+        lda     $7E
+        beq     move_saveptr
         rts
 
-L3679:  lda     xaux
+; Sauve le pointeur de travail dans svptr (branche directe)
+move_saveptr:
+        lda     xaux
         lsr     a
         lsr     a
-        jsr     L36A5
+        jsr     move_pick_tbl
         lda     direct
         beq     L3687
         jsr     code_54E9
@@ -1857,8 +1906,10 @@ L3687:  lda     ptr
         sta     svptr_hi
         rts
 
-L3690:  lda     xaux
-        jsr     L36A5
+; Meme sauvegarde pour la variante (dans $EA/$EB)
+move_saveptr2:
+        lda     xaux
+        jsr     move_pick_tbl
         lda     variant
         beq     L369C
         jsr     code_54E9
@@ -1868,7 +1919,9 @@ L369C:  lda     ptr
         sta     $EB
         rts
 
-L36A5:  and     #$03
+; Choisit la table de conditions (directe $1A5F / etendue $1A62) selon xaux
+move_pick_tbl:
+        and     #$03
         beq     L36B2
         lda     #$5F
         sta     ptr
@@ -1882,12 +1935,14 @@ L36B2:  lda     #$62
         sta     ptr_hi
         rts
 
-L36BB:  lda     xmode
+; Porte de controle du deplacement : teste xmode/$D8 et rend 1 (continuer) ou 0
+move_gate:
+        lda     xmode
         and     #$04
         bne     L36C2
         rts
 
-L36C2:  lda     $D8
+L36C2:  lda     op2
         and     #$01
         beq     L36C9
         rts
@@ -1901,9 +1956,9 @@ L36C9:  lda     xmode
 L36D2:  lda     #$00
         rts
 
-; Rejoue la commande courante via perform_action ($4B37) en mode sonde, puis
-; renvoie passok dans A : 0 (Z) = l'action passe et pourra etre rejouee en
-; reel (phase=1).
+; Rejoue la commande courante via perform_action ($4B37) en mode sonde
+; (phase=0). Renvoie passok dans A : <>0 = l'action passe et sera rejouee en
+; reel ; 0 = elle n'a pas abouti (cmd_run pose alors $57=3).
 cmd_probe:
         jsr     perform_action
         lda     passok
@@ -1926,7 +1981,7 @@ move_core:
         jsr     push_ptr
         lda     wid
         jsr     exit_ptr
-        jsr     L358F
+        jsr     move_raz
         jsr     code_4141
         jsr     move_flags
         ldx     arg1
@@ -1947,7 +2002,7 @@ L3716:  lda     (ptr),y
         sta     cond2,y
         dey
         bpl     L3716
-L371E:  jsr     L3679
+L371E:  jsr     move_saveptr
         lda     #$00
         sta     phase
         lda     xmode
@@ -1955,17 +2010,19 @@ L371E:  jsr     L3679
         bne     L3733
         jsr     perform_action
         lda     passok
-        jmp     L3743
+        jmp     move_core_end
 
 L3733:  lda     #$01
-        sta     $ED
-        jsr     L35E4
+        sta     ralt
+        jsr     move_iter
         beq     L3741
         lda     #$00
-        jmp     L3743
+        jmp     move_core_end
 
 L3741:  lda     #$01
-L3743:  tax
+; Fin de move_core : restaure les pointeurs de travail et rend le resultat
+move_core_end:
+        tax
         lda     #$01
         sta     phase
         pla
@@ -2024,50 +2081,60 @@ L3784:  sta     direct
 L378D:  sta     variant
         rts
 
-L3790:  ldy     #$01
+; Prepare le bloc d'arguments de la commande puis localise la sortie du lieu.
+; Arguments : lit le record de commande (ptr2, 24 o) - octet 0 -> $F2, octet
+; 1 (& $80) -> $EC et (& $7F) -> $F3 - puis copie les paires d'operandes
+; (y=4/$0E puis 6/$10 via op_copy_pair) ; $F4-$F7 = les 2 operandes.
+; Puis balaye les sorties a partir de $26E2 (pas de 8) : code_433A teste la
+; signature ; la premiere qui correspond arrete la boucle ($6C = index de
+; sortie). Rend 1 si une sortie correspond, 0 sinon (fin de table).
+exit_resolve:
+        ldy     #$01
         lda     (ptr2),y
         and     #$80
-        sta     $EC
+        sta     rbit
         lda     (ptr2),y
         and     #$7F
-        sta     $F3
+        sta     rword_hi
         dey
         lda     (ptr2),y
-        sta     $F2
+        sta     rword
         ldx     #$03
         lda     #$00
-L37A7:  sta     $F4,x
+L37A7:  sta     rarg1,x                         ; raz des operandes $F4-$F7
         dex
         bpl     L37A7
         ldx     #$00
         lda     #$02
         sta     $6C
         ldy     #$04
-        jsr     L38C9
+        jsr     op_copy_pair                    ; copie des paires d'operandes (y=4/$0E/6/$10)
         ldy     #$0E
-        jsr     L38C9
+        jsr     op_copy_pair
         ldy     #$06
-        jsr     L38C9
+        jsr     op_copy_pair
         ldy     #$10
-        jsr     L38C9
+        jsr     op_copy_pair
         lda     #$00
         sta     $79
-        lda     #$E2
+        lda     #$E2                            ; exitp = $26E2 : debut de la table des sorties du lieu
         sta     exitp
         lda     #$26
         sta     exitp_hi
-        lda     #$01
+        lda     #$01                            ; $6C = 1 : index de sortie
         sta     $6C
         lda     #$F2
         sta     ptr3
         lda     #$00
         sta     ptr3_hi
-L37DE:  lda     exitp
+; Boucle de parcours des sorties du lieu (pas de 8) jusqu'a correspondance ou fin de table
+exit_scan:
+        lda     exitp
         sta     $7C
         lda     exitp_hi
         sta     $7D
-        jsr     code_433A
-        beq     L3804
+        jsr     code_433A                       ; code_433A : la sortie correspond-elle au mot courant ?
+        beq     exit_found                      ; correspond -> exit_found ; sinon sortie suivante
         lda     exitp
         clc
         adc     #$08
@@ -2075,73 +2142,83 @@ L37DE:  lda     exitp
         lda     exitp_hi
         adc     #$00
         sta     exitp_hi
-        inc     $6C
+        inc     $6C                             ; index de sortie +1
         ldy     #$00
         lda     (exitp),y
         iny
         ora     (exitp),y
-        bne     L37DE
+        bne     exit_scan
         rts
 
-L3804:  jsr     L380A
+; Sortie trouvee : assemble ses arguments et rend 1
+exit_found:
+        jsr     exit_build_args
         lda     #$01
         rts
 
-L380A:  txa
+; Prepare les 2 operandes de la sortie (echange + copie des conditions) et leurs offsets
+exit_build_args:
+        txa
         beq     L381C
         ldx     #$01
-L380F:  lda     $F4,x
+L380F:  lda     rarg1,x
         tay
-        lda     $F6,x
-        sta     $F4,x
+        lda     rarg2,x
+        sta     rarg1,x
         tya
-        sta     $F6,x
+        sta     rarg2,x
         dex
         bpl     L380F
 L381C:  jsr     code_4141
-        lda     $F4
-        ora     $F5
+        lda     rarg1
+        ora     rarg1_hi
         bne     L382A
         lda     xaux
-        jmp     L384A
+        jmp     exit_arg_swap
 
-L382A:  lda     $F4
+L382A:  lda     rarg1
         ldy     #$0E
         cmp     (ptr2),y
         bne     L3839
         iny
-        lda     $F5
+        lda     rarg1_hi
         cmp     (ptr2),y
         beq     L3846
-L3839:  lda     $F4
+L3839:  lda     rarg1
         ldy     #$10
         cmp     (ptr2),y
         bne     L3846
         iny
-        lda     $F5
+        lda     rarg1_hi
         cmp     (ptr2),y
 L3846:  bne     L384F
         lda     xmode
-L384A:  eor     #$20
-        jmp     L3851
+; Mise en forme des operandes : echange selon xmode
+exit_arg_swap:
+        eor     #$20
+        jmp     exit_arg_mix
 
 L384F:  lda     xmode
-L3851:  and     #$20
+; Suite de mise en forme des operandes (bits de xmode)
+exit_arg_mix:
+        and     #$20
         beq     L3860
         lda     #$08
-        sta     $EE
+        sta     roff1
         lda     #$12
-        sta     $EF
-        jmp     L3868
+        sta     roff2
+        jmp     exit_arg_load
 
 L3860:  lda     #$12
-        sta     $EE
+        sta     roff1
         lda     #$08
-        sta     $EF
-L3868:  ldy     $EE
+        sta     roff2
+; Charge les conditions de la sortie dans l'espace de travail
+exit_arg_load:
+        ldy     roff1
         ldx     #$05
         lda     #$00
-        jsr     L38A0
+        jsr     op_load_cond
         bne     L3882
         lda     $6C
         cmp     #$35
@@ -2164,14 +2241,16 @@ L3893:  lda     cond1,x
         sta     $97,x
         dex
         bpl     L3893
-L389A:  ldy     $EF
+L389A:  ldy     roff2
         ldx     #$0B
         lda     #$01
-L38A0:  pha
+; Copie des octets de condition depuis le record vers l'espace de travail
+op_load_cond:
+        pha
         lda     #$06
 L38A3:  pha
         lda     (ptr2),y
-        sta     $D7,x
+        sta     op1,x
         inx
         iny
         pla
@@ -2181,7 +2260,7 @@ L38A3:  pha
         ldy     #$06
         lda     #$00
 L38B4:  dex
-        ora     $D7,x
+        ora     op1,x
         dey
         bne     L38B4
         cmp     #$00
@@ -2191,21 +2270,23 @@ L38B4:  dex
 
 L38C0:  pla
         tax
-        lda     $D7,x
+        lda     op1,x
         ora     #$01
-        sta     $D7,x
+        sta     op1,x
         rts
 
-L38C9:  dec     $6C
+; Recopie une paire d'operandes (mot + masque) du record de commande
+op_copy_pair:
+        dec     $6C
         bpl     L38CE
         rts
 
 L38CE:  lda     (ptr2),y
-        sta     $F4,x
+        sta     rarg1,x
         iny
         inx
         lda     (ptr2),y
-        sta     $F4,x
+        sta     rarg1,x
         dey
         dex
         ora     (ptr2),y
@@ -2216,18 +2297,26 @@ L38DF:  inx
         inx
         rts
 
-L38E2:
+; Saut indirect auto-modifie vers le matcher ($53C3 direct ou $54F8 variante)
+op_stub:
 L38E3           := * + 1
 L38E4           := * + 2
         jmp     L0000
 
-L38E5:  jsr     push_ptr2
+; Boucle de resolution du 1er operande d'une commande a objets. Le stub
+; auto-modifie op_stub ($38E2) pointe le matcher adequat ($53C3 direct ou
+; $54F8 variante), puis pour chaque candidat de la table de travail $00DC :
+; pose l'id dans arg1 et rejoue l'action via cmd_probe jusqu'a ce qu'elle
+; passe (passok). op_resolve2 ($3948) fait de meme pour le 2e operande
+; (table $00E2).
+op_resolve1:
+        jsr     push_ptr2
         lda     svptr
         sta     ptr
         lda     svptr_hi
         sta     ptr_hi
         lda     direct
-        cmp     #$01
+        cmp     #$01                            ; direct ? choisit le matcher ($53C3 ou $54F8)
         beq     L391B
         lda     #$C3
         sta     L38E3
@@ -2238,7 +2327,9 @@ L38E5:  jsr     push_ptr2
         ror     a
         and     #$03
         sta     $81
-L3908:  jsr     L3928
+; Corps de la boucle de resolution du 1er operande (sauve/restaure les pointeurs)
+op_loop1:
+        jsr     op_step1
         pha
         lda     ptr
         sta     svptr
@@ -2253,27 +2344,31 @@ L391B:  lda     #$F8
         sta     L38E3
         lda     #$54
         sta     L38E4
-        jmp     L3908
+        jmp     op_loop1
 
-L3928:  lda     #$DC
+; Un candidat du 1er operande : matche, pose arg1 et rejoue l'action (cmd_probe)
+op_step1:
+        lda     #$DC
         sta     ptr3
         lda     #$00
         sta     ptr3_hi
-        jsr     L38E2
+        jsr     op_stub
         cmp     #$FF
         bne     L3938
         rts
 
-L3938:  sta     arg1
-        lda     $D7
+L3938:  sta     arg1                            ; candidat retenu : arg1 := id, rejoue l'action
+        lda     op1
         ora     #$02
-        sta     $D7
+        sta     op1
         jsr     code_4B07
         lda     passok
-        beq     L3928
+        beq     op_step1
         rts
 
-L3948:  jsr     push_ptr2
+; Boucle de resolution du 2e operande
+op_resolve2:
+        jsr     push_ptr2
         lda     #$00
         sta     $80
         lda     $EA
@@ -2290,7 +2385,9 @@ L3948:  jsr     push_ptr2
         lda     xaux
         and     #$03
         sta     $81
-L396D:  jsr     L3993
+; Corps de la boucle de resolution du 2e operande
+op_loop2:
+        jsr     op_step2
         pha
         lda     ptr
         sta     $EA
@@ -2308,34 +2405,42 @@ L3986:  lda     #$F8
         sta     L38E3
         lda     #$54
         sta     L38E4
-        jmp     L396D
+        jmp     op_loop2
 
-L3993:  lda     #$E2
+; Un candidat du 2e operande : matche, pose arg2 et rejoue l'action
+op_step2:
+        lda     #$E2
         sta     ptr3
         lda     #$00
         sta     ptr3_hi
-        jsr     L38E2
+        jsr     op_stub
         cmp     #$FF
         bne     L39A3
         rts
 
-L39A3:  sta     arg2
-        lda     $D8
+L39A3:  sta     arg2                            ; candidat retenu : arg2 := id, rejoue l'action
+        lda     op2
         ora     #$02
-        sta     $D8
+        sta     op2
         jsr     cmd_probe
-        beq     L3993
+        beq     op_step2
         rts
 
-L39B1:  jsr     L39B7
+; Affiche le message inline en mode reel (raw=1, phase=1) ; variante de print_msg
+print_spc:
+        jsr     set_real
         jmp     L4402
 
-L39B7:  lda     #$01
+; Repasse en mode reel : raw=1 et phase=1
+set_real:
+        lda     #$01
         sta     raw
         sta     phase
         rts
 
-L39BE:  sta     $57
+; Copie le record de commande (24 o) vers le tampon de travail $490F
+vm_arg_set:
+        sta     $57
         tya
         pha
         ldy     #$17
@@ -2347,60 +2452,75 @@ L39C4:  lda     (ptr2),y
         tay
         rts
 
-L39CF:  lda     $EE
+; Assemble un argument depuis l'espace de travail, affiche le message puis rend 1
+rev_1:  lda     roff1
         ldy     #$05
-L39D3:  jsr     L39BE
+; Corps de rev_1 : copie une paire d'octets vers l'argument VM
+rev_1_loop:
+        jsr     vm_arg_set
         ldx     #$00
-        lda     $D7,y
+        lda     op1,y
         sta     L466F,x
         inx
         iny
-        lda     $D7,y
+        lda     op1,y
         sta     L466F,x
-        jsr     L39B1
+        jsr     print_spc
         ldy     crcnt
         lda     #$01
         rts
 
-L39EE:  lda     $D8
+; Aiguillage de revision d'apres les etats $D8/$DB (2e operande)
+rev_dispatch:
+        lda     op2
         and     #$01
         bne     L39F7
-        jmp     L3ADF
+        jmp     rev_exec1
 
-L39F7:  lda     $D8
+L39F7:  lda     op2
         and     #$02
-        beq     L3A36
-        lda     $DB
+        beq     rev_obj2
+        lda     rn3
         bne     L3A04
-        jmp     L3A2D
+        jmp     rev_real
 
-L3A04:  lda     $EF
+L3A04:  lda     roff2
         ldy     #$0B
-        jmp     L39D3
+        jmp     rev_1_loop
 
-L3A0B:  lda     $DA
+; Aiguillage de revision d'une commande classee 'partielle' (start y arrive
+; via $57=2). Selon les etats $D7/$D8 et les compteurs $D9/$DA/$DB : tente
+; une nouvelle resolution d'objet (rev_obj1 $3A6B / rev_obj2 $3A36),
+; reaiguille vers rev_dispatch ($39EE), ou execute pour de bon
+; (rev_real $3A2D).
+rev_dispatch2:
+        lda     rn2
         cmp     #$01
-        beq     L39EE
-        lda     $D7
+        beq     rev_dispatch
+        lda     op1                             ; etat du 1er operateur ($D7 bit0)
         and     #$01
         bne     L3A1A
-        jmp     L3AB5
+        jmp     rev_exec2
 
-L3A1A:  lda     $D7
-        and     #$02
-        beq     L3A6B
-        lda     $D9
-        beq     L3A2D
+L3A1A:  lda     op1
+        and     #$02                            ; etat du 2e operateur ($D7 bit1)
+        beq     rev_obj1
+        lda     rn1
+        beq     rev_real
         cmp     #$01
-        bne     L39CF
-        jsr     L36BB
-        bne     L39EE
-L3A2D:  jsr     L39B7
-        jsr     perform_action
+        bne     rev_1
+        jsr     move_gate
+        bne     rev_dispatch
+; Rejoue l'action en mode reel (set_real + perform_action)
+rev_real:
+        jsr     set_real
+        jsr     perform_action                  ; rejoue l'action en mode reel
         lda     #$00
         rts
 
-L3A36:  jsr     code_54E9
+; Resolution du 2e objet en variante puis reprise de l'action
+rev_obj2:
+        jsr     code_54E9
         lda     #$01
         sta     variant
         lda     #$E2
@@ -2426,7 +2546,9 @@ L3A63:  sta     arg2
         lda     #$01
         rts
 
-L3A6B:  jsr     code_54E9
+; Resolution du 1er objet en direct puis reprise de l'action
+rev_obj1:
+        jsr     code_54E9
         lda     #$01
         sta     direct
         lda     #$DC
@@ -2452,7 +2574,7 @@ L3A98:  sta     arg1
         lda     #$01
         rts
 
-L3AA0:  jsr     L39B7
+L3AA0:  jsr     set_real
         lda     ptr3
         sta     L466F
         lda     ptr3_hi
@@ -2461,35 +2583,39 @@ L3AA0:  jsr     L39B7
         tax
         ora     ($A9),y
         ora     ($60,x)
-L3AB5:  ldx     #$00
-        lda     $F2
+; Assemble les arguments VM et enchaine l'execution (variante 2)
+rev_exec2:
+        ldx     #$00
+        lda     rword
         sta     L466F,x
         inx
-        lda     $F3
+        lda     rword_hi
         sta     L466F,x
         inx
-        jsr     L3B26
-        lda     $DA
+        jsr     rev_sel_hi
+        lda     rn2
         bne     L3AD2
-        jsr     L39B1
+        jsr     print_spc
         clv
         ora     ($A9),y
         ora     ($60,x)
-L3AD2:  lda     $EE
-        jsr     L39BE
-        jsr     L39B1
+L3AD2:  lda     roff1
+        jsr     vm_arg_set
+        jsr     print_spc
         .byte   $9C
 code_3ADB:
         ora     ($A9),y
         ora     ($60,x)
-L3ADF:  ldx     #$00
-        lda     $F2
+; Assemble les arguments VM et enchaine l'execution (variante 1)
+rev_exec1:
+        ldx     #$00
+        lda     rword
         sta     L466F,x
         inx
-        lda     $F3
+        lda     rword_hi
         sta     L466F,x
         inx
-        jsr     L3B26
+        jsr     rev_sel_hi
         txa
         pha
         lda     arg1
@@ -2502,26 +2628,31 @@ L3ADF:  ldx     #$00
         lda     ptr_hi
         sta     L466F,x
         inx
-        jsr     L3B21
-        lda     $DB
+        jsr     rev_sel_lo
+        lda     rn3
         bne     L3B14
-        jsr     L39B1
+        jsr     print_spc
         ldx     $A911,y
         ora     ($60,x)
-L3B14:  lda     $EF
-        jsr     L39BE
-        jsr     L39B1
+L3B14:  lda     roff2
+        jsr     vm_arg_set
+        jsr     print_spc
         tya
         ora     ($A9),y
         ora     ($60,x)
-L3B21:  lda     #$F0
-        jmp     L3B28
+; Fixe la source des 2 derniers mots d'argument (jeu bas)
+rev_sel_lo:
+        lda     #$F0
+        jmp     rev_sel
 
-L3B26:  lda     #$D0
-L3B28:  sta     L3B34
+; Fixe la source des 2 derniers mots d'argument (jeu haut)
+rev_sel_hi:
+        lda     #$D0
+; Ajoute conditionnellement 2 mots de la fiche de sortie au bloc d'arguments
+rev_sel:sta     L3B34
         sta     L3B58
         ldy     #$03
-        lda     (exitp),y
+        lda     (exitp),y                       ; octet +3 de la sortie (bit5) : ajoute 2 mots d'argument
         and     #$20
 L3B34:  bne     L3B43
         lda     #$00
@@ -2529,7 +2660,7 @@ L3B34:  bne     L3B43
         inx
         sta     L466F,x
         inx
-        jmp     L3B52
+        jmp     rev_sel2
 
 L3B43:  ldy     #$02
         lda     (exitp),y
@@ -2539,7 +2670,9 @@ L3B43:  ldy     #$02
         lda     (exitp),y
         sta     L466F,x
         inx
-L3B52:  ldy     #$07
+; Seconde partie de rev_sel (octet +7 bit7 de la sortie)
+rev_sel2:
+        ldy     #$07
         lda     (exitp),y
         and     #$80
 L3B58:  bne     L3B65
@@ -2565,19 +2698,19 @@ L3B65:  ldy     #$04
 ; handler correspondant : ALL, EXCEPT, IT, ONE, PRINT, NOPRINT, LOAD, SAVE,
 ; QUIT, HELP, SCORE, PAUSE. Ces commandes court-circuitent les actions $7014.
 special_cmd:
-        lda     $F2
+        lda     rword
         sta     L466F
-        lda     $F3
+        lda     rword_hi
         sta     L4670
-        lda     $F4
+        lda     rarg1
         sta     L4671
-        lda     $F5
+        lda     rarg1_hi
         sta     L4672
-        lda     $F6
+        lda     rarg2
         sta     L4673
-        lda     $F7
+        lda     rarg2_hi
         sta     L4674
-        jsr     L39B1
+        jsr     print_spc
         dey
         ora     ($A9),y
         ora     ($60,x)
@@ -6731,7 +6864,13 @@ L5A57:  iny
         beq     L5A43
         rts
 
-L5A62:  lda     phase
+; Epilogue d'action partage : en mode reel (phase=1) decrit le lieu courant
+; (describe_room) ; en mode sonde (phase=0) il se contente de rendre
+; passok=0, ce qui amene cmd_run a classer la commande en revision ($57=3).
+; Sert de queue a de nombreux corps d'action ($5BE4, $5C74, $5CC5, $5D8F,
+; $6054, $60FD, $61F1, $6601, $6A8F, $6B0D, $6B34) et est appele en $6CF1.
+act_look:
+        lda     phase
         cmp     #$01
         bne     L5A6B
         jmp     describe_room
@@ -6962,7 +7101,7 @@ L5BD9:  jsr     obj_record
         ldy     #$01
         cmp     (ptr),y
         bne     L5BE7
-        jmp     L5A62
+        jmp     act_look
 
 L5BE7:  lda     (ptr),y
         cmp     #$FF
@@ -7035,7 +7174,7 @@ L5C41:  sta     L5C77
 
 L5C72:  pla
         pla
-        jmp     L5A62
+        jmp     act_look
 
 L5C77:  .byte   $00
 code_5C78:
@@ -7092,7 +7231,7 @@ act_p14_14:
 L5CBE:  jsr     L576D
         cmp     #$FF
         bne     L5CC8
-L5CC5:  jmp     L5A62
+L5CC5:  jmp     act_look
 
 L5CC8:  ldy     #$02
         lda     (ptr),y
@@ -7201,7 +7340,7 @@ L5D74:  lda     obj
         bne     L5DAF
 L5D8A:  jsr     is_dark
         bcs     L5D92
-        jmp     L5A62
+        jmp     act_look
 
 L5D92:  jsr     act_probe
         clc
@@ -7610,7 +7749,7 @@ act_p14_13:
         lda     (orec2),y
         and     #$07
         bne     L6057
-        jmp     L5A62
+        jmp     act_look
 
 L6057:  cmp     #$06
         beq     L5FFA
@@ -7711,7 +7850,7 @@ act_p14_01:
         lda     (orec),y
         and     #$02
         beq     L6100
-L60FD:  jmp     L5A62
+L60FD:  jmp     act_look
 
 L6100:  lda     (orec),y
         and     #$08
@@ -7839,7 +7978,7 @@ act_p14_07:
         jsr     L576F
         cmp     #$FF
         bne     L61F4
-        jmp     L5A62
+        jmp     act_look
 
 L61F4:  lda     orec2
         sta     ptr2
@@ -8339,7 +8478,7 @@ act_p14_10:
         lda     (ptr),y
         cmp     #$0F
         beq     L6604
-        jmp     L5A62
+        jmp     act_look
 
 L6604:  jmp     act_p14_03
 
@@ -8868,7 +9007,7 @@ L6A79:  stx     $1F85
         jsr     L576F
         cmp     #$FF
         bne     L6A92
-        jmp     L5A62
+        jmp     act_look
 
 L6A92:  jsr     act_probe
         jsr     print_msg
@@ -8948,7 +9087,7 @@ evt_arme9b:
         lda     $1B1B
         cmp     #$FF
         beq     L6B10
-        jmp     L5A62
+        jmp     act_look
 
 L6B10:  jsr     print_msg
 ; -> $14FD YOU CANNOT REACH<ARG1>.
@@ -8974,7 +9113,7 @@ L6B26:  rts
         lda     $1B1B
         cmp     #$FF
         beq     L6B37
-        jmp     L5A62
+        jmp     act_look
 
 L6B37:  jsr     print_msg
 ; -> $14FD YOU CANNOT REACH<ARG1>.
@@ -9272,7 +9411,7 @@ L6CE2:  jsr     act_probe
         sta     arg1
         lda     #$FF
         sta     arg2
-        jsr     L5A62
+        jsr     act_look
         jsr     act_p14_00
         jmp     L5FAE
 
@@ -9310,7 +9449,7 @@ L6D0E:  jsr     act_probe
         sta     orec2
         lda     #$1B
         sta     orec2_hi
-        jsr     L5A62
+        jsr     act_look
         jmp     L63DC
 
         lda     ploc
@@ -9669,7 +9808,7 @@ L6F56:  ldy     #$07
         lda     (orec2),y
         and     #$02
         bne     L6F61
-        jmp     L5A62
+        jmp     act_look
 
 L6F61:  lda     (ptr),y
         and     #$04

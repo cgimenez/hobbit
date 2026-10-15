@@ -340,9 +340,12 @@ avance, `$34D0` fusionne).
 
 Une fois la commande construite, `start` l'exécute :
 
-- `cmd_run` (`$357C`) tente d'abord de la traiter comme un **déplacement** ;
-  sinon `cmd_probe` (`$36D5`) la rejoue en **mode sonde** et positionne `$57`
-  (1 = commande spéciale, 2 = action de lieu, 3 = rien) pour `start`.
+- `cmd_run` (`$357C`) tente d'abord de la traiter comme un **déplacement**
+  (`move_begin` `$359B`) ; sinon `cmd_probe` (`$36D5`) la rejoue en **mode
+  sonde**. Selon le résultat, `start` interprète `$57` : **1** = pas une sortie
+  (WAIT / commande spéciale), **2** = déplacement partiel à réviser
+  (`rev_dispatch2` `$3A0B`), **3** = action à rejouer en réel (`rev_real`
+  `$3A2D`).
 - `perform_action` (`$4B37`) exécute l'action ordinaire : résolution des objets
   (`orec`/`orec2` via `obj_record` `$5331`, contrôle `obj_check` `$4CDF`),
   obscurité (`is_dark` `$4C82` → `I SEE NOTHING HERE.`), compatibilité
@@ -364,6 +367,38 @@ PNJ (`entity_tick` `$4ED5`) puis événements différés (`evt_tick` `$4E75`).
   (n=1) et des enregistrements `rec_*` ; cohabitation avec les artefacts de
   développement `$477C`–`$49B3` (les tampons `$4783`/`$47C3`/`$490F`/`$4927`
   recouvrent cette zone : état périmé réutilisé comme scratch).
+
+### 5. Résolution des sorties et révision d'action (`$358F`–`$3BC5`)
+
+Branche **déplacement** de `cmd_run` (`move_begin` `$359B`), distincte de
+`move_core` (`$36DB`, réservée aux PNJ via `entity_move`) :
+
+1. `move_raz` (`$358F`) remet à zéro l'espace de résolution `$D7..$E7`
+   (`op1`/`op2` = états des opérandes, `rn1`-`rn3` = compteurs, `cond1`/`cond2`).
+2. `exit_resolve` (`$3790`) construit les arguments VM `$F2-$F7` (`rword`,
+   `rarg1`, `rarg2`) depuis le record de commande (`ptr2`, 24 o) puis balaye les
+   sorties du lieu (`$26E2`, pas de 8 ; matcher `code_433A`, `$6C` = index) :
+   rend **1** si une sortie correspond, **0** sinon (→ `$57=1`).
+3. `move_go` (`$35AE`) cale `wid := $6C`, dérive les options (`move_flags`) puis
+   tente l'essai (`move_iter` `$35E4` → `move_gate` `$36BB`).
+4. `op_resolve1` (`$38E5`) / `op_resolve2` (`$3948`) : boucles qui essayent
+   chaque candidat d'opérande (stub auto-modifié `op_stub` `$38E2` →
+   `$53C3`/`$54F8`), posent `arg1`/`arg2` et rappellent `cmd_probe` jusqu'à
+   `passok`.
+5. Révision (`$39BE`–`$3B74`) : `rev_dispatch2` (`$3A0B`) / `rev_dispatch`
+   (`$39EE`) aiguillent selon `op1`/`op2` et `rn1`-`rn3` ; `rev_exec1/2`
+   (`$3ADF`/`$3AB5`) assemblent le bloc d'arguments VM (`$466F..`, via
+   `vm_arg_set` `$39BE` et `rev_sel` `$3B28`) ; `rev_real` (`$3A2D`,
+   `set_real` `$39B7`) exécute l'action pour de bon.
+6. `act_look` (`$5A62`) = épilogue d'action partagé : en mode réel il décrit le
+   lieu, en sonde il rend `passok=0` (→ révision `$57=3`).
+
+Vérifié sous harnais (`sim65 --trace` filtré par PC, cf. `scripts/sim_trace.py`) :
+le trajet `EAST`/`OPEN CHEST` montre `move_begin → exit_resolve → move_go →
+move_iter → cmd_probe` puis, selon le cas, `rev_dispatch2 → rev_real →
+act_look` (réel). **Ouvert** : sémantique exacte des bits de `op1`/`op2` et des
+compteurs `rn1`-`rn3` (les branches de `rev_dispatch`/`rev_dispatch2` les
+recoupent mais leur rôle fin reste à confirmer).
 
 ## Bloc 2 : dictionnaire et catalogue de messages (`$0500-$1A0E`)
 
@@ -797,11 +832,13 @@ sur bit5.
   cibles de branches/JSR/JMP, tables ressemblant à du code, ROM, vecteurs,
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
-- `disasm/block4.asm` : listing annoté — **16 980 o de code**, 99 sites
-  `$440D` (118 inline `$440D`/`$5B24`), 249 routines documentées (dont le
+- `disasm/block4.asm` : listing annoté — **16 980 o de code**, 102 sites
+  `$440D` (118 inline `$440D`/`$5B24`), 296 routines documentées (dont le
   parser AnimTalk, la VM AnimAction — `entity_tick`, jeu d'opcodes, 18
   `act_v14_*`, moteur d'errance —, l'exécution des commandes joueur
-  (`cmd_run`, `perform_action`, `describe_room`, `special_cmd`), les records
+  (`cmd_run`, `perform_action`, `describe_room`, `special_cmd`) et la
+  résolution sortie/opérandes (`move_begin`, `exit_resolve`, `op_resolve1/2`,
+  `rev_dispatch2`, `rev_real`, `act_look`), les records
   (`room_record`/`obj_record`/`tbl_lookup`), 10 `vec_*`/`img_show`, 33 actions
   `L7014`/`L7143` et 6 handlers SAVE/LOAD) + commentaires au niveau instruction
   (dispatch de classe du parser, VM des PNJ, exécution des commandes), 0 conflit.
