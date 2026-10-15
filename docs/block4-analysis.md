@@ -425,78 +425,182 @@ données comme la table d'actions étendue `$7020`, 30 mots). Restent intirés
 par le ticker : `$6915` (tip aléatoire `$1485`, `actB` des `cond=0`), `$6F2A`
 (flags web — le re-mend différé ne part jamais : à confirmer en jeu).
 
-## Bloc 2 : scripts PNJ — VM AnimAction (`$28E1`–`$2B11`, `entity_tick` $4ED5)
+## AnimAction : les personnages autonomes
 
-Table `$2B45` : 17 entrées 7 o `[id, n, PC_lo, PC_hi, base_lo, base_hi, s6]`,
-`$FF` en `$2BBC` ; id `$00` = slot dormant (3 : `$2B61 $2B76 $2B7D`) ;
-14 actives `$3E $3F $40 $43 $41 $44 $47 $48 $3D $45 $4B $49 $4A $4C`
-(PC initiaux `$295C $298E $29BC $29C7 $2A38 $2A8F $2AD0×2 $28E1×2 $2910
-$2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non promu).
+AnimAction est le second système élucidé du jeu (après AnimTalk) : chaque
+personnage **vit sa propre vie** — il se déplace, parle, ramasse des objets,
+attaque — **même quand le joueur est ailleurs**. Le « cerveau » de chaque PNJ
+est un petit **script** (une suite d'opcodes) rejoué un peu à chaque tour.
 
-- Tour : `once` (test `L3E8E`) → préambule one-shot `$x0-4` (bit `$40`
-  clair, via `code_3F7F`/`L46E9`/`L5127`) ; sinon dispatch nibble bas :
-  pair `$x0/$x2` = MOVE 4 o (+2 si bit `$10`) `[wid,arg1,arg2]` via
-  `entity_move` ; impair `$x1/$x3` = ACT 3 o (+2) via `L7143` ;
-  `$x4` = MOVE court (`wid`, arg=`$FF`) ou saut (`$FF`+bit `$10`) ;
-  `$xE` = GOTO absolu 3 o ; `$xC` = PATCH table (ligne clé := cible,
-  PC courant inchangé — hang apparent, à vérifier sous harnais) ;
-  `$xF` = RAND parmi `min(opérande,n)` cibles ; `$x5-$xD` = INDIR
-  table[0]. **Budget 6 ops/tick** (`L4ED3`) = garde-fou des boucles
-  (`GOTO self`, INDIR cycliques). Après move : bit `$20` → efface
-  l'opcode (auto-modification) ; bit `$10` → saut calculé si échec.
-- Base (entrée+4,5) = table de sauts 3 o `[clé,lo,hi]` (clés `$00`,
-  réécrites par `$xC`) ; ex. `$3E`/`$2943` : 5 cibles `$2964-$297E`.
-- ACT : octet b → **mot b** de la table `$7143` (38 o : sent `$FF0B` +
-  18 mots — pas 15 !) : 1–15 = connues, **16–18 = 3 inédites**
-  documentées (`act_v14_15/16/17`, checker PROPRE, rebuild OK) :
-  `$6E8B` (si `$C8`==5 : sonde, `$C5`==`$47` ? `$1615` BLIMEY COOK EM
-  : `$162B` MOUTHFUL [trolls]) ; `$6CDB` (visible : sonde, wid=`$1B`,
-  `$60BF` + `JMP $5FAE` ; routine jumelle `$6CF9` collée derrière :
-  tracking objet `$1FC1`/`$1FB2`) ; `$6EA7` = `$6E8B`+28 (sonde +
-  `L4D47` ×2, RAZ bit7 `$1F94`/`$1FA6`, `$214C`&~`$40`, desc
-  `$2154`=`$1645`, dit `$16EB` — **retombe sur le slot mutable des
-  records**, § précédent).
-- Scripts : `$3E` errance (MOVE `$1D`/`$10`/`$24`/`$13`/`$0D`/`$0E`,
-  ACT 1/2, RAND→4 cibles) ; `$44` Gollum présumé (ACT 13/14, MOVE
-  `$0E`/`$01`=NORTH/`$13` arg=`$10` = caverne aux torches) ; `$41`
-  dragon présumé (ACT 7/8, eloc `$09`) ; `$47`/`$48` (ACT 16/17,
-  eloc `$05`, template `EYE`) ; `$3D`/`$45` en `$28E1` (MOVE `$10`
-  arg `$06` + boucle MOVE `$30`) ; `$3F`/`$43`/`$49`/`$4B` boucles
+Toutes les routines citées ici sont nommées dans
+[`disasm/block4.asm`](../disasm/block4.asm) (`ROUTINE_DOCS`/`ROUTINE_NOTES` de
+[`scripts/disasm.py`](../scripts/disasm.py)).
+
+### Vue d'ensemble : la boucle du monde (`world_tick` `$4E59`)
+
+`world_tick` est appelée après chaque commande réussie du joueur et fait avancer
+le monde en trois temps :
+
+```
+world_tick ($4E59)
+  ├─ victory_check ($69E7)   condition de victoire (foule + score)
+  ├─ entity_tick  ($4ED5)    VM AnimAction : joue les scripts des PNJ
+  └─ evt_tick     ($4E75)    événements différés (table $2B12, cf. § événements)
+```
+
+### La table des personnages `$2B45`
+
+17 entrées de 7 octets `[id, n, PC_lo, PC_hi, base_lo, base_hi, s6]`, terminée
+par `$FF` en `$2BBC` :
+
+- `id` = identifiant du personnage ; `$00` = **slot dormant** (3 slots :
+  `$2B61 $2B76 $2B7D`), sauté par la VM.
+- `PC` (`+2/+3`) = pointeur du script courant dans le bloc 2.
+- `base` (`+4/+5`) = table de sauts 3 o `[clé, lo, hi]` propre à l'entité
+  (cibles des `GOTO`/`RAND`/`INDIR`).
+- Les **14 entités actives** : `$3E $3F $40 $43 $41 $44 $47 $48 $3D $45 $4B
+  $49 $4A $4C` (PC initiaux `$295C $298E $29BC $29C7 $2A38 $2A8F $2AD0×2
+  $28E1×2 $2910 $2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non
+  promu).
+
+### Le script d'un personnage : format d'opcode
+
+L'opcode est l'octet pointé par le PC. On le dispatche sur son **nibble bas** :
+
+| Opcode | Nom | Taille | Effet |
+|---|---|---|---|
+| `$x0/$x2` | MOVE long | 4 o (+2) | `wid=(PC)1, arg1=(PC)2, arg2=(PC)3` → `entity_move` |
+| `$x1/$x3` | ACT | 3 o (+2) | `(PC)1` = index dans la table d'actions `$7143` |
+| `$x4` | MOVE court | 2 o (+2) | `wid=(PC)1` ; `$FF` + bit `$10` = saut inconditionnel |
+| `$x5-$xD` | INDIR | 2 o | saute via la table de base (`script_indir` `$51DA`, cible `[0]`) |
+| `$xC` | GOTO clé | 2 o | `entity_goto(id, clé)` via la table de base |
+| `$xE` | GOTO absolu | 3 o | `PC := (PC)1/(PC)2` |
+| `$xF` | RAND | 2 o | tire une cible parmi `min(op, n)` (`script_rand` `$51CA`) |
+
+Bits de contrôle de l'opcode :
+
+- bit `$20` : **auto-modification** — l'opcode est effacé (`sta (ptr),y`) après
+  le move, ce qui rend le personnage dormant au tour suivant.
+- bit `$10` : **plan de secours** — si l'action échoue, saute de la taille de
+  l'instruction (saut calculé, `script_step2`).
+
+> `$xC` (GOTO par clé) n'apparaît **dans aucun des 17 scripts** : chemin
+> runtime-only d'après le code (`entity_goto` `$5249`), corrige l'ancienne note
+> « PATCH table ».
+
+### Le tour d'une entité (`entity_tick` `$4ED5`)
+
+`entity_tick_init` (`$5235`) prépare le tour : résout le lieu du joueur (`ploc`)
+et teste la noirceur (compteur d'ambiance `L4ED4`). Puis, pour chaque entrée de
+`$2B45` :
+
+1. `id=$00` → entrelace ; `id=$FF` → fin (`entity_tick_done` `$5008`).
+2. `obj=id`, résolution du lieu/fiche (`L57BB`), affichage coupé (`outen=0`).
+3. Si noir et PNJ « présent », annonce le bruit `YOU HEAR A NOISE` (une fois).
+4. **Préambule one-shot** : si l'entité est en cours de planification
+   (`once`, test `cand_check` `$3E8E`) et que l'opcode n'a pas le bit `$40`,
+   lance le moteur d'errance (`wander_start` `$3F7F` + `move_announce` `$5127`)
+   au lieu de l'opcode.
+5. Sinon, exécution des opcodes (dispatch du tableau ci-dessus), **au plus 6
+   opcodes par tick** (`L4ED3` = garde-fou contre les boucles `GOTO self` /
+   `INDIR` cycliques). Le PC est réécrit dans `(entrée)+2/+3` après chaque
+   instruction.
+6. Fin : `entity_tick_done` restaure le joueur (`crec=$1B1A`, `eloc=$1B2A`) et
+   réautorise l'affichage.
+
+### Déplacement et perception
+
+- `entity_move` (`$511C`) appelle le **moteur de déplacement partagé**
+  `move_core` (`$36DB`) : trouvé la sortie du lieu selon `wid`/`arg1`/`arg2`,
+  vérifie ses conditions (`cond_eval`), puis déplace ou refuse.
+- `move_announce` (`$5127`) traite ce que le joueur **perçoit** du déplacement :
+  description de l'arrivée (`L417C`) ou bruit `YOU HEAR A NOISE` (une fois par
+  tour), puis exécution de l'action (`L4B37`) et répliques éventuelles.
+- `say_if_visible` (`$5279`) n'affiche un dialogue que si le personnage est
+  **visible du joueur** (même lieu, pas en pleine annonce, drapeau `L5611`).
+- `entity_goto` (`$5249`) = saut « nommé » : X = clé, A = id ; la clé est
+  résolue dans la table de base de l'entité.
+
+### Les actions autonomes : table `$7143`
+
+L'octet opérande d'un ACT indexe la table `$7143` (38 o : sentinelle `$FF 0B`
++ **18 mots** de pointeurs, pas 15). L'adresse obtenue est posée dans
+`$4C64/$4C65` puis appelée par `indirect_call` (`$4C5D`).
+
+- Index 1–15 = actions connues (`act_v14_*`, `$68D0`–`$6EA7`), par ex. :
+  `$68D0` « HELLO » ; `$68E0` PNJ oisif (tirage GREAT JOB / HURRY UP / HELLO) ;
+  `$692D` « WHAT'S THIS ? » ; `$6936` « HURRY UP » ; `$6962` « WHERE'S THE
+  THIEF ? » ; `$6CFA` ramasse un objet ; `$6D78` Gollum (POCKET ? / MY
+  PRECIOUS) ; `$6DF9` « SOMEONE STRANGLE YOU » ; `$6E59` dragon (vol / flammes) ;
+  `$6CBE` dragon « PREPARE TO DIE ».
+- **Index 16–18 = 3 actions inédites** (checker PROPRE, rebuild OK) :
+  `$6E8B` trolls (si `$C8`==5 : `$C5`==`$47` ? `$1615` BLIMEY COOK EM :
+    `$162B` MOUTHFUL) ;
+  `$6CDB` combat simulé (visible : sonde, wid=`$1B`, `$60BF` + `JMP $5FAE` ;
+    routine jumelle `$6CF9` collée derrière : tracking objet `$1FC1`/`$1FB2`) ;
+  `$6EA7` = `$6E8B`+28 (sonde + `L4D47` ×2, RAZ bit7 `$1F94`/`$1FA6`,
+    `$214C`&~`$40`, desc `$2154`=`$1645`, dit `$16EB` — **retombe sur le slot
+    mutable des records**).
+
+Chaque action teste d'abord sa **condition de lieu** (`eloc`/`ploc`) ou son
+drapeau, puis `act_probe` (`$5386`) : en mode sonde elle n'agit pas mais retient
+que l'action passe (`passok`), ce qui permet de la rejouer en mode réel.
+
+### Le moteur d'errance (placement des PNJ)
+
+Quand un personnage doit se déplacer seul, le jeu empile ses commandes dans la
+file `$4905` (curseurs `qrd`/`qwr` `$D1/$D2`), en évalue le coût et retient des
+destinations candidates dans la table `$48D3` (entrées 5 o `[id, poids, état,
+lo, hi]`) sous contrainte de **budget** (`mwt` `$D0`, `$0A` de base) :
+
+- `actq_pull` (`$3E5B`) retire l'action suivante de la file et prépare ses
+  tokens (`L4783`) pour le parseur.
+- `wander_core` (`$3EB2`) rejoue ces commandes via `parse_cmd` pour évaluer un
+  chemin et cumule leur poids (`macc` `$D3`).
+- `wander_start` (`$3F7F`) / `wander_step` (`$3F8E`) sélectionnent et tentent le
+  déplacement ; `wander_select` (`$4035`) pointe la commande candidate.
+- `wander_rewind` (`$3FE5`) consomme le poids et `wander_remove` (`$4051`)
+  retire un personnage de la liste (appelée par `code_4D47`).
+
+### États, scripts et activation
+
+- États `$1A62` : 61 clés (`$00-$2B`, `$3C-$4C` ; **trou `$2C-$3B`** ; triplets
+  `[clé,lo,hi]` + `$FF` en `$1B19`) → blocs `$1Bxx` (plan d'octets :
+  `docs/memory-map.md`) ; `L5331` (état mutable) ≠ `L530B` (record template) ;
+  `L57BB` : état+0==1 → `eloc`=état+`$10` (`$3E`=`$01`, map `$03`=`$01` holder
+  `$3E` ; `$41`=`$09`, `$43`=`$15`, `$44`=`$11`, `$47`/`$48`=`$05`) ; état+1 =
+  porteur ? (`$03`→`$3E` = Gandalf porte la carte au boot) ; état+8 = template
+  description (tokens runtime `<t00>`/`<t08>`, illisible statiquement).
+- Scripts : `$3E` errance (MOVE `$1D`/`$10`/`$24`/`$13`/`$0D`/`$0E`, ACT 1/2,
+  RAND→4 cibles) ; `$44` Gollum présumé (ACT 13/14, MOVE `$0E`/`$01`=NORTH/`$13`
+  arg=`$10` = caverne aux torches) ; `$41` dragon présumé (ACT 7/8, eloc `$09`) ;
+  `$47`/`$48` (ACT 16/17, eloc `$05`, template `EYE`) ; `$3D`/`$45` en `$28E1`
+  (MOVE `$10` arg `$06` + boucle MOVE `$30`) ; `$3F`/`$43`/`$49`/`$4B` boucles
   `MOVE`+`GOTO self`.
-- États `$1A62` : 61 clés (`$00-$2B`, `$3C-$4C` ; **trou `$2C-$3B`** ;
-  triplets `[clé,lo,hi]` + `$FF` en `$1B19`) → blocs `$1Bxx` (plan
-  d'octets : `docs/memory-map.md`) ; `L5331` (état mutable) ≠ `L530B` (record
-  template) ; `L57BB` : état+0==1 → eloc=état+`$10` (`$3E`=`$01`,
-  map `$03`=`$01` holder `$3E` ; `$41`=`$09`, `$43`=`$15`,
-  `$44`=`$11`, `$47`/`$48`=`$05`) ; état+1 = porteur? (`$03`→`$3E`
-  = Gandalf porte la carte au boot) ; état+8 = template description
-  (tokens runtime `<t00>`/`<t08>`, illisible statiquement).
-- Exits étendue : `$26DA`+wid*8 ; wid `$00-$0A` directions (mot +
-  `AD 04`), wid `$0B+` **conditionnelles** (format `code_4141`,
-  flags `$40`/`$60`/`$80` → direct/variant) jusqu'à ~`$28C2` (wid
-  `$30`/`$37` valides : `$285A`/`$2892`) ; wids des scripts :
-  `$01 $06 $0B $0D $0E $10 $13 $1D $24 $27 $30 $37` (ex. `$1D` =
-  `8D C4 DE 0A 00 10 00 60`, `$10` = `8B 87…40`).
-- Ouverts : trou `$2C-$3B` (voir § records : `$2D-$33` objets sans état,
-  `$34`/`$35` faction sans état/slot, `$3C` futur — état `$1B30`
-  pré-existant, identité à confirmer) ; `$xC` (0 occurrence dans les
-  17 scripts : runtime-only si jamais) ; `n`/`s6` exacts ;
-  eloc non-chambres (`$09`, `$38`/`$3A` = conteneurs ?) ; cohabitation
-  scripts `$28E1` / copies boot (zone lue ET exécutée, ROM intacte).
-- Dormants `$2B45` = **vrais scripts** (pas du garbage) : `$42`
-  (`$29EE` : MOVE `$26`/`$10`/`$0D` arg `$08`), `$46` (`$2A77` :
-  ACT `$6C33` + MOVE `$13` arg `$25`, loop), `$3C` (`$2A54` : ACT
-  `$6E59`→`$6C8D`→MOVE `$24`, sauts calculés bit `$10` chaînés) ;
-  activation = id seul (`evt_arme16` : `$2B61`:=`$42` si
-  `($1DC5&8)==0` ; `evt_arme9` : `$2B76`:=`$46`, `$2B7D`:=`$3C`),
-  PC/base résiduels valides (`$29EE` table[0]=self).
-- Copies boot `L30F9` (4×6 o, via `boot_copy`) : `$1B1A`→`$91D0`
-  (1366 o, états), `$28CC`→`$9726` (753 o, bases+scripts+tables —
-  pas `$28E6`, la vraie source est `$28CC`), `$211A`→`$9A17`
-  (1480 o, **records mutables**), `$00BE`→`$9FDF` (24 o, ZP) ;
-  contiguës (`$9726`=`$91D0`+`$556`, `$9A17`=`$9726`+`$2F1`) =
-  image SAVE/LOAD (`boot_copyback` = restore). Corrige le
+- Dormants `$2B45` = **vrais scripts** (pas du garbage) : `$42` (`$29EE` : MOVE
+  `$26`/`$10`/`$0D` arg `$08`), `$46` (`$2A77` : ACT `$6C33` + MOVE `$13` arg
+  `$25`, loop), `$3C` (`$2A54` : ACT `$6E59`→`$6C8D`→MOVE `$24`, sauts calculés
+  bit `$10` chaînés) ; activation = id seul (`evt_arme16` : `$2B61`:=`$42` si
+  `($1DC5&8)==0` ; `evt_arme9` : `$2B76`:=`$46`, `$2B7D`:=`$3C`), PC/base
+  résiduels valides (`$29EE` table[0]=self).
+- Copies boot `L30F9` (4×6 o, via `boot_copy`) : `$1B1A`→`$91D0` (1366 o,
+  états), `$28CC`→`$9726` (753 o, bases+scripts+tables — pas `$28E6`, la vraie
+  source est `$28CC`), `$211A`→`$9A17` (1480 o, **records mutables**),
+  `$00BE`→`$9FDF` (24 o, ZP) ; contiguës (`$9726`=`$91D0`+`$556`, `$9A17`=
+  `$9726`+`$2F1`) = image SAVE/LOAD (`boot_copyback` = restore). Corrige le
   « `$28E6`+ » approximatif des notes précédentes.
+- Exits étendue (utilisées par les MOVE) : `$26DA`+wid*8 ; wid `$00-$0A`
+  directions (mot + `AD 04`), wid `$0B+` **conditionnelles** (format
+  `code_4141`, flags `$40`/`$60`/`$80` → direct/variant) jusqu'à ~`$28C2` (wid
+  `$30`/`$37` valides : `$285A`/`$2892`) ; wids des scripts : `$01 $06 $0B $0D
+  $0E $10 $13 $1D $24 $27 $30 $37` (ex. `$1D` = `8D C4 DE 0A 00 10 00 60`, `$10`
+  = `8B 87…40`).
+- Ouverts : trou `$2C-$3B` (voir § records : `$2D-$33` objets sans état,
+  `$34`/`$35` faction sans état/slot, `$3C` futur — état `$1B30` pré-existant,
+  identité à confirmer) ; `$xC` (0 occurrence dans les 17 scripts : runtime-only
+  si jamais) ; `n`/`s6` exacts ; eloc non-chambres (`$09`, `$38`/`$3A` =
+  conteneurs ?) ; cohabitation scripts `$28E1` / copies boot (zone lue ET
+  exécutée, ROM intacte).
 
 ## Bloc 2 : records lieux — layout `+0..7` élucidé (matcher `code_433A`)
 
@@ -669,10 +773,11 @@ sur bit5.
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 980 o de code**, 99 sites
-  `$440D` (118 inline `$440D`/`$5B24`), 214 routines documentées (dont le
-  parser AnimTalk, 10 `vec_*`/`img_show`, 33 actions `L7014`/`L7143` et 6
-  handlers SAVE/LOAD) + commentaires au niveau instruction (dispatch de
-  classe du parser), 0 conflit.
+  `$440D` (118 inline `$440D`/`$5B24`), 232 routines documentées (dont le
+  parser AnimTalk, la VM AnimAction — `entity_tick`, jeu d'opcodes, 18
+  `act_v14_*`, moteur d'errance —, 10 `vec_*`/`img_show`, 33 actions
+  `L7014`/`L7143` et 6 handlers SAVE/LOAD) + commentaires au niveau instruction
+  (dispatch de classe du parser et de la VM des PNJ), 0 conflit.
 
 Régénérer et vérifier :
 

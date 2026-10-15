@@ -501,6 +501,62 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "act_v14_17",
         "PNJ : efface des drapeaux, met a jour une description et affiche un message",
     ),
+    # ---- AnimAction : VM des PNJ (le 'cerveau' d'un personnage, $4E59-$5279) ----
+    # entity_tick parcourt la table $2B45 et joue quelques opcodes de script par
+    # personnage et par tour. Les helpers ci-dessous implementent le jeu d'opcodes
+    # (MOVE/ACT/INDIR/RAND/GOTO) et la mecanique de deplacement/visibilite.
+    0x69E7: (
+        "victory_check",
+        "Victoire : quand le compte est bon, la foule acclame et le score est credite",
+    ),
+    0x4C5D: (
+        "indirect_call",
+        "Appelle la routine dont l'adresse a ete posee dans $4C64/$4C65 (dispatch des tables d'actions)",
+    ),
+    0x5008: ("entity_tick_done", "Fin de la table des entites : restaure le contexte du joueur"),
+    0x5048: (
+        "script_move",
+        "Opcode MOVE long : avance le PC puis deplace le personnage (ou joue l'action ACT)",
+    ),
+    0x50AC: (
+        "script_move_short",
+        "Opcode MOVE court : deplace (wid), ou saute (bit $10) si l'operande vaut $FF",
+    ),
+    0x5127: (
+        "move_announce",
+        "Annonce un deplacement de PNJ : si visible du joueur, decrit la scene et joue l'action",
+    ),
+    0x51CA: (
+        "script_rand",
+        "Opcode RAND : tire une cible au hasard parmi min(op, n) entrees de la table de base",
+    ),
+    0x51DA: (
+        "script_indir",
+        "Opcode INDIR : saute a la cible choisie dans la table de base de l'entite",
+    ),
+    0x520D: ("entity_find", "Retrouve l'entree d'un personnage par son id dans la table $2B45"),
+    0x5235: ("entity_tick_init", "Init du tick : lieu du joueur, detection du noir, compteur de bruit"),
+    # ---- AnimAction : moteur d'errance / placement des PNJ ($3E5B-$406F) ----
+    # Quand un personnage doit se deplacer seul (errance), le jeu empile ses
+    # commandes dans $4905 et evalue les destinations candidates ($48D3) sous
+    # contrainte de poids (budget $0A). Ces routines constituent ce moteur.
+    0x3E5B: (
+        "actq_pull",
+        "Retire l'action suivante de la file $4905 et prepare ses tokens (reprise du parseur)",
+    ),
+    0x3E8E: ("cand_check", "Teste si le personnage courant figure dans la liste de candidats $48D3"),
+    0x3EB2: (
+        "wander_core",
+        "Coeur du moteur d'errance : parse les deplacements en file et calcule leur poids",
+    ),
+    0x3F7F: ("wander_start", "Declenche le deplacement d'errance retenu pour le personnage courant"),
+    0x3F8E: (
+        "wander_step",
+        "Execute le deplacement d'errance : choisit un candidat, tente le move, memorise l'echec",
+    ),
+    0x3FE5: ("wander_rewind", "Rembobine la file des commandes et consomme le poids du deplacement"),
+    0x4035: ("wander_select", "Selectionne l'entree candidate (index) et pointe sa suite de commandes"),
+    0x4051: ("wander_remove", "Retire un personnage de la liste des candidats d'errance"),
     0x4737: ("fetch_retaddr", "Recupere l'adresse de retour empilee"),
     0x71DB: ("tape_load", "Charge un bloc depuis la cassette et verifie son en-tete"),
     0x7215: ("tape_save", "Ecrit un bloc sur la cassette (leader, en-tete, donnees, checksum)"),
@@ -711,11 +767,217 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "puis avance (rec_next). Si les champs +4/+5 sont non nuls, applique rec_fixup1.",
     ],
     0x4ED5: [
-        "Fait jouer le script d'un personnage : son 'cerveau'. Chaque personnage a une petite",
-        "suite d'instructions (se deplacer, parler, attendre, choisir au hasard) qui s'execute",
-        "un peu a chaque tour, meme quand le joueur est ailleurs.",
-        "Technique : table $2B45 (17 entrees de 7 octets, fin $FF) ; nibble bas de l'opcode =",
-        "MOVE 0-4 / INDIR 5-D / GOTO E / PATCH C / RANDOM F ; au plus 6 opcodes par tick (L4ED3).",
+        "Fait jouer le script d'un personnage : son 'cerveau'. Appele a chaque tour",
+        "par world_tick, pour CHAQUE entite active, meme quand le joueur est ailleurs.",
+        "",
+        "Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],",
+        "terminee par $FF. id=$00 = emplacement dormant (saute). PC = pointeur du script",
+        "dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite.",
+        "",
+        "On execute au plus 6 opcodes par tick (garde-fou L4ED3, evite les boucles",
+        "infinies). L'opcode est l'octet pointe par le PC ; on dispatch sur le nibble bas :",
+        "  $x0/$x2 MOVE long  : wid=(PC)1, arg1=(PC)2, arg2=(PC)3 -> entity_move",
+        "  $x1/$x3 ACT        : (PC)1 = index dans la table d'actions $7143",
+        "  $x4     MOVE court : wid=(PC)1 ; $FF + bit $10 = saut inconditionnel",
+        "  $x5-$xD INDIR      : saute via la table de base (script_indir $51DA)",
+        "  $xC     GOTO cle   : entity_goto(id, cle) via la table de base",
+        "  $xE     GOTO absolu: PC := (PC)1/(PC)2",
+        "  $xF     RAND       : tire une cible parmi min(op, n) (script_rand $51CA)",
+        "",
+        "Apres un MOVE/ACT : bit $20 pose -> efface l'opcode (auto-modification, l'entite",
+        "devient dormante) ; bit $10 pose -> si l'action echoue, saute de la taille de",
+        "l'instruction (plan de secours). L'affichage est coupe pendant le calcul",
+        "(outen=0) et retabli a la fin (entity_tick_done).",
+    ],
+    0x5235: [
+        "Prepare un tour de la VM des PNJ : resout le lieu du joueur (ploc, via L57BB),",
+        "teste s'il fait noir et arme le compteur d'ambiance L4ED4 (1 = noir ; passe a 2",
+        "quand le bruit a ete signale). A lancer une fois avant de parcourir $2B45.",
+    ],
+    0x5008: [
+        "Fin de la table $2B45 : remet obj=0, reautorise l'affichage (outen=1) et",
+        "restaure le contexte du joueur (crec = sa fiche $1B1A, eloc = son lieu $1B2A).",
+    ],
+    0x5020: [
+        "Avance le PC du script courant de A octets ($8C/$8D). Utilitaire bas niveau",
+        "partage par les sauts d'instruction (script_step4 / script_step2).",
+    ],
+    0x502A: [
+        "Passe a l'instruction suivante : avance le PC de 4 octets, +2 de plus si le",
+        "bit $10 de l'opcode est pose (operande etendue), puis reecrit le PC dans l'entree",
+        "de l'entite ((ptr2)+2/+3).",
+    ],
+    0x502C: [
+        "Comme script_step4 mais pour les instructions courtes : avance de A octets",
+        "(2 ou 3 selon l'appelant), +2 si le bit $10 de l'opcode est pose.",
+    ],
+    0x5048: [
+        "Opcode 4 octets : avance le PC de 4 (+2 si bit $10). Si le bit0 de l'opcode",
+        "est clair -> MOVE : wid=(PC)1, arg1=(PC)2, arg2=(PC)3 via entity_move. Sinon",
+        "ACT : (PC)1 indexe la table $7143 ; l'action est jouee d'abord en mode sonde",
+        "(phase=0) puis en reel si elle passe (passok).",
+    ],
+    0x50AC: [
+        "Opcode MOVE court ($x4) : avance le PC de 2 (+2 si bit $10) et lit wid=(PC)1.",
+        "Si wid != $FF : deplace la creature (arg1/arg2 = $FF). Si wid = $FF : saute a",
+        "l'adresse (PC)2/(PC)3 quand le bit $10 est pose (saut inconditionnel).",
+    ],
+    0x51CA: [
+        "Opcode RAND ($xF) : lit le nombre de choix n=(PC)1, borne l'index par (ptr2)+1,",
+        "tire un index (rand_range) puis script_indir effectue le saut correspondant dans",
+        "la table de base de l'entite. C'est la part d'imprevisibilite des PNJ.",
+    ],
+    0x51DA: [
+        "Opcode INDIR ($x5-$xD) : utilise l'index A (0 pour INDIR, tirage pour RAND),",
+        "le borne a l'entree (ptr2)+1, lit la cible [index] dans la table de base",
+        "((ptr2)+4/+5, entrees de 3 octets) et pose le nouveau PC ((ptr2)+2/+3).",
+    ],
+    0x520D: [
+        "Cherche dans la table $2B45 l'entree dont l'id vaut A (7 octets par entree,",
+        "arret sur $FF). Sortie : ptr2 sur l'entree, A = id trouve, ou $FF si absent.",
+    ],
+    0x5249: [
+        "Opcode GOTO par cle ($xC) : X = cle, A = id. Retrouve l'entite (entity_find),",
+        "lit dans sa table de base l'entree de cle X (L5399) et reprend le script a",
+        "l'adresse [cle] : permet des sauts 'nommes' a l'interieur d'un script.",
+    ],
+    0x511C: [
+        "Deplace un personnage : appelle le moteur de deplacement partage move_core",
+        "(trouve la sortie du lieu selon wid/arg1/arg2 et verifie ses conditions). Si le",
+        "deplacement reussit, enchaine sur move_announce (visibilite, bruit, action).",
+    ],
+    0x5127: [
+        "Suite d'un deplacement de PNJ : gere ce que le joueur percoit. Selon direct et",
+        "la cible, il decrit l'arrivee dans le lieu du joueur (L417C) ou signale un bruit",
+        "('YOU HEAR A NOISE', une fois par tour via L4ED4). Joue ensuite l'action (L4B37)",
+        "et les repliques eventuelles (say_if_visible).",
+    ],
+    0x5279: [
+        "Affiche un message de dialogue seulement si le personnage est visible du joueur.",
+        "Conditions : id valide ($FF/$00 = rien), pas en pleine annonce (L4ED4 != 2),",
+        "meme lieu que le joueur (ploc), drapeau L5611 actif. X/Y = adresse du message",
+        "inline ; A = id du locuteur.",
+    ],
+    0x4C5D: [
+        "Appel indirect generique : la cible a ete posee dans $4C64/$4C65 (depuis les",
+        "tables d'actions $7014/$7143 ou la table d'evenements $7169). Sauve A et X,",
+        "appelle la cible, restaure les registres et l'affichage (L471B).",
+    ],
+    0x69E7: [
+        "Teste la condition de victoire ($1F38 == $25) ; si elle est remplie, la foule",
+        "acclame (message $1722), ajoute au score et termine la partie (code_5FB7).",
+        "Appelee au tout debut de world_tick (avant les PNJ).",
+    ],
+    0x3E8E: [
+        "Parcours la liste de candidats d'errance $48D3 (entrees de 5 octets [id, poids,",
+        "etat, lo, hi]) : rend A = $90/obj si le personnage courant y figure, A = 1 sinon.",
+        "Sert a savoir si un PNJ est deja en cours de planification de deplacement.",
+    ],
+    0x3EB2: [
+        "Coeur du moteur d'errance : rejoue avec parse_cmd les commandes de deplacement",
+        "empilees pour un PNJ afin d'evaluer un chemin, additionne leur poids (macc $D3),",
+        "le compare au budget $0A (mwt $D0) et retient des candidats (table $48D3).",
+        "Utilise les enregistrements de commande $4927.",
+    ],
+    0x3F7F: [
+        "Amorce un deplacement d'errance pour le personnage courant : lit l'opcode et le",
+        "personnage de la file, puis bascule sur le coeur (wander_core) ou le pas",
+        "(wander_step) selon le contexte. Appele par entity_tick (volet one-shot) et par",
+        "act_v14_11.",
+    ],
+    0x3F8E: [
+        "Execute un pas d'errance : selectionne l'entree candidate (wander_select), rejoue",
+        "sa commande sauvegardee (L357C/L36D5) ; en cas d'echec, decremente le poids et",
+        "reprend (wander_rewind) ; en cas de succes, memorise la position et valide.",
+    ],
+    0x3FE5: [
+        "Rembobine la file des commandes ($4905) jusqu'a la position du candidat et",
+        "consomme le poids du deplacement (dec L48D4[x]) ; libere le slot quand il est",
+        "epuise (recopie de la suite).",
+    ],
+    0x4035: [
+        "Selectionne le candidat courant : cherche le personnage dans $48D3 (cand_check),",
+        "memorise son index (cand $CF), pointe sa suite de commandes (ptr2 = $47E3) et sa",
+        "position dans la file.",
+    ],
+    0x4051: [
+        "Retire un personnage de la liste des candidats $48D3 (retrouve son slot d'apres",
+        "l'id et le vide). Appelee par code_4D47 quand un personnage change d'etat.",
+    ],
+    0x3E5B: [
+        "Retire la prochaine action de la file $4905 (curseurs qrd/qwr $D1/$D2) : place son",
+        "indice-token en $91, avance qrd et, selon arg1, marque la fin de la commande dans",
+        "la file de tokens $4783. Appelee en fin d'action (L5FA0).",
+    ],
+    0x68D0: [
+        "PNJ (Gandalf ?) : s'il est au meme endroit que le joueur, dit 'HELLO' ($143F).",
+    ],
+    0x68E0: [
+        "PNJ oisif : tirage 0-2. 0 -> 'YOU ARE DO A GREAT JOB' ($1432) ; 1 -> 'HURRY UP'",
+        "($143B) ; 2 -> 'HELLO' ($143F).",
+    ],
+    0x690C: [
+        "PNJ : dit 'THIS WAS THRAINS KEY' (message $1441).",
+    ],
+    0x692D: [
+        "PNJ : dit 'WHAT'S THIS ?' (message $1427).",
+    ],
+    0x6936: [
+        "PNJ : tirage 0-7. >= 5 : rien ; 3-4 : ajuste un compteur en silence ; 0-2 : dit",
+        "'HURRY UP' ($143B), en decrementant aussi un compteur quand le tirage vaut 0.",
+    ],
+    0x6962: [
+        "PNJ : s'il est au meme endroit que le joueur et que le drapeau $1B21 bit7 est",
+        "clair, dit 'WHERE'S THE THIEF ?' ($14AB).",
+    ],
+    0x697A: [
+        "PNJ : si le joueur se trouve dans le lieu $1DE0, ajuste un compteur (L4D9E).",
+    ],
+    0x6C09: [
+        "Gollum : si le joueur est dans le lieu $1E4B et le drapeau $1B21 bit7 pose,",
+        "affiche un message prealablement construit (pointeur en ($BF)) et arme le",
+        "drapeau said.",
+    ],
+    0x6C33: [
+        "Action a jouer une seule fois : si once=1 et que la sonde passe, memorise les",
+        "parametres recus dans le script $2A7A (id, wid, arg1, arg2) et rearme le verrou.",
+    ],
+    0x6C8D: [
+        "PNJ : dans l'un des lieux $27/$2C/$29 et si le joueur vient d'y entrer (different",
+        "de $1B40), annonce son arrivee : '<message>ENTER.' ($13F6).",
+    ],
+    0x6CBE: [
+        "Dragon : au meme endroit que le joueur. Selon le drapeau $1B21 bit7, dit soit",
+        "'PREPARE TO DIE' ($153F), soit l'aveuglement ($155D).",
+    ],
+    0x6CFA: [
+        "PNJ : au meme endroit, joue une action sur l'objet $26 (wid $1D, arg1 $26) s'il",
+        "ne l'a pas deja fait ($1FC1/$1FB2), et memorise le lieu courant.",
+    ],
+    0x6D78: [
+        "Gollum et l'Anneau : au lieu $1E4B. Tirage 0-7 ; >= 4 -> 'WHAT HAS IT GOT IN ITS",
+        "POCKET ?' ($16B9) ; sinon, si l'Anneau ($44) n'est pas la, 'MY PRECIOUS' ($16C8).",
+    ],
+    0x6DF9: [
+        "PNJ : remet said=0 puis, si $90==$44, parcourt les tokens et peut renoncer ;",
+        "sinon affiche 'SOMEONE STRANGLE YOU FROM BEHIND' ($15B6) et tue le joueur.",
+    ],
+    0x6E59: [
+        "Dragon : selon le lieu ($1F47 == $29 : parti). Sinon, si le dragon est actif",
+        "(bit7), tirage 0-99 : < $50 -> vol ('...SHAPE OF A MONSTROUS DRAGON...' $1582),",
+        "sinon souffle de flammes ($1596) qui tue le joueur.",
+    ],
+    0x6E8B: [
+        "Trolls : au lieu $05. Si obj==$47 (un troll deja cuit) -> 'BLIMEY, LOOK AT THIS",
+        "!! CAN YER COOK 'EM?' ($1615), sinon 'YER CAN TRY, BUT...' ($162B).",
+    ],
+    0x6CDB: [
+        "PNJ : au meme endroit que le joueur, simule un combat : wid=$1B, arg1=0, arg2=$FF",
+        "via L5A62, puis act_p14_00 (combat) et L5FAE (mort).",
+    ],
+    0x6EA7: [
+        "PNJ : efface des drapeaux ($1F94/$1FA6 bit7, $214C bit6), recolle les objets",
+        "$47/$48, met a jour la description $2154 et affiche 'DAY DAWN.' ($16EB).",
     ],
     0x2C35: [
         "Point de depart du jeu, juste apres le chargement de la cassette.",
@@ -938,6 +1200,24 @@ INLINE_COMMENTS: dict[int, str] = {
     0x2F78: "type = bits 6-5 des 2 premiers octets de l'entree de dictionnaire",
     0x2F9A: "type $D0 = entree ignoree par le parseur (mot de message)",
     0x34D0: "fusionne deux mots en un enregistrement de commande",
+    # --- AnimAction : flot de la VM des PNJ (entity_tick $4ED5) ---
+    0x4EE0: "bout de boucle : compteur d'opcodes remis a 0 pour l'entite",
+    0x4EF0: "id $00 = emplacement dormant -> entite suivante",
+    0x4EF7: "entite active : obj=id, resolve lieu et fiche (L57BB)",
+    0x4F63: "garde-fou : au plus 6 opcodes par tick",
+    0x4F6D: "octet d'opcode du script -> test du nibble bas",
+    0x4FBA: "nibble >= 5 : GOTO / INDIR / RAND",
+    0x4FCD: "$xC : GOTO par cle (entity_goto, table de base)",
+    0x4FE0: "$xF : RAND (script_rand)",
+    0x4FF4: "$x5-$xD : INDIR table[0] (script_indir)",
+    0x5008: "fin de table : restaure le contexte du joueur",
+    0x5048: "MOVE long (bit0=0) / ACT (bit0=1)",
+    0x50A5: "bit $20 : efface l'opcode (auto-modification, entite dormante)",
+    0x50AC: "MOVE court $x4",
+    0x50E7: "echec du move : memorise pour le plan de secours",
+    0x50FB: "bit $10 : saut de secours vers une autre instruction",
+    0x51CA: "opcode RAND : tirage parmi les cibles de la table de base",
+    0x5235: "init du tick : lieu joueur, noir, compteur de bruit",
 }
 
 # Routines ROM (issues du désassemblage 1.0 et 1.1, cf. docs/).
@@ -1603,7 +1883,7 @@ def inject_notes(asm: list[str], block: Block) -> list[str]:
             if out and out[-1] == doc_by_name.get(name):
                 out.pop()
             for text in by_name.pop(name):
-                out.append(f"; {text}\n")
+                out.append(";\n" if text == "" else f"; {text}\n")
         out.append(ln)
     return out
 

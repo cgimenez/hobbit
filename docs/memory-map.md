@@ -223,7 +223,7 @@ robustesse, `+$07` = flags (`bit1`/`bit3` combat, `bit5` ouvert portes ;
 ### 3b. Scripts VM (`$28E1`–`$2B11`, opcodes nibble bas, ≤6 ops/tick)
 
 Propriétaires par point d'entrée (PC initiaux ; `base` = table §3a).
-Détail des programmes : `docs/block4-analysis.md` (§ scripts PNJ).
+Détail des programmes : `docs/block4-analysis.md` (§ AnimAction).
 
 | Entrée | Propriétaires (slot entité) |
 |---|---|

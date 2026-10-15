@@ -918,13 +918,13 @@ L30F9:  .byte   $56,$05,$1A,$1B,$D0,$91,$F1,$02
 ; Interpreteur de commande (grammaire). Consomme la file de tokens $4783
 ; construite par le lexeur et classe chaque mot par grammaire via la table
 ; $315A (index = type>>3, soit 2 x le nibble de classe).
-; 
+;
 ; Classes (nibble de type du dictionnaire, cf. bloc 2) :
 ;   $00 adverbe   $10 IN/INTO     $20 direction   $30 verbe
 ;   $40 GO/RUN    $50 nom         $60 adjectif    $70 preposition
 ;   $80 article   $90 mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT/...)
 ;   $A0 AND/virgule   $B0 THEN/point(=fin de commande)
-; 
+;
 ; Etat interne : $6D = drapeaux d'attente, $6E = portee (0 normal, 1 ALL,
 ; 2 EXCEPT), $9D = compteur de virgules, $65 = nb de mots retenus, $5A/$5B =
 ; type precedent/courant, $5F = curseur de file, $A3..$AC = groupe nominal
@@ -2847,7 +2847,10 @@ cmd_next:
 
         .byte   "TAPE LOADING ERROR :- PRESS ANY KEY TO RESTART GAME."
         .byte   $14
-code_3E5B:
+; Retire la prochaine action de la file $4905 (curseurs qrd/qwr $D1/$D2) : place son
+; indice-token en $91, avance qrd et, selon arg1, marque la fin de la commande dans
+; la file de tokens $4783. Appelee en fin d'action (L5FA0).
+actq_pull:
         cmp     #$00
         php
         lda     qwr
@@ -2876,7 +2879,11 @@ L3E8A:  sta     $90
         plp
         rts
 
-L3E8E:  lda     $90
+; Parcours la liste de candidats d'errance $48D3 (entrees de 5 octets [id, poids,
+; etat, lo, hi]) : rend A = $90/obj si le personnage courant y figure, A = 1 sinon.
+; Sert a savoir si un PNJ est deja en cours de planification de deplacement.
+cand_check:
+        lda     $90
         cmp     obj
         bne     L3E95
 L3E94:  rts
@@ -2899,7 +2906,12 @@ L3E99:  lda     L48D3,x
         lda     #$01
         rts
 
-L3EB2:  lda     $91
+; Coeur du moteur d'errance : rejoue avec parse_cmd les commandes de deplacement
+; empilees pour un PNJ afin d'evaluer un chemin, additionne leur poids (macc $D3),
+; le compare au budget $0A (mwt $D0) et retient des candidats (table $48D3).
+; Utilise les enregistrements de commande $4927.
+wander_core:
+        lda     $91
         sta     $5F
         lda     #$27
         sta     ptr2
@@ -3003,18 +3015,26 @@ L3F6E:  lda     L4927,y
         bne     L3F6E
         dec     mcnt
         bne     L3F6C
-        jmp     L3F8E
+        jmp     wander_step
 
 L3F7E:  .byte   $CA
-code_3F7F:
+; Amorce un deplacement d'errance pour le personnage courant : lit l'opcode et le
+; personnage de la file, puis bascule sur le coeur (wander_core) ou le pas
+; (wander_step) selon le contexte. Appele par entity_tick (volet one-shot) et par
+; act_v14_11.
+wander_start:
         sta     L3F7E
         jsr     L46E6
         lda     $90
         cmp     obj
-        bne     L3F8E
-        jmp     L3EB2
+        bne     wander_step
+        jmp     wander_core
 
-L3F8E:  jsr     L4035
+; Execute un pas d'errance : selectionne l'entree candidate (wander_select), rejoue
+; sa commande sauvegardee (L357C/L36D5) ; en cas d'echec, decremente le poids et
+; reprend (wander_rewind) ; en cas de succes, memorise la position et valide.
+wander_step:
+        jsr     wander_select
         lda     L3F7E
         beq     L3FC5
         lda     L48D5,x
@@ -3035,11 +3055,11 @@ L3F8E:  jsr     L4035
         lda     $7E
         sta     L48D5,x
         bne     L3FC5
-        jsr     L3FE5
+        jsr     wander_rewind
 L3FC5:  lda     #$01
         jmp     L471B
 
-L3FCA:  jsr     L3FE5
+L3FCA:  jsr     wander_rewind
         bne     L3FCA
 L3FCF:  lda     #$00
         jmp     L471B
@@ -3049,10 +3069,14 @@ L3FD4:  lda     $7E
         ldx     cand
         lda     #$00
         sta     L48D5,x
-        jsr     L3FE5
-        jmp     L3F8E
+        jsr     wander_rewind
+        jmp     wander_step
 
-L3FE5:  jsr     L4702
+; Rembobine la file des commandes ($4905) jusqu'a la position du candidat et
+; consomme le poids du deplacement (dec L48D4[x]) ; libere le slot quand il est
+; epuise (recopie de la suite).
+wander_rewind:
+        jsr     L4702
         jsr     fetch_retaddr
 L3FEB:  jsr     rec_next
         ldy     #$01
@@ -3096,7 +3120,11 @@ L402F:  lda     #$00
         sta     L48D3,x
         rts
 
-L4035:  jsr     L3E8E
+; Selectionne le candidat courant : cherche le personnage dans $48D3 (cand_check),
+; memorise son index (cand $CF), pointe sa suite de commandes (ptr2 = $47E3) et sa
+; position dans la file.
+wander_select:
+        jsr     cand_check
 L4038:  lda     #$E3
         sta     ptr2
         lda     #$47
@@ -3112,7 +3140,10 @@ L4048:  jsr     rec_rewind2
 L404E:  ldx     cand
         rts
 
-L4051:  jsr     L46E6
+; Retire un personnage de la liste des candidats $48D3 (retrouve son slot d'apres
+; l'id et le vide). Appelee par code_4D47 quand un personnage change d'etat.
+wander_remove:
+        jsr     L46E6
         tax
         lda     obj
         pha
@@ -3120,7 +3151,7 @@ L4051:  jsr     L46E6
         jsr     L3E95
         bne     L4067
         jsr     L4038
-L4062:  jsr     L3FE5
+L4062:  jsr     wander_rewind
         bne     L4062
 L4067:  pla
         sta     obj
@@ -4470,7 +4501,7 @@ L4BC9:  lda     L7114,x
         sta     L4C64
         lda     L7115,x
         sta     L4C65
-L4BD5:  jsr     L4C5D
+L4BD5:  jsr     indirect_call
         lda     ptr
         clc
         adc     #$02
@@ -4521,7 +4552,7 @@ L4C2D:  ldy     #$01
         iny
         lda     (ptr),y
         sta     L4C65
-        jsr     L4C5D
+        jsr     indirect_call
         lda     ptr
         clc
         adc     #$03
@@ -4543,7 +4574,11 @@ msg_4C5A:
 code_4C5C:
         rts
 
-L4C5D:  pha
+; Appel indirect generique : la cible a ete posee dans $4C64/$4C65 (depuis les
+; tables d'actions $7014/$7143 ou la table d'evenements $7169). Sauve A et X,
+; appelle la cible, restaure les registres et l'affichage (L471B).
+indirect_call:
+        pha
         jsr     L46E6
         txa
         pha
@@ -4686,7 +4721,7 @@ L4D4E:  jsr     L46E6
         lda     L4D83
         jsr     L5713
         lda     L4D83
-        jsr     L520D
+        jsr     entity_find
         cmp     #$FF
         beq     L4D74
         ldy     #$00
@@ -4695,7 +4730,7 @@ L4D4E:  jsr     L46E6
 L4D74:  lda     L4D83
         jsr     code_5AF0
         lda     L4D83
-        jsr     L4051
+        jsr     wander_remove
         jmp     L471B
 
 L4D83:  .byte   $00
@@ -4822,7 +4857,7 @@ L4E58:  .byte   $1A
 ; Technique : L69E7, entity_tick (VM des PNJ), puis evt_tick (table $2B12).
 world_tick:
         jsr     L46E6
-        jsr     L69E7
+        jsr     victory_check
         jsr     entity_tick
         lda     #$00
         sta     L4E58
@@ -4879,7 +4914,7 @@ evt_fire:
         sta     L4C64
         lda     L716A,x
         sta     L4C65
-        jsr     L4C5D
+        jsr     indirect_call
 L4EBE:  lda     ptr2
         clc
         adc     #$05
@@ -4896,30 +4931,46 @@ evt_end:lda     #$01
 
 L4ED3:  .byte   $44
 L4ED4:  .byte   $0E
-; Fait jouer le script d'un personnage : son 'cerveau'. Chaque personnage a une petite
-; suite d'instructions (se deplacer, parler, attendre, choisir au hasard) qui s'execute
-; un peu a chaque tour, meme quand le joueur est ailleurs.
-; Technique : table $2B45 (17 entrees de 7 octets, fin $FF) ; nibble bas de l'opcode =
-; MOVE 0-4 / INDIR 5-D / GOTO E / PATCH C / RANDOM F ; au plus 6 opcodes par tick (L4ED3).
+; Fait jouer le script d'un personnage : son 'cerveau'. Appele a chaque tour
+; par world_tick, pour CHAQUE entite active, meme quand le joueur est ailleurs.
+;
+; Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],
+; terminee par $FF. id=$00 = emplacement dormant (saute). PC = pointeur du script
+; dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite.
+;
+; On execute au plus 6 opcodes par tick (garde-fou L4ED3, evite les boucles
+; infinies). L'opcode est l'octet pointe par le PC ; on dispatch sur le nibble bas :
+;   $x0/$x2 MOVE long  : wid=(PC)1, arg1=(PC)2, arg2=(PC)3 -> entity_move
+;   $x1/$x3 ACT        : (PC)1 = index dans la table d'actions $7143
+;   $x4     MOVE court : wid=(PC)1 ; $FF + bit $10 = saut inconditionnel
+;   $x5-$xD INDIR      : saute via la table de base (script_indir $51DA)
+;   $xC     GOTO cle   : entity_goto(id, cle) via la table de base
+;   $xE     GOTO absolu: PC := (PC)1/(PC)2
+;   $xF     RAND       : tire une cible parmi min(op, n) (script_rand $51CA)
+;
+; Apres un MOVE/ACT : bit $20 pose -> efface l'opcode (auto-modification, l'entite
+; devient dormante) ; bit $10 pose -> si l'action echoue, saute de la taille de
+; l'instruction (plan de secours). L'affichage est coupe pendant le calcul
+; (outen=0) et retabli a la fin (entity_tick_done).
 entity_tick:
-        jsr     code_5235
+        jsr     entity_tick_init
         lda     #$45
         sta     ptr2
         lda     #$2B
         sta     ptr2_hi
-L4EE0:  lda     #$00
+L4EE0:  lda     #$00                            ; bout de boucle : compteur d'opcodes remis a 0 pour l'entite
         sta     L4ED3
         ldy     #$00
         lda     (ptr2),y
         cmp     #$FF
         bne     L4EF0
-        jmp     L5008
+        jmp     entity_tick_done
 
-L4EF0:  cmp     #$00
+L4EF0:  cmp     #$00                            ; id $00 = emplacement dormant -> entite suivante
         bne     L4EF7
         jmp     L4FFA
 
-L4EF7:  sta     obj
+L4EF7:  sta     obj                             ; entite active : obj=id, resolve lieu et fiche (L57BB)
         jsr     L57BB
         sta     eloc
         lda     ptr
@@ -4962,7 +5013,7 @@ L4F43:  lda     crec
         sta     ptr
         lda     crec_hi
         sta     ptr_hi
-        jsr     L3E8E
+        jsr     cand_check
         php
         lda     #$00
         plp
@@ -4975,12 +5026,12 @@ L4F58:  ldy     #$02
         iny
         lda     (ptr2),y
         sta     $8D
-L4F63:  lda     L4ED3
+L4F63:  lda     L4ED3                           ; garde-fou : au plus 6 opcodes par tick
         cmp     #$06
         bne     L4F6D
         jmp     L4FFA
 
-L4F6D:  ldy     #$00
+L4F6D:  ldy     #$00                            ; octet d'opcode du script -> test du nibble bas
         lda     $8C
         sta     ptr
         lda     $8D
@@ -4998,13 +5049,13 @@ L4F6D:  ldy     #$00
         lda     #$00
         sta     once
         lda     #$01
-        jsr     code_3F7F
+        jsr     wander_start
         beq     L4FA5
         lda     #$01
         sta     phase
         sta     passok
         jsr     L46E9
-        jsr     L5127
+        jsr     move_announce
         jmp     L4FFA
 
 L4FA5:  ldy     #$00
@@ -5012,14 +5063,14 @@ L4FA5:  ldy     #$00
         and     #$0F
         cmp     #$04
         bne     L4FB2
-        jmp     L50AC
+        jmp     script_move_short
 
 L4FB2:  bcs     L4FB7
-        jmp     L5048
+        jmp     script_move
 
 L4FB7:  jmp     L4FFA
 
-L4FBA:  cmp     #$0E
+L4FBA:  cmp     #$0E                            ; nibble >= 5 : GOTO / INDIR / RAND
         bne     L4FCD
         ldy     #$01
         lda     (ptr),y
@@ -5030,7 +5081,7 @@ L4FBA:  cmp     #$0E
         sta     (ptr2),y
         jmp     L4F58
 
-L4FCD:  cmp     #$0C
+L4FCD:  cmp     #$0C                            ; $xC : GOTO par cle (entity_goto, table de base)
         bne     L4FE0
         ldy     #$01
         lda     (ptr),y
@@ -5040,9 +5091,9 @@ L4FCD:  cmp     #$0C
         jsr     entity_goto
         jmp     L4F58
 
-L4FE0:  cmp     #$0F
+L4FE0:  cmp     #$0F                            ; $xF : RAND (script_rand)
         bne     L4FEA
-        jsr     L51CA
+        jsr     script_rand
         jmp     L4F58
 
 L4FEA:  cmp     #$00
@@ -5050,9 +5101,9 @@ L4FEA:  cmp     #$00
         jsr     L501E
         jmp     L4F63
 
-L4FF4:  lda     #$00
+L4FF4:  lda     #$00                            ; $x5-$xD : INDIR table[0] (script_indir)
         tax
-        jsr     L51DA
+        jsr     script_indir
 L4FFA:  lda     ptr2
         clc
         adc     #$07
@@ -5061,7 +5112,10 @@ L4FFA:  lda     ptr2
         inc     ptr2_hi
 L5005:  jmp     L4EE0
 
-L5008:  lda     #$00
+; Fin de la table $2B45 : remet obj=0, reautorise l'affichage (outen=1) et
+; restaure le contexte du joueur (crec = sa fiche $1B1A, eloc = son lieu $1B2A).
+entity_tick_done:
+        lda     #$00                            ; fin de table : restaure le contexte du joueur
         sta     obj
         lda     #$01
         sta     outen
@@ -5108,7 +5162,12 @@ L503C:  ldy     #$02
         sta     (ptr2),y
         rts
 
-L5048:  ldy     #$00
+; Opcode 4 octets : avance le PC de 4 (+2 si bit $10). Si le bit0 de l'opcode
+; est clair -> MOVE : wid=(PC)1, arg1=(PC)2, arg2=(PC)3 via entity_move. Sinon
+; ACT : (PC)1 indexe la table $7143 ; l'action est jouee d'abord en mode sonde
+; (phase=0) puis en reel si elle passe (passok).
+script_move:
+        ldy     #$00                            ; MOVE long (bit0=0) / ACT (bit0=1)
         lda     (ptr),y
         and     #$01
         bne     L506B
@@ -5139,7 +5198,7 @@ L506B:  lda     #$03
         lda     #$00
         sta     phase
         sta     passok
-        jsr     L4C5D
+        jsr     indirect_call
         lda     passok
         cmp     #$01
         php
@@ -5147,18 +5206,22 @@ L506B:  lda     #$03
         plp
         bne     L50ED
         sta     phase
-        jsr     L4C5D
+        jsr     indirect_call
 L509A:  ldy     #$00
         lda     (ptr),y
         and     #$20
         bne     L50A5
         jmp     L4FFA
 
-L50A5:  lda     #$00
+L50A5:  lda     #$00                            ; bit $20 : efface l'opcode (auto-modification, entite dormante)
         sta     (ptr),y
         jmp     L4FFA
 
-L50AC:  lda     #$02
+; Opcode MOVE court ($x4) : avance le PC de 2 (+2 si bit $10) et lit wid=(PC)1.
+; Si wid != $FF : deplace la creature (arg1/arg2 = $FF). Si wid = $FF : saute a
+; l'adresse (PC)2/(PC)3 quand le bit $10 est pose (saut inconditionnel).
+script_move_short:
+        lda     #$02                            ; MOVE court $x4
         jsr     script_step2
         ldy     #$01
         lda     (ptr),y
@@ -5190,7 +5253,7 @@ L50D4:  ldy     #$02
         sta     (ptr2),y
         jmp     L4FFA
 
-L50E7:  ldx     #$02
+L50E7:  ldx     #$02                            ; echec du move : memorise pour le plan de secours
         bne     L50ED
 L50EB:  ldx     #$04
 L50ED:  inc     L4ED3
@@ -5200,7 +5263,7 @@ L50ED:  inc     L4ED3
         bne     L50FB
         jmp     L4F58
 
-L50FB:  txa
+L50FB:  txa                                     ; bit $10 : saut de secours vers une autre instruction
         clc
         adc     ptr
         sta     ptr
@@ -5220,14 +5283,21 @@ L5105:  ldy     #$00
         sta     $8C
         jmp     L4F63
 
-; Deplace un personnage et annonce son mouvement s'il est visible
+; Deplace un personnage : appelle le moteur de deplacement partage move_core
+; (trouve la sortie du lieu selon wid/arg1/arg2 et verifie ses conditions). Si le
+; deplacement reussit, enchaine sur move_announce (visibilite, bruit, action).
 entity_move:
         jsr     L46E9
         jsr     move_core
-        bne     L5127
+        bne     move_announce
         jmp     L51C7
 
-L5127:  lda     direct
+; Suite d'un deplacement de PNJ : gere ce que le joueur percoit. Selon direct et
+; la cible, il decrit l'arrivee dans le lieu du joueur (L417C) ou signale un bruit
+; ('YOU HEAR A NOISE', une fois par tour via L4ED4). Joue ensuite l'action (L4B37)
+; et les repliques eventuelles (say_if_visible).
+move_announce:
+        lda     direct
         cmp     #$01
         beq     L51A0
         lda     wid
@@ -5308,7 +5378,11 @@ L51A0:  jsr     L4B37
 L51C5:  lda     #$01
 L51C7:  jmp     fetch_retaddr
 
-L51CA:  ldy     #$01
+; Opcode RAND ($xF) : lit le nombre de choix n=(PC)1, borne l'index par (ptr2)+1,
+; tire un index (rand_range) puis script_indir effectue le saut correspondant dans
+; la table de base de l'entite. C'est la part d'imprevisibilite des PNJ.
+script_rand:
+        ldy     #$01                            ; opcode RAND : tirage parmi les cibles de la table de base
         lda     (ptr),y
         ldy     #$01
         cmp     (ptr2),y
@@ -5316,7 +5390,11 @@ L51CA:  ldy     #$01
         lda     (ptr2),y
 L51D6:  jsr     rand_range
         tax
-L51DA:  ldy     #$01
+; Opcode INDIR ($x5-$xD) : utilise l'index A (0 pour INDIR, tirage pour RAND),
+; le borne a l'entree (ptr2)+1, lit la cible [index] dans la table de base
+; ((ptr2)+4/+5, entrees de 3 octets) et pose le nouveau PC ((ptr2)+2/+3).
+script_indir:
+        ldy     #$01
         cmp     (ptr2),y
         bcc     L51E3
         lda     (ptr2),y
@@ -5348,7 +5426,10 @@ L51E3:  jsr     L46E9
         sta     (ptr2),y
         jmp     fetch_retaddr
 
-L520D:  sta     L5234
+; Cherche dans la table $2B45 l'entree dont l'id vaut A (7 octets par entree,
+; arret sur $FF). Sortie : ptr2 sur l'entree, A = id trouve, ou $FF si absent.
+entity_find:
+        sta     L5234
         lda     #$45
         sta     ptr2
         lda     #$2B
@@ -5370,8 +5451,11 @@ L5230:  jmp     L5218
 L5233:  rts
 
 L5234:  .byte   $E1
-code_5235:
-        lda     #$00
+; Prepare un tour de la VM des PNJ : resout le lieu du joueur (ploc, via L57BB),
+; teste s'il fait noir et arme le compteur d'ambiance L4ED4 (1 = noir ; passe a 2
+; quand le bruit a ete signale). A lancer une fois avant de parcourir $2B45.
+entity_tick_init:
+        lda     #$00                            ; init du tick : lieu joueur, noir, compteur de bruit
         jsr     L57BB
         sta     ploc
         jsr     is_dark
@@ -5381,10 +5465,12 @@ code_5235:
 L5245:  sta     L4ED4
         rts
 
-; Fait sauter le script d'un personnage a une autre instruction
+; Opcode GOTO par cle ($xC) : X = cle, A = id. Retrouve l'entite (entity_find),
+; lit dans sa table de base l'entree de cle X (L5399) et reprend le script a
+; l'adresse [cle] : permet des sauts 'nommes' a l'interieur d'un script.
 entity_goto:
         jsr     L46E6
-        jsr     L520D
+        jsr     entity_find
         cmp     #$FF
         beq     L5276
         txa
@@ -5411,7 +5497,10 @@ entity_goto:
         sta     (ptr2),y
 L5276:  jmp     L471B
 
-; Affiche un message si le personnage est au meme endroit que le joueur
+; Affiche un message de dialogue seulement si le personnage est visible du joueur.
+; Conditions : id valide ($FF/$00 = rien), pas en pleine annonce (L4ED4 != 2),
+; meme lieu que le joueur (ploc), drapeau L5611 actif. X/Y = adresse du message
+; inline ; A = id du locuteur.
 say_if_visible:
         cmp     #$FF
         beq     code_52C8
@@ -5957,7 +6046,7 @@ L5622:  lda     $1B2A
         lda     #$1B
         sta     crec_hi
         jsr     L5DCB
-        jsr     code_5235
+        jsr     entity_tick_init
         pla
         sta     crec_hi
         pla
@@ -6136,7 +6225,7 @@ L5790:  jmp     L471E
 L5793:  stx     L4C64
         sty     L4C65
         jsr     L579F
-        jsr     L4C5D
+        jsr     indirect_call
 L579F:  ldy     #$01
 L57A1:  lda     orec,y
         tax
@@ -7048,7 +7137,7 @@ evt_lookup:
         iny
         lda     (ptr),y
         sta     L4C65
-        jsr     L4C5D
+        jsr     indirect_call
 L5DFD:  jsr     is_dark
         bcc     L5E03
         rts
@@ -7272,7 +7361,7 @@ L5F6A:  lda     orec
 
         jsr     act_probe
         lda     arg1
-        jsr     L520D
+        jsr     entity_find
         cmp     #$FF
         php
         lda     #$00
@@ -7285,7 +7374,7 @@ L5F6A:  lda     orec
         beq     L5FA0
         jsr     rand_range
         beq     L5FA4
-L5FA0:  jsr     code_3E5B
+L5FA0:  jsr     actq_pull
         rts
 
 L5FA4:  jsr     print_msg
@@ -8333,7 +8422,7 @@ code_66F0:
         .byte   $00,$85,$0B,$A9,$13,$20,$13,$57
         .byte   $A9,$01,$85,$0B,$A9,$20,$8D,$B8
         .byte   $1D,$A9,$13,$8D,$A9,$1D,$60
-; PNJ : dit 'hello' s'il est au meme endroit que le joueur
+; PNJ (Gandalf ?) : s'il est au meme endroit que le joueur, dit 'HELLO' ($143F).
 act_v14_06:
         lda     eloc
         cmp     ploc
@@ -8348,7 +8437,8 @@ msg_68DD:
 code_68DF:
         rts
 
-; PNJ oisif : dit 'great job', 'hurry up' ou 'hello'
+; PNJ oisif : tirage 0-2. 0 -> 'YOU ARE DO A GREAT JOB' ($1432) ; 1 -> 'HURRY UP'
+; ($143B) ; 2 -> 'HELLO' ($143F).
 act_v14_01:
         jsr     act_probe
         lda     #$02
@@ -8385,7 +8475,7 @@ code_6901:
         sta     $1CF3
         rts
 
-; PNJ : dit 'thrains key'
+; PNJ : dit 'THIS WAS THRAINS KEY' (message $1441).
 act_v14_02:
         jsr     act_probe
         jsr     act_msg
@@ -8415,7 +8505,7 @@ msg_692A:
 code_692C:
         rts
 
-; PNJ : dit 'WHAT'S this ?'
+; PNJ : dit 'WHAT'S THIS ?' (message $1427).
 act_v14_00:
         jsr     act_probe
         jsr     act_msg
@@ -8425,7 +8515,8 @@ msg_6933:
 code_6935:
         rts
 
-; PNJ : tirage, ajuste un compteur et dit 'hurry up'
+; PNJ : tirage 0-7. >= 5 : rien ; 3-4 : ajuste un compteur en silence ; 0-2 : dit
+; 'HURRY UP' ($143B), en decrementant aussi un compteur quand le tirage vaut 0.
 act_v14_04:
         jsr     act_probe
         lda     #$08
@@ -8456,7 +8547,8 @@ msg_695F:
 code_6961:
         rts
 
-; PNJ : au meme endroit et sans drapeau, dit 'WHERE'S the thief ?'
+; PNJ : s'il est au meme endroit que le joueur et que le drapeau $1B21 bit7 est
+; clair, dit 'WHERE'S THE THIEF ?' ($14AB).
 act_v14_03:
         lda     eloc
         cmp     ploc
@@ -8476,7 +8568,7 @@ msg_6977:
 code_6979:
         rts
 
-; PNJ : dans un lieu precis, ajuste un compteur
+; PNJ : si le joueur se trouve dans le lieu $1DE0, ajuste un compteur (L4D9E).
 act_v14_05:
         jsr     act_probe
         lda     ploc
@@ -8542,7 +8634,11 @@ L69DD:  lda     arg1
         lda     #$06
         jmp     L5A9D
 
-L69E7:  lda     $1F38
+; Teste la condition de victoire ($1F38 == $25) ; si elle est remplie, la foule
+; acclame (message $1722), ajoute au score et termine la partie (code_5FB7).
+; Appelee au tout debut de world_tick (avant les PNJ).
+victory_check:
+        lda     $1F38
         cmp     #$25
         beq     L69EF
         rts
@@ -8884,7 +8980,9 @@ msg_6C06:
 code_6C08:
         rts
 
-; Gollum : au bon endroit, affiche un message (prepare par le jeu)
+; Gollum : si le joueur est dans le lieu $1E4B et le drapeau $1B21 bit7 pose,
+; affiche un message prealablement construit (pointeur en ($BF)) et arme le
+; drapeau said.
 act_v14_12:
         lda     $1E4B
         cmp     ploc
@@ -8912,7 +9010,8 @@ code_6C2E:
         sta     said
         rts
 
-; Action jouee une seule fois : remet un verrou et memorise des valeurs
+; Action a jouer une seule fois : si once=1 et que la sonde passe, memorise les
+; parametres recus dans le script $2A7A (id, wid, arg1, arg2) et rearme le verrou.
 act_v14_11:
         lda     once
         cmp     #$01
@@ -8922,7 +9021,7 @@ act_v14_11:
 L6C3A:  lda     #$00
         sta     once
         lda     #$01
-        jsr     code_3F7F
+        jsr     wander_start
         bne     L6C46
         rts
 
@@ -8972,7 +9071,8 @@ msg_6C8A:
 code_6C8C:
         rts
 
-; PNJ : dans certains lieux, annonce l'arrivee d'un personnage
+; PNJ : dans l'un des lieux $27/$2C/$29 et si le joueur vient d'y entrer (different
+; de $1B40), annonce son arrivee : '<message>ENTER.' ($13F6).
 act_v14_09:
         lda     ploc
         cmp     #$27
@@ -9003,7 +9103,8 @@ msg_6CBB:
 code_6CBD:
         rts
 
-; Dragon au meme endroit : annonce 'PREPARE TO DIE' ou l'aveuglement
+; Dragon : au meme endroit que le joueur. Selon le drapeau $1B21 bit7, dit soit
+; 'PREPARE TO DIE' ($153F), soit l'aveuglement ($155D).
 act_v14_10:
         lda     ploc
         cmp     eloc
@@ -9028,7 +9129,8 @@ msg_6CD8:
 code_6CDA:
         rts
 
-; PNJ : au meme endroit, simule un combat
+; PNJ : au meme endroit que le joueur, simule un combat : wid=$1B, arg1=0, arg2=$FF
+; via L5A62, puis act_p14_00 (combat) et L5FAE (mort).
 act_v14_16:
         lda     eloc
         cmp     ploc
@@ -9046,7 +9148,8 @@ L6CE2:  jsr     act_probe
         jsr     act_p14_00
         jmp     L5FAE
 
-; PNJ : au meme endroit, ramasse un objet precis
+; PNJ : au meme endroit, joue une action sur l'objet $26 (wid $1D, arg1 $26) s'il
+; ne l'a pas deja fait ($1FC1/$1FB2), et memorise le lieu courant.
 act_v14_07:
         lda     eloc
         cmp     ploc
@@ -9125,7 +9228,8 @@ msg_6D75:
 code_6D77:
         rts
 
-; Gollum et l'Anneau : au bon endroit, tirage entre 'pocket?' et 'my precious'
+; Gollum et l'Anneau : au lieu $1E4B. Tirage 0-7 ; >= 4 -> 'WHAT HAS IT GOT IN ITS
+; POCKET ?' ($16B9) ; sinon, si l'Anneau ($44) n'est pas la, 'MY PRECIOUS' ($16C8).
 act_v14_14:
         lda     ploc
         cmp     $1E4B
@@ -9217,7 +9321,8 @@ L6DEF:  lda     ploc
 L6DF6:  cmp     #$1C
         rts
 
-; PNJ : cherche un lieu et annonce qu'il va 'strangle you'
+; PNJ : remet said=0 puis, si $90==$44, parcourt les tokens et peut renoncer ;
+; sinon affiche 'SOMEONE STRANGLE YOU FROM BEHIND' ($15B6) et tue le joueur.
 act_v14_13:
         jsr     act_probe
         lda     #$00
@@ -9275,7 +9380,9 @@ L6E51:  jmp     L667C
         sta     sflag
         rts
 
-; Dragon : selon le lieu, tirage entre vol et attaque au feu
+; Dragon : selon le lieu ($1F47 == $29 : parti). Sinon, si le dragon est actif
+; (bit7), tirage 0-99 : < $50 -> vol ('...SHAPE OF A MONSTROUS DRAGON...' $1582),
+; sinon souffle de flammes ($1596) qui tue le joueur.
 act_v14_08:
         lda     $1F47
         cmp     #$29
@@ -9310,7 +9417,8 @@ msg_6E86:
 code_6E88:
         jmp     L5FAE
 
-; Trolls : au bon endroit, dit 'BLIMEY, COOK EM' ou autre
+; Trolls : au lieu $05. Si obj==$47 (un troll deja cuit) -> 'BLIMEY, LOOK AT THIS
+; !! CAN YER COOK 'EM?' ($1615), sinon 'YER CAN TRY, BUT...' ($162B).
 act_v14_15:
         lda     ploc
         cmp     #$05
@@ -9335,7 +9443,8 @@ msg_6EA4:
 code_6EA6:
         rts
 
-; PNJ : efface des drapeaux, met a jour une description et affiche un message
+; PNJ : efface des drapeaux ($1F94/$1FA6 bit7, $214C bit6), recolle les objets
+; $47/$48, met a jour la description $2154 et affiche 'DAY DAWN.' ($16EB).
 act_v14_17:
         jsr     act_probe
         lda     #$47
