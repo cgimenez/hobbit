@@ -833,7 +833,7 @@ sur bit5.
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 980 o de code**, 102 sites
-  `$440D` (118 inline `$440D`/`$5B24`), 296 routines documentées (dont le
+  `$440D` (118 inline `$440D`/`$5B24`), **427 routines documentées** (dont le
   parser AnimTalk, la VM AnimAction — `entity_tick`, jeu d'opcodes, 18
   `act_v14_*`, moteur d'errance —, l'exécution des commandes joueur
   (`cmd_run`, `perform_action`, `describe_room`, `special_cmd`) et la
@@ -842,6 +842,9 @@ sur bit5.
   (`room_record`/`obj_record`/`tbl_lookup`), 10 `vec_*`/`img_show`, 33 actions
   `L7014`/`L7143` et 6 handlers SAVE/LOAD) + commentaires au niveau instruction
   (dispatch de classe du parser, VM des PNJ, exécution des commandes), 0 conflit.
+  La **deuxième passe** a baptisé et résumé les 131 routines encore anonymes
+  (`Lxxxx`/`code_xxxx`) : commandes spéciales/cassette, résolution d'objet et
+  d'opérande, corps d'action, événements, moteur hires/vectoriel (cf. § ci-dessus).
 
 Régénérer et vérifier :
 
