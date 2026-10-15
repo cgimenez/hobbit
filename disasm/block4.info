@@ -555,6 +555,16 @@ LABEL { NAME "cmd_save"; ADDR $3DD9; COMMENT "Commande SAVE : ecrit les 4 blocs 
 LABEL { NAME "cand_check"; ADDR $3E8E; COMMENT "Teste si le personnage courant figure dans la liste de candidats $48D3"; };
 LABEL { NAME "wander_reset"; ADDR $3E95; COMMENT "Moteur d'errance : remet a zero les index de parcours (X/Y) avant le balayage"; };
 LABEL { NAME "wander_core"; ADDR $3EB2; COMMENT "Coeur du moteur d'errance : parse les deplacements en file et calcule leur poids"; };
+LABEL { NAME "wander_eval"; ADDR $3EC4; COMMENT "Boucle d'evaluation : rejoue chaque commande de deplacement en file via parse_cmd"; };
+LABEL { NAME "wander_accum"; ADDR $3ED0; COMMENT "Cumule le poids de la commande (macc += $65) puis detecte la fin de file ($C0 -> $90)"; };
+LABEL { NAME "wander_slot"; ADDR $3EF1; COMMENT "Cherche un slot libre en $48D3 et deduit du budget mwt le poids des candidats retenus"; };
+LABEL { NAME "wander_budget"; ADDR $3F0A; COMMENT "Budget restant nul -> abandon ; sinon prepare le comptage des enregistrements"; };
+LABEL { NAME "wander_count_init"; ADDR $3F11; COMMENT "Initialise le comptage : mcnt=0, $6C=macc, ptr2=$4927"; };
+LABEL { NAME "wander_count"; ADDR $3F26; COMMENT "Parcourt les enregistrements de commande et compte ceux qui tiennent dans le budget"; };
+LABEL { NAME "wander_count_ok"; ADDR $3F3F; COMMENT "Aucun enregistrement retenu -> abandon du plan"; };
+LABEL { NAME "wander_retain"; ADDR $3F46; COMMENT "Retient le candidat (id $90, poids mcnt) et empile ses enregistrements a $47E3"; };
+LABEL { NAME "wander_pack"; ADDR $3F6C; COMMENT "Recopie mcnt enregistrements de commande (24 o) vers $47E3 + 24*(10-mwt)"; };
+LABEL { NAME "wander_pack_byte"; ADDR $3F6E; COMMENT "Boucle interne d'empilement : un octet d'enregistrement a la fois"; };
 LABEL { NAME "wander_step"; ADDR $3F8E; COMMENT "Execute le deplacement d'errance : choisit un candidat, tente le move, memorise l'echec"; };
 LABEL { NAME "wander_rewind"; ADDR $3FE5; COMMENT "Rembobine la file des commandes et consomme le poids du deplacement"; };
 LABEL { NAME "wander_select"; ADDR $4035; COMMENT "Selectionne l'entree candidate (index) et pointe sa suite de commandes"; };

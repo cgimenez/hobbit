@@ -616,7 +616,23 @@ lo, hi]`) sous contrainte de **budget** (`mwt` `$D0`, `$0A` de base) :
 - `actq_pull` (`$3E5B`) retire l'action suivante de la file et prépare ses
   tokens (`L4783`) pour le parseur.
 - `wander_core` (`$3EB2`) rejoue ces commandes via `parse_cmd` pour évaluer un
-  chemin et cumule leur poids (`macc` `$D3`).
+  chemin et cumule leur poids (`macc` `$D3`) ; son corps interne
+  (`$3EC4`–`$3F7E`) est découpé ainsi :
+  - `wander_eval` (`$3EC4`) rejoue chaque commande en file ; `wander_accum`
+    (`$3ED0`) cumule le poids (`macc += $65`) et repère la fin de file (token
+    `$C0` → `$90`), puis arme le budget `mwt` (`$0A`).
+  - `wander_slot` (`$3EF1`) cherche un slot libre dans `$48D3` en déduisant de
+    `mwt` le poids des candidats déjà retenus ; `wander_budget` (`$3F0A`)
+    abandonne si le budget restant est nul.
+  - `wander_count_init` (`$3F11`) puis `wander_count` (`$3F26`) comptent les
+    enregistrements `$4927` qui tiennent dans le budget (`mcnt`) ;
+    `wander_count_ok` (`$3F3F`) abandonne si aucun.
+  - `wander_retain` (`$3F46`) retient le candidat (id `$90`, poids `mcnt`) et
+    `wander_pack`/`wander_pack_byte` (`$3F6C`/`$3F6E`) empilent ses commandes
+    dans `$47E3 + 24*(10-mwt)`.
+  - Le drapeau auto-modifié `$3F7E` (`.byte $CA`), écrit par `wander_start`
+    (`sta L3F7E`) et relu par `wander_step` (`lda L3F7E`), active/désactive la
+    tentative réelle du pas.
 - `wander_start` (`$3F7F`) / `wander_step` (`$3F8E`) sélectionnent et tentent le
   déplacement ; `wander_select` (`$4035`) pointe la commande candidate.
 - `wander_rewind` (`$3FE5`) consomme le poids et `wander_remove` (`$4051`)

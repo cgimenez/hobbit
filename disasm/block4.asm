@@ -3127,10 +3127,11 @@ L3E99:  lda     L48D3,x
         lda     #$01
         rts
 
-; Coeur du moteur d'errance : rejoue avec parse_cmd les commandes de deplacement
-; empilees pour un PNJ afin d'evaluer un chemin, additionne leur poids (macc $D3),
-; le compare au budget $0A (mwt $D0) et retient des candidats (table $48D3).
-; Utilise les enregistrements de commande $4927.
+; Coeur du moteur d'errance. Prologue : $5F := $91 (curseur de tokens), ptr2 := $4927
+; (enregistrements de commande), $65 := 0 et macc (accumulateur de poids) := 0, puis
+; entre dans la boucle d'evaluation wander_eval ($3EC4). Le plan retenu est range dans
+; les candidats $48D3 (entrees de 5 o [id, poids, etat, lo, hi]) et les commandes sont
+; empilees dans $47E3. Passe ensuite la main a wander_step.
 wander_core:
         lda     $91
         sta     $5F
@@ -3141,13 +3142,23 @@ wander_core:
         lda     #$00
         sta     $65
         sta     macc
-L3EC4:  jsr     parse_cmd
-        beq     L3ED0
+; Boucle d'evaluation : parse_cmd consomme la commande suivante de la file de tokens
+; (curseur $5F) et la range dans l'enregistrement de commande courant ; $65 recoit son
+; nombre de mots retenus (son poids). A=0 (commande construite) ou A=2 poursuivent en
+; $3ED0 ; tout autre retour (A=1, 'WHAT ?') abandonne le plan ($3FCF).
+wander_eval:
+        jsr     parse_cmd
+        beq     wander_accum
         cmp     #$02
-        beq     L3ED0
+        beq     wander_accum
         jmp     L3FCF
 
-L3ED0:  lda     $65
+; Cumul et fin de file : ajoute le poids de la commande a macc (macc += $65), remet $65
+; a zero, puis regarde le prochain token de $4783 : tant qu'il n'est pas de type $C0
+; (fin de commande) la boucle wander_eval continue ; sinon ce token est marque $90 et le
+; budget mwt est arme a $0A avant la recherche de slot.
+wander_accum:
+        lda     $65
         clc
         adc     macc
         sta     macc
@@ -3157,14 +3168,19 @@ L3ED0:  lda     $65
         lda     L4783,x
         and     #$F0
         cmp     #$C0
-        bne     L3EC4
+        bne     wander_eval
         lda     #$90
         sta     L4783,x
         lda     #$0A
         sta     mwt
         ldx     #$00
-L3EF1:  lda     L48D3,x
-        beq     L3F0A
+; Recherche de slot candidat : parcourt les 10 entrees de $48D3 (pas de 5 octets). Pour
+; chaque candidat deja retenu, soustrait son poids (L48D4,x) du budget mwt afin de
+; reserver la place ; le premier octet d'id nul marque le slot libre -> $3F0A. Sans slot
+; libre au bout des 10, le plan est abandonne ($3FCF).
+wander_slot:
+        lda     L48D3,x
+        beq     wander_budget
         lda     mwt
         sec
         sbc     L48D4,x
@@ -3174,14 +3190,21 @@ L3EF1:  lda     L48D3,x
         adc     #$05
         tax
         cpx     #$32
-        bne     L3EF1
+        bne     wander_slot
         jmp     L3FCF
 
-L3F0A:  lda     mwt
-        bne     L3F11
+; Controle de budget : si mwt (budget restant apres reservation des autres candidats)
+; est nul, il n'y a plus de place -> abandon ($3FCF) ; sinon, prepare le comptage.
+wander_budget:
+        lda     mwt
+        bne     wander_count_init
         jmp     L3FCF
 
-L3F11:  lda     #$00
+; Initialisation du comptage : vide l'etat du slot libre (L48D5,x := 0), remet mcnt et
+; $65 a zero, memorise macc dans $6C (nombre total de commandes en file) et replace
+; ptr2 sur la base des enregistrements de commande $4927.
+wander_count_init:
+        lda     #$00
         sta     L48D5,x
         sta     mcnt
         sta     $65
@@ -3191,23 +3214,36 @@ L3F11:  lda     #$00
         sta     ptr2
         lda     #$49
         sta     ptr2_hi
-L3F26:  inc     $65
+; Comptage des enregistrements : avance d'un enregistrement (rec_next ; saute les
+; chaines marquees par le bit $40) en incrementant $65. S'arrete quand $65 atteint le
+; budget mwt -> $3F3F, sinon memorise mcnt := $65 et continue tant qu'il reste des
+; commandes ($6C). mcnt = plus grand nombre d'enregistrements < budget.
+wander_count:
+        inc     $65
         jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
         and     #$40
-        bne     L3F26
+        bne     wander_count
         lda     $65
         cmp     mwt
-        bcs     L3F3F
+        bcs     wander_count_ok
         sta     mcnt
         dec     $6C
-        bne     L3F26
-L3F3F:  lda     mcnt
-        bne     L3F46
+        bne     wander_count
+; Aucun enregistrement ne tient dans le budget (mcnt nul) -> le plan est abandonne
+; ($3FCF) ; sinon il y a de quoi retenir un candidat.
+wander_count_ok:
+        lda     mcnt
+        bne     wander_retain
         jmp     L3FCF
 
-L3F46:  sta     L48D4,x
+; Retention du candidat : note son poids (L48D4,x := mcnt) et son id (L48D3,x := $90),
+; puis efface $90. Calcule la destination ptr := $47E3 + 24*(10-mwt) : 10-mwt est le
+; poids des candidats deja reserves, donc chaque candidat est empile a la suite des
+; precedents.
+wander_retain:
+        sta     L48D4,x
         lda     $90
         sta     L48D3,x
         lda     #$00
@@ -3228,35 +3264,44 @@ L3F46:  sta     L48D4,x
         adc     #$47
         sta     ptr_hi
         ldy     #$00
-L3F6C:  ldx     #$18
-L3F6E:  lda     L4927,y
+; Empilement des commandes : recopie mcnt enregistrements de 24 octets depuis $4927 vers
+; (ptr) (zone $47E3 indexee par le poids), un octet a la fois (wander_pack_byte), puis
+; enchaine sur wander_step pour tenter le deplacement.
+wander_pack:
+        ldx     #$18
+; Boucle interne d'empilement : recopie un octet de L4927,y vers (ptr),y et incremente Y
+; sans le remettre a zero entre enregistrements (copie contigue de mcnt x 24 octets).
+wander_pack_byte:
+        lda     L4927,y
         sta     (ptr),y
         iny
         dex
-        bne     L3F6E
+        bne     wander_pack_byte
         dec     mcnt
-        bne     L3F6C
+        bne     wander_pack
         jmp     wander_step
 
 L3F7E:  .byte   $CA
-; Amorce un deplacement d'errance pour le personnage courant : lit l'opcode et le
-; personnage de la file, puis bascule sur le coeur (wander_core) ou le pas
-; (wander_step) selon le contexte. Appele par entity_tick (volet one-shot) et par
-; act_v14_11.
+; Amorce un deplacement d'errance. A (mode, = 1 en pratique) est range dans le drapeau
+; auto-modifie $3F7E, relu par wander_step : 0 = ne pas tenter le pas reel. Compare
+; ensuite le personnage de la file ($90) a obj : identiques -> recalcul du plan
+; (wander_core) ; sinon -> simple pas (wander_step). Appele par entity_tick (one-shot)
+; et act_v14_11.
 wander_start:
-        sta     L3F7E
+        sta     L3F7E                           ; drapeau d'errance $3F7E := A (0 = ne pas tenter le pas reel)
         jsr     push_ptr
         lda     $90
         cmp     obj
         bne     wander_step
         jmp     wander_core
 
-; Execute un pas d'errance : selectionne l'entree candidate (wander_select), rejoue
-; sa commande sauvegardee (L357C/L36D5) ; en cas d'echec, decremente le poids et
-; reprend (wander_rewind) ; en cas de succes, memorise la position et valide.
+; Execute un pas d'errance : selectionne l'entree candidate (wander_select), puis, si le
+; drapeau $3F7E est arme, rejoue sa commande sauvegardee (cmd_run puis cmd_probe). En cas
+; d'echec, decremente le poids et reprend (wander_rewind) ; en cas de succes, memorise la
+; position et valide.
 wander_step:
         jsr     wander_select
-        lda     L3F7E
+        lda     L3F7E                           ; drapeau $3F7E : si arme, tenter le pas reel (sinon sauter)
         beq     L3FC5
         lda     L48D5,x
         sta     $7E

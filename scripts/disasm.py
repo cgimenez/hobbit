@@ -549,6 +549,46 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "wander_core",
         "Coeur du moteur d'errance : parse les deplacements en file et calcule leur poids",
     ),
+    0x3EC4: (
+        "wander_eval",
+        "Boucle d'evaluation : rejoue chaque commande de deplacement en file via parse_cmd",
+    ),
+    0x3ED0: (
+        "wander_accum",
+        "Cumule le poids de la commande (macc += $65) puis detecte la fin de file ($C0 -> $90)",
+    ),
+    0x3EF1: (
+        "wander_slot",
+        "Cherche un slot libre en $48D3 et deduit du budget mwt le poids des candidats retenus",
+    ),
+    0x3F0A: (
+        "wander_budget",
+        "Budget restant nul -> abandon ; sinon prepare le comptage des enregistrements",
+    ),
+    0x3F11: (
+        "wander_count_init",
+        "Initialise le comptage : mcnt=0, $6C=macc, ptr2=$4927",
+    ),
+    0x3F26: (
+        "wander_count",
+        "Parcourt les enregistrements de commande et compte ceux qui tiennent dans le budget",
+    ),
+    0x3F3F: (
+        "wander_count_ok",
+        "Aucun enregistrement retenu -> abandon du plan",
+    ),
+    0x3F46: (
+        "wander_retain",
+        "Retient le candidat (id $90, poids mcnt) et empile ses enregistrements a $47E3",
+    ),
+    0x3F6C: (
+        "wander_pack",
+        "Recopie mcnt enregistrements de commande (24 o) vers $47E3 + 24*(10-mwt)",
+    ),
+    0x3F6E: (
+        "wander_pack_byte",
+        "Boucle interne d'empilement : un octet d'enregistrement a la fois",
+    ),
     0x3F7F: ("wander_start", "Declenche le deplacement d'errance retenu pour le personnage courant"),
     0x3F8E: (
         "wander_step",
@@ -1109,21 +1149,76 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "Sert a savoir si un PNJ est deja en cours de planification de deplacement.",
     ],
     0x3EB2: [
-        "Coeur du moteur d'errance : rejoue avec parse_cmd les commandes de deplacement",
-        "empilees pour un PNJ afin d'evaluer un chemin, additionne leur poids (macc $D3),",
-        "le compare au budget $0A (mwt $D0) et retient des candidats (table $48D3).",
-        "Utilise les enregistrements de commande $4927.",
+        "Coeur du moteur d'errance. Prologue : $5F := $91 (curseur de tokens), ptr2 := $4927",
+        "(enregistrements de commande), $65 := 0 et macc (accumulateur de poids) := 0, puis",
+        "entre dans la boucle d'evaluation wander_eval ($3EC4). Le plan retenu est range dans",
+        "les candidats $48D3 (entrees de 5 o [id, poids, etat, lo, hi]) et les commandes sont",
+        "empilees dans $47E3. Passe ensuite la main a wander_step.",
+    ],
+    0x3EC4: [
+        "Boucle d'evaluation : parse_cmd consomme la commande suivante de la file de tokens",
+        "(curseur $5F) et la range dans l'enregistrement de commande courant ; $65 recoit son",
+        "nombre de mots retenus (son poids). A=0 (commande construite) ou A=2 poursuivent en",
+        "$3ED0 ; tout autre retour (A=1, 'WHAT ?') abandonne le plan ($3FCF).",
+    ],
+    0x3ED0: [
+        "Cumul et fin de file : ajoute le poids de la commande a macc (macc += $65), remet $65",
+        "a zero, puis regarde le prochain token de $4783 : tant qu'il n'est pas de type $C0",
+        "(fin de commande) la boucle wander_eval continue ; sinon ce token est marque $90 et le",
+        "budget mwt est arme a $0A avant la recherche de slot.",
+    ],
+    0x3EF1: [
+        "Recherche de slot candidat : parcourt les 10 entrees de $48D3 (pas de 5 octets). Pour",
+        "chaque candidat deja retenu, soustrait son poids (L48D4,x) du budget mwt afin de",
+        "reserver la place ; le premier octet d'id nul marque le slot libre -> $3F0A. Sans slot",
+        "libre au bout des 10, le plan est abandonne ($3FCF).",
+    ],
+    0x3F0A: [
+        "Controle de budget : si mwt (budget restant apres reservation des autres candidats)",
+        "est nul, il n'y a plus de place -> abandon ($3FCF) ; sinon, prepare le comptage.",
+    ],
+    0x3F11: [
+        "Initialisation du comptage : vide l'etat du slot libre (L48D5,x := 0), remet mcnt et",
+        "$65 a zero, memorise macc dans $6C (nombre total de commandes en file) et replace",
+        "ptr2 sur la base des enregistrements de commande $4927.",
+    ],
+    0x3F26: [
+        "Comptage des enregistrements : avance d'un enregistrement (rec_next ; saute les",
+        "chaines marquees par le bit $40) en incrementant $65. S'arrete quand $65 atteint le",
+        "budget mwt -> $3F3F, sinon memorise mcnt := $65 et continue tant qu'il reste des",
+        "commandes ($6C). mcnt = plus grand nombre d'enregistrements < budget.",
+    ],
+    0x3F3F: [
+        "Aucun enregistrement ne tient dans le budget (mcnt nul) -> le plan est abandonne",
+        "($3FCF) ; sinon il y a de quoi retenir un candidat.",
+    ],
+    0x3F46: [
+        "Retention du candidat : note son poids (L48D4,x := mcnt) et son id (L48D3,x := $90),",
+        "puis efface $90. Calcule la destination ptr := $47E3 + 24*(10-mwt) : 10-mwt est le",
+        "poids des candidats deja reserves, donc chaque candidat est empile a la suite des",
+        "precedents.",
+    ],
+    0x3F6C: [
+        "Empilement des commandes : recopie mcnt enregistrements de 24 octets depuis $4927 vers",
+        "(ptr) (zone $47E3 indexee par le poids), un octet a la fois (wander_pack_byte), puis",
+        "enchaine sur wander_step pour tenter le deplacement.",
+    ],
+    0x3F6E: [
+        "Boucle interne d'empilement : recopie un octet de L4927,y vers (ptr),y et incremente Y",
+        "sans le remettre a zero entre enregistrements (copie contigue de mcnt x 24 octets).",
     ],
     0x3F7F: [
-        "Amorce un deplacement d'errance pour le personnage courant : lit l'opcode et le",
-        "personnage de la file, puis bascule sur le coeur (wander_core) ou le pas",
-        "(wander_step) selon le contexte. Appele par entity_tick (volet one-shot) et par",
-        "act_v14_11.",
+        "Amorce un deplacement d'errance. A (mode, = 1 en pratique) est range dans le drapeau",
+        "auto-modifie $3F7E, relu par wander_step : 0 = ne pas tenter le pas reel. Compare",
+        "ensuite le personnage de la file ($90) a obj : identiques -> recalcul du plan",
+        "(wander_core) ; sinon -> simple pas (wander_step). Appele par entity_tick (one-shot)",
+        "et act_v14_11.",
     ],
     0x3F8E: [
-        "Execute un pas d'errance : selectionne l'entree candidate (wander_select), rejoue",
-        "sa commande sauvegardee (L357C/L36D5) ; en cas d'echec, decremente le poids et",
-        "reprend (wander_rewind) ; en cas de succes, memorise la position et valide.",
+        "Execute un pas d'errance : selectionne l'entree candidate (wander_select), puis, si le",
+        "drapeau $3F7E est arme, rejoue sa commande sauvegardee (cmd_run puis cmd_probe). En cas",
+        "d'echec, decremente le poids et reprend (wander_rewind) ; en cas de succes, memorise la",
+        "position et valide.",
     ],
     0x3FE5: [
         "Rembobine la file des commandes ($4905) jusqu'a la position du candidat et",
@@ -1905,6 +2000,8 @@ INLINE_COMMENTS: dict[int, str] = {
     0x50FB: "bit $10 : saut de secours vers une autre instruction",
     0x51CA: "opcode RAND : tirage parmi les cibles de la table de base",
     0x5235: "init du tick : lieu joueur, noir, compteur de bruit",
+    0x3F7F: "drapeau d'errance $3F7E := A (0 = ne pas tenter le pas reel)",
+    0x3F91: "drapeau $3F7E : si arme, tenter le pas reel (sinon sauter)",
     # --- Execution d'une commande joueur ---
     0x357C: "tente d'abord de traiter la commande comme un deplacement (L359B)",
     0x3582: "sinon evalue l'action en sonde (cmd_probe)",
