@@ -2862,7 +2862,7 @@ L3C95:  jsr     push_ptr_ax
         lda     #$01
         sta     raw
         jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : entree lue dans la table $7185 (IT/ONE)
 msg_3CB7:
         .word   $0000
 code_3CB9:
@@ -5125,7 +5125,7 @@ L4DF5:  .byte   $22
 room_image_msg:
         jsr     room_record
         jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : amorce de lieu (ex. $13DC) avant la description
 msg_4DFC:
         .word   $0000
 code_4DFE:
@@ -5152,7 +5152,7 @@ record_desc_out:
         lda     (ptr),y
         sta     msg_4E30
         jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : description lue dans l'enregistrement ((ptr)+0/+1)
 msg_4E30:
         .word   $0000
 code_4E32:
@@ -5334,9 +5334,9 @@ L4EF7:  sta     obj                             ; entite active : obj=id, resolv
 msg_4F3D:
         .word   $1406
 code_4F3F:
-        lda     #$00
+        lda     #$00                            ; fin de l'annonce de bruit : coupe l'affichage (outen=0)
         sta     outen
-L4F43:  lda     crec
+L4F43:  lda     crec                            ; reprend le contexte de l'entite (crec -> ptr)
         sta     ptr
         lda     crec_hi
         sta     ptr_hi
@@ -5346,8 +5346,8 @@ L4F43:  lda     crec
         plp
         bne     L4F56
         lda     #$01
-L4F56:  sta     once
-L4F58:  ldy     #$02
+L4F56:  sta     once                            ; once := 0 si le PNJ est deja candidat a l'errance (sinon 1)
+L4F58:  ldy     #$02                            ; PC du script := ((ptr2)+2/+3) -> $8C/$8D
         lda     (ptr2),y
         sta     $8C
         iny
@@ -5385,21 +5385,21 @@ L4F6D:  ldy     #$00                            ; octet d'opcode du script -> te
         jsr     move_announce
         jmp     L4FFA
 
-L4FA5:  ldy     #$00
+L4FA5:  ldy     #$00                            ; nibble $04 : MOVE court (script_move_short)
         lda     ($8C),y
         and     #$0F
         cmp     #$04
         bne     L4FB2
         jmp     script_move_short
 
-L4FB2:  bcs     L4FB7
+L4FB2:  bcs     L4FB7                           ; nibble $00-$03 : MOVE long (script_move)
         jmp     script_move
 
-L4FB7:  jmp     L4FFA
+L4FB7:  jmp     L4FFA                           ; cas non prevu (nibble > $04 deja aiguille) : passe
 
 L4FBA:  cmp     #$0E                            ; nibble >= 5 : GOTO / INDIR / RAND
         bne     L4FCD
-        ldy     #$01
+        ldy     #$01                            ; $xE : GOTO absolu (PC := operande)
         lda     (ptr),y
         iny
         sta     (ptr2),y
@@ -5864,7 +5864,7 @@ L529B           := * + 1
         adc     ptr_hi
         sta     L4670
         jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : message de dialogue du PNJ (say_if_visible)
 msg_52C6:
         .word   $0000
 code_52C8:
@@ -7262,7 +7262,7 @@ L5BA7:  rol     a
         adc     #$13
         sta     msg_5BB8+1
         jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : message $13A4/$13A8 selon le type d'objet
 msg_5BB8:
         .word   $0000
 code_5BBA:
@@ -7415,7 +7415,8 @@ L5CA3:  php
         plp
         rts
 
-; Prend ou pose un objet apres avoir verifie ses conditions
+; Index 4. Resout arg1 (obj_record) ; si son flag bit5 est pose, bascule vers
+; act_p14_14 (bascule), sinon affiche son nom.
 act_p14_04:
         lda     arg1
         jsr     obj_record
@@ -7423,7 +7424,9 @@ act_p14_04:
         bne     act_p14_14
         jmp     name_from_record
 
-; Bascule l'objet courant (prise/pose) apres verification
+; Index 14 (bascule). Resout et affiche l'objet courant (obj_render_resolve) ;
+; selon l'arme (weapon_test_a) et le contexte de lieu, deplace l'objet ou
+; decrit le lieu (act_look).
 act_p14_14:
         lda     obj
         jsr     obj_render_resolve
@@ -7470,7 +7473,9 @@ msg_5D03:
 code_5D05:
         rts
 
-; Deplace un objet et met a jour sa position
+; Index 5. Lance l'objet comme une arme : verifie weapon_test_a, (ptr)+2 puis
+; obj_enter_check ; si l'entree est possible, cale wid := (ptr)+0, arg1 := $FF
+; et enchaine sur combat_round ; sinon decrit le lieu (act_look).
 act_p14_05:
         jsr     weapon_test_a
 L5D09:  cmp     #$FF
@@ -7954,7 +7959,9 @@ code_6027:
 
 L6040:  rts
 
-; Selon les drapeaux de l'objet : l'objet est emporte, ou l'objet est tue
+; Index 13. Transfert d'objet d'un contenant a l'autre : selon (orec2)+4 & $07,
+; verifie la capacite via slot_alloc3 ; si le contenant est trop plein, affiche
+; '<ARG2>IS TOO FULL' ($11F1) ; sinon deplace le contenu (champ +$10 et porteur).
 act_p14_13:
         jsr     light_gate
         lda     orec
@@ -8025,7 +8032,10 @@ L609A:  lda     #$05
         sta     (ptr),y
         lda     #$01
         bne     L60C4
-; Combat : applique les degats, epuise le compteur, annonce la mort
+; Index 0. Ajoute $0A au compteur (crec)+5 de l'objet ; en cas de debordement
+; (resultat negatif) la creature meurt de gloutonnerie ('... FOUL GLUTTONY HAS
+; KILLED <OBJ>.' $1525) et est retiree du jeu (unit_remove) ; sinon la cible
+; (orec)+1 recoit $FF et ses 16 octets de queue (orec)+$10.. sont effaces.
 act_p14_00:
         jsr     act_probe
         lda     #$0A
@@ -8056,7 +8066,11 @@ code_60E8:
         lda     obj
         jmp     unit_remove
 
-; Deplace l'objet et prepare son affichage
+; Index 1. Attaque avec l'objet courant : verifie les drapeaux (orec)+7 (bit1
+; arme, bit3 deja touche) et, si une cible arg2 est fournie, son autorisation
+; (verb_obj_ok $0C) et (orec2)+5>0. Calcule les degats (ratio $15 sur (crec)+5)
+; et les retranche au compteur (orec)+6 de la cible ; si la cible tombe, pose
+; son bit3, reduit ses compteurs et annonce le resultat via name_from_record.
 act_p14_01:
         lda     orec
         sta     ptr
@@ -8170,7 +8184,8 @@ L61A3:  ldy     #$07
 L61C4:  lda     #$83
         jmp     name_from_record
 
-; Objet : selon un drapeau, agit ou passe la main
+; Index 2. Selon le flag bit5 de (orec)+7 : s'il est clair, affiche le nom de
+; l'objet ; s'il est pose, (act_probe) l'efface et rend la main.
 act_p14_02:
         lda     orec
         sta     ptr
@@ -8187,7 +8202,9 @@ L61DC:  ldy     #$07
         sta     (ptr),y
         rts
 
-; Objet : lit un drapeau et branche vers un cas particulier
+; Index 7. Allume/eteint un objet a lumiere : item_flag_test sur arg2 ; si
+; l'objet est absent, decrit le lieu (act_look) ; sinon, selon le bit5 de
+; (ptr2)+7, retire le flag et arme l'evenement lie a arg1.
 act_p14_07:
         jsr     light_gate
         lda     arg2
@@ -8221,7 +8238,9 @@ L620B:  jsr     act_probe
         lda     arg1
         jmp     event_arm_obj
 
-; Pose un drapeau ; parfois declenche une scene (fete) selon l'objet
+; Index 3. Si le flag bit0 de (orec)+7 est deja pose, affiche le nom ; sinon
+; (act_probe) pose le bit5 de (ptr)+7 et, pour l'objet d'id $01 dont arg1 n'est
+; pas visible, declenche l'annonce des objets visibles (list_visible_init).
 act_p14_03:
         jsr     obj_flag1_test
         beq     L622A
@@ -8361,7 +8380,7 @@ L630B:  lda     L6321
         bcc     L631A
         sta     (orec),y
 L631A:  jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : message de degats choisi dans $6359/$635A
 msg_631D:
         .word   $0000
 code_631F:
@@ -8429,7 +8448,7 @@ code_63A4:
         ora     msg_63C1
         beq     L63C4
         jsr     print_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : message d'objet lu dans la fiche ((ptr)+$0E)
 msg_63C1:
         .word   $0000
 code_63C3:
@@ -8651,11 +8670,13 @@ evt_arme3:
         rts
 
         .byte   $A9,$02,$D0,$06
-; Choisit le traitement d'un objet selon son type (cas $0F)
+; Index 12 (type $0F). Meme aiguillage que l'index 8, avec le type $0F : si
+; arg2=$0F, vers L641D ($wid=$25) ou L6448 ; sinon act_p14_06 / cannot_do.
 act_p14_12:
         lda     #$0F
         bne     L65BC
-; Choisit le traitement d'un objet selon son type (cas $04)
+; Index 8 (type $04). Aiguille selon le type reel de arg2 : si arg2=$04, vers
+; L641D ($wid=$25) ou L6448 ; sinon act_p14_06 ($02/$04/$0F) ou cannot_do.
 act_p14_08:
         lda     #$04
 L65BC:  cmp     arg2
@@ -8676,7 +8697,8 @@ L65CC:  lda     arg2
         beq     act_p14_06
         jmp     cannot_do
 
-; Dit que la cle ne va pas sur cette serrure, ou qu'on ne peut pas faire ca
+; Index 6. Affiche '<ARG2>DO NOT FIT THIS LOCK' ($140C) : l'objet ne va pas
+; sur cette serrure, ou l'action est impossible.
 act_p14_06:
         jsr     print_msg
 ; -> $140C <ARG2>DO NOT FIT THIS LOCK
@@ -8692,7 +8714,8 @@ code_65E2:
         sta     ptr_hi
         jmp     L622D
 
-; Selon le type de l'objet, poursuit un traitement ou un autre
+; Index 10. Lit le champ (crec)+$10 : s'il vaut $0F, poursuit en act_p14_03 ;
+; sinon decrit le lieu (act_look).
 act_p14_10:
         lda     crec
         sta     ptr
@@ -8833,7 +8856,9 @@ evt_arme6:
         sta     $2B31
         rts
 
-; Araignees : annonce qu'elles tissent leur toile et arme un evenement
+; Index 11 (araignees). Si le bit3 de (orec)+7 est pose : pose le bit5, arme
+; l'evenement e1 ($2B17 -> $2B18) et annonce 'SOME SPIDERS START MEND THE
+; BROKEN WEB' ($1478) ; sinon ne fait rien.
 act_p14_11:
         ldy     #$07
         lda     (orec),y
@@ -9386,7 +9411,9 @@ msg_6B6F:
 code_6B71:
         rts
 
-; Pour un objet donne, parcourt une liste et affiche 'go...from...to'
+; Index 9. Pour l'objet $41, assemble le message 'GO <W> FROM <MSG> TO GET TO
+; <MSG>' ($15AB) a partir de la table des lieux (room_cond_ptr / word_ptr_table)
+; et des arguments VM $466F-$4674 ; sinon renvoie vers code_63A4.
 act_p14_09:
         lda     obj
         cmp     #$41
@@ -9495,7 +9522,7 @@ L6C19:  jsr     act_probe
         lda     ($BF),y
         sta     msg_6C2C+1
         jsr     act_msg
-; TODO pointeur $0000
+; TODO pointeur $0000 : slot rempli au runtime : message prepare par le jeu (pointeur $BF, Gollum)
 msg_6C2C:
         .word   $0000
 code_6C2E:
@@ -11205,7 +11232,16 @@ L77B6:  dex
 
 L77CA:  .byte   "aZDZa"
 L77CF:  .byte   "aVHVa"
-; Dessine une illustration en suivant un flux de trace
+; Decodeur d'un flux d'illustration (bloc 3 ; cible de la table a cles $7AC0).
+; Entree : X/Y = adresse du flux. Le 1er octet du flux (lu dans A) est passe a
+; vec_setup, qui prepare l'ecran hires (fond + bordures). Puis chaque octet
+; suivant est une commande, repetee jusqu'a $00 :
+;   $00  fin de flux (retour) ;
+;   $08  position du curseur (vec_pos) ;
+;   bit7 ligne (vec_line) ; bit6 remplissage (vec_fill) ;
+;   bit5 saut jusqu'a un marqueur $FF (vec_skip).
+; Le test est prioritaire dans cet ordre (bit7 avant bit6 avant bit5).
+; Le pointeur de flux ($28/$29) avance d'un octet par vec_next_byte.
 vec_image:
         stx     $28
         sty     $29
@@ -11214,18 +11250,18 @@ vec_image:
         lda     ($28),y
         jsr     vec_setup
         jsr     vec_next_byte
-L77E3:  ldy     #$00
-        lda     ($28),y
+L77E3:  ldy     #$00                            ; boucle du flux : octet de commande suivant
+        lda     ($28),y                         ; octet de commande courant
         beq     L781B
-        cmp     #$08
+        cmp     #$08                            ; $08 : position du curseur (vec_pos)
         beq     L7803
-        and     #$80
+        and     #$80                            ; bit7 : trace de ligne (vec_line)
         bne     L7809
         lda     ($28),y
-        and     #$40
+        and     #$40                            ; bit6 : remplissage (vec_fill)
         bne     L780F
         lda     ($28),y
-        and     #$20
+        and     #$20                            ; bit5 : saut jusqu'a un marqueur (vec_skip)
         bne     L7815
 L77FD:  jsr     vec_next_byte
         jmp     L77E3
@@ -11253,7 +11289,13 @@ vec_next_byte:
         inc     $29
 L7823:  rts
 
-; Remplissage d'une zone de l'illustration
+; Remplissage (seed fill) : part du pixel courant ($30/$31) et s'etend
+; horizontalement, puis empile les positions de reprise sur la pile 6502
+; (repere de profondeur en $32 ; bornes $30/$31 sauvees en $33/$34) pour
+; couvrir la zone en tache d'huile. Les drapeaux $35/$36 evitent de repasser
+; sur une ligne deja remplie. S'arrete sur les pixels occupes ou hors zone
+; ($30 < $0E ou >= $F2, testes par vec_testpx). Utilise par les commandes a
+; bit6 du flux d'illustration.
 vec_fill:
         tsx
         stx     $32
@@ -11360,7 +11402,13 @@ vec_skip:
         bne     vec_skip
         rts
 
-; Illustration : trace un segment de ligne
+; Trace un segment de droite a partir de l'octet de commande ($28),y.
+; Directions : bit0 = axe majeur vertical ; bit1 = sens vertical ; bit2 = sens
+; horizontal. La longueur du petit axe est en $2D (bits 3-6 de l'octet + bits
+; 7-6 de l'octet suivant, +1) et le nombre de pas en $2E (bits 5-0 de l'octet
+; suivant). Deux boucles symetriques (L791C si axe majeur horizontal, L7954
+; sinon) tracent pas a pas via vec_plot, en rebondissant sur les bornes
+; ($30 dans [$0E,$F2), $31 dans [0,$7F]) ; utilise par les commandes a bit7.
 vec_line:
         lda     ($28),y
         and     #$01
@@ -11464,7 +11512,11 @@ L798B:  dec     $2E
         bpl     L7958
         rts
 
-; Prepare l'ecran pour une illustration
+; Prepare l'ecran pour une illustration : efface le bitmap hires $A000-$B3FF
+; (chaque octet recoit $40 = fond), puis trace les bordures gauche ($A000) et
+; droite ($A001) tous les $28 octets, avec l'encre donnee par A : nibble bas =
+; bordure gauche, nibble haut = bordure droite (chacun force en $10-$17).
+; Appelee par vec_image avec le 1er octet du flux comme parametre.
 vec_setup:
         pha
         lda     #$A0
@@ -11527,7 +11579,9 @@ L79E4           := * + 2
         bne     L79E2
         rts
 
-; Illustration : teste si un pixel est dans la zone dessinable
+; Teste le pixel ($30,$31) : rend A<>0 si un point est deja dessine ou si la
+; position est hors zone ($30 < $0E ou >= $F2), A=0 si le pixel est libre.
+; Sert de test de frontiere au remplissage vec_fill (et au trace vec_line).
 vec_testpx:
         lda     $30
         cmp     #$0E
@@ -11541,7 +11595,8 @@ vec_testpx:
 L7A0C:  lda     #$FF
         rts
 
-; Illustration : allume un pixel
+; Allume le pixel ($30,$31) dans le bitmap hires (OR du masque L7A5F[X]) ;
+; hors zone ($30 < $0E ou >= $F2) ne fait rien.
 vec_plot:
         lda     $30
         cmp     #$0E
@@ -11553,7 +11608,11 @@ vec_plot:
         sta     ($38),y
 L7A21:  rts
 
-; Illustration : calcule l'adresse d'un pixel
+; Calcule l'adresse du pixel ($30,$31) : octet de base $A002 + ($7F-$31)*$28
+; + ($30-$0E). Pose l'adresse en $38/$39 ; rend dans A l'octet courant du
+; bitmap (lu via ($38),Y) et dans X le numero de bit (masque L7A5F[X] :
+; $20,$10,$08,$04,$02,$01). Le decoupage $30-$0E est divise par 6 (6 pixels
+; par octet) : le quotient donne l'offset d'octet, le reste le numero de bit.
 vec_addr:
         lda     #$02
         sta     $38

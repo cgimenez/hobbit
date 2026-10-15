@@ -1699,6 +1699,133 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "N'execute pas l'action ; sert a savoir si la commande passe avant de la",
         "rejouer en reel.",
     ],
+    # --- Actions joueur (table L7014, index 0-14) : corps detailles ---
+    0x60BF: [
+        "Index 0. Ajoute $0A au compteur (crec)+5 de l'objet ; en cas de debordement",
+        "(resultat negatif) la creature meurt de gloutonnerie ('... FOUL GLUTTONY HAS",
+        "KILLED <OBJ>.' $1525) et est retiree du jeu (unit_remove) ; sinon la cible",
+        "(orec)+1 recoit $FF et ses 16 octets de queue (orec)+$10.. sont effaces.",
+    ],
+    0x60ED: [
+        "Index 1. Attaque avec l'objet courant : verifie les drapeaux (orec)+7 (bit1",
+        "arme, bit3 deja touche) et, si une cible arg2 est fournie, son autorisation",
+        "(verb_obj_ok $0C) et (orec2)+5>0. Calcule les degats (ratio $15 sur (crec)+5)",
+        "et les retranche au compteur (orec)+6 de la cible ; si la cible tombe, pose",
+        "son bit3, reduit ses compteurs et annonce le resultat via name_from_record.",
+    ],
+    0x61C9: [
+        "Index 2. Selon le flag bit5 de (orec)+7 : s'il est clair, affiche le nom de",
+        "l'objet ; s'il est pose, (act_probe) l'efface et rend la main.",
+    ],
+    0x6222: [
+        "Index 3. Si le flag bit0 de (orec)+7 est deja pose, affiche le nom ; sinon",
+        "(act_probe) pose le bit5 de (ptr)+7 et, pour l'objet d'id $01 dont arg1 n'est",
+        "pas visible, declenche l'annonce des objets visibles (list_visible_init).",
+    ],
+    0x5CA9: [
+        "Index 4. Resout arg1 (obj_record) ; si son flag bit5 est pose, bascule vers",
+        "act_p14_14 (bascule), sinon affiche son nom.",
+    ],
+    0x5D06: [
+        "Index 5. Lance l'objet comme une arme : verifie weapon_test_a, (ptr)+2 puis",
+        "obj_enter_check ; si l'entree est possible, cale wid := (ptr)+0, arg1 := $FF",
+        "et enchaine sur combat_round ; sinon decrit le lieu (act_look).",
+    ],
+    0x65DD: [
+        "Index 6. Affiche '<ARG2>DO NOT FIT THIS LOCK' ($140C) : l'objet ne va pas",
+        "sur cette serrure, ou l'action est impossible.",
+    ],
+    0x61E5: [
+        "Index 7. Allume/eteint un objet a lumiere : item_flag_test sur arg2 ; si",
+        "l'objet est absent, decrit le lieu (act_look) ; sinon, selon le bit5 de",
+        "(ptr2)+7, retire le flag et arme l'evenement lie a arg1.",
+    ],
+    0x65BA: [
+        "Index 8 (type $04). Aiguille selon le type reel de arg2 : si arg2=$04, vers",
+        "L641D ($wid=$25) ou L6448 ; sinon act_p14_06 ($02/$04/$0F) ou cannot_do.",
+    ],
+    0x6B72: [
+        "Index 9. Pour l'objet $41, assemble le message 'GO <W> FROM <MSG> TO GET TO",
+        "<MSG>' ($15AB) a partir de la table des lieux (room_cond_ptr / word_ptr_table)",
+        "et des arguments VM $466F-$4674 ; sinon renvoie vers code_63A4.",
+    ],
+    0x65F1: [
+        "Index 10. Lit le champ (crec)+$10 : s'il vaut $0F, poursuit en act_p14_03 ;",
+        "sinon decrit le lieu (act_look).",
+    ],
+    0x66D6: [
+        "Index 11 (araignees). Si le bit3 de (orec)+7 est pose : pose le bit5, arme",
+        "l'evenement e1 ($2B17 -> $2B18) et annonce 'SOME SPIDERS START MEND THE",
+        "BROKEN WEB' ($1478) ; sinon ne fait rien.",
+    ],
+    0x65B6: [
+        "Index 12 (type $0F). Meme aiguillage que l'index 8, avec le type $0F : si",
+        "arg2=$0F, vers L641D ($wid=$25) ou L6448 ; sinon act_p14_06 / cannot_do.",
+    ],
+    0x6041: [
+        "Index 13. Transfert d'objet d'un contenant a l'autre : selon (orec2)+4 & $07,",
+        "verifie la capacite via slot_alloc3 ; si le contenant est trop plein, affiche",
+        "'<ARG2>IS TOO FULL' ($11F1) ; sinon deplace le contenu (champ +$10 et porteur).",
+    ],
+    0x5CB6: [
+        "Index 14 (bascule). Resout et affiche l'objet courant (obj_render_resolve) ;",
+        "selon l'arme (weapon_test_a) et le contexte de lieu, deplace l'objet ou",
+        "decrit le lieu (act_look).",
+    ],
+    # --- Moteur d'illustrations vectorielles (bloc 3) : decodeur de flux ---
+    0x77D4: [
+        "Decodeur d'un flux d'illustration (bloc 3 ; cible de la table a cles $7AC0).",
+        "Entree : X/Y = adresse du flux. Le 1er octet du flux (lu dans A) est passe a",
+        "vec_setup, qui prepare l'ecran hires (fond + bordures). Puis chaque octet",
+        "suivant est une commande, repetee jusqu'a $00 :",
+        "  $00  fin de flux (retour) ;",
+        "  $08  position du curseur (vec_pos) ;",
+        "  bit7 ligne (vec_line) ; bit6 remplissage (vec_fill) ;",
+        "  bit5 saut jusqu'a un marqueur $FF (vec_skip).",
+        "Le test est prioritaire dans cet ordre (bit7 avant bit6 avant bit5).",
+        "Le pointeur de flux ($28/$29) avance d'un octet par vec_next_byte.",
+    ],
+    0x7824: [
+        "Remplissage (seed fill) : part du pixel courant ($30/$31) et s'etend",
+        "horizontalement, puis empile les positions de reprise sur la pile 6502",
+        "(repere de profondeur en $32 ; bornes $30/$31 sauvees en $33/$34) pour",
+        "couvrir la zone en tache d'huile. Les drapeaux $35/$36 evitent de repasser",
+        "sur une ligne deja remplie. S'arrete sur les pixels occupes ou hors zone",
+        "($30 < $0E ou >= $F2, testes par vec_testpx). Utilise par les commandes a",
+        "bit6 du flux d'illustration.",
+    ],
+    0x78E4: [
+        "Trace un segment de droite a partir de l'octet de commande ($28),y.",
+        "Directions : bit0 = axe majeur vertical ; bit1 = sens vertical ; bit2 = sens",
+        "horizontal. La longueur du petit axe est en $2D (bits 3-6 de l'octet + bits",
+        "7-6 de l'octet suivant, +1) et le nombre de pas en $2E (bits 5-0 de l'octet",
+        "suivant). Deux boucles symetriques (L791C si axe majeur horizontal, L7954",
+        "sinon) tracent pas a pas via vec_plot, en rebondissant sur les bornes",
+        "($30 dans [$0E,$F2), $31 dans [0,$7F]) ; utilise par les commandes a bit7.",
+    ],
+    0x7990: [
+        "Prepare l'ecran pour une illustration : efface le bitmap hires $A000-$B3FF",
+        "(chaque octet recoit $40 = fond), puis trace les bordures gauche ($A000) et",
+        "droite ($A001) tous les $28 octets, avec l'encre donnee par A : nibble bas =",
+        "bordure gauche, nibble haut = bordure droite (chacun force en $10-$17).",
+        "Appelee par vec_image avec le 1er octet du flux comme parametre.",
+    ],
+    0x79FB: [
+        "Teste le pixel ($30,$31) : rend A<>0 si un point est deja dessine ou si la",
+        "position est hors zone ($30 < $0E ou >= $F2), A=0 si le pixel est libre.",
+        "Sert de test de frontiere au remplissage vec_fill (et au trace vec_line).",
+    ],
+    0x7A0F: [
+        "Allume le pixel ($30,$31) dans le bitmap hires (OR du masque L7A5F[X]) ;",
+        "hors zone ($30 < $0E ou >= $F2) ne fait rien.",
+    ],
+    0x7A22: [
+        "Calcule l'adresse du pixel ($30,$31) : octet de base $A002 + ($7F-$31)*$28",
+        "+ ($30-$0E). Pose l'adresse en $38/$39 ; rend dans A l'octet courant du",
+        "bitmap (lu via ($38),Y) et dans X le numero de bit (masque L7A5F[X] :",
+        "$20,$10,$08,$04,$02,$01). Le decoupage $30-$0E est divise par 6 (6 pixels",
+        "par octet) : le quotient donne l'offset d'octet, le reste le numero de bit.",
+    ],
 }
 
 # Points d'entrée de la table de vecteurs en $2C05 (16 entrées JMP).
@@ -1758,6 +1885,14 @@ INLINE_COMMENTS: dict[int, str] = {
     0x4EF7: "entite active : obj=id, resolve lieu et fiche (L57BB)",
     0x4F63: "garde-fou : au plus 6 opcodes par tick",
     0x4F6D: "octet d'opcode du script -> test du nibble bas",
+    0x4F3F: "fin de l'annonce de bruit : coupe l'affichage (outen=0)",
+    0x4F43: "reprend le contexte de l'entite (crec -> ptr)",
+    0x4F56: "once := 0 si le PNJ est deja candidat a l'errance (sinon 1)",
+    0x4F58: "PC du script := ((ptr2)+2/+3) -> $8C/$8D",
+    0x4FA5: "nibble $04 : MOVE court (script_move_short)",
+    0x4FB2: "nibble $00-$03 : MOVE long (script_move)",
+    0x4FB7: "cas non prevu (nibble > $04 deja aiguille) : passe",
+    0x4FBE: "$xE : GOTO absolu (PC := operande)",
     0x4FBA: "nibble >= 5 : GOTO / INDIR / RAND",
     0x4FCD: "$xC : GOTO par cle (entity_goto, table de base)",
     0x4FE0: "$xF : RAND (script_rand)",
@@ -1815,6 +1950,13 @@ INLINE_COMMENTS: dict[int, str] = {
     0x3A1C: "etat du 2e operateur ($D7 bit1)",
     0x3A30: "rejoue l'action en mode reel",
     0x3B30: "octet +3 de la sortie (bit5) : ajoute 2 mots d'argument",
+    # --- Moteur d'illustrations vectorielles (bloc 3) : boucle de flux ---
+    0x77E3: "boucle du flux : octet de commande suivant",
+    0x77E5: "octet de commande courant",
+    0x77E9: "$08 : position du curseur (vec_pos)",
+    0x77ED: "bit7 : trace de ligne (vec_line)",
+    0x77F3: "bit6 : remplissage (vec_fill)",
+    0x77F9: "bit5 : saut jusqu'a un marqueur (vec_skip)",
 }
 
 # Routines ROM (issues du désassemblage 1.0 et 1.1, cf. docs/).
@@ -1832,7 +1974,22 @@ ROM_LABELS = {
     0xE75A: "WRITELEADER_11",
     0xE76A: "SETUPTAPE_11",
     0xF77C: "CHAR2SCR_11",
-    0xF9AA: "RESETSTAT_11",
+     0xF9AA: "RESETSTAT_11",
+}
+
+# Pointeurs de message `.word $0000` remplis a l'execution : adresse du slot ->
+# explication (ajoutee au repere "TODO pointeur $0000" du listing). Ces slots
+# sont ecrits par le code qui precede le print_msg inline (idiome courant) ; la
+# valeur statique est donc nulle, d'ou le TODO conserve.
+NULLPTR_NOTES: dict[int, str] = {
+    0x3CB7: "slot rempli au runtime : entree lue dans la table $7185 (IT/ONE)",
+    0x4DFC: "slot rempli au runtime : amorce de lieu (ex. $13DC) avant la description",
+    0x4E30: "slot rempli au runtime : description lue dans l'enregistrement ((ptr)+0/+1)",
+    0x52C6: "slot rempli au runtime : message de dialogue du PNJ (say_if_visible)",
+    0x5BB8: "slot rempli au runtime : message $13A4/$13A8 selon le type d'objet",
+    0x631D: "slot rempli au runtime : message de degats choisi dans $6359/$635A",
+    0x63C1: "slot rempli au runtime : message d'objet lu dans la fiche ((ptr)+$0E)",
+    0x6C2C: "slot rempli au runtime : message prepare par le jeu (pointeur $BF, Gollum)",
 }
 
 
@@ -2425,7 +2582,11 @@ def build_info(
     for p in sorted(ptrs):
         msg = ptrs[p]
         preview = msg_preview(raw, msg)
-        comment = "TODO pointeur $0000" if msg == 0 else f"-> ${msg:04X} {preview}"
+        if msg == 0:
+            note = NULLPTR_NOTES.get(p)
+            comment = "TODO pointeur $0000" + (f" : {note}" if note else "")
+        else:
+            comment = f"-> ${msg:04X} {preview}"
         lines.append(f"RANGE {{ START ${p:04X}; END ${p + 1:04X}; TYPE WORDTABLE; }};")
         lines.append(
             f'LABEL {{ NAME "msg_{p:04X}"; ADDR ${p:04X}; COMMENT "{comment}"; }};'
