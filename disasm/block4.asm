@@ -9344,7 +9344,7 @@ L7015:  .byte   $FF,$BF
         .byte   $22
         .byte   "b"
         .byte   $A9
-        .byte   "\"
+        .byte   $5C
         .byte   $06
         .byte   "]"
         .byte   $DD
@@ -9360,7 +9360,8 @@ L7015:  .byte   $FF,$BF
         .byte   $B6
         .byte   "eA`"
         .byte   $B6
-        .byte   "\ff)f"
+        .byte   $5C
+        .byte   "ff)f"
         .byte   $EB
         .byte   "j"
         .byte   $B2
@@ -9805,7 +9806,8 @@ L73D4:  .byte   "7JMK UY8NT69,IHL5RB;.OG0VF4-"
         .byte   "PE/"
         .byte   $00,$00,$00,$00,$00,$00,$00,$00
         .byte   $B1,$00,$DA,$00,$88,$88,$C1,$8D
-        .byte   "XQ2\"
+        .byte   "XQ2"
+        .byte   $5C
         .byte   $8A
         .byte   "]S"
         .byte   $00

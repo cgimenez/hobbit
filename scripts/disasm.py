@@ -1446,6 +1446,37 @@ def reflow_text_tables(asm: list[str]) -> list[str]:
     return out
 
 
+# Un octet $5C (backslash) assemble mais, ecrit tel quel dans une chaine
+# `.byte "\"`, fait croire a un echappement de la quote fermante (colorisation
+# des editeurs cassee). On le sort en hexadecimal.
+def _hex_byte_line(prefix: str, value: int) -> str:
+    quote = prefix.rfind('"')
+    head = prefix[:quote] if quote != -1 else prefix.rstrip()
+    return f"{head}${value:02X}\n"
+
+
+def split_backslashes(asm: list[str]) -> list[str]:
+    """Remplace tout backslash d'une chaine `.byte "..."` par `.byte $5C`.
+
+    Sans effet sur les octets assembles (meme donnee) ; evite la quote
+    echappee involontaire dans les listings.
+    """
+    out: list[str] = []
+    for ln in asm:
+        m = _TEXT_BYTE_RE.match(ln)
+        if m is None or "\\" not in m.group("txt"):
+            out.append(ln)
+            continue
+        prefix = ln[: m.start("txt")]
+        segs = m.group("txt").split("\\")
+        for idx, seg in enumerate(segs):
+            if seg:
+                out.append(prefix + seg + '"\n')
+            if idx != len(segs) - 1:
+                out.append(_hex_byte_line(prefix, 0x5C))
+    return out
+
+
 # Equate da65 hors plage assemblee : `sym := $addr`.
 _ASSIGN_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*\$[0-9A-Fa-f]{4}\b")
 
@@ -1584,6 +1615,7 @@ def main(argv: list[str] | None = None) -> int:
         and not ln.startswith("; Page:")
     ]
     asm = reflow_text_tables(asm)
+    asm = split_backslashes(asm)
     asm = inject_notes(asm, block)
     asm = drop_unused_equates(asm)
     block.listing.write_text(block.header + "".join(asm))
