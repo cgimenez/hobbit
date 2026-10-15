@@ -174,7 +174,7 @@ L2C8B:  lda     L3091,x
         bne     L2C8B
         jmp     L2C9E
 
-L2C99:  jsr     L2DEA
+L2C99:  jsr     read_line
         beq     L2CC8
 L2C9E:  ldx     #$40
         lda     #$00
@@ -183,7 +183,7 @@ L2CA2:  sta     L4782,x
         bne     L2CA2
         ldx     #$00
         ldy     #$00
-L2CAC:  jsr     L2ED5
+L2CAC:  jsr     tokenize
         cmp     #$D0
         bne     L2CB6
         jmp     L2D9F
@@ -209,7 +209,7 @@ L2CCE:  lda     #$00
         sta     ptr2
         lda     #$49
         sta     ptr2_hi
-        jsr     code_3111
+        jsr     parse_cmd
         bne     L2D45
         lda     $5F
         pha
@@ -217,7 +217,7 @@ L2CCE:  lda     #$00
         sta     ptr2
         lda     #$4A
         sta     ptr2_hi
-        jsr     L3065
+        jsr     cmd_store
         lda     $65
         sta     $B0
         lda     #$00
@@ -249,7 +249,7 @@ L2D0E:  lda     $57
         sta     $57
         lda     $7E
         bne     L2CFB
-L2D2D:  jsr     L355A
+L2D2D:  jsr     rec_rewind2
         dec     $B0
         bne     L2CFB
         pla
@@ -351,15 +351,25 @@ L2DCC:  sta     $97,x
         cld
         jmp     main
 
-L2DDB:  lda     $57
-        bne     L2E0F
+; '@' en tete de ligne : recule le curseur de 2 et annule la saisie en cours
+input_abort:
+        lda     $57
+        bne     line_read
         lda     #$08
         jsr     putchar
         jsr     putchar
         lda     #$00
         rts
 
-L2DEA:  lda     #$30
+; Editeur de ligne du parser (prompt '> '). Lit les touches une a une et
+; construit la commande dans le tampon $40BE jusqu'a un CR. Le dernier
+; caractere doit etre un point ($2E) : ins_period l'ajoute si besoin, ce point
+; sert de marqueur de fin pour le lexeur. Les guillemets " encadrent un nom ;
+; l'etat ouvert/ferme est memorise en $B8. Backspace ($08) et DEL ($7F)
+; corrigent la saisie. Les fleches sont converties en N/S/E/W (key_arrow).
+; Sortie : A=1 quand la ligne est valide (CR), A=0 pour '@' en tete (annule).
+read_line:
+        lda     #$30
         sta     $61
         lda     #$75
         sta     $62
@@ -371,66 +381,83 @@ L2DEA:  lda     #$30
         lda     #$20
         jsr     putchar
         ldx     #$00
-L2E04:  stx     $B8
+; Lit une touche, la traduit (fleches) puis la traite
+line_loop:
+        stx     $B8
         jsr     L406D
-        jsr     L2EA9
-        jmp     L2E12
+        jsr     key_arrow
+        jmp     line_dispatch
 
-L2E0F:  jsr     L406D
-L2E12:  cpx     #$00
-        bne     L2E1A
-        cmp     #$40
-        beq     L2DDB
-L2E1A:  cmp     #$7F
-        bne     L2E24
-        jsr     L40AC
-        jmp     L2E04
-
-L2E24:  cmp     #$08
-        bne     L2E40
+; Lit une touche sans traduction (relecture apres effacement)
+line_read:
+        jsr     L406D
+; Repartit la touche : fin de ligne, effacement ou edition
+line_dispatch:
         cpx     #$00
-        beq     L2E0F
+        bne     line_del
+        cmp     #$40
+        beq     input_abort
+; Touche DEL ($7F) : efface toute la ligne saisie
+line_del:
+        cmp     #$7F
+        bne     line_backspace
+        jsr     L40AC
+        jmp     line_loop
+
+; Retour arriere ($08) : efface le dernier caractere et suit l'etat guillemet
+line_backspace:
+        cmp     #$08
+        bne     line_edit
+        cpx     #$00
+        beq     line_read
         jsr     putchar
         dex
         lda     L40BE,x
         cmp     #$22
-        bne     L2E0F
+        bne     line_read
         lda     $B8
         eor     #$01
         sta     $B8
-        jmp     L2E0F
+        jmp     line_read
 
-L2E40:  cmp     #$40
-        bcs     L2E68
+; Edition d'un caractere : guillemets, espaces et ponctuation
+line_edit:
+        cmp     #$40
+        bcs     line_store
         cmp     #$22
-        bne     L2E58
+        bne     line_classify
         lda     $B8
         eor     #$01
         sta     $B8
         bne     L2E53
-        jsr     L2E98
+        jsr     ins_period
 L2E53:  lda     #$22
-        jmp     L2E68
+        jmp     line_store
 
-L2E58:  cmp     #$20
-        beq     L2E68
+; Trie le caractere saisi (espace, CR, point, virgule) avant stockage
+line_classify:
+        cmp     #$20
+        beq     line_store
         cmp     #$0D
-        beq     L2E76
+        beq     line_cr
         cmp     #$2E
-        beq     L2E68
+        beq     line_store
         cmp     #$2C
-        bne     L2E0F
-L2E68:  cpx     #$80
-        beq     L2E0F
+        bne     line_read
+; Stocke le caractere dans le tampon de commande $40BE et l'affiche (echo)
+line_store:
+        cpx     #$80
+        beq     line_read
         jsr     putchar
         sta     L40BE,x
         inx
-        jmp     L2E0F
+        jmp     line_read
 
-L2E76:  lda     $B8
+; Entree : ferme la ligne (guillemet/point manquants), stocke CR et renvoie 1
+line_cr:lda     $B8                             ; CR : la commande est close (point final + guillemet)
         beq     L2E7D
-        jsr     L2E8C
-L2E7D:  jsr     L2E98
+        jsr     ins_quote
+L2E7D:  jsr     ins_period
         lda     #$0D
         sta     L40BE,x
         inx
@@ -438,13 +465,17 @@ L2E7D:  jsr     L2E98
         lda     #$01
         rts
 
-L2E8C:  jsr     L2E98
+; Ajoute un guillemet fermant si la saisie en a ouvert un
+ins_quote:
+        jsr     ins_period
         lda     #$22
         sta     L40BE,x
         inx
         jmp     putchar
 
-L2E98:  lda     L40BD,x
+; Ajoute un point final a la commande si elle n'en a pas deja
+ins_period:
+        lda     L40BD,x
         cmp     #$2E
         beq     L2EA8
         lda     #$2E
@@ -453,33 +484,54 @@ L2E98:  lda     L40BD,x
         jsr     putchar
 L2EA8:  rts
 
-L2EA9:  cmp     #$15
-        beq     L2ECB
+; Traduit les codes des fleches Oric en lettres de direction : chaque fleche
+; ecrit directement la lettre + un CR dans la commande ($40BE), ce qui declenche
+; un deplacement immediat au tour suivant (sans mot-cle de direction).
+key_arrow:
+        cmp     #$15
+        beq     key_e
         cmp     #$08
-        beq     L2EC6
+        beq     key_w
         cmp     #$0A
-        beq     L2ED0
+        beq     key_s
         cmp     #$0B
-        beq     L2EBA
+        beq     key_n
         rts
 
-L2EBA:  lda     #$4E
-L2EBC:  sta     L40BE,x
+; Fleche haut : ecrit 'N' puis valide
+key_n:  lda     #$4E
+; Ecrit la lettre de direction dans le tampon, echo, puis valide par CR
+key_dir_put:
+        sta     L40BE,x
         inx
         jsr     putchar
         lda     #$0D
         rts
 
-L2EC6:  lda     #$57
-        jmp     L2EBC
+; Fleche gauche : ecrit 'W' puis valide
+key_w:  lda     #$57
+        jmp     key_dir_put
 
-L2ECB:  lda     #$45
-        jmp     L2EBC
+; Fleche droite : ecrit 'E' puis valide
+key_e:  lda     #$45
+        jmp     key_dir_put
 
-L2ED0:  lda     #$53
-        jmp     L2EBC
+; Fleche bas : ecrit 'S' puis valide
+key_s:  lda     #$53
+        jmp     key_dir_put
 
-L2ED5:  tya
+; Lexeur : lit un mot du tampon $40BE a partir de X, puis le cherche dans le
+; dictionnaire 5-bit du bloc 2. Etapes :
+;   1. saute les espaces ; $60 = position du mot ; un CR donne le token $C0.
+;   2. ponctuation immediate via punct_class (point $B0, virgule $A0, guillemet $90).
+;   3. sinon dict_bucket decode le mot (lettres rangees en $47C3) et se place sur
+;      le seau $0500[2*1re lettre], puis boucle dict_next/word_prefix_cmp.
+;   4. word_finish (word_type) extrait le type (nibble de classe) et l'adresse du
+;      mot dans le bloc 2. Type $D0 = entrees ignorees du parseur (mots de messages).
+; Sortie : $5B = type ($C0 fin, $D0 inconnu, sinon classe<<4) ; adr/adr_hi =
+; pointeur $0500+... ; A = $5B. Le mot est ensuite copie en file par l'appelant.
+tokenize:
+        tya                                     ; entree du lexeur : un mot -> un token
         pha
 L2ED7:  lda     L40BE,x
         inx
@@ -487,22 +539,22 @@ L2ED7:  lda     L40BE,x
         beq     L2ED7
         dex
         stx     $60
-        cmp     #$0D
-        beq     L2F26
-        jsr     L2FA3
-        bne     L2F28
-        jsr     L2FBB
+        cmp     #$0D                            ; CR en fin de ligne -> token de fin $C0
+        beq     lex_cr
+        jsr     punct_class                     ; test ponctuation (point, virgule, guillemet)
+        bne     lex_emit
+        jsr     dict_bucket
         bne     L2EFA
-L2EF0:  jsr     L303C
+L2EF0:  jsr     word_prefix_cmp
         beq     L2EFF
-L2EF5:  jsr     L2FEA
+L2EF5:  jsr     dict_next
         beq     L2EF0
 L2EFA:  lda     #$D0
-        jmp     L2F28
+        jmp     lex_emit
 
 L2EFF:  lda     $67
         cmp     $66
-        bcs     L2F43
+        bcs     word_finish
         cmp     #$04
         bcc     L2EF5
         tya
@@ -511,10 +563,10 @@ L2EFF:  lda     $67
         pha
         lda     $64
         pha
-        jsr     L2FEA
-        bne     L2F3B
-        jsr     L303C
-        bne     L2F3B
+        jsr     dict_next
+        bne     lex_restore
+        jsr     word_prefix_cmp
+        bne     lex_restore
         pla
         sta     $64
         pla
@@ -523,13 +575,18 @@ L2EFF:  lda     $67
         tay
         jmp     L2EF5
 
-L2F26:  lda     #$C0
-L2F28:  pha
+; Fin de ligne : produit le token de type $C0 (fin de commande)
+lex_cr: lda     #$C0
+; Prepare le token courant (adresse vide) puis passe a l'emission du type
+lex_emit:
+        pha
         lda     #$00
         sta     adr
         sta     adr_hi
         pla
-L2F30:  sta     $5B
+; Renseigne le type du token ($5B), combine l'adresse et rend la main
+lex_type:
+        sta     $5B
         ora     adr_hi
         sta     adr_hi
         pla
@@ -537,34 +594,42 @@ L2F30:  sta     $5B
         lda     $5B
         rts
 
-L2F3B:  pla
+; Restaure le pointeur d'entree sauvegarde apres le test d'abreviation
+lex_restore:
+        pla
         sta     $64
         pla
         sta     $63
         pla
         tay
-L2F43:  tya
+; Mot trouve : suit un eventuel renvoi, extrait son type et son adresse de dictionnaire
+word_finish:
+        tya
         pha
         ldy     #$00
-L2F47:  lda     ($63),y
+; Avance jusqu'au dernier octet de lettres du mot (bit7 pose)
+word_skip:
+        lda     ($63),y
         iny
         and     #$80
-        beq     L2F47
+        beq     word_skip
         cpy     #$02
-        beq     L2F47
+        beq     word_skip
         cpy     #$03
-        bne     L2F60
+        bne     word_grammar
         dey
         dey
         lda     ($63),y
         iny
         iny
         and     #$80
-        bne     L2F47
-L2F60:  dey
+        bne     word_skip
+; Teste le bit de renvoi de l'entree et suit la redirection de pointeur si pose
+word_grammar:
+        dey
         lda     ($63),y
         and     #$40
-        beq     L2F78
+        beq     word_type
         iny
         lda     ($63),y
         clc
@@ -576,7 +641,9 @@ L2F60:  dey
         sta     $64
         pla
         sta     $63
-L2F78:  ldy     #$00
+; Extrait le nibble de type (bits 6-5 des 2 premiers octets) et le range dans $5B
+word_type:
+        ldy     #$00                            ; type = bits 6-5 des 2 premiers octets de l'entree de dictionnaire
         lda     ($63),y
         rol     a
         and     #$C0
@@ -596,38 +663,46 @@ L2F78:  ldy     #$00
         sta     adr_hi
         pla
         tay
-        lda     $5B
+        lda     $5B                             ; type $D0 = entree ignoree par le parseur (mot de message)
         cmp     #$D0
-        bne     L2F30
+        bne     lex_type
         jmp     L2EF5
 
-L2FA3:  ldy     #$B0
+; Classe un signe de ponctuation : point ($B0), virgule ($A0) ou guillemet ($90)
+punct_class:
+        ldy     #$B0
         cmp     #$2E
-        beq     L2FB8
+        beq     punct_hit
         ldy     #$A0
         cmp     #$2C
-        beq     L2FB8
+        beq     punct_hit
         ldy     #$90
         cmp     #$22
-        beq     L2FB8
+        beq     punct_hit
         lda     #$00
         rts
 
-L2FB8:  inx
+; Signe de ponctuation reconnu : avance le curseur et renvoie son type
+punct_hit:
+        inx
         tya
         rts
 
-L2FBB:  ldy     #$00
+; Decode les lettres du mot cherche et se place sur le seau de dictionnaire de sa 1re lettre
+dict_bucket:
+        ldy     #$00
 L2FBD:  lda     L40BE,x
         cmp     #$40
-        bcc     L2FCE
+        bcc     dict_start
         and     #$1F
         sta     L47C3,y
         inx
         iny
         jmp     L2FBD
 
-L2FCE:  sty     $66
+; Calcule le seau $0500[2*lettre] et positionne le pointeur sur sa 1re entree
+dict_start:
+        sty     $66
         lda     L47C3
         clc
         adc     L47C3
@@ -641,73 +716,94 @@ L2FCE:  sty     $66
         adc     #$05
         sta     $64
         ldy     #$00
-L2FEA:  tya
+; Avance de la taille de l'entree courante et compare la 1re lettre de la suivante
+dict_next:
+        tya
         clc
         adc     $63
         sta     $63
-        bcc     L2FF4
+        bcc     dict_cmp1
         inc     $64
-L2FF4:  ldy     #$00
+; Compare la 1re lettre de l'entree au mot cherche
+dict_cmp1:
+        ldy     #$00
         lda     ($63),y
         and     #$1F
         cmp     L47C3
-        beq     L3000
+        beq     dict_read
         rts
 
-L3000:  sta     L47D3,y
+; Entree correspondante : decode ses lettres dans $47D3 et mesure sa longueur
+dict_read:
+        sta     L47D3,y
         txa
         pha
         ldx     #$01
         iny
-L3008:  lda     ($63),y
+; Decode les lettres 5 bits d'une entree de dictionnaire (bit7 = suite)
+dict_letters:
+        lda     ($63),y
         and     #$1F
-        beq     L3012
+        beq     dict_letter_next
         sta     L47D3,x
         inx
-L3012:  lda     ($63),y
+; Gere les cas particuliers de 2 et 3 lettres (fin de mot)
+dict_letter_next:
+        lda     ($63),y
         iny
         and     #$80
-        beq     L3008
+        beq     dict_letters
         cpy     #$02
-        beq     L3008
+        beq     dict_letters
         cpy     #$03
-        bne     L302B
+        bne     dict_end
         dey
         dey
         lda     ($63),y
         iny
         iny
         and     #$80
-        bne     L3008
-L302B:  stx     $67
+        bne     dict_letters
+; Fin des lettres : note la longueur du candidat ($67) et le bit de renvoi
+dict_end:
+        stx     $67
         dey
         lda     ($63),y
         iny
         and     #$40
-        beq     L3037
+        beq     dict_done
         iny
         iny
-L3037:  pla
+; Fin de lecture d'une entree : rend Z (A=0) quand la 1re lettre correspond
+dict_done:
+        pla
         tax
         lda     #$00
         rts
 
-L303C:  txa
+; Compare le mot saisi (lettres en $47C3, longueur $66) et le candidat du
+; dictionnaire ($47D3, longueur $67) sur min($66,$67) caracteres. Rend A=0
+; (Z) si le prefixe commun est identique, A=1 sinon. Sert au matcher.
+word_prefix_cmp:
+        txa
         pha
         tya
         pha
         lda     $66
         cmp     $67
-        bcc     L3048
+        bcc     cmp_min
         lda     $67
-L3048:  tax
+; Longueur de comparaison = minimum des deux longueurs
+cmp_min:tax
         ldy     #$00
-L304B:  lda     L47C3,y
+; Boucle de comparaison lettre a lettre
+cmp_loop:
+        lda     L47C3,y
         cmp     L47D3,y
-        bne     L305E
+        bne     cmp_diff
         iny
         dex
-        bne     L304B
+        bne     cmp_loop
         pla
         tay
         pla
@@ -715,14 +811,20 @@ L304B:  lda     L47C3,y
         lda     #$00
         rts
 
-L305E:  pla
+; Difference trouvee : rend Z clair (A=1)
+cmp_diff:
+        pla
         tay
         pla
         tax
         lda     #$01
         rts
 
-L3065:  jsr     L46E6
+; Recopie $65 mots de 24 octets (enregistrements de commande) depuis $4927
+; vers $4A17, en n'emportant que les mots marques (bit $40 de l'octet +1).
+; Prepare la forme consommee plus loin dans la boucle de commandes.
+cmd_store:
+        jsr     L46E6
         lda     #$27
         sta     ptr
         lda     #$49
@@ -813,25 +915,44 @@ L30F6:  ora     ptr2_hi
 L30F9:  .byte   $56,$05,$1A,$1B,$D0,$91,$F1,$02
         .byte   $CC,$28,$26,$97,$C8,$05,$1A,$21
         .byte   $17,$9A,$18,$00,$BE,$00,$DF,$9F
-code_3111:
-        jsr     L3474
+; Interpreteur de commande (grammaire). Consomme la file de tokens $4783
+; construite par le lexeur et classe chaque mot par grammaire via la table
+; $315A (index = type>>3, soit 2 x le nibble de classe).
+; 
+; Classes (nibble de type du dictionnaire, cf. bloc 2) :
+;   $00 adverbe   $10 IN/INTO     $20 direction   $30 verbe
+;   $40 GO/RUN    $50 nom         $60 adjectif    $70 preposition
+;   $80 article   $90 mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT/...)
+;   $A0 AND/virgule   $B0 THEN/point(=fin de commande)
+; 
+; Etat interne : $6D = drapeaux d'attente, $6E = portee (0 normal, 1 ALL,
+; 2 EXCEPT), $9D = compteur de virgules, $65 = nb de mots retenus, $5A/$5B =
+; type precedent/courant, $5F = curseur de file, $A3..$AC = groupe nominal
+; courant, (ptr2) = enregistrement de commande de travail (24 octets).
+; Retour : A=0 (commande construite), A=1 ('WHAT ?'), A=2 (recommencer la saisie).
+parse_cmd:
+        jsr     set_mode0
         lda     #$FF
         sta     $6D
-        lda     #$C0
+        lda     #$C0                            ; $5B = $C0 : on amorce avec un type precedent 'fin de commande'
         sta     $5B
-L311C:  lda     #$00
+; Debut d'un nouveau mot a analyser (remet le compteur de virgules $9D)
+next_word:
+        lda     #$00
         sta     $9D
         lda     $6D
         ora     #$C7
         sta     $6D
-        lda     $6E
+        lda     $6E                             ; $6E : portee de commande (0 normal, 1 ALL, 2 EXCEPT)
         cmp     #$02
         bne     L3132
         lda     $6D
         and     #$FD
         sta     $6D
-L3132:  jsr     L3479
-L3135:  ldx     #$09
+L3132:  jsr     rec_clear
+; Reinitialise l'accumulateur de groupe nominal et lit le token suivant
+next_phrase:
+        ldx     #$09
         lda     #$00
 L3139:  sta     $A3,x
         dex
@@ -839,8 +960,12 @@ L3139:  sta     $A3,x
         lda     $6D
         ora     #$10
         sta     $6D
-L3144:  jsr     L3485
-        lsr     a
+; Lit le token suivant (next_token) et calcule l'index de classe = type>>3,
+; puis saute indirectement via la table $315A (adresses des handlers). La
+; table est auto-patchee : l'operande de 'jmp ($315A)' est ecrit en $3158/$3159.
+dispatch:
+        jsr     next_token                      ; dispatch : lit le token suivant et saute vers sa classe
+        lsr     a                               ; index de classe = type >> 3 (2 x le nibble de classe)
         lsr     a
         lsr     a
         clc
@@ -851,7 +976,7 @@ L3144:  jsr     L3485
         sta     L3159
 L3158           := * + 1
 L3159           := * + 2
-        jmp     (L315A)
+        jmp     (L315A)                         ; saut indirect via la table $315A (12 adresses de handlers, indexee par classe)
 
 L315A:  .byte   $99
         .byte   "2}3"
@@ -871,8 +996,11 @@ L315A:  .byte   $99
         .byte   ";"
         .byte   $B9
         .byte   "2r1"
-code_3172:
-        lda     $6D
+; Handler de classe 11 ($B0, point ; produit a la fin de chaque commande par
+; l'editeur, et aussi THEN). Si un groupe nominal est en cours d'attente (bit1
+; de $6D) mais qu'aucun mot n'a ete retenu, renvoie 2 (saisie a refaire) ; sinon
+; renvoie 1 ou poursuit la finalisation de la commande a $3196.
+cmd_end:lda     $6D                             ; classe 11 ($B0) : point/THEN = fin de commande
         and     #$02
         beq     L3196
         lda     $65
@@ -907,11 +1035,11 @@ L31A6:  cmp     #$02
         cmp     #$A0
         beq     L31B2
 L31B0:  inc     $65
-L31B2:  jsr     L356E
+L31B2:  jsr     rec_next
         lda     $5B
         cmp     #$A0
         bne     L31BE
-        jmp     L311C
+        jmp     next_word
 
 L31BE:  ldy     $57
         beq     L3219
@@ -970,28 +1098,28 @@ L3219:  jsr     L4702
         lda     $57
         beq     L3231
         inc     $6C
-        jsr     L34BD
-L3231:  jsr     L34CB
+        jsr     rec_prev
+L3231:  jsr     rec_fwd_dec
 L3234:  lda     $6C
         beq     L324C
-        jsr     L34CB
+        jsr     rec_fwd_dec
         ldy     #$01
         lda     (ptr2),y
         and     #$7F
         dey
         ora     (ptr2),y
         bne     L3249
-        jsr     L34D0
+        jsr     rec_merge
 L3249:  jmp     L3234
 
 L324C:  lda     $65
         sta     $6C
         jsr     L471E
         jsr     L4702
-        jsr     L34A7
+        jsr     rec_prev_dec
 L3259:  lda     $6C
         beq     L3289
-        jsr     L34A7
+        jsr     rec_prev_dec
         ldy     #$12
         lda     (ptr2),y
         iny
@@ -1011,41 +1139,47 @@ L3259:  lda     $6C
         ora     (ptr),y
         beq     L3259
         ldy     #$0E
-        jsr     L3516
+        jsr     rec_copy_check
         jmp     L3259
 
 L3289:  jsr     L471E
         lda     #$00
         rts
 
-        lda     $6D
+; Classe 2 (direction) : enregistre la direction demandee
+cls_direction:
+        lda     $6D                             ; classe 2 ($20) : direction
         and     #$02
         bne     L32EF
         ldx     #$00
         stx     $5B
-        lda     $6D
+; Classe 0 (adverbe) : annonce le mode de l'action (doucement, vite...)
+cls_adverb:
+        lda     $6D                             ; classe 0 ($00) : adverbe
         and     #$04
         bne     L32A2
-        jmp     L3554
+        jmp     parse_fail
 
 L32A2:  lda     $6E
         cmp     #$02
         bne     L32AB
-        jsr     L3471
+        jsr     rec_back_mode0
 L32AB:  lda     $6D
         and     #$FD
         sta     $6D
         ldx     #$02
-        jsr     L3546
-        jmp     L3135
+        jsr     rec_store_at
+        jmp     next_phrase
 
-        lda     $6D
+; Classe 10 (AND / virgule) : enchainement de plusieurs objets
+cls_conj:
+        lda     $6D                             ; classe 10 ($A0) : AND / virgule (objets multiples)
         and     #$F7
         sta     $6D
         pha
         lda     $5B
         pha
-L32C3:  jsr     L3485
+L32C3:  jsr     next_token
         cmp     #$A0
         beq     L32C3
         ldx     $5F
@@ -1064,14 +1198,17 @@ L32C3:  jsr     L3485
         sta     $A1
         lda     $65
         sta     $A2
-        jmp     code_3172
+        jmp     cmd_end
 
-        lda     $6D
+; Classe 4 (GO/RUN) : verbes de deplacement
+cls_go: lda     $6D                             ; classe 4 ($40) : GO / RUN
         and     #$FE
         sta     $6D
 L32EF:  lda     #$30
         sta     $5B
-        lda     $6D
+; Classe 3 (verbe) : fixe le verbe de la commande et attend ses objets
+cls_verb:
+        lda     $6D                             ; classe 3 ($30) : verbe
         and     #$08
         bne     L3314
         lda     $9E
@@ -1086,19 +1223,19 @@ L32EF:  lda     #$30
         sta     ptr2
         lda     $A1
         sta     ptr2_hi
-        jmp     code_3172
+        jmp     cmd_end
 
-L3314:  jsr     L3474
+L3314:  jsr     set_mode0
         lda     $6D
         and     #$04
         bne     L3320
-        jmp     L3554
+        jmp     parse_fail
 
 L3320:  lda     $6D
         and     #$08
         beq     L332C
-L3326:  jsr     L353E
-        jmp     L3135
+L3326:  jsr     rec_store_here
+        jmp     next_phrase
 
 L332C:  lda     $5B
         pha
@@ -1110,7 +1247,7 @@ L332C:  lda     $5B
         pha
         lda     $5F
         pha
-L333B:  jsr     L3485
+L333B:  jsr     next_token
         cmp     #$00
         beq     L333B
         lda     $6D
@@ -1131,7 +1268,7 @@ L333B:  jsr     L3485
         sta     $5B
         jmp     L3326
 
-L3360:  jsr     L353E
+L3360:  jsr     rec_store_here
         pla
         pla
         sta     adr_hi
@@ -1140,15 +1277,19 @@ L3360:  jsr     L353E
         pla
         pla
         ldx     $02
-        jsr     L3546
-        jmp     L3135
+        jsr     rec_store_at
+        jmp     next_phrase
 
-        lda     $6D
+; Classe 8 (article/determinant : THE, A...) : annonce un nom et lit la suite
+cls_article:
+        lda     $6D                             ; classe 8 ($80) : article/determinant (THE, A...)
         and     #$EF
         sta     $6D
-        jmp     L3144
+        jmp     dispatch
 
-        lda     $6D
+; Classe 1 (IN/INTO) : preposition de lieu
+cls_prep_in:
+        lda     $6D                             ; classe 1 ($10) : IN / INTO
         and     #$04
         beq     L338C
         lda     $5A
@@ -1158,16 +1299,18 @@ L3360:  jsr     L353E
 
 L338C:  lda     #$70
         sta     $5B
-L3390:  jsr     L3429
-L3393:  jsr     L3485
+; Classe 7 (preposition : ON, THROUGH, WITH...) : separe sujet et complement
+cls_preposition:
+        jsr     L3429                           ; classe 7 ($70) : preposition (ON, THROUGH, WITH...)
+L3393:  jsr     next_token
         cmp     #$70
-        beq     L3390
+        beq     cls_preposition
         cmp     #$80
         bne     L33B0
         lda     $6D
         and     #$10
         bne     L33A7
-        jmp     L3554
+        jmp     parse_fail
 
 L33A7:  lda     $6D
         and     #$EF
@@ -1175,18 +1318,22 @@ L33A7:  lda     $6D
         jmp     L3393
 
 L33B0:  cmp     #$60
-        beq     L33BF
+        beq     cls_adjective
         cmp     #$50
-        beq     L33C8
+        beq     cls_noun
         lda     $60
         sta     $5F
         jmp     L33D0
 
-L33BF:  jsr     L340B
-        jsr     L3485
+; Classe 6 (adjectif) : ajoute un qualificatif au groupe nominal courant
+cls_adjective:
+        jsr     L340B                           ; classe 6 ($60) : adjectif
+        jsr     next_token
         jmp     L33B0
 
-L33C8:  lda     adr
+; Classe 5 (nom) : enregistre l'objet ou le lieu designe
+cls_noun:
+        lda     adr                             ; classe 5 ($50) : nom (objet, creature, lieu)
         sta     $A7
         lda     adr_hi
         sta     $A8
@@ -1198,22 +1345,22 @@ L33D0:  lda     #$50
         lda     $A3
         ora     $A4
         bne     L3400
-        jsr     L34BD
+        jsr     rec_prev
         ldy     #$01
         lda     (ptr2),y
         pha
-        jsr     L356E
+        jsr     rec_next
         pla
         bne     L33F4
-        jsr     L356E
-        jsr     L3479
+        jsr     rec_next
+        jsr     rec_clear
 L33F4:  jsr     L3466
         ldy     #$01
         lda     #$40
         sta     (ptr2),y
-L33FD:  jmp     L3135
+L33FD:  jmp     next_phrase
 
-L3400:  jsr     L3471
+L3400:  jsr     rec_back_mode0
 L3403:  jsr     L343A
         beq     L33FD
         lda     #$01
@@ -1229,7 +1376,7 @@ L340D:  lda     $A3,x
         inx
         ora     $A3,x
         beq     L341F
-        jmp     L3552
+        jmp     parse_fail_pop
 
 L341F:  lda     adr_hi
         sta     $A3,x
@@ -1243,7 +1390,7 @@ L3429:  ldx     $9D
         stx     $9D
         cpx     #$03
         bcc     L3435
-        jmp     L3552
+        jmp     parse_fail_pop
 
 L3435:  ldx     #$00
         jmp     L340D
@@ -1254,7 +1401,7 @@ L343A:  lda     $6D
         lda     $6D
         and     #$80
         bne     L3449
-        jmp     L3552
+        jmp     parse_fail_pop
 
 L3449:  lda     $6D
         and     #$7F
@@ -1282,12 +1429,18 @@ L3466:  lda     $6D
         ldx     #$04
         jmp     L3451
 
-L3471:  jsr     L34A9
-L3474:  lda     #$00
+; Recule a l'enregistrement precedent puis remet le mode de commande a zero
+rec_back_mode0:
+        jsr     rec_rewind
+; Remet le mode de commande ($6E) a zero
+set_mode0:
+        lda     #$00
         sta     $6E
         rts
 
-L3479:  ldy     #$00
+; Efface l'enregistrement de commande courant (26 octets a (ptr2))
+rec_clear:
+        ldy     #$00
         lda     #$00
 L347D:  sta     (ptr2),y
         iny
@@ -1295,7 +1448,12 @@ L347D:  sta     (ptr2),y
         bne     L347D
         rts
 
-L3485:  ldx     $5F
+; Lit un token de la file $4783 a l'offset $5F : octet 0 = type (nibble haut)
+; et page du pointeur (nibble bas) ; octet 1 = octet bas du pointeur. Recopie
+; l'ancien type en $5A, le nouveau en $5B, l'adresse en adr/adr_hi, avance $5F.
+; Sortie : A = $5B (type courant).
+next_token:
+        ldx     $5F
         stx     $60
         lda     $5B
         sta     $5A
@@ -1313,19 +1471,27 @@ L3485:  ldx     $5F
         lda     $5B
         rts
 
-L34A7:  dec     $6C
-L34A9:  lda     ptr2
+; Recule d'un enregistrement et decremente le compteur de commandes
+rec_prev_dec:
+        dec     $6C
+; Rembobine sur le premier enregistrement de la file courante
+rec_rewind:
+        lda     ptr2
         sta     ptr
         lda     ptr2_hi
         sta     ptr_hi
-L34B1:  jsr     L34BD
+; Boucle de rembobinage (recule tant que le bit $40 est pose)
+rec_rewind_loop:
+        jsr     rec_prev
         ldy     #$01
         lda     (ptr2),y
         and     #$40
-        bne     L34B1
+        bne     rec_rewind_loop
         rts
 
-L34BD:  lda     ptr2
+; Enregistrement precedent : (ptr2) -= $18
+rec_prev:
+        lda     ptr2
         sec
         sbc     #$18
         sta     ptr2
@@ -1334,10 +1500,16 @@ L34BD:  lda     ptr2
         sta     ptr2_hi
         rts
 
-L34CB:  dec     $6C
-        jmp     L355A
+; Decremente le compteur et avance a l'enregistrement suivant
+rec_fwd_dec:
+        dec     $6C
+        jmp     rec_rewind2
 
-L34D0:  ldy     #$01
+; Fusionne le mot pointe par (ptr) dans l'enregistrement courant (ptr2) :
+; reporte le type et marque les champs ; recule d'un enregistrement (rec_prev)
+; puis avance (rec_next). Si les champs +4/+5 sont non nuls, applique rec_fixup1.
+rec_merge:
+        ldy     #$01                            ; fusionne deux mots en un enregistrement de commande
         lda     (ptr),y
         and     #$7F
         ora     (ptr2),y
@@ -1345,23 +1517,27 @@ L34D0:  ldy     #$01
         dey
         lda     (ptr),y
         sta     (ptr2),y
-        jsr     L34BD
+        jsr     rec_prev
         ldy     #$04
         lda     (ptr2),y
         iny
         ora     (ptr2),y
         php
-        jsr     L356E
+        jsr     rec_next
         plp
-        bne     L34F1
+        bne     rec_fixup1
         rts
 
-L34F1:  lda     $6D
+; Apres fusion : echange des champs si le drapeau $6D bit7 est pose
+rec_fixup1:
+        lda     $6D
         and     #$80
-        bne     L34F8
+        bne     rec_swap6
         rts
 
-L34F8:  ldy     #$08
+; Echange 6 octets (+8..+$0D) avec (+$12..+$17) dans l'enregistrement
+rec_swap6:
+        ldy     #$08
         ldx     #$00
 L34FC:  lda     (ptr2),y
         sta     $A7,x
@@ -1379,7 +1555,9 @@ L350A:  lda     $A7,x
         cpx     #$06
         bne     L350A
         ldy     #$04
-L3516:  jsr     L352E
+; Copie un bloc de champs de l'enregistrement puis teste la suite
+rec_copy_check:
+        jsr     rec_copy10
         ldy     #$02
         lda     (ptr2),y
         iny
@@ -1388,28 +1566,40 @@ L3516:  jsr     L352E
         rts
 
 L3523:  ldy     #$02
-        jsr     L3533
+        jsr     rec_copy2
         rts
 
+; Copie 6 octets de (ptr) vers (ptr2)
+rec_copy6:
         ldx     #$06
-        jmp     L3535
+        jmp     copy_bytes
 
-L352E:  ldx     #$0A
-        jmp     L3535
+; Copie 10 octets de (ptr) vers (ptr2)
+rec_copy10:
+        ldx     #$0A
+        jmp     copy_bytes
 
-L3533:  ldx     #$02
-L3535:  lda     (ptr),y
+; Copie 2 octets de (ptr) vers (ptr2)
+rec_copy2:
+        ldx     #$02
+; Copie X octets de (ptr) vers (ptr2)
+copy_bytes:
+        lda     (ptr),y
         sta     (ptr2),y
         iny
         dex
-        bne     L3535
+        bne     copy_bytes
         rts
 
-L353E:  lda     $6D
+; Range l'adresse du mot courant dans le champ de l'enregistrement
+rec_store_here:
+        lda     $6D
         and     #$FD
         sta     $6D
         ldx     #$00
-L3546:  txa
+; Ecrit adr/adr_hi a (ptr2)+2*X
+rec_store_at:
+        txa
         tay
         lda     adr
         sta     (ptr2),y
@@ -1418,25 +1608,35 @@ L3546:  txa
         sta     (ptr2),y
         rts
 
-L3552:  pla
+; Abandon : depile deux octets puis signale l'erreur
+parse_fail_pop:
         pla
-L3554:  jmp     L2D45
+        pla
+; Echec du parseur : revient a la boucle de commandes avec 'WHAT ?'
+parse_fail:
+        jmp     L2D45
 
         lda     #$01
         rts
 
-L355A:  lda     ptr2
+; Rembobine puis avance jusqu'au premier enregistrement marque
+rec_rewind2:
+        lda     ptr2
         sta     ptr
         lda     ptr2_hi
         sta     ptr_hi
-L3562:  jsr     L356E
+; Boucle d'avance (avance tant que le bit $40 est pose)
+rec_rewind2_loop:
+        jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
         and     #$40
-        bne     L3562
+        bne     rec_rewind2_loop
         rts
 
-L356E:  lda     ptr2
+; Enregistrement suivant : (ptr2) += $18
+rec_next:
+        lda     ptr2
         clc
         adc     #$18
         sta     ptr2
@@ -1556,7 +1756,7 @@ L3635:  lda     arg2
         jmp     L3622
 
 L363E:  jsr     L4702
-L3641:  jsr     L356E
+L3641:  jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
         and     #$40
@@ -2315,7 +2515,7 @@ L3B75:  lda     $F2
         dey
         ora     ($A9),y
         ora     ($60,x)
-        ldy     #$0D
+        ldy     #$0D                            ; classe 9 ($90) : mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT...)
         ldx     #$00
 L3B9F:  lda     adr
         cmp     L3BC6,x
@@ -2328,7 +2528,7 @@ L3BAF:  inx
         inx
         dey
         bne     L3B9F
-        jmp     L311C
+        jmp     next_word
 
 L3BB7:  lda     L3BE0,x
         sta     L3BC4
@@ -2357,12 +2557,12 @@ code_3BF8:
 L3C05:  sta     $0A
 L3C07:  lda     $5A
         sta     $5B
-        jmp     L3135
+        jmp     next_phrase
 
         lda     $6E
         cmp     #$01
         beq     L3C17
-        jmp     L3554
+        jmp     parse_fail
 
 L3C17:  lda     #$02
         sta     $6E
@@ -2370,14 +2570,14 @@ L3C17:  lda     #$02
         lda     (ptr2),y
         ora     #$80
         sta     (ptr2),y
-        jmp     L3135
+        jmp     next_phrase
 
         lda     $6E
         cmp     #$02
         beq     L3C30
         lda     #$01
         sta     $6E
-L3C30:  jmp     L3135
+L3C30:  jmp     next_phrase
 
         ldx     #$05
 L3C35:  lda     $82,x
@@ -2387,7 +2587,7 @@ L3C35:  lda     $82,x
         lda     $6D
         and     #$80
         jsr     L3C46
-        jmp     L3135
+        jmp     next_phrase
 
 L3C46:  beq     L3C4B
         jmp     L3466
@@ -2413,7 +2613,7 @@ L3C6A:  lda     $5F
         ldx     qwr
         sta     L4905,x
         inc     qwr
-L3C73:  jsr     L3485
+L3C73:  jsr     next_token
         cmp     #$90
         bne     L3C73
         lda     adr
@@ -2421,7 +2621,7 @@ L3C73:  jsr     L3485
         bne     L3C73
         lda     #$C0
         sta     L4781,x
-        jmp     L3135
+        jmp     next_phrase
 
         .byte   " "
         .byte   $D4
@@ -2431,7 +2631,7 @@ code_3C8B:
 
         lda     obj
         beq     L3C95
-        jmp     L3135
+        jmp     next_phrase
 
 L3C95:  jsr     L46E9
         ldx     #$85
@@ -2665,7 +2865,7 @@ code_3E5B:
         bne     L3E8A
         lda     $91
         sta     $5F
-L3E7A:  jsr     L3485
+L3E7A:  jsr     next_token
         cmp     #$C0
         bne     L3E7A
         ldx     $60
@@ -2708,7 +2908,7 @@ L3EB2:  lda     $91
         lda     #$00
         sta     $65
         sta     macc
-L3EC4:  jsr     code_3111
+L3EC4:  jsr     parse_cmd
         beq     L3ED0
         cmp     #$02
         beq     L3ED0
@@ -2759,7 +2959,7 @@ L3F11:  lda     #$00
         lda     #$49
         sta     ptr2_hi
 L3F26:  inc     $65
-        jsr     L356E
+        jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
         and     #$40
@@ -2854,7 +3054,7 @@ L3FD4:  lda     $7E
 
 L3FE5:  jsr     L4702
         jsr     fetch_retaddr
-L3FEB:  jsr     L356E
+L3FEB:  jsr     rec_next
         ldy     #$01
         lda     (ptr2),y
         and     #$40
@@ -2906,7 +3106,7 @@ L4038:  lda     #$E3
         tax
         sta     mwt
         beq     L404E
-L4048:  jsr     L355A
+L4048:  jsr     rec_rewind2
         dex
         bne     L4048
 L404E:  ldx     cand
@@ -9033,7 +9233,7 @@ act_v14_13:
         iny
         lda     ($BF),y
         sta     ptr_hi
-L6E15:  jsr     L3485
+L6E15:  jsr     next_token
         cmp     #$C0
         beq     L6E29
         lda     adr

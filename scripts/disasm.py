@@ -173,6 +173,101 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x2DC8: ("init_vars", "Remet a zero les compteurs de depart (variables de travail, pile de messages, score)"),
     0x3097: ("boot_copy", "Copie l'etat de depart de la cassette vers la memoire de travail (le jeu joue sur cette copie)"),
     0x30BB: ("boot_copyback", "Copie la memoire de travail vers la zone de sauvegarde (sens inverse de boot_copy)"),
+    # ---- Parser AnimTalk : saisie ($2DDB-$2EA8) ----
+    # Editeur de ligne : lit les touches, echo, backspace, guillemets, fleches.
+    # Le tampon de commande est $40BE (une ligne, terminee par $0D).
+    0x2DDB: ("input_abort", "'@' en tete de ligne : recule le curseur de 2 et annule la saisie en cours"),
+    0x2DEA: ("read_line", "Saisie d'une commande : affiche '> ', lit les touches et remplit le tampon $40BE"),
+    0x2E04: ("line_loop", "Lit une touche, la traduit (fleches) puis la traite"),
+    0x2E0F: ("line_read", "Lit une touche sans traduction (relecture apres effacement)"),
+    0x2E12: ("line_dispatch", "Repartit la touche : fin de ligne, effacement ou edition"),
+    0x2E1A: ("line_del", "Touche DEL ($7F) : efface toute la ligne saisie"),
+    0x2E24: ("line_backspace", "Retour arriere ($08) : efface le dernier caractere et suit l'etat guillemet"),
+    0x2E40: ("line_edit", "Edition d'un caractere : guillemets, espaces et ponctuation"),
+    0x2E58: ("line_classify", "Trie le caractere saisi (espace, CR, point, virgule) avant stockage"),
+    0x2E68: ("line_store", "Stocke le caractere dans le tampon de commande $40BE et l'affiche (echo)"),
+    0x2E76: ("line_cr", "Entree : ferme la ligne (guillemet/point manquants), stocke CR et renvoie 1"),
+    0x2E8C: ("ins_quote", "Ajoute un guillemet fermant si la saisie en a ouvert un"),
+    0x2E98: ("ins_period", "Ajoute un point final a la commande si elle n'en a pas deja"),
+    0x2EA9: ("key_arrow", "Fleches du clavier : les remplace par N/S/E/W (deplacement immediat, Oric)"),
+    0x2EBA: ("key_n", "Fleche haut : ecrit 'N' puis valide"),
+    0x2EBC: ("key_dir_put", "Ecrit la lettre de direction dans le tampon, echo, puis valide par CR"),
+    0x2EC6: ("key_w", "Fleche gauche : ecrit 'W' puis valide"),
+    0x2ECB: ("key_e", "Fleche droite : ecrit 'E' puis valide"),
+    0x2ED0: ("key_s", "Fleche bas : ecrit 'S' puis valide"),
+    # ---- Parser AnimTalk : lexeur + dictionnaire ($2ED5-$308E) ----
+    # tokenize() lit un mot du tampon $40BE, le cherche dans le dictionnaire
+    # 5-bit du bloc 2 ($0540) et renvoie son type + son adresse. La file de
+    # tokens est $4783 ([type<<4|page, lo] ; 2 octets par mot).
+    0x2ED5: ("tokenize", "Lit le mot suivant du tampon, le cherche au dictionnaire et renvoie son type et son adresse"),
+    0x2F26: ("lex_cr", "Fin de ligne : produit le token de type $C0 (fin de commande)"),
+    0x2F28: ("lex_emit", "Prepare le token courant (adresse vide) puis passe a l'emission du type"),
+    0x2F30: ("lex_type", "Renseigne le type du token ($5B), combine l'adresse et rend la main"),
+    0x2F3B: ("lex_restore", "Restaure le pointeur d'entree sauvegarde apres le test d'abreviation"),
+    0x2F43: ("word_finish", "Mot trouve : suit un eventuel renvoi, extrait son type et son adresse de dictionnaire"),
+    0x2F47: ("word_skip", "Avance jusqu'au dernier octet de lettres du mot (bit7 pose)"),
+    0x2F60: ("word_grammar", "Teste le bit de renvoi de l'entree et suit la redirection de pointeur si pose"),
+    0x2F78: ("word_type", "Extrait le nibble de type (bits 6-5 des 2 premiers octets) et le range dans $5B"),
+    0x2FA3: ("punct_class", "Classe un signe de ponctuation : point ($B0), virgule ($A0) ou guillemet ($90)"),
+    0x2FB8: ("punct_hit", "Signe de ponctuation reconnu : avance le curseur et renvoie son type"),
+    0x2FBB: ("dict_bucket", "Decode les lettres du mot cherche et se place sur le seau de dictionnaire de sa 1re lettre"),
+    0x2FCE: ("dict_start", "Calcule le seau $0500[2*lettre] et positionne le pointeur sur sa 1re entree"),
+    0x2FEA: ("dict_next", "Avance de la taille de l'entree courante et compare la 1re lettre de la suivante"),
+    0x2FF4: ("dict_cmp1", "Compare la 1re lettre de l'entree au mot cherche"),
+    0x3000: ("dict_read", "Entree correspondante : decode ses lettres dans $47D3 et mesure sa longueur"),
+    0x3008: ("dict_letters", "Decode les lettres 5 bits d'une entree de dictionnaire (bit7 = suite)"),
+    0x3012: ("dict_letter_next", "Gere les cas particuliers de 2 et 3 lettres (fin de mot)"),
+    0x302B: ("dict_end", "Fin des lettres : note la longueur du candidat ($67) et le bit de renvoi"),
+    0x3037: ("dict_done", "Fin de lecture d'une entree : rend Z (A=0) quand la 1re lettre correspond"),
+    0x303C: ("word_prefix_cmp", "Compare le mot saisi et le candidat sur la longueur commune (prefixe)"),
+    0x3048: ("cmp_min", "Longueur de comparaison = minimum des deux longueurs"),
+    0x304B: ("cmp_loop", "Boucle de comparaison lettre a lettre"),
+    0x305E: ("cmp_diff", "Difference trouvee : rend Z clair (A=1)"),
+    0x3065: ("cmd_store", "Recopie les mots de la commande du tampon de travail $4927 vers $4A17"),
+    # ---- Parser AnimTalk : grammaire / interpreteur ($3111-$356E) ----
+    # parse_cmd() consomme la file de tokens $4783 et construit la commande
+    # (verbe, objets, direction...) en dispatchant sur la classe du mot via
+    # la table $315A. Les handlers partagent un petit enregistrement de travail
+    # (24 octets) a (ptr2) et l'accumulateur de groupe nominal $A3..$AC.
+    0x3111: ("parse_cmd", "Analyse la suite de tokens et construit la commande (verbe, objets, deplacement)"),
+    0x311C: ("next_word", "Debut d'un nouveau mot a analyser (remet le compteur de virgules $9D)"),
+    0x3135: ("next_phrase", "Reinitialise l'accumulateur de groupe nominal et lit le token suivant"),
+    0x3144: ("dispatch", "Lit le token courant et saute vers le handler de sa classe (table $315A)"),
+    0x3172: ("cmd_end", "Classe 11 (point/THEN) : valide la fin de commande ou poursuit"),
+    0x328F: ("cls_direction", "Classe 2 (direction) : enregistre la direction demandee"),
+    0x3299: ("cls_adverb", "Classe 0 (adverbe) : annonce le mode de l'action (doucement, vite...)"),
+    0x32B9: ("cls_conj", "Classe 10 (AND / virgule) : enchainement de plusieurs objets"),
+    0x32E9: ("cls_go", "Classe 4 (GO/RUN) : verbes de deplacement"),
+    0x32F3: ("cls_verb", "Classe 3 (verbe) : fixe le verbe de la commande et attend ses objets"),
+    0x3374: ("cls_article", "Classe 8 (article/determinant : THE, A...) : annonce un nom et lit la suite"),
+    0x337D: ("cls_prep_in", "Classe 1 (IN/INTO) : preposition de lieu"),
+    0x3390: ("cls_preposition", "Classe 7 (preposition : ON, THROUGH, WITH...) : separe sujet et complement"),
+    0x33BF: ("cls_adjective", "Classe 6 (adjectif) : ajoute un qualificatif au groupe nominal courant"),
+    0x33C8: ("cls_noun", "Classe 5 (nom) : enregistre l'objet ou le lieu designe"),
+    0x3471: ("rec_back_mode0", "Recule a l'enregistrement precedent puis remet le mode de commande a zero"),
+    0x3474: ("set_mode0", "Remet le mode de commande ($6E) a zero"),
+    0x3479: ("rec_clear", "Efface l'enregistrement de commande courant (26 octets a (ptr2))"),
+    0x3485: ("next_token", "Lit le token suivant de la file $4783 (type en $5A/$5B, adresse en adr)"),
+    0x34A7: ("rec_prev_dec", "Recule d'un enregistrement et decremente le compteur de commandes"),
+    0x34A9: ("rec_rewind", "Rembobine sur le premier enregistrement de la file courante"),
+    0x34B1: ("rec_rewind_loop", "Boucle de rembobinage (recule tant que le bit $40 est pose)"),
+    0x34BD: ("rec_prev", "Enregistrement precedent : (ptr2) -= $18"),
+    0x34CB: ("rec_fwd_dec", "Decremente le compteur et avance a l'enregistrement suivant"),
+    0x34D0: ("rec_merge", "Fusionne l'enregistrement pointe par (ptr) dans (ptr2) puis chaine le suivant"),
+    0x34F1: ("rec_fixup1", "Apres fusion : echange des champs si le drapeau $6D bit7 est pose"),
+    0x34F8: ("rec_swap6", "Echange 6 octets (+8..+$0D) avec (+$12..+$17) dans l'enregistrement"),
+    0x3516: ("rec_copy_check", "Copie un bloc de champs de l'enregistrement puis teste la suite"),
+    0x3529: ("rec_copy6", "Copie 6 octets de (ptr) vers (ptr2)"),
+    0x352E: ("rec_copy10", "Copie 10 octets de (ptr) vers (ptr2)"),
+    0x3533: ("rec_copy2", "Copie 2 octets de (ptr) vers (ptr2)"),
+    0x3535: ("copy_bytes", "Copie X octets de (ptr) vers (ptr2)"),
+    0x353E: ("rec_store_here", "Range l'adresse du mot courant dans le champ de l'enregistrement"),
+    0x3546: ("rec_store_at", "Ecrit adr/adr_hi a (ptr2)+2*X"),
+    0x3552: ("parse_fail_pop", "Abandon : depile deux octets puis signale l'erreur"),
+    0x3554: ("parse_fail", "Echec du parseur : revient a la boucle de commandes avec 'WHAT ?'"),
+    0x355A: ("rec_rewind2", "Rembobine puis avance jusqu'au premier enregistrement marque"),
+    0x3562: ("rec_rewind2_loop", "Boucle d'avance (avance tant que le bit $40 est pose)"),
+    0x356E: ("rec_next", "Enregistrement suivant : (ptr2) += $18"),
     0x440D: (
         "print_msg",
         "Affiche le message ecrit juste apres l'appel, puis reprend l'execution apres lui",
@@ -539,6 +634,82 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
 # FONCTIONNEMENT (algorithme, entree/sortie, effets), pas seulement le but.
 # Cles = adresses de routines nommees (via ROUTINE_DOCS/VECTORS).
 ROUTINE_NOTES: dict[int, list[str]] = {
+    # --- Parser AnimTalk ---
+    0x2DEA: [
+        "Editeur de ligne du parser (prompt '> '). Lit les touches une a une et",
+        "construit la commande dans le tampon $40BE jusqu'a un CR. Le dernier",
+        "caractere doit etre un point ($2E) : ins_period l'ajoute si besoin, ce point",
+        "sert de marqueur de fin pour le lexeur. Les guillemets \" encadrent un nom ;",
+        "l'etat ouvert/ferme est memorise en $B8. Backspace ($08) et DEL ($7F)",
+        "corrigent la saisie. Les fleches sont converties en N/S/E/W (key_arrow).",
+        "Sortie : A=1 quand la ligne est valide (CR), A=0 pour '@' en tete (annule).",
+    ],
+    0x2EA9: [
+        "Traduit les codes des fleches Oric en lettres de direction : chaque fleche",
+        "ecrit directement la lettre + un CR dans la commande ($40BE), ce qui declenche",
+        "un deplacement immediat au tour suivant (sans mot-cle de direction).",
+    ],
+    0x2ED5: [
+        "Lexeur : lit un mot du tampon $40BE a partir de X, puis le cherche dans le",
+        "dictionnaire 5-bit du bloc 2. Etapes :",
+        "  1. saute les espaces ; $60 = position du mot ; un CR donne le token $C0.",
+        "  2. ponctuation immediate via punct_class (point $B0, virgule $A0, guillemet $90).",
+        "  3. sinon dict_bucket decode le mot (lettres rangees en $47C3) et se place sur",
+        "     le seau $0500[2*1re lettre], puis boucle dict_next/word_prefix_cmp.",
+        "  4. word_finish (word_type) extrait le type (nibble de classe) et l'adresse du",
+        "     mot dans le bloc 2. Type $D0 = entrees ignorees du parseur (mots de messages).",
+        "Sortie : $5B = type ($C0 fin, $D0 inconnu, sinon classe<<4) ; adr/adr_hi =",
+        "pointeur $0500+... ; A = $5B. Le mot est ensuite copie en file par l'appelant.",
+    ],
+    0x303C: [
+        "Compare le mot saisi (lettres en $47C3, longueur $66) et le candidat du",
+        "dictionnaire ($47D3, longueur $67) sur min($66,$67) caracteres. Rend A=0",
+        "(Z) si le prefixe commun est identique, A=1 sinon. Sert au matcher.",
+    ],
+    0x3065: [
+        "Recopie $65 mots de 24 octets (enregistrements de commande) depuis $4927",
+        "vers $4A17, en n'emportant que les mots marques (bit $40 de l'octet +1).",
+        "Prepare la forme consommee plus loin dans la boucle de commandes.",
+    ],
+    0x3111: [
+        "Interpreteur de commande (grammaire). Consomme la file de tokens $4783",
+        "construite par le lexeur et classe chaque mot par grammaire via la table",
+        "$315A (index = type>>3, soit 2 x le nibble de classe).",
+        "",
+        "Classes (nibble de type du dictionnaire, cf. bloc 2) :",
+        "  $00 adverbe   $10 IN/INTO     $20 direction   $30 verbe",
+        "  $40 GO/RUN    $50 nom         $60 adjectif    $70 preposition",
+        "  $80 article   $90 mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT/...)",
+        "  $A0 AND/virgule   $B0 THEN/point(=fin de commande)",
+        "",
+        "Etat interne : $6D = drapeaux d'attente, $6E = portee (0 normal, 1 ALL,",
+        "2 EXCEPT), $9D = compteur de virgules, $65 = nb de mots retenus, $5A/$5B =",
+        "type precedent/courant, $5F = curseur de file, $A3..$AC = groupe nominal",
+        "courant, (ptr2) = enregistrement de commande de travail (24 octets).",
+        "Retour : A=0 (commande construite), A=1 ('WHAT ?'), A=2 (recommencer la saisie).",
+    ],
+    0x3144: [
+        "Lit le token suivant (next_token) et calcule l'index de classe = type>>3,",
+        "puis saute indirectement via la table $315A (adresses des handlers). La",
+        "table est auto-patchee : l'operande de 'jmp ($315A)' est ecrit en $3158/$3159.",
+    ],
+    0x3485: [
+        "Lit un token de la file $4783 a l'offset $5F : octet 0 = type (nibble haut)",
+        "et page du pointeur (nibble bas) ; octet 1 = octet bas du pointeur. Recopie",
+        "l'ancien type en $5A, le nouveau en $5B, l'adresse en adr/adr_hi, avance $5F.",
+        "Sortie : A = $5B (type courant).",
+    ],
+    0x3172: [
+        "Handler de classe 11 ($B0, point ; produit a la fin de chaque commande par",
+        "l'editeur, et aussi THEN). Si un groupe nominal est en cours d'attente (bit1",
+        "de $6D) mais qu'aucun mot n'a ete retenu, renvoie 2 (saisie a refaire) ; sinon",
+        "renvoie 1 ou poursuit la finalisation de la commande a $3196.",
+    ],
+    0x34D0: [
+        "Fusionne le mot pointe par (ptr) dans l'enregistrement courant (ptr2) :",
+        "reporte le type et marque les champs ; recule d'un enregistrement (rec_prev)",
+        "puis avance (rec_next). Si les champs +4/+5 sont non nuls, applique rec_fixup1.",
+    ],
     0x4ED5: [
         "Fait jouer le script d'un personnage : son 'cerveau'. Chaque personnage a une petite",
         "suite d'instructions (se deplacer, parler, attendre, choisir au hasard) qui s'execute",
@@ -739,6 +910,36 @@ VECTORS = {
     0x2C35: "start",
 }
 
+# Commentaires au niveau instruction (bloc 4) : adresse de debut -> texte,
+# insere en fin de ligne par inject_inline_comments(). Sert a annoter le flot
+# du parser (dispatch de classe, test de type, bornes) au plus pres du code.
+INLINE_COMMENTS: dict[int, str] = {
+    0x3118: "$5B = $C0 : on amorce avec un type precedent 'fin de commande'",
+    0x3126: "$6E : portee de commande (0 normal, 1 ALL, 2 EXCEPT)",
+    0x3144: "dispatch : lit le token suivant et saute vers sa classe",
+    0x3147: "index de classe = type >> 3 (2 x le nibble de classe)",
+    0x3157: "saut indirect via la table $315A (12 adresses de handlers, indexee par classe)",
+    0x3172: "classe 11 ($B0) : point/THEN = fin de commande",
+    0x328F: "classe 2 ($20) : direction",
+    0x3299: "classe 0 ($00) : adverbe",
+    0x32B9: "classe 10 ($A0) : AND / virgule (objets multiples)",
+    0x32E9: "classe 4 ($40) : GO / RUN",
+    0x32F3: "classe 3 ($30) : verbe",
+    0x3374: "classe 8 ($80) : article/determinant (THE, A...)",
+    0x337D: "classe 1 ($10) : IN / INTO",
+    0x3390: "classe 7 ($70) : preposition (ON, THROUGH, WITH...)",
+    0x33BF: "classe 6 ($60) : adjectif",
+    0x33C8: "classe 5 ($50) : nom (objet, creature, lieu)",
+    0x3B9B: "classe 9 ($90) : mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT...)",
+    0x2E76: "CR : la commande est close (point final + guillemet)",
+    0x2ED5: "entree du lexeur : un mot -> un token",
+    0x2EE2: "CR en fin de ligne -> token de fin $C0",
+    0x2EE6: "test ponctuation (point, virgule, guillemet)",
+    0x2F78: "type = bits 6-5 des 2 premiers octets de l'entree de dictionnaire",
+    0x2F9A: "type $D0 = entree ignoree par le parseur (mot de message)",
+    0x34D0: "fusionne deux mots en un enregistrement de commande",
+}
+
 # Routines ROM (issues du désassemblage 1.0 et 1.1, cf. docs/).
 ROM_LABELS = {
     0xE5C6: "PUTBYTE_10",
@@ -792,6 +993,11 @@ class Block:
     # routines). Fusionnes dans `named` avec les vecteurs et la zero-page.
     labels: dict[int, str] = field(default_factory=dict)
     data_ranges: dict[int, str] = field(default_factory=dict)
+    # Commentaires au niveau instruction : adresse de debut d'instruction ->
+    # texte, insere en fin de ligne (`; texte`). Permet de documenter
+    # precisement un flot (dispatch, tests, branches) la ou les notes de
+    # routine ne suffisent pas. Cf. inject_inline_comments().
+    inline_comments: dict[int, str] = field(default_factory=dict)
 
 
 B4_HEADER = (
@@ -998,6 +1204,7 @@ BLOCKS: dict[str, Block] = {
         vectors=VECTORS,
         routine_docs=ROUTINE_DOCS,
         routine_notes=ROUTINE_NOTES,
+        inline_comments=INLINE_COMMENTS,
         info=INFO,
         listing=LISTING,
         cfg=ROOT / "disasm" / "block4.cfg",
@@ -1477,6 +1684,63 @@ def split_backslashes(asm: list[str]) -> list[str]:
     return out
 
 
+# Ligne de separation emise par da65 a un niveau de commentaire >= 1 : elle
+# n'existe pas dans la sortie par defaut, on la jette pour la retrouver.
+_DA65_SEP_RE = re.compile(r"^;\s-{3,}\s*$")
+# Commentaire d'adresse da65 (niveau >= 3) : `; AAAA xx xx ...  <parite>`.
+_DA65_ADDR_RE = re.compile(
+    r"\s*;\s(?P<addr>[0-9A-F]{4})\s+[0-9A-F]{2}(?:\s+[0-9A-F]{2})*\s*(?:[^;].*)?$"
+)
+
+
+def strip_da65_addresses(asm: list[str]) -> tuple[list[str], list[int | None]]:
+    """Retire les commentaires d'adresse da65 et note l'adresse de chaque ligne.
+
+    da65 est lance avec ``--comments 4`` : chaque ligne de code/donnee porte en
+    fin un commentaire ``; AAAA <octets>  <parite>`` et des lignes de
+    separation ``; -----`` apparaissent entre les plages. On les retire pour
+    retrouver la sortie par defaut (identite verifiee) tout en conservant,
+    pour chaque ligne, l'adresse de son premier octet (None si aucun).
+    """
+    out: list[str] = []
+    addrs: list[int | None] = []
+    for ln in asm:
+        if _DA65_SEP_RE.match(ln):
+            continue
+        m = _DA65_ADDR_RE.search(ln)
+        if m:
+            addrs.append(int(m.group("addr"), 16))
+            out.append(ln[: m.start()].rstrip() + "\n")
+        else:
+            addrs.append(None)
+            out.append(ln)
+    return out, addrs
+
+
+def inject_inline_comments(
+    asm: list[str], addrs: list[int | None], comments: dict[int, str]
+) -> list[str]:
+    """Ajoute un commentaire ``; texte`` aux lignes d'instruction ciblees.
+
+    ``comments`` associe une adresse de debut d'instruction au texte a ajouter
+    (cf. ``Block.inline_comments``). Sans effet sur les octets assembles. Les
+    lignes de donnees (``.byte``/``.word``) sont laissees intactes pour ne pas
+    perturber ``reflow_text_tables`` (recollement des ``.byte "..."``).
+    """
+    if not comments:
+        return asm
+    out: list[str] = []
+    for ln, addr in zip(asm, addrs):
+        text = comments.get(addr) if addr is not None else None
+        body = ln.rstrip("\n")
+        if text is None or body.lstrip().startswith((".byte", ".word")):
+            out.append(ln)
+            continue
+        pad = max(48, len(body) + 1)
+        out.append(f"{body.ljust(pad)}; {sanitize_comment(text)}\n")
+    return out
+
+
 # Equate da65 hors plage assemblee : `sym := $addr`.
 _ASSIGN_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*\$[0-9A-Fa-f]{4}\b")
 
@@ -1598,6 +1862,8 @@ def main(argv: list[str] | None = None) -> int:
             str(block.info),
             "-S",
             f"0x{lo:x}",
+            "--comments",
+            "4",
             "-o",
             str(block.listing),
             str(slice_path),
@@ -1614,6 +1880,10 @@ def main(argv: list[str] | None = None) -> int:
         and not ln.startswith("; Input file:")
         and not ln.startswith("; Page:")
     ]
+    # --comments 4 ajoute adresses et separateurs : on les retire (identite
+    # avec la sortie par defaut) en gardant l'adresse de chaque ligne.
+    asm, addrs = strip_da65_addresses(asm)
+    asm = inject_inline_comments(asm, addrs, block.inline_comments)
     asm = reflow_text_tables(asm)
     asm = split_backslashes(asm)
     asm = inject_notes(asm, block)

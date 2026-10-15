@@ -244,6 +244,103 @@ dictionnaire sortent en anglais propre) :
   fusionnées. Espacement exact (flags `$0D`/`$0F` runtime) et pluriels : le
   décodeur statique approxime (espace avant mot sauf après espace/début).
 
+## Parser AnimTalk (`$2DDB`–`$356E`)
+
+Le parser transforme une ligne tapée au clavier en une **commande** interne
+(verbe, objets, direction), consommée ensuite par la boucle principale
+(`start` `$2C35` → `parse_cmd` puis exécution). Trois étages :
+
+```
+touches ──read_line──> tampon $40BE ──tokenize (mot à mot)──> file $4783
+        ──parse_cmd──> commande (wid $13, arg1 $15, arg2 $16) ──> exécution
+```
+
+Toutes les routines de cet étage sont nommées dans le listing (`ROUTINE_DOCS`),
+les points chauds annotés au niveau instruction (`INLINE_COMMENTS`).
+
+### 1. Saisie — `read_line` (`$2DEA`)
+
+- Affiche le prompt `"> "`, puis lit les touches (via `L406D`) et les stocke
+  dans le **tampon de commande `$40BE`**.
+- **Toujours terminer par un point** : `ins_period` (`$2E98`) ajoute `.` si la
+  ligne n'en a pas — ce point devient le **marqueur de fin** du lexeur.
+- Guillemets `"` : `ins_quote`/`$B8` gèrent l'ouverture/fermeture (un nom
+  peut être mis entre guillemets). `line_backspace` (`$2E24`) et `line_del`
+  (`$2E1A`, touche DEL) corrigent la saisie.
+- **Flèches** : `key_arrow` (`$2EA9`) écrit directement `N`/`S`/`E`/`W` + CR
+  (les flèches Oric déplacent donc **immédiatement**, sans verbe).
+- `'@'` en tête (`input_abort` `$2DDB`) recule de 2 et annule.
+- Retour : `A=1` quand la ligne est close (CR), `A=0` pour annulation.
+
+### 2. Lexeur + dictionnaire — `tokenize` (`$2ED5`)
+
+`tokenize` lit **un mot** à partir de X dans `$40BE` et le cherche dans le
+dictionnaire 5-bit du bloc 2 :
+
+1. Saute les espaces ; un CR produit le token de **fin `$C0`** (`lex_cr`).
+2. `punct_class` (`$2FA3`) reconnaît la ponctuation : point `$B0`,
+   virgule `$A0`, guillemet `$90`.
+3. `dict_bucket` (`$2FBB`) décode les lettres du mot (codes 5 bits rangés en
+   `$47C3`) et se place sur le **seau** `$0500[2×1ʳᵉ lettre]` ; la boucle
+   `dict_next`/`word_prefix_cmp` balaye les entrées (matcher exact/préfixe).
+4. `word_finish`/`word_type` (`$2F43`/`$2F78`) extrait le **type** et l'adresse
+   du mot. Type `$D0` = entrée **ignorée** par le parser (vocabulaire réservé
+   aux messages, cf. classes ci-dessous).
+
+Le **mot est ensuite empilé** dans la file `$4783` par la boucle `$2CAC`, au
+format `[type<<4 | page, lo]` (2 octets/mot). Un mot inconnu
+(`$D0`) déclenche le message `I DO NOT KNOW THE WORD`. Le lexeur gère les
+**abréviations** : `$2EFF` examine un candidat plus court suivi d'une entrée
+plus longue (`word_finish`/`dict_next`).
+
+### 3. Grammaire — `parse_cmd` (`$3111`)
+
+`parse_cmd` consomme la file via `next_token` (`$3485`) et **dispatche chaque
+mot sur sa classe grammaticale** : `classe = type >> 3` (soit `2×nibble`),
+saut indirect via la **table `$315A`** (12 adresses de handlers, auto-patchée
+en `$3158/$3159`).
+
+Classes (nibble de type du mot, reconstruit depuis les bits 6-5 des 2 premiers
+octets de l'entrée — vérifié en décodant les 600 entrées du bloc 2) :
+
+| nibble | type | classe | contenu observé | handler |
+|---|---|---|---|---|
+| `$00` | `$00` | 0 | adverbes (QUICKLY, SOFTLY, CAREFULLY…) | `cls_adverb` `$3299` |
+| `$10` | `$10` | 1 | IN, INTO | `cls_prep_in` `$337D` |
+| `$20` | `$20` | 2 | directions (N/S/E/W, NE, DOWN, UP…) | `cls_direction` `$328F` |
+| `$30` | `$30` | 3 | verbes (LOOK, GET, OPEN, KILL…) | `cls_verb` `$32F3` |
+| `$40` | `$40` | 4 | GO, RUN | `cls_go` `$32E9` |
+| `$50` | `$50` | 5 | noms (objets, créatures, lieux) | `cls_noun` `$33C8` |
+| `$60` | `$60` | 6 | adjectifs | `cls_adjective` `$33BF` |
+| `$70` | `$70` | 7 | prépositions (ON, WITH, THROUGH…) | `cls_preposition` `$3390` |
+| `$80` | `$80` | 8 | articles/déterminants (THE, A, AN…) | `cls_article` `$3374` |
+| `$90` | `$90` | 9 | mots-clés spéciaux (SAVE, QUIT, HELP, ALL, EXCEPT…) | `$3B9B` (scan `$3B75`) |
+| `$A0` | `$A0` | 10 | AND / virgule | `cls_conj` `$32B9` |
+| `$B0` | `$B0` | 11 | THEN / point = **fin de commande** | `cmd_end` `$3172` |
+| `$D0` | `$D0` | — | ignoré (le lexeur poursuit la recherche) | — |
+
+> Le point `$B0` est **ajouté par l'éditeur** en fin de ligne : c'est lui qui
+> termine proprement la commande (le CR `$C0` n'atteint jamais le dispatch).
+
+Chaque handler renseigne l'état de parsing : `$6D` = drapeaux d'attente,
+`$6E` = portée (`0` normal, `1` ALL, `2` EXCEPT — posés par les mots-clés
+spéciaux ALL/EXCEPT `$3C26`/`$3C0E`), `$9D` = compteur de virgules, `$65` =
+nombre de mots retenus, `$5A`/`$5B` = type précédent/courant, `$5F` = curseur
+de file, `$A3..$AC` = **groupe nominal courant**, et `(ptr2)` = enregistrement
+de commande de travail (24 octets ; helpers `rec_*` : `$34BD` recule, `$356E`
+avance, `$34D0` fusionne).
+
+**Retour** de `parse_cmd` : `A=0` commande construite, `A=1` → `WHAT ?`
+(`$1177`), `A=2` → recommencer la saisie (`$2D42`).
+
+- Validé sous harnais (cf. `docs/status.md` §AnimTalk) : directions nues,
+  `GO EAST` (= verbe transitif), mots inconnus, `OPEN CHEST`, `GET MAP`,
+  insensibilité à la casse (écho normalisé en capitales).
+- **Ouverts** : sémantique fine des bits de `$6D` ; rôle exact de `cls_prep_in`
+  (n=1) et des enregistrements `rec_*` ; cohabitation avec les artefacts de
+  développement `$477C`–`$49B3` (les tampons `$4783`/`$47C3`/`$490F`/`$4927`
+  recouvrent cette zone : état périmé réutilisé comme scratch).
+
 ## Bloc 2 : dictionnaire et catalogue de messages (`$0500-$1A0E`)
 
 Le bloc 2 est la **banque de mots + messages** (émulation structurelle de
@@ -572,9 +669,10 @@ sur bit5.
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 980 o de code**, 99 sites
-  `$440D` (118 inline `$440D`/`$5B24`), 130 routines documentées (dont 10
-  `vec_*`/`img_show`, 33 actions `L7014`/`L7143` et 6 handlers SAVE/LOAD),
-  0 conflit.
+  `$440D` (118 inline `$440D`/`$5B24`), 214 routines documentées (dont le
+  parser AnimTalk, 10 `vec_*`/`img_show`, 33 actions `L7014`/`L7143` et 6
+  handlers SAVE/LOAD) + commentaires au niveau instruction (dispatch de
+  classe du parser), 0 conflit.
 
 Régénérer et vérifier :
 

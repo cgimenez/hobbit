@@ -93,6 +93,16 @@
   prompt (pas de sortie sous harnais) ; commande vide (`> .`) = no-op.
 - `WAIT` existe : `You wait.` + `Time passes...` = tick horloge pur (outil
   de sonde AnimAction idéal, sortie texte seule, rapide).
+- **Parser documenté** (statique) : éditeur de ligne `read_line` `$2DEA`,
+  lexeur `tokenize` `$2ED5` + matcher dictionnaire, grammaire `parse_cmd`
+  `$3111` dispatchant sur la **classe du mot** via la table `$315A`. Classes
+  décodées en lisant les 600 entrées du bloc 2 : `$00` adverbe, `$20`
+  direction, `$30` verbe, `$40` GO/RUN, `$50` nom, `$60` adjectif, `$70`
+  préposition, `$80` article, `$90` mot-clé spécial, `$A0` AND/virgule,
+  `$B0` point/THEN (= fin, ajouté par l'éditeur), `$D0` ignoré (vocabulaire
+  messages). Détail : `docs/block4-analysis.md` §« Parser AnimTalk » ; noms
+  et commentaires dans `disasm/block4.asm` (`ROUTINE_DOCS`/`ROUTINE_NOTES`/
+  `INLINE_COMMENTS`).
 
 ## AnimAction : PNJ autonomes confirmés (1 tick = 1 commande réussie)
 
