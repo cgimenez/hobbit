@@ -7,8 +7,7 @@ const dec = new TextDecoder();
 // --- i18n (EN/FR) : chaînes statiques via [data-i18n], dynamiques via L().
 // Le choix est mémorisé dans le cookie "hobbit.lang". ---
 const STR = {
-  cmd_placeholder: ['EAST · LOOK · OPEN DOOR · SAY TO THORIN "CARRY ME"',
-                    'EAST · LOOK · OPEN DOOR · SAY TO THORIN "CARRY ME"'],
+  cmd_placeholder: ['Type a command…', 'Tapez une commande…'],
   objs_title: ['Objects & characters', 'Objets & personnages'],
   map_title: ['Map', 'Carte'],
   room_label: ['Room', 'Lieu'],
