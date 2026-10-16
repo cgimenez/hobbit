@@ -14,6 +14,11 @@ let M = null;
 let textLen = 0;
 let busy = false;
 
+// Historique des commandes (fleches HAUT/BAS dans le champ de saisie).
+const cmdHistory = [];
+let histPos = 0;     // == cmdHistory.length => ligne en cours d'edition
+let histDraft = '';  // texte non envoye, memorise a la premiere remontee
+
 async function fetchInto(url, slot) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`${url}: ${r.status}`);
@@ -302,7 +307,24 @@ $('#cmdline').addEventListener('submit', (e) => {
   e.preventDefault();
   const v = $('#cmd').value;
   $('#cmd').value = '';
+  if (v.trim() && v !== cmdHistory[cmdHistory.length - 1]) cmdHistory.push(v);
+  histPos = cmdHistory.length;
+  histDraft = '';
   sendCommand(v);
+});
+
+$('#cmd').addEventListener('keydown', (e) => {
+  if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || !cmdHistory.length) return;
+  e.preventDefault();
+  const el = $('#cmd');
+  if (e.key === 'ArrowUp') {
+    if (histPos === cmdHistory.length) histDraft = el.value;
+    if (histPos > 0) histPos--;
+  } else if (histPos < cmdHistory.length) {
+    histPos++;
+  }
+  el.value = histPos === cmdHistory.length ? histDraft : cmdHistory[histPos];
+  el.setSelectionRange(el.value.length, el.value.length);
 });
 
 $('#btn-save').addEventListener('click', () => {
