@@ -495,8 +495,10 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   la 1re commande réussie après l'arrivée (f4c : LOOK tick12 ;
   f5e : TALK tick14 — les lignes vides ne comptent pas, 0
   delta). `TALK TO ELROND` ✓ (20, même signature) ;
-  `EXAMINE ELROND/THORIN`, `EAT LUNCH`, `GIVE LUNCH TO ELROND`
-  = 0 (PNJ non examinables, lunch non mangeable/donnable).
+  `EXAMINE ELROND/THORIN`, `GIVE LUNCH TO ELROND` = 0 (PNJ non
+  examinables). `EAT LUNCH` = 0 **avant** réception du lunch ; une fois
+  le lunch porté, `EAT` (et `EAT LUNCH`) le **consomme** (« You eat some
+  lunch », journal séance 13).
 - **Events `$2B12` : TOUS `cpt=0`, donc `evt_tick` les saute**
   (`beq L4EBE`) — 1463 WAIT + R2/R3 + R5/R6 (combat, mort) :
   aucun changement. Pas de contradiction avec le driver décodé

@@ -552,3 +552,56 @@ Depuis `sav/ring.bin` (Anneau en poche, lieu `$3D` où Gollum **rôde**), suite
 Checkpoint `sav/gollum_riddle.bin`. Conclusion : `act_v14_14` n'est **pas**
 un simple tirage décoratif : séquence dialogue + **vol de l'Anneau** + énigme,
 toute la chaîne `$16B9-$1721` est du Gollum.
+
+### Séance 13 — comparatif C64/Apple II : 4 fonctions moteur testées (2026-10-16)
+Solutions C64 (disk + variante) et Apple II fournies ; 4 mécaniques
+« C64/Apple-only » supposées absentes de l'Oric passées au harnais
+(`scripts/solver_run.py` → `run_one` depuis `sav/*.bin`, lecture `full`/`blob`).
+
+1. **Ordre PNJ à virgules `SAY TO THORIN "A, B, C"`** — supporté, mais
+   **plafonné à 2 sous-ordres** (un seul `,` honoré) :
+   - `SAY TO THORIN "CARRY ME, OPEN WINDOW"` → `Thorin carry ies you.`
+     puis (tour suivant) `Thorin opens the window.`
+   - `SAY TO THORIN "OPEN WINDOW, WEST"` → `Thorin opens the window.` +
+     `Thorin goes west.`
+   - 3 sous-ordres : le 3e est **silencieusement jeté** (`"CARRY ME, WEST,
+     OPEN WINDOW"` → OPEN WINDOW jamais ; `"OPEN WINDOW, WEST, CARRY ME"` →
+     CARRY ME jamais).
+   ⇒ l'ordre Apple II `"CARRY ME, OPEN WINDOW, GO WEST"` ne peut **pas**
+   atteindre GO WEST en un seul ordre : nos 3 ordres séparés restent requis.
+   Écho : le jeu insère un `.` interne (`> SAY TO THORIN "CARRY ME."."`) →
+   `run_one()['text']` rate la segmentation (`echo_ok=False`), lire `full`.
+
+2. **Gandalf pilotable `SAY TO GANDALF "<ordre>"`** — **NON supporté** (Oric).
+   `SAY TO GANDALF "..."` (GO EAST / CARRY ME / KILL WARG / HELLO / WAIT /
+   FOLLOW ME / script Apple II complet) → systématiquement `You talk to
+   Gandalf. Gandalf says " No "` (script adaptatif, non commandable).
+   Contrôles : `SAY TO THORIN "GO EAST"` → `Thorin goes through the round green
+   door.` (Thorin obéit) ; `SAY TO ELROND "..."` → `Elrond says " No "`.
+   ⇒ l'Apple II commande Gandalf ; l'Oric ne le peut pas.
+
+3. **Combat par procuration `SAY TO THORIN "KILL <créature>"`** — **supporté**.
+   Depuis `sav/gollum_riddle.bin` (Thorin + Gollum co-localisés) :
+   `SAY TO THORIN "KILL GOLLUM"` → `Thorin attacks Gollum. With one well placed
+   blow Thorin cleaves his skull. Gollum is dead.` (idem `ATTACK GOLLUM`).
+   Le joueur seul échoue (`KILL GOLLUM` → « the effort is wasted »). Côté
+   joueur, `KILL WARG`/`ATTACK WARG` marchent quand le warg est là
+   (`sav/ring_dungeon.bin` : « You attack the vicious warg…stunned ») ;
+   `FIGHT` est inconnu du dico. Cible absente ⇒ aucune action ni message
+   (l'ordre est *muet* si la cible n'est pas co-localisée au tour d'action).
+
+4. **`EAT` / `ALL`** — supportés.
+   - `EAT` (et `EAT LUNCH`) avec le lunch porté (`sav/revise.bin`, Rivendell) →
+     `You eat some lunch.` (consomme le lunch `$26`, le temps avance) ; sans
+     nourriture (`SLVW`) → `I SEE NOTHING TO EAT`. `EAT FOOD` → `I DO NOT SEE
+     THE FOOD HERE` (`FOOD` absent du dico Oric ; ici c'est `lunch`).
+     Correction vs status antérieur (`EAT LUNCH`=0 : mesuré sans lunch porté).
+   - `OPEN ALL` / `TAKE ALL` / `GET ALL` → agissent sur les cibles présentes
+     (`TAKE ALL` @caverne trolls → `You take the rope.` ; `OPEN ALL` @cellier →
+     `You open the red door.`) ; **muets** et sans effet (ndiff 0) s'il n'y a
+     rien à ouvrir/prendre.
+
+Conclusion : sur les 4, trois sont présents dans l'Oric (ordre PNJ comma
+plafonné à 2 ; combat PNJ via Thorin ; `EAT`/`ALL`) et **un est absent**
+(Gandalf non commandable). Les solutions C64/Apple II surestiment les
+capacités de *notre* édition ; `sav/win.bin` reste la référence.
