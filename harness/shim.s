@@ -316,6 +316,15 @@ MARK_E: .byte "@@EOL", $0A
 MARK_E2:.byte "@@EOLR", $0A
 MARK_P: .byte "@@P", $0A
 
+; ---- table de hooks a signature (lecture binaire, sans listing) --------
+; L'emulateur web (web/core/hobbit.c) cherche "HSHK" dans le binaire et lit
+; les 3 mots qui suivent = asc_plot/asc_eol/asc_eol2. Evite de parser le
+; listing ca65 cote C (le harness natif continue d'utiliser le listing).
+HOOKMAGIC:
+        .byte "HSHK"
+HOOKTAB:
+        .word asc_plot, asc_eol, asc_eol2
+
 .else
 ; ---- dump ecran texte si changement ----
 MARK_T: .byte "@@FRAME text", $0A

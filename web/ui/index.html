@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Hobbit (Oric 1982) — WASM</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>The Hobbit <span class="sub">Oric-1/Atmos 1982 — WASM</span></h1>
+  <button id="btn-load" title="Recharger la sauvegarde locale">LOAD</button>
+  <button id="btn-save" title="Enregistrer la partie (localStorage + fichier)">SAVE</button>
+  <span id="status">chargement…</span>
+</header>
+
+<main>
+  <section id="game">
+    <div id="screen" aria-live="polite"></div>
+    <form id="cmdline" autocomplete="off">
+      <span class="prompt">&gt;</span>
+      <input id="cmd" type="text" autofocus spellcheck="false"
+             autocapitalize="characters" placeholder="EAST · LOOK · OPEN DOOR · SAY TO THORIN &quot;CARRY ME&quot;">
+      <button type="submit">OK</button>
+    </form>
+  </section>
+
+  <section id="vector">
+    <h2>Illustration</h2>
+    <canvas id="vec" width="240" height="128"></canvas>
+    <div id="vec-empty">(pas d'illustration ici)</div>
+  </section>
+
+  <section id="live">
+    <h2>Objets &amp; personnages</h2>
+    <div class="room">Lieu : <b id="room">?</b></div>
+    <table id="objs">
+      <thead>
+        <tr><th>#</th><th>Nom</th><th>Lieu</th><th>Porteur</th>
+            <th>PV</th><th>Attributs</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="map">
+    <h2>Carte des lieux</h2>
+    <div id="map-svg"></div>
+  </section>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
