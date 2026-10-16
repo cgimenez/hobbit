@@ -1011,8 +1011,18 @@ Non exploité : `WL.c` (98 K, logique carte/menus) et `dict_v12.txt`/`rooms_v12.
   `NightDay`/`RandomSeed` `$B6E6+`) = **RAM absolue ZX**, sans équivalent ZP direct.
 - **Non exploité** : `WL.c`, `dict_v12.txt` complet.
 
-**Plus tard (4)** : ports **6502** dans `HobbitOSX/…/BBCDisk`, `Apple2Disk`,
-`C64Disk` (v1.00) → extraction + diff pour aligner le code Oric (même CPU).
+**Plus tard (4) — ports 6502 (`HobbitOSX/…/{BBCDisk,Apple2Disk,C64Disk}`). [RECO]**
+- **BBC** (`*Disk 1* .ssd`, DFS) : loader **custom BDOS**, 3 fichiers seulement
+  (`!BOOT`/`BOOT`@`$2000`/`BDOS`@`$05D1`) ; le jeu n'est pas un fichier catalogué
+  (chargement brut tracks ?). Signature dico Oric (`$0540`) **absente**.
+- **Apple II** (`*Side A/B.dsk`, DOS 3.3) : signature dico **absente** (données
+  interleavées par secteurs) → il faut suivre la chaîne TS d'un fichier B.
+- **C64Disk** : que des images (pas de `.d64`) ; C64Tape/SpectrumTape vides.
+- **Seul match de signature** : `AmstradTape/…dsk` (Z80) — mais on a déjà le ZX.
+- Conclusion : le cross-ref 6502 exige (a) un loader DFS/BDOS reverse ou (b) un
+  extracteur DOS 3.3 par chaîne TS, puis un disasm + appariement par
+  comportement. **ROI incertain** (adaptations hardware, data re-encodée).
+  À reprendre si besoin d'une 3e source ; sinon item 3 (skool) couvre déjà.
 
 **Commandes** : `.venv/bin/python scripts/disasm.py` ; `scripts/disasm_check.py
 --block block4` ; `scripts/memmap_check.py` ; `scripts/disasm_rebuild.py --all`.
