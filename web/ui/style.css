@@ -108,5 +108,7 @@ td.attrs { letter-spacing: .12em; color: #c9b46a; }
   letter-spacing: .06em; color: #8b95a1; }
 #modal-about ul { margin: 0; padding-left: 20px; }
 #modal-about li { margin: 2px 0; }
+#modal-about a { color: #6fa8dc; text-decoration: none; }
+#modal-about a:hover { text-decoration: underline; }
 #modal-about .note { margin: 18px 0 0; padding-top: 10px; border-top: 1px solid #262b31;
   color: #6d7681; font-size: 12px; }
