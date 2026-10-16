@@ -174,9 +174,9 @@ function computeLayout() {
   return LAYOUT;
 }
 
-function drawMap(playerRoom) {
+function buildMapSvg(playerRoom, focus) {
   const n = M._hob_room_count();
-  if (!n) { $('#map-svg').textContent = '(carte indisponible)'; return; }
+  if (!n) return null;
   const { ids, pos } = computeLayout();
   const xs = ids.map((i) => pos.get(i)[0]);
   const ys = ids.map((i) => pos.get(i)[1]);
@@ -220,6 +220,9 @@ function drawMap(playerRoom) {
   for (const id of ids) {
     const [x, y] = at(id);
     const here = id === playerRoom;
+    if (id === focus) {
+      nodes += `<circle cx="${x}" cy="${y}" r="12" fill="none" class="focus"/>`;
+    }
     nodes += `<circle cx="${x}" cy="${y}" r="${here ? 7 : 4}" fill="${here ? '#ff5a5a' : '#5f86a8'}" data-room="${id}"${here ? ' class="here"' : ''}/>`;
     nodes += `<text x="${x + 8}" y="${y + 3}" fill="#7d8794" font-size="10">$${hex(id)}</text>`;
     const who = npc.get(id);
@@ -227,55 +230,26 @@ function drawMap(playerRoom) {
       nodes += `<text x="${x + 8}" y="${y + 14}" fill="#c9b46a" font-size="9">${esc(who.join(', '))}</text>`;
     }
   }
-  $('#map-svg').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
 }
 
-// --- modale : détail d'un lieu (clic sur la carte) ---
-const DIR = { 1: 'nord', 2: 'sud', 3: 'est', 4: 'ouest', 5: 'NE',
-              6: 'NO', 7: 'SE', 8: 'SO', 9: 'haut', 10: 'bas' };
+function drawMap(playerRoom) {
+  const svg = buildMapSvg(playerRoom, -1);
+  $('#map-svg').innerHTML = svg || '(carte indisponible)';
+}
 
+// --- modale : carte des lieux en grand (clic sur la carte) ---
 function roomName(id) {
   return id >= 0 && M._hob_room_name(id)
     ? M.UTF8ToString(M._hob_room_name(id)) : '?';
 }
 
-function openRoomModal(id) {
-  $('#modal-title').textContent = `$${hex(id)} ${roomName(id)}`;
-
-  const cv = $('#modal-vec');
-  const empty = $('#modal-empty');
-  if (renderVecInto(cv, id)) {
-    cv.style.display = 'block';
-    empty.style.display = 'none';
-  } else {
-    cv.style.display = 'none';
-    empty.style.display = 'block';
-  }
-
-  const rows = [];
-  const ne = M._hob_room_exit_count(id);
-  const exits = [];
-  for (let j = 0; j < ne; j++) {
-    const d = M._hob_room_exit_dir(id, j);
-    const t = M._hob_room_exit_dst(id, j);
-    const cond = M._hob_room_exit_cond(id, j);
-    exits.push(`${DIR[d] || 'dir' + d} → $${hex(t)} ${roomName(t)}` +
-               (cond ? ' (cond.)' : ''));
-  }
-  rows.push(['Sorties', exits.length ? exits.join('<br>') : 'aucune']);
-
-  const who = [];
-  for (let i = 0; i < M._hob_obj_count(); i++) {
-    if (!M._hob_obj_alive(i)) continue;
-    if (M._hob_obj_field(i, 7) !== id) continue;
-    who.push(esc(M.UTF8ToString(M._hob_obj_name(i))));
-  }
-  rows.push(['Présents', who.length ? who.join('<br>') : '—']);
-
-  if (id === M._hob_player_room()) rows.push(['', '<b>vous êtes ici</b>']);
-
-  $('#modal-info').innerHTML = rows
-    .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+function openMapModal(focus) {
+  const svg = buildMapSvg(M._hob_player_room(), focus);
+  if (!svg) return;
+  $('#modal-title').textContent = focus >= 0
+    ? `Carte — $${hex(focus)} ${roomName(focus)}` : 'Carte des lieux';
+  $('#modal-map').innerHTML = svg;
   $('#modal').classList.remove('hidden');
 }
 
@@ -283,7 +257,7 @@ function closeModal() { $('#modal').classList.add('hidden'); }
 
 $('#map-svg').addEventListener('click', (e) => {
   const c = e.target.closest('circle[data-room]');
-  if (c) openRoomModal(+c.dataset.room);
+  openMapModal(c ? +c.dataset.room : -1);
 });
 $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
