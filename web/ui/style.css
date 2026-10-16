@@ -122,6 +122,21 @@ td.attrs { letter-spacing: .12em; color: #c9b46a; }
 #modal-about .note { margin: 18px 0 0; padding-top: 10px; border-top: 1px solid #262b31;
   color: #6d7681; font-size: 12px; }
 
+#modal-disclaimer { flex: 1; min-height: 0; overflow-y: auto; color: #c5ccd4;
+  font-size: 13px; line-height: 1.5; }
+#modal-disclaimer .lead { margin: 0 0 12px; color: #ffb454; font-weight: 600;
+  font-size: 14px; }
+#modal-disclaimer b { color: #d7dde3; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.modal-actions button {
+  background: #20262d; color: #cfd6dd; border: 1px solid #333b44;
+  border-radius: 5px; padding: 6px 14px; cursor: pointer; font: inherit;
+}
+.modal-actions button:hover { background: #29313a; }
+.modal-actions button.primary { background: #2b3b2b; color: #d7e3d7;
+  border-color: #3d523d; }
+.modal-actions button.primary:hover { background: #354735; }
+
 #modal-controls {
   flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
   padding: 10px 14px; background: #0f1114; border-top: 1px solid #262b31;

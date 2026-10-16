@@ -1,4 +1,5 @@
 import createHobbit from './hobbit.js';
+import { SOLUTION, EXPECTED_VICTORY } from './solution.js';
 
 const $ = (s) => document.querySelector(s);
 const enc = new TextEncoder();
@@ -21,6 +22,10 @@ const STR = {
   btn_load: ['LOAD', 'CHARGER'],
   btn_save: ['SAVE', 'SAUVER'],
   btn_about: ['ABOUT', 'À PROPOS'],
+  btn_auto: ['AUTO PLAY', 'AUTO PLAY'],
+  btn_auto_title: ['Replay the solution (spoilers)', 'Rejouer la solution (spoilers)'],
+  auto_cancel: ['Cancel', 'Annuler'],
+  auto_confirm: ['Start AUTO PLAY', 'Lancer AUTO PLAY'],
   btn_load_title: ['Reload local save', 'Recharger la sauvegarde locale'],
   btn_save_title: ['Save game (localStorage + file)',
                    'Enregistrer la partie (localStorage + fichier)'],
@@ -58,6 +63,7 @@ function applyI18n() {
     el.hidden = el.dataset.langBlock !== LANG;
   for (const b of document.querySelectorAll('.lang-flag'))
     b.classList.toggle('active', b.dataset.lang === LANG);
+  $('#btn-auto').textContent = autoPlaying ? 'STOP' : t('btn_auto');
   $('#status').textContent = L(statusEn, statusFr);
 }
 
@@ -70,6 +76,12 @@ const PAL = [[0,0,0],[255,0,0],[0,255,0],[255,255,0],
 let M = null;
 let textLen = 0;
 let busy = false;
+
+// Autoplay (rejoue la solution). autoTimer : setTimeout courant.
+let autoPlaying = false;
+let autoTimer = null;
+let autoIdx = 0;
+const AUTO_DELAY = 800;
 
 // Historique des commandes (fleches HAUT/BAS dans le champ de saisie).
 const cmdHistory = [];
@@ -336,6 +348,8 @@ let mapFocus = -1;
 function updateModalTitle() {
   if (!$('#modal-about').hidden) {
     $('#modal-title').textContent = L('About', 'À propos');
+  } else if (!$('#modal-disclaimer').hidden) {
+    $('#modal-title').textContent = L('Warning', 'Avertissement');
   } else {
     $('#modal-title').textContent = mapFocus >= 0
       ? L(`Map — $${hex(mapFocus)} ${roomName(mapFocus)}`,
@@ -358,6 +372,7 @@ function openMapModal(focus) {
   applyMapView();
   $('#modal-map').hidden = false;
   $('#modal-about').hidden = true;
+  $('#modal-disclaimer').hidden = true;
   $('#modal-controls').hidden = false;
   $('#modal').classList.remove('hidden');
   updateModalTitle();
@@ -366,12 +381,65 @@ function openMapModal(focus) {
 function openAboutModal() {
   $('#modal-about').hidden = false;
   $('#modal-map').hidden = true;
+  $('#modal-disclaimer').hidden = true;
+  $('#modal-controls').hidden = true;
+  $('#modal').classList.remove('hidden');
+  updateModalTitle();
+}
+
+function openDisclaimerModal() {
+  $('#modal-disclaimer').hidden = false;
+  $('#modal-about').hidden = true;
+  $('#modal-map').hidden = true;
   $('#modal-controls').hidden = true;
   $('#modal').classList.remove('hidden');
   updateModalTitle();
 }
 
 function closeModal() { $('#modal').classList.add('hidden'); }
+
+// --- autoplay : rejoue la solution (docs/game_solution.md, Annexe 2) ---
+function sawVictory() { return $('#screen').textContent.includes(EXPECTED_VICTORY); }
+
+function startAutoplay() {
+  closeModal();
+  M._hob_init();
+  textLen = 0;
+  $('#screen').textContent = '';
+  M._hob_boot();
+  drainText();
+  refreshLive();
+  autoIdx = 0;
+  autoPlaying = true;
+  $('#btn-auto').textContent = 'STOP';
+  $('#cmd').disabled = true;
+  autoStep();
+}
+
+function autoStep() {
+  if (!autoPlaying) return;
+  if (autoIdx >= SOLUTION.length) { stopAutoplay(); return; }
+  const i = autoIdx;
+  autoIdx++;
+  setStatus(`AUTO PLAY ${autoIdx}/${SOLUTION.length}`,
+            `AUTO PLAY ${autoIdx}/${SOLUTION.length}`);
+  sendCommand(SOLUTION[i]);
+  autoTimer = setTimeout(autoStep, AUTO_DELAY);
+}
+
+function stopAutoplay() {
+  autoPlaying = false;
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  $('#btn-auto').textContent = t('btn_auto');
+  $('#cmd').disabled = false;
+  $('#cmd').focus();
+  const won = sawVictory();
+  const done = autoIdx >= SOLUTION.length;
+  setStatus(won ? 'AUTO PLAY — victory!'
+                : done ? 'AUTO PLAY — finished' : 'AUTO PLAY — stopped',
+            won ? 'AUTO PLAY — victoire !'
+                : done ? 'AUTO PLAY — terminé' : 'AUTO PLAY — arrêté');
+}
 
 function setLang(lang) {
   LANG = lang === 'fr' ? 'fr' : 'en';
@@ -397,6 +465,11 @@ $('#map-svg').addEventListener('click', (e) => {
   openMapModal(c ? +c.dataset.room : -1);
 });
 $('#btn-about').addEventListener('click', openAboutModal);
+$('#btn-auto').addEventListener('click', () => {
+  if (autoPlaying) stopAutoplay(); else openDisclaimerModal();
+});
+$('#auto-confirm').addEventListener('click', startAutoplay);
+$('#auto-cancel').addEventListener('click', closeModal);
 $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });

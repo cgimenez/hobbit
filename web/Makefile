@@ -89,8 +89,8 @@ $(BUILD)/hobbit.js: $(WEB_SRC) $(SIM65_SRC) $(WEB)/include/hobbit.h $(WEB)/core/
 assets: wasm shims
 	@mkdir -p $(BUILD)
 	cp $(ROOT)/data/hobbit.bin $(ROOT)/data/basic10.rom $(BUILD)/
-	cp $(WEB)/ui/index.html $(WEB)/ui/app.js $(WEB)/ui/style.css $(BUILD)/
-	@echo "assets : $(BUILD)/{hobbit.bin,basic10.rom,index.html,app.js,style.css}"
+	cp $(WEB)/ui/index.html $(WEB)/ui/app.js $(WEB)/ui/style.css $(WEB)/ui/solution.js $(BUILD)/
+	@echo "assets : $(BUILD)/{hobbit.bin,basic10.rom,index.html,app.js,style.css,solution.js}"
 
 serve:
 	@echo "http://localhost:8000  (HMR : editez web/ui|core|cpu|include -> rebuild+reload)"

@@ -12,6 +12,7 @@
   <button id="btn-load" data-i18n="btn_load" data-i18n-title="btn_load_title" title="Recharger la sauvegarde locale">LOAD</button>
   <button id="btn-save" data-i18n="btn_save" data-i18n-title="btn_save_title" title="Enregistrer la partie (localStorage + fichier)">SAVE</button>
   <button id="btn-about" data-i18n="btn_about" data-i18n-title="btn_about_title" title="À propos / crédits">ABOUT</button>
+  <button id="btn-auto" data-i18n-title="btn_auto_title" title="Rejouer la solution">AUTO PLAY</button>
   <span class="langs" id="lang">
     <button class="lang-flag" type="button" data-lang="en" title="English">🇬🇧</button>
     <button class="lang-flag" type="button" data-lang="fr" title="Français">🇫🇷</button>
@@ -121,6 +122,25 @@
 
           <p class="note">The Hobbit est © Melbourne House / Beam Software, 1982.
           Étude et hommage sans but lucratif.</p>
+        </div>
+      </div>
+
+      <div id="modal-disclaimer" hidden>
+        <div data-lang-block="en">
+          <p class="lead">Warning — spoilers!</p>
+          <p>AUTO PLAY replays the full verified solution of the game (every
+          move, up to the victory) and <b>restarts the game from the
+          beginning</b>. You will be shown the entire walkthrough.</p>
+        </div>
+        <div data-lang-block="fr" hidden>
+          <p class="lead">Avertissement — spoilers !</p>
+          <p>AUTO PLAY rejoue la solution complète et vérifiée du jeu (tous les
+          coups, jusqu'à la victoire) et <b>redémarre la partie depuis le
+          début</b>. Vous allez voir l'intégralité de la solution.</p>
+        </div>
+        <div class="modal-actions">
+          <button id="auto-cancel" type="button" data-i18n="auto_cancel">Cancel</button>
+          <button id="auto-confirm" type="button" class="primary" data-i18n="auto_confirm">Start</button>
         </div>
       </div>
     </div>

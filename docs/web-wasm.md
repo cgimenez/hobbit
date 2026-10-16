@@ -130,7 +130,11 @@ slots `hob_slot/_cap/_len` ; cycle `hob_init` → `hob_boot` → `hob_key` +
 `hob_run` ; texte `hob_text_ptr/_len` ; SAVE `hob_save_ready/_ptr/_len/_clear` ;
 état `hob_player_room`, `hob_obj_*` (61), `hob_ent_*` (17), `hob_evt_*` (10) ;
 carte `hob_room_*` (78) ; vecteurs `hob_vec_render/_ptr/_key/_mode/_popcount`.
-Le JS (`web/ui/app.js`) ne fait que `fetch` + appels + rendu.
+Le JS (`web/ui/app.js`) ne fait que `fetch` + appels + rendu. L'UI est
+bilingue EN/FR (cookie `hobbit.lang`, drapeaux) et propose un bouton
+**AUTO PLAY** (disclaimer spoiler) qui rejoue la solution complète :
+`web/ui/solution.js` = les 100 commandes de `docs/game_solution.md` Annexe 2
+(variante continue, victoire 70,0 %), injectées via `sendCommand` (1 tour/800 ms).
 
 **Pistes V1+ (par ordre de valeur)**
 1. **Coordonnées de carte réelles** : porter `MapCoordinates.h` (ZX, lieux 1:1)
