@@ -144,6 +144,11 @@ MANUAL_ENTRIES: list[int] = (
     # code_436C s'arrete au RTS $456E et $456F-$4572 tombent en donnees
     # (le JMP patche est indirect, invisible de la descente).
     + [0x456F]
+    # Actions d'evenements differees atteintes via la table de sauts $7169
+    # (indirect) et tombees en zones donnees : $688D (index 1, e0) est dans
+    # la BYTETABLE $66F1-$68CF ; $6DBB (index 13, e9) est la vraie tete du
+    # handler de trou (la plage code_6DBE commencait 3 octets trop loin).
+    + [0x688D, 0x6DBB]
     # Stubs d'armement des evenements $2B12 en zones donnees : $65A5
     # (cpt e3, queue jsr $6222+$4D95) et $70B5 (cle $16 : ecrit entite
     # $2B61). Seuls des STA $2Bxx les trahissent (scan binaire complet).
@@ -583,6 +588,18 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x6689: ("evt_disarme6", "Desarme l'evenement e6 (remet sa minuterie a zero)"),
     0x66AA: ("evt_arme6", "Arme l'evenement e6 avec un delai aleatoire (2 a 10)"),
     0x65A5: ("evt_arme3", "Arme l'evenement e3 (minuterie = id) apres une action"),
+    0x64E2: (
+        "evt_arme0",
+        "Arme l'evenement e0 (minuterie 2) si le tonneau a atteint Forestriver",
+    ),
+    0x688D: (
+        "evt_act0",
+        "Action de l'evenement e0 : le tonneau atteint le Long Lake, joueur jete sur la berge",
+    ),
+    0x6DBB: (
+        "evt_hole",
+        "Trou secret vers la Montagne : pose l'etat $0B bit7 puis annonce l'apparition du trou",
+    ),
     0x6A19: (
         "evt_disarme7",
         "Desarme l'evenement e7 dans un cas particulier (objet present)",
@@ -735,6 +752,13 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x6B72: (
         "act_p14_09",
         "Pour un objet donne, parcourt une liste et affiche 'go...from...to'",
+    ),
+    # Corps d'action orphelin, cible de la table de verbes $6FAC ($6FFD : wid
+    # $35) : si l'entite arg1 est trouvee et n'a pas encore parle, decide par un
+    # tirage borne par son champ 'reply' si elle dit "<ARG1>SAY 'NO '".
+    0x5F81: (
+        "npc_say_no",
+        "Entite arg1 : dit 'NO' avec une probabilite liee a son champ 'reply'",
     ),
     # Actions dispatchees par la table L7143 (index 0-14) : comportements
     # autonomes des PNJ dans la machine virtuelle $4ED5.
@@ -1855,9 +1879,11 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "Fait jouer le script d'un personnage : son 'cerveau'. Appele a chaque tour",
         "par world_tick, pour CHAQUE entite active, meme quand le joueur est ailleurs.",
         "",
-        "Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],",
+        "Table $2B45 : 17 entrees de 7 octets [id, nmax, PC_lo, PC_hi, base_lo, base_hi, reply],",
         "terminee par $FF. id=$00 = emplacement dormant (saute). PC = pointeur du script",
-        "dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite.",
+        "dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite ;",
+        "nmax = index max (0-based) dans la table base (nb d'entrees - 1) ; reply =",
+        "poids de replique (borne du tirage gating '<id>SAY NO', cf. npc_say_no ; 0 = muet).",
         "",
         "On execute au plus 6 opcodes par tick (garde-fou L4ED3, evite les boucles",
         "infinies). L'opcode est l'octet pointe par le PC ; on dispatch sur le nibble bas :",
@@ -1867,7 +1893,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "  $x5-$xD INDIR      : saute via la table de base (script_indir $51DA)",
         "  $xC     GOTO cle   : entity_goto(id, cle) via la table de base",
         "  $xE     GOTO absolu: PC := (PC)1/(PC)2",
-        "  $xF     RAND       : tire une cible parmi min(op, n) (script_rand $51CA)",
+        "  $xF     RAND       : tire une cible parmi min(op, nmax) (script_rand $51CA)",
         "",
         "Apres un MOVE/ACT : bit $20 pose -> efface l'opcode (auto-modification, l'entite",
         "devient dormante) ; bit $10 pose -> si l'action echoue, saute de la taille de",
@@ -1908,14 +1934,14 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "l'adresse (PC)2/(PC)3 quand le bit $10 est pose (saut inconditionnel).",
     ],
     0x51CA: [
-        "Opcode RAND ($xF) : lit le nombre de choix n=(PC)1, borne l'index par (ptr2)+1,",
-        "tire un index (rand_range) puis script_indir effectue le saut correspondant dans",
-        "la table de base de l'entite. C'est la part d'imprevisibilite des PNJ.",
+        "Opcode RAND ($xF) : lit le nombre de choix (PC)1, borne l'index par le champ nmax",
+        "de l'entite ((ptr2)+1), tire un index (rand_range) puis script_indir effectue le",
+        "saut correspondant dans la table de base. C'est la part d'imprevisibilite des PNJ.",
     ],
     0x51DA: [
         "Opcode INDIR ($x5-$xD) : utilise l'index A (0 pour INDIR, tirage pour RAND),",
-        "le borne a l'entree (ptr2)+1, lit la cible [index] dans la table de base",
-        "((ptr2)+4/+5, entrees de 3 octets) et pose le nouveau PC ((ptr2)+2/+3).",
+        "le borne a nmax ((ptr2)+1 = index max de la table base), lit la cible [index] dans",
+        "la table de base ((ptr2)+4/+5, entrees de 3 octets) et pose le PC ((ptr2)+2/+3).",
     ],
     0x520D: [
         "Cherche dans la table $2B45 l'entree dont l'id vaut A (7 octets par entree,",
@@ -2119,6 +2145,14 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "PNJ : efface des drapeaux ($1F94/$1FA6 bit7, $214C bit6), recolle les objets",
         "$47/$48, met a jour la description $2154 et affiche 'DAY DAWN.' ($16EB).",
     ],
+    0x5F81: [
+        "Corps d'action orphelin (cible de la table de verbes $6FAC, entree $6FFD :",
+        "wid=$35). Cherche l'entite arg1 (entity_find) ; si absente, ou si elle a deja",
+        "parle (said != 0), ou si son champ 'reply' est nul -> actq_pull. Sinon tire",
+        "rand_range(reply) : resultat nul -> la creature dit '<ARG1>SAY 'NO '' ($15BE,",
+        "replique d'enigme type Gollum), puis pull. Seul site du bloc 4 qui lit 'reply'",
+        "((ptr2)+6) des entrees $2B45.",
+    ],
     0x2C35: [
         "Point de depart du jeu, juste apres le chargement de la cassette.",
         "boot_copy copie l'etat initial (cassette) vers la memoire de travail, la",
@@ -2219,10 +2253,16 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "Technique : L69E7, entity_tick (VM des PNJ), puis evt_tick (table $2B12).",
     ],
     0x4E75: [
-        "Parcourt la liste des evenements differes. Chaque evenement a un compte a rebours :",
-        "quand il atteint zero, l'action prevue se declenche ; sinon on peut tester une condition.",
-        "Technique : table $2B12, entrees de 5 octets [id, cpt, actA, cond, actB], fin $FF ;",
-        "cpt==0 -> suivante ; cpt-- ; a 0 -> actA (evt_fire), sinon evt_cond.",
+        "Parcourt les evenements differes ($2B12, entrees [id,cpt,actA,cond,actB], fin $FF).",
+        "Chaque evenement a un compte a rebours cpt ; id = minuterie nominale (l'armement fait",
+        "souvent cpt := id). cpt==0 = desarme (on saute). Sinon cpt-- :",
+        "  - tant que cpt reste > 0 et que cond!=0 et cond>=cpt, l'action actB se declenche",
+        "    (repete a chaque tour) ;",
+        "  - quand cpt atteint 0, l'action actA se declenche, une seule fois, puis cpt := L4E58",
+        "    (0 = desarme).",
+        "Technique : actA passe par evt_fire (index dans la table de sauts $7169). La garde",
+        "L4E58, RAZ a chaque world_tick, limite a un seul actA par tour ; un handler d'actA peut",
+        "la reposer ($688D) pour en autoriser d'autres.",
     ],
     0x4E9D: [
         "Teste la condition d'un evenement en cours : si elle est remplie, l'action associee",
@@ -2290,6 +2330,14 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "et les objets presents sont examines : s'il n'y a aucune source de lumiere",
         "visible aupres de lui, rend C=1 (sombre) ; C=0 sinon. Les appelants en",
         "deduisent 'IT IS DARK.' ou 'I SEE NOTHING HERE.'.",
+        "Technique : ne retient que les fiches d'etat de type +0 = $01 (objets localises),",
+        "puis teste +$07 (masque $5C) et +$04 bit7 ; la seule source possible est l'epee $0E.",
+    ],
+    0x57BB: [
+        "Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (obj_record)",
+        "puis lit son champ +0. Seul +0 = $01 est 'localise' : la fiche porte alors un lieu en",
+        "+$10 (eloc) ; sinon rend $FF = 'nulle part' (objet-figure : porte, eau, toile...).",
+        "Meme regle que is_dark, holder_scan et la verification d'arme (act_p14_00).",
     ],
     0x7779: [
         "Initialise l'ecran hires : efface l'affichage, trace les bordures a partir",
@@ -3100,7 +3148,7 @@ B2_LABELS: dict[int, str] = {
     0x2AC9: "indir12",
     0x2AD0: "script_trolls",  # VM : trolls e9/e10 (lieu 5)
     0x2B12: "events",  # 10 x 5 o [id,cpt,actA,cond,actB]
-    0x2B45: "entities",  # 17 x 7 o [id,n,PC,base,s6]
+    0x2B45: "entities",  # 17 x 7 o [id,nmax,PC,base,reply]
 }
 
 B2_RANGES: dict[int, str] = {

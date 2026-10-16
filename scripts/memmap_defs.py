@@ -96,7 +96,7 @@ STATE_KEYS: list[tuple[int, int]] = [
 # Offsets de champ (sens generique d'un bloc d'etat). +0 = regime, jamais
 # mute (doc §6 : "jamais modifie") -> constante.
 STATE_FIELD: dict[int, tuple[str, str, str]] = {
-    0x00: ("type", CONST, "octet de type : $01 = localise (eloc valide via L57BB) ; $02/$03/$05/$08 = non localise"),
+    0x00: ("type", CONST, "classe d'objet : $01 = objet normal localise (eloc +$10 valide, seul cas branche) ; $02/$03/$05/$08 = objet-figure non localise (porte/eau/toile)"),
     0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne)"),
     0x05: ("hp", VAR, "degats/vie (act_p14_00 : +10/coup, bit7=>tue ; x2 transfo $6F1B)"),
     0x06: ("tough", VAR, "seuil de robustesse (compare aux degats +$05 ; act_p14_01)"),
@@ -203,8 +203,9 @@ STATE_IDENTITY: dict[int, str] = {
 }
 
 # --- §3. Scripts/tables $28CC (753 o) -----------------------------------
+# Taille = nombre d'entrees [cle,lo,hi] * 3 + 1 (octet $FF terminal).
 INDIR_TABLES: list[tuple[int, int]] = [
-    (0x28CC, 7), (0x28D3, 7), (0x28DA, 7), (0x2943, 15), (0x2984, 10),
+    (0x28CC, 7), (0x28D3, 7), (0x28DA, 7), (0x2943, 25), (0x2984, 10),
     (0x29B2, 10), (0x29C3, 4), (0x29E4, 10), (0x2A2E, 10), (0x2A4D, 7),
     (0x2A70, 7), (0x2A88, 7), (0x2AC9, 7),
 ]
@@ -214,10 +215,11 @@ EVENTS_FIELD = ["id", "cpt", "actA", "cond", "actB"]
 # mutable (evt_tick : cpt--, armement cpt:=id).
 EVENTS_KIND = [CONST, VAR, CONST, CONST, CONST]
 ENTITIES_BASE, ENTITIES_N, ENTITIES_SIZE = 0x2B45, 17, 7
-ENTITIES_FIELD = ["id", "n", "PClo", "PChi", "balo", "bahi", "s6"]
-# id (reveil dormant), PC (errance VM) et s6 (quasi-statique) = variables ;
-# n et base = configuration fixe (doc §6).
-ENTITIES_KIND = [VAR, CONST, VAR, VAR, CONST, CONST, VAR]
+# [id, nmax, PClo, PChi, balo, bahi, reply] ; voir entity_tick ($4ED5).
+ENTITIES_FIELD = ["id", "nmax", "PClo", "PChi", "balo", "bahi", "reply"]
+# id (reveil dormant) et PC (errance VM) = variables ; nmax/base/reply =
+# configuration fixe (jamais ecrits ; doc §6).
+ENTITIES_KIND = [VAR, CONST, VAR, VAR, CONST, CONST, CONST]
 
 
 def _load_image() -> bytes:
@@ -302,7 +304,7 @@ def annotate(base: int, off: int) -> list[Slot]:
             f = (addr - ENTITIES_BASE) % ENTITIES_SIZE
             out.append(Slot("scripts", f"ent{e}.{ENTITIES_FIELD[f]}",
                             ENTITIES_KIND[f],
-                            "entite VM [id,n,PC,base,s6]", addr))
+                            "entite VM [id,nmax,PC,base,reply]", addr))
         else:
             tbl = next(((a, s) for a, s in INDIR_TABLES if a <= addr < a + s),
                        None)

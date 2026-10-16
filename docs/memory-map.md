@@ -83,7 +83,12 @@ combat) ; `+$08` = template de description ; `+$0A`/`+$0B` = pointeur
 secondaire ; `+$0C`/`+$0D` = pointeur de **description runtime** (`descp`,
 RAZ par `code_5AF0` puis posé par les actions : `$04D6` → texte « t while
 THE… »).
-`+0` vaut aussi `$02 $03 $05 $08` (sens à élucider ; majoritaire `$01`).
+`+0` = **classe d'objet** : `$01` = objet normal **localisé** (seul cas branché
+par le moteur — `L57BB`, `is_dark`, `holder_scan`, arme `act_p14_00` : la fiche
+porte alors un `eloc` en `+$10`). Les autres valeurs (`$02` portes/fenêtre/
+torche/herse, `$03` porte rouge/eau, `$05` toile, `$08` eau) marquent des
+**objets-figures non localisés** (aucun `eloc` exploité) et ne sont **jamais
+discriminées entre elles** par le code (aucun `cmp` sur ces valeurs).
 
 | Clé | Addr | +0 | +1 porteur | +8 tpl | eloc (+$10, si +0==1) |
 |---|---|---|---|---|---|
@@ -209,7 +214,7 @@ robustesse, `+$07` = flags (`bit1`/`bit3` combat, `bit5` ouvert portes ;
 | `$28CC` | 7 o | `00`→`$28E1`, `0B`→`$2940`, `FF` |
 | `$28D3` | 7 o | `00`→`$2910`, `0B`→`$2940`, `FF` |
 | `$28DA` | 7 o | `00`→`$2934`, `0B`→`$2940`, `FF` |
-| `$2943` | 15 o | `00`→`$2964`, `00`→`$2971`, `00`→`$2975`, `00`→`$297A`, `00`→`$297E` (sans `$FF`) |
+| `$2943` | 25 o | `00`→`$2964`, `00`→`$2971`, `00`→`$2975`, `00`→`$297A`, `00`→`$297E`, `1D`→`$2B0E`, `30`→`$2B02`, `0B`→`$2AED`, `$FF` |
 | `$2984` | 10 o | `00`→`$298E`, `1D`→`$2B0E`, `0B`→`$2AED`, `FF` |
 | `$29B2` | 10 o | `00`→`$29BC`, `0B`→`$29BC`, `1D`→`$2B0E`, `FF` |
 | `$29C3` | 4 o | `00`→`$29C7`, `FF` |
@@ -243,11 +248,12 @@ Détail des programmes : `docs/block4-analysis.md` (§ AnimAction).
 
 ### 3c. Événements différés `$2B12` (10×5 o `[id,cpt,actA,cond,actB]`, `$FF` en `$2B44`)
 
-`evt_tick` (`$4E75`) : si `cpt==0` → entrée suivante (`beq`,
-désarmé) ; sinon `cpt--`, réarme, puis `evt_cond` dispatche `actB`
-via `$7169` si `cond<>0` et `cond>=cpt` ; à 0 : tir `actA`
-(`L4E58` = flag). Armement : `cpt := id`
-(`LDA $2Bxx / STA $2Bxx+1`), immédiat, `0`=désarme, `e6 := 2+rand(8)`.
+`evt_tick` (`$4E75`) : `cpt==0` → suivante (désarmé) ; sinon `cpt--` : si
+`cpt>0`, `cond!=0` et `cond>=cpt` → `actB` (`$7169`) ; si `cpt` tombe à `0`
+→ `actA` **une fois** (garde `L4E58`, RAZ par `world_tick`) puis `cpt := L4E58`.
+Armement : `cpt := id` (`LDA $2Bxx / STA $2Bxx+1`), immédiat, `0`=désarme,
+`e6 := 2+rand(8)` ; `id` = minuterie nominale. Validé harnais : `evt_act0`
+(`$688D`) s'exécute à l'échéance de e0 (`$1D94` `$21`→`$20`).
 Rôles : `docs/block4-analysis.md` (§ événements).
 
 | Slot | Addr | id | cpt | actA | cond | actB | Rôle |
@@ -263,13 +269,17 @@ Rôles : `docs/block4-analysis.md` (§ événements).
 | e8 | `$2B3A` | `$04` | 0 | `$0A` | `$03` | `$0B` | `$70F8` |
 | e9 | `$2B3F` | `$05` | 0 | `$0C` | `$01` | `$0D` | `$6AF0`/`$6D60`/`$70D9` (`$FF` en `$2B44`) |
 
-### 3d. Entités `$2B45` (17×7 o `[id,n,PC_lo,PC_hi,base_lo,base_hi,s6]`, `$FF` en `$2BBC`)
+### 3d. Entités `$2B45` (17×7 o `[id,nmax,PC_lo,PC_hi,base_lo,base_hi,reply]`, `$FF` en `$2BBC`)
 
-`world_tick` (`$4E59`) → `entity_tick` (`$4ED5`, VM §3b). `n`/`s6` :
-sens exacts ouverts (relire). id `$00` = dormant (activé par id seul :
-`$42` par `evt_arme16`, `$46`/`$3C` par `evt_arme9`).
+`world_tick` (`$4E59`) → `entity_tick` (`$4ED5`, VM §3b). `nmax` (`+1`) =
+**index maximal (0-based) dans la table `base` = nombre d'entrées − 1** (clamp
+`script_indir`/`script_rand` : `min(opérande, nmax)`) ; `reply` (`+6`) = **poids
+de réplique** : au seul site `npc_say_no` (`$5F81`), borne du tirage
+`rand_range` décidant l'émission de `<id>SAY 'NO '` (`$15BE`, énigme ; `0` =
+muet). Ni `nmax` ni `reply` ne sont jamais écrits. id `$00` = dormant (activé
+par id seul : `$42` par `evt_arme16`, `$46`/`$3C` par `evt_arme9`).
 
-| Slot | Addr | id | n | PC init | base (table) | s6 | Qui |
+| Slot | Addr | id | nmax | PC init | base (table) | reply | Qui |
 |---|---|---|---|---|---|---|---|
 | e0 | `$2B45` | `$3E` | `$07` | `$295C` | `$2943` | `$05` | GANDALF (eloc `$01`) |
 | e1 | `$2B4C` | `$3F` | `$02` | `$298E` | `$2984` | `$06` | THORIN (eloc ?) |
@@ -499,22 +509,23 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   examinables). `EAT LUNCH` = 0 **avant** réception du lunch ; une fois
   le lunch porté, `EAT` (et `EAT LUNCH`) le **consomme** (« You eat some
   lunch », journal séance 13).
-- **Events `$2B12` : TOUS `cpt=0`, donc `evt_tick` les saute**
-  (`beq L4EBE`) — 1463 WAIT + R2/R3 + R5/R6 (combat, mort) :
-  aucun changement. Pas de contradiction avec le driver décodé
-  (`cpt--`, tir actA à 0 + actB si `cond>=cpt`, `L4E58` = flag de
-  tir) : il ne s'applique simplement jamais (rien d'armé).
-  Armement = 14 sites gameplay (`cpt := id`, immédiat,
-  `2+rand(8)`) aux déclencheurs non testés (voyages PNJ ?
-  salles ? objets ? — le combat n'arme rien). e6 `id=$00`
-  (slot condamné ?).
+- **Events `$2B12` : armés et déclenchés en jeu** (R2-R6 ne les
+  armaient pas, mais la DB complète montre des `cpt` qui montent et
+  redescendent). `evt_tick` décompte `cpt` : `actB` tant que
+  `cond>=cpt`, `actA` **une fois** à l'échéance (garde `L4E58` = un
+  `actA` par `world_tick`, reposée par `evt_act0`). Ex. `e0.cpt`
+  (`$2B13`) alterne `0↔1` (armé à 2, décompté dans le tour d'armement)
+  et `evt_act0` (`$688D`) s'exécute à l'échéance (`$1D94` `$21`→`$20`,
+  run `f9a` tick 65). Armement = 14 sites gameplay (`cpt := id` /
+  immédiat / `2+rand(8)`), ex. `evt_arme0` `$64E2` : tonneau (état `$13`)
+  à Forestriver `$21` → e0:=2. e6 `id=$00` (slot tagué 0).
 - **Entités** : seuls `PClo`/`PChi` bougent (errance : Gandalf 10 PC
   distincts ; boucles MOVE+GOTO `$34`/`$36`, `$38`/`$42`… ;
   e6/Gollum cycle 4 états `$2A8F`/`$2AAA`/`$2ABD`…).
-  **`n` : jamais modifié (17 entités, 1000+ ticks). `s6` :
-  quasi-statique** (seul e7 dormant : 3 changements ticks 8–32,
-  les 16 autres jamais). **Tables INDIR : jamais patchées**
-  (`$xC` non observé). `base` : fixe.
+  **Seuls `id` et `PC` mutent** (activation des dormants + errance) ;
+  `nmax` et `reply` **jamais écrits** (config) — la DB ne montre que
+  des deltas `$28CC` sur `+0/+2/+3` de chaque entité. **Tables INDIR :
+  jamais patchées** (`$xC` non observé). `base` : fixe.
 - **ZP** : seuls `$CA`/`$CB` bougent par tick (scratch) ;
   `$BF`–`$C4`, `$CD`, `$CF`–`$D5` : statiques partout (rôle inconnu,
   ni tick ni action testée).
@@ -573,13 +584,11 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   **Spin EOF-idle non neutre** : ~32 o réécrits sur 2G cycles de
   polls `keyin` à `$00` (pas de tick monde, mais side-effects) —
   valider à `-x` court ou via sim_tickdiff uniquement.
-- **Reste ouvert** : sens fin `+0` `$02 $03 $05 $08` (tous « non
-  localisé » ; sous-régime non testé dans le code), `n`, `s6` (à quoi
-  servent-ils ?),
-  driver events (`evt_tick` décodé : `cpt--`, tir actA à 0
-  + actB si `cond>=cpt` — mais `cpt` statique en jeu : qui
-  appelle quoi ? `$B0` = nb de `world_tick` par commande ?),
-  compteur exact tête `$2AD0`, dormants (déclencheurs).
+- **Résolus** : `+0` `$02/$03/$05/$08` = objets-figures non localisés, non
+  discriminés entre eux (cf. §2) ; driver events (`actA` à l'échéance via la
+  garde `L4E58`, cf. §3c).
+- **Reste ouvert** : compteur de tête `$2AD0`, déclencheurs des entrants
+  dormants (`$2B61`/`$2B76`/`$2B7D`).
 
 <!-- BEGIN AUTO-COUVERTURE -->
 couverture (fusion sim_tickdiff+solver) : 237/3623 octets (6.5 %).
@@ -588,7 +597,7 @@ couverture (fusion sim_tickdiff+solver) : 237/3623 octets (6.5 %).
 |---|---|---|---|---|
 | `$00BE` ZP | 24 | 17 | 70.8 | 17/24 |
 | `$1B1A` etats | 1366 | 105 | 7.7 | 105/549 |
-| `$28CC` scripts | 753 | 37 | 4.9 | 34/78 |
+| `$28CC` scripts | 753 | 37 | 4.9 | 34/61 |
 | `$211A` records | 1480 | 78 | 5.3 | 66/79 |
 
 Detail des variables : `scripts/memmap.py slots [--virgin]` ;

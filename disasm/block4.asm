@@ -4955,6 +4955,8 @@ L4C80:  pla
 ; et les objets presents sont examines : s'il n'y a aucune source de lumiere
 ; visible aupres de lui, rend C=1 (sombre) ; C=0 sinon. Les appelants en
 ; deduisent 'IT IS DARK.' ou 'I SEE NOTHING HERE.'.
+; Technique : ne retient que les fiches d'etat de type +0 = $01 (objets localises),
+; puis teste +$07 (masque $5C) et +$04 bit7 ; la seule source possible est l'epee $0E.
 is_dark:jsr     push_ptr
         ldy     #$04
         lda     (crec),y
@@ -5241,10 +5243,16 @@ world_tick:
         sta     ptr2
         lda     #$2B
         sta     ptr2_hi
-; Parcourt la liste des evenements differes. Chaque evenement a un compte a rebours :
-; quand il atteint zero, l'action prevue se declenche ; sinon on peut tester une condition.
-; Technique : table $2B12, entrees de 5 octets [id, cpt, actA, cond, actB], fin $FF ;
-; cpt==0 -> suivante ; cpt-- ; a 0 -> actA (evt_fire), sinon evt_cond.
+; Parcourt les evenements differes ($2B12, entrees [id,cpt,actA,cond,actB], fin $FF).
+; Chaque evenement a un compte a rebours cpt ; id = minuterie nominale (l'armement fait
+; souvent cpt := id). cpt==0 = desarme (on saute). Sinon cpt-- :
+;   - tant que cpt reste > 0 et que cond!=0 et cond>=cpt, l'action actB se declenche
+;     (repete a chaque tour) ;
+;   - quand cpt atteint 0, l'action actA se declenche, une seule fois, puis cpt := L4E58
+;     (0 = desarme).
+; Technique : actA passe par evt_fire (index dans la table de sauts $7169). La garde
+; L4E58, RAZ a chaque world_tick, limite a un seul actA par tour ; un handler d'actA peut
+; la reposer ($688D) pour en autoriser d'autres.
 evt_tick:
         ldy     #$00
         lda     (ptr2),y
@@ -5307,9 +5315,11 @@ L4ED4:  .byte   $0E
 ; Fait jouer le script d'un personnage : son 'cerveau'. Appele a chaque tour
 ; par world_tick, pour CHAQUE entite active, meme quand le joueur est ailleurs.
 ;
-; Table $2B45 : 17 entrees de 7 octets [id, n, PC_lo, PC_hi, base_lo, base_hi, s6],
+; Table $2B45 : 17 entrees de 7 octets [id, nmax, PC_lo, PC_hi, base_lo, base_hi, reply],
 ; terminee par $FF. id=$00 = emplacement dormant (saute). PC = pointeur du script
-; dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite.
+; dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite ;
+; nmax = index max (0-based) dans la table base (nb d'entrees - 1) ; reply =
+; poids de replique (borne du tirage gating '<id>SAY NO', cf. npc_say_no ; 0 = muet).
 ;
 ; On execute au plus 6 opcodes par tick (garde-fou L4ED3, evite les boucles
 ; infinies). L'opcode est l'octet pointe par le PC ; on dispatch sur le nibble bas :
@@ -5319,7 +5329,7 @@ L4ED4:  .byte   $0E
 ;   $x5-$xD INDIR      : saute via la table de base (script_indir $51DA)
 ;   $xC     GOTO cle   : entity_goto(id, cle) via la table de base
 ;   $xE     GOTO absolu: PC := (PC)1/(PC)2
-;   $xF     RAND       : tire une cible parmi min(op, n) (script_rand $51CA)
+;   $xF     RAND       : tire une cible parmi min(op, nmax) (script_rand $51CA)
 ;
 ; Apres un MOVE/ACT : bit $20 pose -> efface l'opcode (auto-modification, l'entite
 ; devient dormante) ; bit $10 pose -> si l'action echoue, saute de la taille de
@@ -5753,9 +5763,9 @@ L51A0:  jsr     perform_action
 L51C5:  lda     #$01
 L51C7:  jmp     fetch_retaddr
 
-; Opcode RAND ($xF) : lit le nombre de choix n=(PC)1, borne l'index par (ptr2)+1,
-; tire un index (rand_range) puis script_indir effectue le saut correspondant dans
-; la table de base de l'entite. C'est la part d'imprevisibilite des PNJ.
+; Opcode RAND ($xF) : lit le nombre de choix (PC)1, borne l'index par le champ nmax
+; de l'entite ((ptr2)+1), tire un index (rand_range) puis script_indir effectue le
+; saut correspondant dans la table de base. C'est la part d'imprevisibilite des PNJ.
 script_rand:
         ldy     #$01                            ; opcode RAND : tirage parmi les cibles de la table de base
         lda     (ptr),y
@@ -5766,8 +5776,8 @@ script_rand:
 L51D6:  jsr     rand_range
         tax
 ; Opcode INDIR ($x5-$xD) : utilise l'index A (0 pour INDIR, tirage pour RAND),
-; le borne a l'entree (ptr2)+1, lit la cible [index] dans la table de base
-; ((ptr2)+4/+5, entrees de 3 octets) et pose le nouveau PC ((ptr2)+2/+3).
+; le borne a nmax ((ptr2)+1 = index max de la table base), lit la cible [index] dans
+; la table de base ((ptr2)+4/+5, entrees de 3 octets) et pose le PC ((ptr2)+2/+3).
 script_indir:
         ldy     #$01
         cmp     (ptr2),y
@@ -6711,7 +6721,10 @@ L57A1:  lda     orec,y
         stx     arg1
         rts
 
-; Resout lieu et etat d'un personnage a partir de sa fiche
+; Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (obj_record)
+; puis lit son champ +0. Seul +0 = $01 est 'localise' : la fiche porte alors un lieu en
+; +$10 (eloc) ; sinon rend $FF = 'nulle part' (objet-figure : porte, eau, toile...).
+; Meme regle que is_dark, holder_scan et la verification d'arme (act_p14_00).
 entity_state_resolve:
         cmp     #$FF
         bne     L57C0
@@ -7891,6 +7904,13 @@ L5F6A:  lda     orec
         lda     arg1
         jmp     announce_move
 
+; Corps d'action orphelin (cible de la table de verbes $6FAC, entree $6FFD :
+; wid=$35). Cherche l'entite arg1 (entity_find) ; si absente, ou si elle a deja
+; parle (said != 0), ou si son champ 'reply' est nul -> actq_pull. Sinon tire
+; rand_range(reply) : resultat nul -> la creature dit '<ARG1>SAY 'NO '' ($15BE,
+; replique d'enigme type Gollum), puis pull. Seul site du bloc 4 qui lit 'reply'
+; ((ptr2)+6) des entrees $2B45.
+npc_say_no:
         jsr     act_probe
         lda     arg1
         jsr     entity_find
@@ -8670,6 +8690,8 @@ obj_flag20_get:
         plp
         rts
 
+; Arme l'evenement e0 (minuterie 2) si le tonneau a atteint Forestriver
+evt_arme0:
         lda     arg1
         cmp     #$13
         beq     L64E9
@@ -8975,15 +8997,42 @@ code_66F0:
         .byte   $D1,$C6,$F0,$03,$4C,$62,$5A,$20
         .byte   $31,$53,$20,$D7,$64,$D0,$03,$4C
         .byte   $9D,$5A,$20,$86,$53,$A0,$01,$A9
-        .byte   $FF,$91,$C6,$60,$A9,$00,$8D,$58
-        .byte   $4E,$AD,$1B,$1B,$C9,$13,$D0,$05
-        .byte   $20,$0D,$44,$0C,$17,$A9,$22,$8D
-        .byte   $94,$1D,$AA,$A9,$13,$20,$12,$56
-        .byte   $A9,$20,$8D,$94,$1D,$AD,$8B,$1D
-        .byte   $29,$DF,$09,$04,$8D,$8B,$1D,$A9
-        .byte   $00,$85,$0B,$A9,$13,$20,$13,$57
-        .byte   $A9,$01,$85,$0B,$A9,$20,$8D,$B8
-        .byte   $1D,$A9,$13,$8D,$A9,$1D,$60
+        .byte   $FF,$91,$C6,$60
+; Action de l'evenement e0 : le tonneau atteint le Long Lake, joueur jete sur la berge
+evt_act0:
+        lda     #$00
+        sta     L4E58
+        lda     $1B1B
+        cmp     #$13
+        bne     code_689E
+        jsr     print_msg
+; -> $170C YOU ARE THROWN ONTO THE BANK OF THE LONG LAKE
+msg_689C:
+        .word   $170C
+code_689E:
+        lda     #$22
+        sta     $1D94
+        tax
+        lda     #$13
+        jsr     event_arm_obj
+        lda     #$20
+        sta     $1D94
+        lda     $1D8B
+        and     #$DF
+        ora     #$04
+        sta     $1D8B
+        lda     #$00
+        sta     outen
+        lda     #$13
+        jsr     prob_scan
+        lda     #$01
+        sta     outen
+        lda     #$20
+        sta     $1DB8
+        lda     #$13
+        sta     $1DA9
+        rts
+
 ; PNJ (Gandalf ?) : s'il est au meme endroit que le joueur, dit 'HELLO' ($143F).
 act_v14_06:
         lda     eloc
@@ -9844,8 +9893,9 @@ L6DB3:  cmp     ploc
 
 L6DB8:  jmp     code_6D4D
 
-        .byte   $AD,$7B,$1C
-code_6DBE:
+; Trou secret vers la Montagne : pose l'etat $0B bit7 puis annonce l'apparition du trou
+evt_hole:
+        lda     $1C7B
         ora     #$80
         sta     $1C7B
         lda     ploc

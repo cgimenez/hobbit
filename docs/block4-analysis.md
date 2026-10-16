@@ -444,45 +444,55 @@ Seconde moitié de `world_tick` (`evt_tick` `$4E75`, après `entity_tick`) :
 balaye une table de **10 entrées 5 octets `[id,cpt,actA,cond,actB]`** en
 `$2B12` (`$FF` termine en `$2B44`), dormante à l'init (compteurs 0) :
 
-- `cpt==0` → entrée suivante ; sinon `cpt--`, si `<>0` → `evt_cond` (`$4E9D`).
-- `cpt==0` (expire) : `cpt := L4E58` (réarme) ; si `L4E58==1` (jamais : aucun
-  autre écrivain, voie `actA` **inactive** — `$688D $6F2A $6F1B $6903 $6C79
-  $6E35 $6E54 $6D3D $6D55` intirés par cette voie) → dispatch `actA`.
-- `evt_cond` : si `cond==0` → suivante ; si `cond < cpt` → suivante ; sinon
-  `evt_fire` (`$4EAB`) : index `×2` dans la **table de sauts `$7169`**
-  (16 cibles : `$6915 $688D $6F2A $6F1B $6903 $6C5F $6C79 $6DD0 $6E35 $6E54
-  $6D3D $6D9F $6D55 $6DBB $AC06 $0917`), patch `L4C64/L4C65`, `jsr L4C5D`.
-  Entrée suivante (`$88+=5`), fin (`$FF`) → `evt_end` (`$4ECC` : `$0B=1`).
+- `cpt==0` → entrée suivante (désarmé) ; sinon `cpt--`.
+- `cpt` encore `> 0` → `evt_cond` (`$4E9D`) : si `cond!=0` **et** `cond>=cpt`
+  → `actB` (octet 4), sinon suivante.
+- `cpt` tombe à `0` (minuterie échue) → **`actA` (octet 2) une seule fois**,
+  puis `cpt := L4E58` (`0` = désarmé). `actA`/`actB` sont des index dans la
+  **table de sauts `$7169`** (mots : `$6915 $688D $6F2A $6F1B $6903 $6C5F
+  $6C79 $6DD0 $6E35 $6E54 $6D3D $6D9F $6D55 $6DBB …`) : patch `L4C64/L4C65`,
+  puis `jsr L4C5D`. Entrée suivante (`ptr2 += 5`), fin (`$FF`) → `evt_end`
+  (`$4ECC`).
+- `L4E58` = **garde « un seul `actA` par `world_tick` »** : remis à 0 au début
+  de `world_tick`, posé après le premier `actA` ; `evt_act0` (`$688D`, action
+  de e0) le repose pour en autoriser d'autres. Ce **n'est pas** un flag mort :
+  `actA` se déclenche bien à l'échéance — prouvé au harnais (`evt_act0`
+  s'exécute à l'expiration de e0 : `$1D94` `$21`→`$20`).
 
-Table initiale : e0 `[02,01,00,00]`, e1 `[02,02,00,00]`, e2 `[05,03,00,00]`,
-e3 `[02,04,00,00]`, e4 `[02,05,02,05]`, e5 `[04,06,01,07]`, e6 `[00,08,00,00]`,
-e7 `[05,09,00,00]`, e8 `[04,0A,03,0B]`, e9 `[05,0C,01,0D]` (`[id,actA,cond,actB]`,
-cpt initiaux 0). Seuls `cond<>0` tirent : e4 bog (`$6C5F` : si `$C8==$1D` dit
-`$1535` sink into the bog, sinon **auto-désarme** e4 — tirs à C=1,0), e5
-(`$6DD0`, tirs C=1,0), e8 yeux (`$6D9F` dit `$16F0` pale bulbous eyes, tirs
-C=3,2,1,0 = ×4, sans désarmement), e9 (`$6DBB`, tirs C=1,0). `cond=0` =
-compte à rebours silencieux (e0,e1,e2,e3,e6,e7 armés pour rien via cette voie).
+`id` (octet 0) = identifiant/minuterie nominale de l'événement : l'armement
+fait le plus souvent `cpt := id` (`LDA $2Bxx / STA $2Bxx+1`).
+
+Table initiale (`[id,actA,cond,actB]`, cpt initiaux 0) : e0 `[02,01,00,00]`,
+e1 `[02,02,00,00]`, e2 `[05,03,00,00]`, e3 `[02,04,00,00]`, e4 `[02,05,02,05]`,
+e5 `[04,06,01,07]`, e6 `[00,08,00,00]`, e7 `[05,09,00,00]`, e8 `[04,0A,03,0B]`,
+e9 `[05,0C,01,0D]`. `actB` (condition, `cond>=cpt`) : e4 bog (`$6C5F` : si
+`$C8==$1D` dit `$1535` sink into the bog, sinon **auto-désarme** e4), e5
+(`$6DD0`), e8 yeux (`$6D9F` dit `$16F0` pale bulbous eyes, tirs à C=3,2,1,0),
+e9 (`$6DBB`). `actA` (échéance) : e0 `$688D` (`evt_act0`, berge du Long Lake),
+e1 `$6F2A` (flags web), e2 `$6F1B`, e3 `$6903`, e4 `$6C5F`, e5 `$6C79`,
+e6 `$6E35`, e7 `$6E54`, e8 `$6D3D`, e9 `$6D55`. Les événements à `cond=0`
+(e0,e1,e2,e3,e6,e7) n'ont donc que leur `actA`, tiré à l'échéance.
 
 Armement (scan binaire exhaustif des `STA $2Bxx` : 17 sites, dont 3 écritures
-table entités `$2B61/$2B76/$2B7D`) : idiome `cpt := id` (`LDA $2Bxx/STA $2Bxx+1`)
-ou immédiat ou `0`=désarme ou aléatoire. **14 sites** : e0:=2 (queue objet
-`code_6407`), e1:=id (araignées `act_p14_11` `$66E8`, avec dit `$1478`),
-e2:=id (stub `$70CB`), e3:=id (routine orpheline `$65A5` en **zone données** :
-`jsr $6222+$4D95`), e4:=id (stub `$70D2`) / e4:=0 si `$C8<>$1D` (`$6C67`),
-e5:=id + dit `$168B` magic door (stub orphelin `$6B66`), e6:=0 (`$66A6`) /
-e6:=2+rand(8) (`$66AA`), e7:=cond=0 donc désarme (`$6A19`), e8:=id (stub
-`$70F8`), e9:=6 (`$6AEB` + `jmp $6D72` dit `$1685` hole vanish) / e9:=id
-(`$6D5D`, tête active uniquement par voie morte) / e9:=3 (`$70D9`).
+table entités `$2B61/$2B76/$2B7D`) : idiome `cpt := id` (`LDA $2Bxx/STA $2Bxx+1`),
+valeur immédiate, `0`=désarme, ou aléatoire. **14 sites** : e0:=2 (`evt_arme0`
+`$64E2` : si `arg1==$13` et tonneau (état `$13`).eloc==`$21` Forestriver) ;
+e1:=id (araignées `act_p14_11` `$66E8`, avec dit `$1478`) ; e2:=id (`$70CB`) ;
+e3:=id (`evt_arme3` `$65A5`) ; e4:=id (`$70D2`) / e4:=0 si `$C8<>$1D` (`$6C67`) ;
+e5:=id + dit `$168B` magic door (`evt_arme5` `$6B66`) ; e6:=0 (`$66A6`) /
+e6:=2+rand(8) (`$66AA`) ; e7 désarmé (`$6A19`) ; e8:=id (`$70F8`) ; e9:=6
+(`evt_arme9b` `$6AEB`, + `jmp $6D72` dit `$1685` trou qui disparaît) / e9:=id
+(`$6D5D`) / e9:=3 (`evt_arme9` `$70D9`).
 
 Une partie des stubs est dispatchée par **table à clés `$709F`**
 (`evt_lookup` `$5DE2`, format `L5399`, clé `$8F`) : `$16`→`$70B5` (écrit
 entité `$2B61:=$42`, en zone données — seed), `$1A`→`$70CB`,
 `$1D`→`$70D2`, `$21`→`$7103`, `$02/$03`→`$70F8`, `$20`→`$70D9`, `$FF` fin.
-Appelant de `evt_lookup` non établi (aucune réf. directe — listes `($8A)` ?) ;
+`evt_lookup` est appelé par `act_probe_event` (`$5DCB`, branche quand `obj==0`),
+lui-même atteint par le test d'entrée d'objet `obj_enter_check` (`$5DAF`) ;
 idem stubs `$6689/$66AA/$6A19/$6B66/$65A5` (orphelins, via tables de dispatch
 données comme la table d'actions étendue `$7020`, 30 mots). Restent intirés
-par le ticker : `$6915` (tip aléatoire `$1485`, `actB` des `cond=0`), `$6F2A`
-(flags web — le re-mend différé ne part jamais : à confirmer en jeu).
+par le ticker : `$6915` (tip aléatoire `$1485`).
 
 ## AnimAction : les personnages autonomes
 
@@ -509,14 +519,21 @@ world_tick ($4E59)
 
 ### La table des personnages `$2B45`
 
-17 entrées de 7 octets `[id, n, PC_lo, PC_hi, base_lo, base_hi, s6]`, terminée
-par `$FF` en `$2BBC` :
+17 entrées de 7 octets `[id, nmax, PC_lo, PC_hi, base_lo, base_hi, reply]`,
+terminée par `$FF` en `$2BBC` :
 
 - `id` = identifiant du personnage ; `$00` = **slot dormant** (3 slots :
   `$2B61 $2B76 $2B7D`), sauté par la VM.
+- `nmax` (`+1`) = **index maximal (0-based) dans la table `base`** =
+  nombre d'entrées − 1 (clamp `script_indir`/`script_rand` : `min(op, nmax)`).
+  Vérifié sur les 17 entités (ex. Gandalf `nmax=7` ↔ table `$2943` 8 entrées).
 - `PC` (`+2/+3`) = pointeur du script courant dans le bloc 2.
 - `base` (`+4/+5`) = table de sauts 3 o `[clé, lo, hi]` propre à l'entité
   (cibles des `GOTO`/`RAND`/`INDIR`).
+- `reply` (`+6`) = **poids de réplique** : lu au seul site `npc_say_no`
+  (`$5F81`), borne du tirage `rand_range` qui décide si l'entité `arg1` dit
+  `<ARG1>SAY 'NO '` (`$15BE`, réplique d'énigme) ; `0` = muet. Jamais écrit
+  (config, comme `id`-hors-activation/`nmax`/`base`).
 - Les **14 entités actives** : `$3E $3F $40 $43 $41 $44 $47 $48 $3D $45 $4B
   $49 $4A $4C` (PC initiaux `$295C $298E $29BC $29C7 $2A38 $2A8F $2AD0×2
   $28E1×2 $2910 $2934×3`). Décodage statique exhaustif (`/tmp/vmdec.py`, non
@@ -534,7 +551,7 @@ L'opcode est l'octet pointé par le PC. On le dispatche sur son **nibble bas** :
 | `$x5-$xD` | INDIR | 2 o | saute via la table de base (`script_indir` `$51DA`, cible `[0]`) |
 | `$xC` | GOTO clé | 2 o | `entity_goto(id, clé)` via la table de base |
 | `$xE` | GOTO absolu | 3 o | `PC := (PC)1/(PC)2` |
-| `$xF` | RAND | 2 o | tire une cible parmi `min(op, n)` (`script_rand` `$51CA`) |
+| `$xF` | RAND | 2 o | tire une cible parmi `min(op, nmax)` (`script_rand` `$51CA`) |
 
 Bits de contrôle de l'opcode :
 
@@ -674,9 +691,9 @@ lo, hi]`) sous contrainte de **budget** (`mwt` `$D0`, `$0A` de base) :
 - Ouverts : trou `$2C-$3B` (voir § records : `$2D-$33` objets sans état,
   `$34`/`$35` faction sans état/slot, `$3C` futur — état `$1B30` pré-existant,
   identité à confirmer) ; `$xC` (0 occurrence dans les 17 scripts : runtime-only
-  si jamais) ; `n`/`s6` exacts ; eloc non-chambres (`$09`, `$38`/`$3A` =
-  conteneurs ?) ; cohabitation scripts `$28E1` / copies boot (zone lue ET
-  exécutée, ROM intacte).
+  si jamais) ; eloc non-chambres (`$09`, `$38`/`$3A` = conteneurs ?) ;
+  cohabitation scripts `$28E1` / copies boot (zone lue ET exécutée, ROM intacte).
+  (`n`/`s6` = `nmax`/`reply` résolus, cf. table `$2B45` ci-dessus.)
 
 ## Bloc 2 : records lieux — layout `+0..7` élucidé (matcher `code_433A`)
 
@@ -849,7 +866,7 @@ sur bit5.
   pointeurs marqués, `ROUTINE_DOCS`). Sortie 0 = propre.
 - `disasm/block4.info` : fichier d'information da65 (ranges code/données + labels).
 - `disasm/block4.asm` : listing annoté — **16 980 o de code**, 102 sites
-  `$440D` (118 inline `$440D`/`$5B24`), **427 routines documentées** (dont le
+  `$440D` (118 inline `$440D`/`$5B24`), **441 routines documentées** (dont le
   parser AnimTalk, la VM AnimAction — `entity_tick`, jeu d'opcodes, 18
   `act_v14_*`, moteur d'errance —, l'exécution des commandes joueur
   (`cmd_run`, `perform_action`, `describe_room`, `special_cmd`) et la
