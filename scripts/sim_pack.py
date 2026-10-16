@@ -29,7 +29,10 @@ Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
            --solver : variante capture ASCII (shim -D SOLVER, hooks L75B8/
              L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py
              ET play.sh. Se combine avec --snapshot (ex. --snapshot SLVW
-             --solver).
+             --solver). Patche aussi pause_key : le `JSR kb_scan` de la pause
+             de lecture ($7628) est neutralise (LDA #$00) pour qu'elle
+             n'absorbe plus un octet du flux clavier pre-injecte (cf. journal,
+             "touche sacrifiee") ; les images classiques ne sont pas touchees.
 """
 from __future__ import annotations
 
@@ -90,6 +93,15 @@ FAST_OUT = BUILD / "hobbit_fast.sim"
 # start: LDX #$FF / TXS / BNE L2C49 ($56=1 force) ; L2C49 = LDA #$01.
 # Forcer $56=0 (pas d'images) = patcher l'immediat $2C4A ($01 -> $00).
 NOIMG_ADDR, NOIMG_WANT = 0x2C4A, 0x01
+# Pause de lecture (pause_key, $7620-) : tous les 16 CR, `JSR $7353` (kb_scan)
+# detecte une touche et, si presente, la consomme (BMI $7640). Avec un flux
+# clavier pre-injecte (solver/play.sh), cette pause absorbe le 1er caractere
+# de la commande suivante (cf. journal : "touche sacrifiee"). En mode
+# --solver on remplace le JSR par `LDA #$00` (A=0 = aucune touche, 3 octets) :
+# la pause ne consomme plus rien, elle se contente de son delai (la branche
+# BMI $7640 devient inatteignable). Comme un joueur qui ne presse pas.
+PAUSE_CONSUME, PAUSE_WANT = 0x7628, bytes((0x20, 0x53, 0x73))
+PAUSE_PATCH = bytes((0xA9, 0x00, 0xEA))  # LDA #$00 ; NOP
 
 
 def main() -> int:
@@ -227,6 +239,18 @@ def main() -> int:
             hook = hook_addrs[name]
             img[off:off + 3] = bytes((0x4C, hook & 0xFF, hook >> 8))
             print(f"hook {name} : ${addr:04X} -> JMP ${hook:04X}")
+        # Pause de lecture : ne consomme plus d'octet scripte (cf. ci-dessus).
+        off = PAUSE_CONSUME - BASE
+        if bytes(img[off:off + 3]) != PAUSE_WANT:
+            print(f"refus patch pause : ${PAUSE_CONSUME:04X} = "
+                  f"{' '.join(f'{b:02X}' for b in img[off:off + 3])} "
+                  f"(attendu {' '.join(f'{b:02X}' for b in PAUSE_WANT)})")
+            return 1
+        img[off:off + 3] = PAUSE_PATCH
+        print(f"patch pause ${PAUSE_CONSUME:04X} : "
+              f"{' '.join(f'{b:02X}' for b in PAUSE_WANT)} -> "
+              f"{' '.join(f'{b:02X}' for b in PAUSE_PATCH)} "
+              f"(pause sans consommation)")
     # Patch cassette : $0405-$0417 -> JMP stubs B1 (table en $F700).
     for vec, stub in zip(TAPE_VECS, entries):
         off = vec - BASE
