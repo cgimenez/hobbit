@@ -235,12 +235,13 @@ function buildMapSvg(playerRoom, focus) {
       nodes += `<text x="${x + 8}" y="${y + 14}" fill="#c9b46a" font-size="9">${esc(who.join(', '))}</text>`;
     }
   }
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
+  const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
+  return { svg, W, H, at };
 }
 
 function drawMap(playerRoom) {
-  const svg = buildMapSvg(playerRoom, -1);
-  $('#map-svg').innerHTML = svg || '(carte indisponible)';
+  const m = buildMapSvg(playerRoom, -1);
+  $('#map-svg').innerHTML = m ? m.svg : '(carte indisponible)';
 }
 
 // --- modale : carte des lieux en grand (clic sur la carte) ---
@@ -249,14 +250,45 @@ function roomName(id) {
     ? M.UTF8ToString(M._hob_room_name(id)) : '?';
 }
 
+// Zoom/pan de la carte dans la modale (viewBox SVG manipulé par slider).
+const MAPVIEW = { W: 0, H: 0, player: [0, 0], zoom: 3 };
+
+function applyMapView() {
+  const svg = $('#modal-map svg');
+  if (!svg || !MAPVIEW.W) return;
+  const { W, H, zoom } = MAPVIEW;
+  const vw = W / zoom, vh = H / zoom;
+  const x = (+$('#map-panx').value / 1000) * (W - vw);
+  const y = (+$('#map-pany').value / 1000) * (H - vh);
+  svg.setAttribute('viewBox', `${x} ${y} ${vw} ${vh}`);
+}
+
+function centerMapOnPlayer() {
+  const { W, H, player, zoom } = MAPVIEW;
+  const vw = W / zoom, vh = H / zoom;
+  const cx = vw < W ? (player[0] - vw / 2) / (W - vw) : 0.5;
+  const cy = vh < H ? (player[1] - vh / 2) / (H - vh) : 0.5;
+  const cl = (v) => Math.max(0, Math.min(1, v));
+  $('#map-panx').value = Math.round(cl(cx) * 1000);
+  $('#map-pany').value = Math.round(cl(cy) * 1000);
+}
+
 function openMapModal(focus) {
-  const svg = buildMapSvg(M._hob_player_room(), focus);
-  if (!svg) return;
+  const player = M._hob_player_room();
+  const m = buildMapSvg(player, focus);
+  if (!m) return;
   $('#modal-title').textContent = focus >= 0
     ? `Carte — $${hex(focus)} ${roomName(focus)}` : 'Carte des lieux';
-  $('#modal-map').innerHTML = svg;
+  $('#modal-map').innerHTML = m.svg;
+  MAPVIEW.W = m.W; MAPVIEW.H = m.H;
+  MAPVIEW.player = player >= 0 ? m.at(player) : [m.W / 2, m.H / 2];
+  MAPVIEW.zoom = 3;
+  $('#map-zoom').value = MAPVIEW.zoom;
+  centerMapOnPlayer();
+  applyMapView();
   $('#modal-map').hidden = false;
   $('#modal-about').hidden = true;
+  $('#modal-controls').hidden = false;
   $('#modal').classList.remove('hidden');
 }
 
@@ -264,10 +296,19 @@ function openAboutModal() {
   $('#modal-title').textContent = 'À propos';
   $('#modal-about').hidden = false;
   $('#modal-map').hidden = true;
+  $('#modal-controls').hidden = true;
   $('#modal').classList.remove('hidden');
 }
 
 function closeModal() { $('#modal').classList.add('hidden'); }
+
+$('#map-zoom').addEventListener('input', () => {
+  MAPVIEW.zoom = +$('#map-zoom').value;
+  centerMapOnPlayer();   // rester centre sur le joueur en zoomant
+  applyMapView();
+});
+$('#map-panx').addEventListener('input', applyMapView);
+$('#map-pany').addEventListener('input', applyMapView);
 
 $('#map-svg').addEventListener('click', (e) => {
   const c = e.target.closest('circle[data-room]');
