@@ -938,7 +938,7 @@ LABEL { NAME "ptr"; ADDR $008A; COMMENT "Pointeur de travail principal (octet ha
 LABEL { NAME "key"; ADDR $008F; COMMENT "Cle de l'evenement a declencher"; };
 LABEL { NAME "noise"; ADDR $0093; COMMENT "Source du hasard (pour les tirages aleatoires)"; };
 LABEL { NAME "exploc"; ADDR $00BE; COMMENT "Lieu attendu par l'evenement en cours"; };
-LABEL { NAME "obj"; ADDR $00C5; COMMENT "Objet ou personnage courant ($FF = un personnage)"; };
+LABEL { NAME "obj"; ADDR $00C5; COMMENT "Entite/acteur courant ($FF = personne) ; acteur du log AnimAction (ref. Wilderland L_ACTING_ANIMAL)"; };
 LABEL { NAME "ploc"; ADDR $00C8; COMMENT "Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)"; };
 LABEL { NAME "eloc"; ADDR $00C9; COMMENT "Lieu d'un personnage (visible quand il est identique a celui du joueur)"; };
 LABEL { NAME "once"; ADDR $00CE; COMMENT "Verrou 'une seule fois' : pose puis consomme"; };

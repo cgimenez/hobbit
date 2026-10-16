@@ -1736,7 +1736,10 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0x8F: ("key", "Cle de l'evenement a declencher"),
     0x93: ("noise", "Source du hasard (pour les tirages aleatoires)"),
     0xBE: ("exploc", "Lieu attendu par l'evenement en cours"),
-    0xC5: ("obj", "Objet ou personnage courant ($FF = un personnage)"),
+    0xC5: (
+        "obj",
+        "Entite/acteur courant ($FF = personne) ; acteur du log AnimAction (ref. Wilderland L_ACTING_ANIMAL)",
+    ),
     0xC8: (
         "ploc",
         "Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)",
@@ -2330,13 +2333,14 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "et les objets presents sont examines : s'il n'y a aucune source de lumiere",
         "visible aupres de lui, rend C=1 (sombre) ; C=0 sinon. Les appelants en",
         "deduisent 'IT IS DARK.' ou 'I SEE NOTHING HERE.'.",
-        "Technique : ne retient que les fiches d'etat de type +0 = $01 (objets localises),",
+        "Technique : ne retient que les fiches d'etat a un seul lieu (+0 = $01),",
         "puis teste +$07 (masque $5C) et +$04 bit7 ; la seule source possible est l'epee $0E.",
     ],
     0x57BB: [
         "Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (obj_record)",
-        "puis lit son champ +0. Seul +0 = $01 est 'localise' : la fiche porte alors un lieu en",
-        "+$10 (eloc) ; sinon rend $FF = 'nulle part' (objet-figure : porte, eau, toile...).",
+        "puis lit son champ +0 (N = nombre de lieux). Seul +0 = $01 (objet a un seul lieu) est",
+        "resolu : la fiche porte alors son lieu en +$10 ; sinon rend $FF = 'nulle part' (les objets",
+        "multi-lieux +0 >= 2, ex. porte/eau/toile, ont leur liste en +$10.. geree par L5FFA).",
         "Meme regle que is_dark, holder_scan et la verification d'arme (act_p14_00).",
     ],
     0x7779: [

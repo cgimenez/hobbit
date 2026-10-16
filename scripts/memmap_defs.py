@@ -52,7 +52,7 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0xC0: ("tblA_hi", "haut de tblA"),
     0xC1: ("tblB", "pointeur lo table errance/desc $7126 (pas 6) ; hi $C2"),
     0xC2: ("tblB_hi", "haut de tblB"),
-    0xC5: ("obj", "objet/entite courant (id ; $FF=personne)"),
+    0xC5: ("obj", "entite/acteur courant (id ; $FF=personne) ; acteur du log AnimAction (ref. Wilderland L_ACTING_ANIMAL)"),
     0xC6: ("crec", "enregistrement courant octet bas (base $1B1A)"),
     0xC7: ("crec_hi", "haut de crec"),
     0xCA: ("recptr", "pointeur de record de lieu courant (copie de ptr ; hi $CB)"),
@@ -96,17 +96,21 @@ STATE_KEYS: list[tuple[int, int]] = [
 # Offsets de champ (sens generique d'un bloc d'etat). +0 = regime, jamais
 # mute (doc §6 : "jamais modifie") -> constante.
 STATE_FIELD: dict[int, tuple[str, str, str]] = {
-    0x00: ("type", CONST, "classe d'objet : $01 = objet normal localise (eloc +$10 valide, seul cas branche) ; $02/$03/$05/$08 = objet-figure non localise (porte/eau/toile)"),
+    0x00: ("nloc", CONST, "N = nombre de lieux ; lieux en +$10..+$10+N-1 (N=1 objet localise ; N>1 portes/eau/toile, cf. L5FFA)"),
     0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne)"),
-    0x05: ("hp", VAR, "degats/vie (act_p14_00 : +10/coup, bit7=>tue ; x2 transfo $6F1B)"),
+    0x02: ("volume", CONST, "volume (objet) / capacite (contenant) ; act_p14_13 'IS TOO FULL' ; ref. npc_stats"),
+    0x03: ("masse", CONST, "masse/poids de portage (obj_count_add $5C2B ; ref. npc_stats Mass)"),
+    0x04: ("oclass", CONST, "bits0-2 = classe d'objet/contenant ($06 = cas special) ; obj_type_route $5B9B"),
+    0x05: ("hp", VAR, "force/degats (combat : +10/coup, bit7=>tue ; x2 transfo $6F1B ; ref. npc_stats Strength)"),
     0x06: ("tough", VAR, "seuil de robustesse (compare aux degats +$05 ; act_p14_01)"),
-    0x07: ("flags", VAR, "flags (b1/b3 combat, b5 ouvert portes, b7 divers)"),
-    0x08: ("tpl", GABARIT, "template de description (tokens runtime)"),
-    0x0A: ("altptr", VAR, "pointeur secondaire (2 o ; ex. $098F pose par $6F1B)"),
-    0x0B: ("altptr_hi", VAR, "haut de altptr"),
-    0x0C: ("descp", VAR, "pointeur de description runtime (RAZ par code_5AF0 ; pose en action, ex. $04D6 -> texte)"),
-    0x0D: ("descp_hi", VAR, "haut de descp"),
-    0x10: ("eloc", VAR, "lieu de l'entite (si +0==$01)"),
+    0x07: ("flags", VAR, "attributs (cf. Wilderland ATTR_*) : b0 verrou, b1 fluide, b2 plein, b3 casse/mort, b4 eclaire, b5 ouvert, b6 animal, b7 visible"),
+    0x08: ("noun", GABARIT, "mot du dictionnaire = nom de l'objet (word_render ; name_from_record $5A9D) ; sert de gabarit au LOOK"),
+    0x09: ("noun_hi", GABARIT, "haut de noun"),
+    0x0A: ("adj1/altptr", VAR, "adjectif 1 (mot dico) ; reutilise en pointeur secondaire (ex. $098F pose par $6F1B)"),
+    0x0B: ("adj1_hi", VAR, "haut de adj1"),
+    0x0C: ("adj2/descp", VAR, "adjectif 2 (mot dico) ; RAZ en pointeur de description runtime (obj_state_clear $5AF0)"),
+    0x0D: ("adj2_hi", VAR, "haut de adj2"),
+    0x10: ("eloc", VAR, "premier des N lieux (+$00) ; liste +$10..+$10+N-1"),
 }
 # Champs specifiques a une cle (cle, offset) -> (nom, genre, doc).
 STATE_SPECIAL: dict[tuple[int, int], tuple[str, str, str]] = {

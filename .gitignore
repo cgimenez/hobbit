@@ -6,3 +6,4 @@ disasm/.r2_afl.txt
 tools/cc65/
 /build/sim/
 /sav/
+external_ressources/

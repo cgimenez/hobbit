@@ -74,53 +74,55 @@ base est la plus grande `≤` l'adresse, jusqu'à la base suivante (blocs de
 `$12` à `$24` o). Vérifié sur les 32 références littérales de `block4.asm`
 (0 ambiguïté) ; encodé par `memmap_defs.state_owner`.
 
-Format de bloc (via `L57BB`, `code_5AF0`, `act_p14_00/01`) : `+0`==`$01` →
-localisé, lieu courant = octet en `+$10` (`eloc`) ; `+1` = porteur (id
-entité, `$FF`=personne : ex. carte `$03`→`$3E` = Gandalf la porte au boot) ;
-`+$05` = points de vie/dégâts (combat, `+10`/coup, `bit7`⇒tué) ; `+$06` =
-seuil de robustesse ; `+$07` = flags (`bit5`=ouvert portes, `bit1`/`bit3`
-combat) ; `+$08` = template de description ; `+$0A`/`+$0B` = pointeur
-secondaire ; `+$0C`/`+$0D` = pointeur de **description runtime** (`descp`,
-RAZ par `code_5AF0` puis posé par les actions : `$04D6` → texte « t while
-THE… »).
-`+0` = **classe d'objet** : `$01` = objet normal **localisé** (seul cas branché
-par le moteur — `L57BB`, `is_dark`, `holder_scan`, arme `act_p14_00` : la fiche
-porte alors un `eloc` en `+$10`). Les autres valeurs (`$02` portes/fenêtre/
-torche/herse, `$03` porte rouge/eau, `$05` toile, `$08` eau) marquent des
-**objets-figures non localisés** (aucun `eloc` exploité) et ne sont **jamais
-discriminées entre elles** par le code (aucun `cmp` sur ces valeurs).
+Format de bloc (via `L57BB`, `code_5AF0`, `act_p14_00/01`, `act_p14_13`) :
+`+0` = **N, nombre de lieux** ; les `N` lieux suivent en `+$10`, `+$11`, … (balayés
+par `L5FFA`). `N`=`$01` = objet **à un seul lieu** (seul cas que `entity_state_resolve`
+`$57BB` résout : rend `(fiche)+$10`, sinon `$FF` = « nulle part »). `N`≥`$02` =
+**objet multi-lieux** (portes, eau, toile, rivière : ex. eau `$17` en 8 lieux).
+`+1` = porteur (id entité, `$FF`=personne : carte `$03`→`$3E` = Gandalf au boot) ;
+`+$02` = **volume** (objet) / capacité (conteneur ; `act_p14_13` « IS TOO FULL ») ;
+`+$03` = **masse** (poids, comparé au portage par `obj_count_add` `$5C2B`) ;
+`+$04` (bits 0-2) = **classe de contenant/type** (`obj_type_route` `$5B9B`) ;
+`+$05` = **force**/dégâts (combat, `+10`/coup, `bit7`⇒tué) ; `+$06` = seuil de
+robustesse ; `+$07` = **attributs** (8 bits : `b0` verrou, `b1` fluide, `b2` plein,
+`b3` cassé/mort, `b4` éclaire, `b5` ouvert, `b6` animal, `b7` visible) ;
+`+$08`/`+$09` = **nom** (`noun`, mot du dictionnaire rendu par `word_render` ; lu par
+`name_from_record` `$5A9D`) ; `+$0A`/`+$0B` = **adjectif 1** (`adj1`, réutilisé en
+pointeur secondaire : `$098F` posé par `$6F1B`) ; `+$0C`/`+$0D` = **adjectif 2**
+(`adj2`, tenu pour `descp` : RAZ par `code_5AF0` puis posé par les actions, `$04D6`
+→ texte « t while THE… »).
 
-| Clé | Addr | +0 | +1 porteur | +8 tpl | eloc (+$10, si +0==1) |
+| Clé | Addr | +0 =N | +1 porteur | +8 nom | lieux (+$10..+$10+N-1) |
 |---|---|---|---|---|---|
 | `$00` | `$1B1A` | `$01` | `$FF` | `$0F` | `$01` |
-| `$01` | `$1B63` | `$02` | `$FF` | `$F2` | — (porte rock « heavy rock door » `$06`→`$07` ; `+7` bit0=verrou, bit5=ouvert) |
+| `$01` | `$1B63` | `$02` | `$FF` | `$F2` | `07`,`06` (porte rock « heavy rock door » `$06`→`$07` ; `+7` bit0=verrou, bit5=ouvert) |
 | `$02` | `$1B96` | `$01` | `$1F` | `$CB` | `$0D` |
 | `$03` | `$1BBA` | `$01` | `$3E` | `$95` | `$01` (carte, portée par Gandalf) |
 | `$04` | `$1BA8` | `$01` | `$47` | `$CB` | `$05` (la grande clé, portée par le troll hideux `$47` ; ouvre la porte rock) |
-| `$05` | `$1B42` | `$02` | `$FF` | `$F2` | — |
-| `$06` | `$1BCE` | `$02` | `$FF` | `$48` | — |
-| `$07` | `$1BE9` | `$05` | `$FF` | `$BB` | — |
-| `$08` | `$1C05` | `$03` | `$FF` | `$F2` | — |
-| `$09` | `$1C25` | `$03` | `$FF` | `$66` | — |
-| `$0A` | `$1C55` | `$02` | `$FF` | `$F2` | — |
-| `$0B` | `$1C74` | `$02` | `$FF` | `$F2` | — |
-| `$0C` | `$1C93` | `$02` | `$FF` | `$F2` | — |
-| `$0D` | `$1D1F` | `$02` | `$FF` | `$F2` | — |
+| `$05` | `$1B42` | `$02` | `$FF` | `$F2` | `01`,`04` |
+| `$06` | `$1BCE` | `$02` | `$FF` | `$48` | `0E`,`0F` |
+| `$07` | `$1BE9` | `$05` | `$FF` | `$BB` | `1A`,`1C`,`1B`,`1D`,`32` |
+| `$08` | `$1C05` | `$03` | `$FF` | `$F2` | `1F`,`1E`,`20` |
+| `$09` | `$1C25` | `$03` | `$FF` | `$66` | `42`,`43`,`19` |
+| `$0A` | `$1C55` | `$02` | `$FF` | `$F2` | `13`,`14` |
+| `$0B` | `$1C74` | `$02` | `$FF` | `$F2` | `2A`,`2B` |
+| `$0C` | `$1C93` | `$02` | `$FF` | `$F2` | `20`,`21` |
+| `$0D` | `$1D1F` | `$02` | `$FF` | `$F2` | `1E`,`1C` |
 | `$0E` | `$1CB0` | `$01` | `$FF` | `$45` | `$07` (épée « short strong sword », **source de lumière** `+4`=01x, `+7`=$94) |
 | `$0F` | `$1CDA` | `$01` | `$42` | `$CB` | `$20` (portée par le butler `$42` → **clé rouge** présumée ; tpl `$CB` = famille « clé » : `$02`,`$04`,`$0F`) |
 | `$10` | `$1CC4` | `$01` | `$FF` | `$59` | `$3D` (**the valuable golden ring**, objet au lieu `$3D` ; carrier=`$00` après GET ; `$1CC5`==`$44` → « pocket ? » dans `act_v14_14`/Gollum) |
-| `$11` | `$1CEC` | `$02` | `$FF` | `$F2` | — |
+| `$11` | `$1CEC` | `$02` | `$FF` | `$F2` | `10`,`0D` |
 | `$12` | `$1D07` | `$01` | `$FF` | `$77` | `$07` |
 | `$13` | `$1D84` | `$01` | `$FF` | `$07` | `$20` |
 | `$14` | `$1DA8` | `$01` | `$13` | `$F1` | `$20` |
 | `$15` | `$1DE2` | `$01` | `$FF` | `$A0` | `$00` |
 | `$16` | `$1DF6` | `$01` | `$FF` | `$A0` | `$00` |
-| `$17` | `$1E0A` | `$08` | `$FF` | `$A0` | — |
-| `$18` | `$1E25` | `$03` | `$FF` | `$A0` | — |
+| `$17` | `$1E0A` | `$08` | `$FF` | `$A0` | `08`,`21`,`22`,`24`,`31`,`2D`,`11`,`17` |
+| `$18` | `$1E25` | `$03` | `$FF` | `$A0` | `19`,`42`,`43` |
 | `$19` | `$1E5F` | `$01` | `$46` | `$69` | `$23` |
 | `$1A` | `$1E73` | `$01` | `$46` | `$D1` | `$23` |
-| `$1B` | `$1E87` | `$02` | `$FF` | `$EB` | — |
-| `$1C` | `$1EA4` | `$02` | `$FF` | `$E4` | — |
+| `$1B` | `$1E87` | `$02` | `$FF` | `$EB` | `0D`,`12` |
+| `$1C` | `$1EA4` | `$02` | `$FF` | `$E4` | `10`,`1E` |
 | `$1D` | `$1EB7` | `$01` | `$FF` | `$9C` | `$0D` |
 | `$1E` | `$1ECB` | `$01` | `$1D` | `$F2` | `$0D` |
 | `$1F` | `$1EE3` | `$01` | `$1E` | `$A8` | `$0D` |
@@ -131,10 +133,10 @@ discriminées entre elles** par le code (aucun `cmp` sur ces valeurs).
 | `$24` | `$1F49` | `$01` | `$20` | `$8B` | `$16` |
 | `$25` | `$1F5B` | `$01` | `$FF` | `$F0` | `$01` |
 | `$26` | `$1FB1` | `$01` | `$FF` | `$7B` | `$00` (lunch : donné par Elrond `$09`, porté `$00`) |
-| `$27` | `$1FC5` | `$02` | `$FF` | `$E6` | — |
+| `$27` | `$1FC5` | `$02` | `$FF` | `$E6` | `21`,`22` |
 | `$28` | `$1FDA` | `$01` | `$FF` | `$DC` | `$2F` (= record nul : nulle part ?) |
 | `$29` | `$1F75` | `$01` | `$FF` | `$5E` | `$43` |
-| `$2A` | `$1C3D` | `$03` | `$FF` | `$66` | — |
+| `$2A` | `$1C3D` | `$03` | `$FF` | `$66` | `17`,`21`,`22` |
 | `$2B` | `$1B84` | `$01` | `$FF` | `$CB` | `$4F` |
 | `$3C` | `$1B30` | `$01` | `$FF` | `$FA` | `$29` (futur : identité à confirmer) |
 | `$3D` | `$1FEC` | `$01` | `$FF` | `$B1` | `$0F` |
@@ -159,9 +161,11 @@ Chaînes de porteurs (qui tient quoi) : `$03`→`$3E`, `$04`→`$47`,
 `$1F`→`$1E`, `$21`→`$24`, `$22`→`$21`, `$24`→`$20`, `$02`→`$1F`.
 
 **Nom de chaque clé** : `+$08`/`+$09` est la **clé de dictionnaire** du nom
-de l'objet, rendue par `word_render` (`$4241`, page `$05+hi`, offset `lo`).
-Décodée sur les 61 clés (l'identifiant unique ajoute la clé quand le mot se
-répète) :
+de l'objet, rendue par `word_render` (`$4241`, page `$05+hi`, offset `lo`) ;
+`+$0A`/`+$0B` et `+$0C`/`+$0D` sont les deux **adjectifs** (mêmes pointeurs de
+dictionnaire). Nom complet = adj1 + adj2 + nom (ex. `$0E` = `SHORT` `STRONG`
+`SWORD`). Décodée sur les 61 clés (l'identifiant unique ajoute la clé quand le
+mot se répète) :
 
 | Clé | Nom | Clé | Nom | Clé | Nom | Clé | Nom |
 |---|---|---|---|---|---|---|---|
@@ -186,7 +190,7 @@ Correction : `$41` = **ELROND** (et non « dragon présumé ») ; le **DRAGON**
 est `$3C` (dormant). `$40` = ELF, `$43` = WARG, `$46` = BARD, `$3F` =
 THORIN.
 
-`eloc` `$00` = **nulle part** (objet non posé : `$15`/`$16`/`$26`) ; `$2F` =
+Lieu `$00` = **nulle part** (objet non posé : `$15`/`$16`/`$26`) ; `$2F` =
 **record nul** (`$2070[$2F]`=`$0000`, clé `$28`).
 
 **`$1E4B` = `$44.$10` = `gollum.eloc`** (base `$1E3B`+`$10`) : `act_v14_12`
@@ -194,12 +198,37 @@ THORIN.
 co-localisation joueur/Gollum (confirme `+$10` = `eloc`).
 
 **Champs de bloc `+$05`/`+$06`/`+$07` (via `act_p14_00` `$60BF` /
-`act_p14_01` `$60ED`, combat)** : `+$05` = dégâts/vie (`+10`/coup, `bit7`⇒
-tué, msg `$1525` ; doublé par la transfo `$6F1B`), `+$06` = seuil de
-robustesse, `+$07` = flags (`bit1`/`bit3` combat, `bit5` ouvert portes ;
-`$1B21`=`$00.+$07` bit7 testé par `act_v14_12`). Encodés dans
+`act_p14_01` `$60ED`, combat) et `+$02`/`+$03` (physique : volume/masse,
+`act_p14_13` « IS TOO FULL » / `obj_count_add` `$5C2B`)** : `+$05` = **force**
+/dégâts (`+10`/coup, `bit7`⇒tué, msg `$1525` ; doublé par la transfo `$6F1B`),
+`+$06` = seuil de robustesse, `+$07` = **attributs** (bits `locked/fluide/
+plein/cassé/éclaire/ouvert/animal/visible`, cf. table ci-dessous). Encodés dans
 `STATE_FIELD` ; l'appartenance des octets est désormais **univoque**
 (partition `state_owner`).
+
+**Table des attributs `+$07`** (bit → sens, identique à Wilderland `WL.h`
+`ATTR_*`) ; vérifié sur l'image : `rock_door` `$81` (verrou), `sword`/
+`torch` `$94` (plein+éclaire), `wine`/`water` `$82` (fluide), PNJ `$E0`
+(animal, `bit3`=mort) :
+
+| bit | masque | sens | helpers |
+|---|---|---|---|
+| 0 | `$01` | verrouillé | `obj_flag1_test $5A70` |
+| 1 | `$02` | fluide (eau/vin) | — |
+| 2 | `$04` | plein | — |
+| 3 | `$08` | cassé / mort | `obj_flag48_test $5B1B` |
+| 4 | `$10` | éclaire | — |
+| 5 | `$20` | ouvert | `obj_flag20_test $5A85` |
+| 6 | `$40` | animal | `obj_flag48_test $5B1B` |
+| 7 | `$80` | visible | `$1B21` (`$00.+$07`) |
+
+> **Cross-check externe** (`external_ressources/`) : le moteur ZX du même jeu
+> (Megler/Mitchell, `Wilderland/`) partage **tout** le layout objet : `+00`
+> nombre de lieux, `+01` porteur, `+02` volume, `+03` masse, `+05` force,
+> `+07` attributs, `+08` nom, `+0A`/`+0C` adjectifs, `+10` lieux. Confirmé par
+> `HobbitOSX/…/npc_stats.xlsx` (Strength/Mass/Volume des PNJ : Gandalf
+> `15/60/70`, Trolls `90/90/A0`, Gollum `05/05/20`…) et par le manuel
+> (`HobbitOSX/…/instructions.rtf`, « lois de la physique »).
 
 ## 3. Scripts et tables `$28CC`–`$2B11` (753 o) — qui fait quoi, et quand
 

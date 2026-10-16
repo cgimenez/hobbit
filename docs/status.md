@@ -195,7 +195,7 @@
   (`L3B75` : table `$3BC6` 13 clés + `$3BE0` 13 cibles) — SAVE=`$3DD9`
   (mot `$0DA0`), LOAD=`$3D7F` (prouvé harnais : `PRESS ANY KEY`),
   QUIT=`$3C88`, HELP=`$3C8E`, SCORE=`$3CCE`, PAUSE=`$3D39` ; verbes
-  `$6FAC` (23 entrées) ; SAVE = 4 blocs (`save_block` `$3DAA` via
+  `$6FAC` (35 entrées) ; SAVE = 4 blocs (`save_block` `$3DAA` via
   `vec_03`, params `[len src]`) + VERIFY (`vec_07`) ; +90 o de code,
   130 routines, checker PROPRE, rebuild OK. Reste : idiome `L3D3F`,
   mot `(3D,06)`, `L7114+X`. Ensuite : stub B1.
@@ -485,8 +485,8 @@ les variables SAVE/LOAD. Infrastructure désormais en place (commits
 ### Outillage mapping (SSOT + registre)
 - `scripts/memmap_defs.py` : SSOT. 4 régions + slots nommés : `ZP_NAMES`
   (7), 61 clés d'état `$1A62` (+identités `player/map/key/sword/lunch/
-  gandalf/dragon/butler/gollum/troll_*`), champs `type/carrier/tpl/eloc/
-  falls/lock`, 13 tables INDIR, 10 events `$2B12`, 17 entités `$2B45`,
+  gandalf/dragon/butler/gollum/troll_*`), champs `type/carrier/noun/adj1/
+  adj2/eloc/falls/lock`, 13 tables INDIR, 10 events `$2B12`, 17 entités `$2B45`,
   79 records `$2070` (via image). `annotate(base,off)` → slots (multi-slot).
 - `scripts/memmap.py` : `report` (couverture + var nommés), `slots
   [--virgin]`, `addr <base> <off>` (annotation + preuves = commandes/valeurs),
@@ -849,11 +849,11 @@ Note pour contexte neuf (détails : `docs/memory-map.md` §2/§3c/§3d,
   `$64E2` (tonneau état `$13` à Forestriver `$21` → `e0.cpt:=2`), `evt_act0`
   `$688D` (berge du Long Lake `$170C`), `evt_hole` `$6DBB` (trou Montagne).
   `evt_lookup` `$5DE2` appelé par `act_probe_event` `$5DCB` (`obj==0`).
-- **État `+0` (type)** : **classe d'objet** ; `$01` = objet localisé (eloc en
-  `+$10` valide) = **seul cas branché** (`entity_state_resolve` `$57BB`,
-  `is_dark`, `holder_scan`, arme `act_p14_00`, `act_p14_03`) ; `$02/$03/$05/$08`
-  = objets-figures non localisés (portes/eau/toile…), **jamais discriminés**
-  entre eux (aucun `cmp` — scan exhaustif des `ldy #$00; lda (zp),y`).
+- **État `+0`** : **corrigé** en « N lieux » (voir entrée plus bas) — `+0` =
+  **nombre de lieux N** (et non une classe) ; les N lieux suivent en `+$10..`.
+  `N`=`$01` = objet à un seul lieu (seul cas que `entity_state_resolve` `$57BB`,
+  `is_dark`, `holder_scan`, arme `act_p14_00/03` résolvent) ; `N`≥`2` =
+  multi-lieux (portes/eau/toile) dont la liste est gérée par `L5FFA`.
 
 **Toolchain** : `disasm_check` PROPRE (**441** routines), `memmap_check` PROPRE,
 `disasm_rebuild --all` byte-identique (36274 o). Commit `a01cfa0`, arbre propre.
@@ -861,3 +861,61 @@ Note pour contexte neuf (détails : `docs/memory-map.md` §2/§3c/§3d,
 **Pistes ouvertes** : déclencheurs des entrants dormants `$2B61/$2B76/$2B7D` ;
 compteur de tête `$2AD0` ; triggers gameplay des events via `$709F` ; B1
 cassette VERIFY/LOAD ; couverture memmap (rejouer les branches en jeu).
+
+## Reprise — nommage via Wilderland (moteur ZX de référence)
+
+Ajout local `external_ressources/Wilderland/` (env. ZX Spectrum instrumenté du même jeu, CH /
+Valerio Messina) : sert de **dictionnaire sémantique** (adresses ZX ≠ Oric).
+Cross-check sur `data/hobbit.bin` :
+
+- **Attributs `+$07`** (8 bits) confirmés identiques à `WL.h ATTR_*` :
+  `b0` verrou (`rock_door` `$81`), `b1` fluide (`wine`/`water` `$82`), `b2`
+  plein + `b4` éclaire (`sword`/`torch` `$94`), `b3` cassé/mort, `b5` ouvert,
+  `b6` animal, `b7` visible (PNJ `$E0`). Helpers Oric `obj_flag1/20/48_test`.
+  Corrige l'ancien « `bit1`=combat » (faux : `bit1`=fluide).
+- **Champs nom** : `+$08`/`+$09`=**nom** (`noun`, `name_from_record $5A9D`),
+  `+$0A`/`+$0B`=**adjectif 1**, `+$0C`/`+$0D`=**adjectif 2** (décodés mot à
+  mot : `$0E`=`SHORT STRONG SWORD`, `$10`=`VALUABLE GOLDEN RING`, …). Renomme
+  l'ancien `tpl`/`altptr`/`descp` (noms composés, réutilisation runtime gardée).
+- **`+$00` = N, nombre de lieux** (et non une « classe ») : les `N` lieux suivent
+  en `+$10..` (balayés par `L5FFA`) ; `N`=`$01` = objet à un seul lieu, `N`≥`2` =
+  multi-lieux (portes, eau `$17` en **8** lieux, toile, rivière). `entity_state_resolve`
+  `$57BB` ne résout que `N`=`$01` (sinon `$FF` = « nulle part »).
+- **`+$02`=volume, `+$03`=masse, `+$04`(bits0-2)=classe/contenant** : ma lecture
+  initiale (« divergence ») était **fausse** ; `act_p14_13` (« IS TOO FULL ») lit
+  `+$02`, `obj_count_add $5C2B` lit `+$03` (l'`adc` va dans un temporaire, pas
+  dans l'objet).
+- **Confirmation externe** : `npc_stats.xlsx` (Strength/Mass/Volume des PNJ :
+  Gandalf `15/60/70`, Thorin `1D/50/68`, Trolls `90/90/A0`, Gollum `05/05/20`…,
+  14/16 exacts) → le layout objet Oric **colle à Wilderland sur `+00`..`+10`**.
+- **Classes de mots** : `dict_v12.txt` (NOUN/VERB/MOVE_DIR/GO_RUN/IN_INTO…)
+  corrobore nos 12 classes du parser ; la table de dispatch des verbes
+  **`$6FAC`–`$7014`** (35 entrées `wid`→handler, `$FF` en `$7015`) est
+  documentée dans `block4-analysis.md`, croisée avec la liste officielle du
+  manuel (10 mouvements, 11 verbes spéciaux, ~30 verbes d'action, prépositions).
+- `$C5 obj` = **acteur courant** (= `L_ACTING_ANIMAL` ZX).
+
+**Toolchain** : `disasm_check --block block4` PROPRE, `memmap_check` PROPRE,
+`disasm_rebuild --block block4` byte-identique (20097 o).
+
+### Références externes (documentation d'origine)
+
+Sous `external_ressources/` (gitignoré), deux ensembles utiles pour documenter
+le code :
+
+- `Wilderland/` (CH, V. Messina) — émulateur ZX du *même* jeu, affiche l'état
+  des objets/PNJ ; source des **noms de champs** objet (`+00`..`+10`) et du
+  dictionnaire (`dict_v12.txt`, `rooms_v12.txt`).
+- `HobbitOSX/` (S. Craig, « hommage » multi-plateformes) — contient :
+  - `BDCH_2014_Megler_The_Hobbit_v1.1.pdf` : case history de V. Megler
+    (architecture d'origine : 2 moitiés moteur/parser « Inglish », **3 bases**
+    location/objet/personnage, physique objet poids/taille/contenants, VM
+    d'actions des PNJ avec branchements/aléatoire, « time passes », joueur = un
+    personnage, graine aléatoire, dico 5 bits + 3 bits de service) ;
+  - `instructions.rtf` : manuel — « lois de la physique » + **liste officielle**
+    du vocabulaire (mouvements/verbes/prépositions/adverbes) ;
+  - `npc_stats.xlsx` : Strength/Mass/Volume de chaque PNJ (confirme `+02`/`+03`/`+05`) ;
+  - images multi-plateformes (dont **BBC 6502** : piste pour croiser les ports 6502).
+
+Lecture du PDF : le modèle ne lit pas les PDF en pièce jointe ; le texte est
+extractible en stdlib (`zlib` sur les flux `FlateDecode` + opérateurs `Tj`).

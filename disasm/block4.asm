@@ -95,7 +95,7 @@ rstk            := $00AF                        ; Index de la pile interne d'adr
 exploc          := $00BE                        ; Lieu attendu par l'evenement en cours
 dflag           := $00C3                        ; Flag de l'action du dragon : initialise a 0 par l'intro, jamais arme (inactif)
 sflag           := $00C4                        ; Flag de sortie texte : arme au desarmement de l'evenement e7, ajoute un H apres s/S
-obj             := $00C5                        ; Objet ou personnage courant ($FF = un personnage)
+obj             := $00C5                        ; Entite/acteur courant ($FF = personne) ; acteur du log AnimAction (ref. Wilderland L_ACTING_ANIMAL)
 crec            := $00C6                        ; Pointeur vers la fiche courante (compteurs du personnage/objet en cours)
 crec_hi         := $00C7                        ; Octet haut de crec
 ploc            := $00C8                        ; Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)
@@ -4955,7 +4955,7 @@ L4C80:  pla
 ; et les objets presents sont examines : s'il n'y a aucune source de lumiere
 ; visible aupres de lui, rend C=1 (sombre) ; C=0 sinon. Les appelants en
 ; deduisent 'IT IS DARK.' ou 'I SEE NOTHING HERE.'.
-; Technique : ne retient que les fiches d'etat de type +0 = $01 (objets localises),
+; Technique : ne retient que les fiches d'etat a un seul lieu (+0 = $01),
 ; puis teste +$07 (masque $5C) et +$04 bit7 ; la seule source possible est l'epee $0E.
 is_dark:jsr     push_ptr
         ldy     #$04
@@ -6722,8 +6722,9 @@ L57A1:  lda     orec,y
         rts
 
 ; Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (obj_record)
-; puis lit son champ +0. Seul +0 = $01 est 'localise' : la fiche porte alors un lieu en
-; +$10 (eloc) ; sinon rend $FF = 'nulle part' (objet-figure : porte, eau, toile...).
+; puis lit son champ +0 (N = nombre de lieux). Seul +0 = $01 (objet a un seul lieu) est
+; resolu : la fiche porte alors son lieu en +$10 ; sinon rend $FF = 'nulle part' (les objets
+; multi-lieux +0 >= 2, ex. porte/eau/toile, ont leur liste en +$10.. geree par L5FFA).
 ; Meme regle que is_dark, holder_scan et la verification d'arme (act_p14_00).
 entity_state_resolve:
         cmp     #$FF

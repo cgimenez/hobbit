@@ -304,7 +304,12 @@ saut indirect via la **table `$315A`** (12 adresses de handlers, auto-patchée
 en `$3158/$3159`).
 
 Classes (nibble de type du mot, reconstruit depuis les bits 6-5 des 2 premiers
-octets de l'entrée — vérifié en décodant les 600 entrées du bloc 2) :
+octets de l'entrée — vérifié en décodant les 600 entrées du bloc 2). Chaque
+octet du dictionnaire = **5 bits de lettre + 3 bits « de service »** : `bit7` =
+dernier octet du mot, `bits 6-5` = la classe ci-dessous — exactement les
+« 3 spare bits (speech part, valid usages, pluralisation) » décrits par Megler
+(PDF `HobbitOSX/…/BDCH_2014_Megler…` : « only 5 bits are used … the other 3 bits
+were used … about speech parts … valid word usages … pluralizing ») :
 
 | nibble | type | classe | contenu observé | handler |
 |---|---|---|---|---|
@@ -324,6 +329,14 @@ octets de l'entrée — vérifié en décodant les 600 entrées du bloc 2) :
 
 > Le point `$B0` est **ajouté par l'éditeur** en fin de ligne : c'est lui qui
 > termine proprement la commande (le CR `$C0` n'atteint jamais le dispatch).
+
+> **Cross-check Wilderland** (`external_ressources/Wilderland/dict_v12.txt`, moteur ZX) : les
+> étiquettes de classe de ce dump confirment les nôtres — `NOUN` (classe 5),
+> `VERB` (3), `ADJECTIVE` (6), `MOVE_DIR` (2), `PREPOSITION` (7),
+> `ARTICLE_MISC` (8), `ADVERB` (0), et surtout les sous-classes distinctives
+> `GO_RUN` (4) et `IN_INTO` (1). Le vocabulaire réservé aux messages côté ZX
+> (`SYSTEM_PRONOUN`, `HURRY`, `PLACE`, `SING`, `THEN`) correspond à notre type
+> `$D0` (entrée ignorée par le parser).
 
 Chaque handler renseigne l'état de parsing : `$6D` = drapeaux d'attente,
 `$6E` = portée (`0` normal, `1` ALL, `2` EXCEPT — posés par les mots-clés
@@ -744,14 +757,28 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   (mot impossible `(3D,06)`) `$3D7F` = **LOAD** (prouvé sous harnais :
   taper LOAD → `PRESS ANY KEY WHEN READY`), SAVE `$3DD9` (mot
   `$0DA0`), QUIT `$3C88` (score + `JMP $2C3D`), HELP `$3C8E`,
-  SCORE `$3CCE`, PAUSE `$3D39`. Verbes ordinaires : table **$6FAC**
-  (23 entrées `[wid,lo,hi]`, `$01-$0A` = mouvements → `$5D44`) ;
-  identifiés par messages : `$13`=GET, `$0B`=KILL, `$1A`=INVENTORY,
-  `$1D`=DROP, `$17`=LOOK, `$1C`=OPEN probable ; `$0E`/`$1F`/`$20`/
-  `$24`/`$27`/`$2A`/`$30` = pseudo-mouvements ou sans message
-  (`/tmp/verbsc.py`) ;
-  objets : `(orec)+1` bit7 → `L7014` vs `L7114+X` (`L4BA3`) ;
-  compatibilité verbe/objet : liste en record+`$10` (`L52EA`).
+  SCORE `$3CCE`, PAUSE `$3D39`.
+- Verbes ordinaires : table **`$6FAC`–`$7014`** (35 entrées `[wid,lo,hi]`,
+  `$FF` en `$7015`). Dispatch `L4C20` (`lda wid` → `tbl_lookup` `$5395` →
+  handler) :
+  ```
+  $01-$0A → $5D44   mouvements (10 directions, cf. manuel)
+  $13 $3B → $5BC9 GET     $0B → $6272 KILL   $1A → $637B INVENTORY
+  $17 → $5B44 LOOK        $1D → $63DC DROP   $1C → $63A4 OPEN
+  $0E → $5EB7   $1F $20 → $5EFF   $24 → $5F07   $27 → $5F28   $2A → $5F40
+  $30 → $6760   $33 → $67CA   $2E → $67E3   $2D → $685E   $35 → $5F81 (SAY-no)
+  $3A → $698B   $37 → $686D   $0F $11 → $6041   $14 → $5D31   $2C → $61E5
+  $00 → $5235
+  ```
+  Noms confirmés par les messages ; `wid` (code d'action) est distinct du mot.
+  Verbe **avec** objet : `verb_obj_ok` (`$52EA`) cherche `wid` dans la **liste de
+  verbes autorisés** du record (record + `(N)` + `$10`, entrées 2 o `[verbe,idx]`) ;
+  l'`idx` bit7 choisit la table d'actions `L7014`/`L7114` (`L4BA3`/`L4BB2`).
+- **Vocabulaire officiel** (manuel `HobbitOSX/…/instructions.rtf`, table de
+  correspondance du parser) — 10 mouvements + 11 verbes spéciaux + ~30 verbes
+  d'action + 11 prépositions (ACROSS AT FROM IN INTO ON OUT OFF THROUGH TO WITH)
+  + 5 adverbes (CAREFULLY GENTLY QUICKLY SOFTLY VICIOUSLY) : confirme les
+  classes 0/1/2/3/7 du parser (`$6FAC` = verbes *sans* objet).
 - SAVE (`cmd_save` `$3DD9`) : `vec_06` (PREPARE TAPE) + 4×
   `save_block` (`$3DAA` = `L3D3F` + `vec_03`/`tape_save`, params
   inline `[len src]` : ZP `$0018`@`$00BE`, états `$0556`@`$1B1A`,
