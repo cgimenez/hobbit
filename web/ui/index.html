@@ -48,6 +48,20 @@
   </section>
 </main>
 
+<div id="modal" class="hidden" role="dialog" aria-modal="true">
+  <div id="modal-box">
+    <div id="modal-head">
+      <h3 id="modal-title"></h3>
+      <button id="modal-close" type="button" title="Fermer">✕</button>
+    </div>
+    <div id="modal-body">
+      <canvas id="modal-vec" width="240" height="128"></canvas>
+      <div id="modal-empty">(pas d'illustration ici)</div>
+      <dl id="modal-info"></dl>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>

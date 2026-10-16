@@ -102,17 +102,9 @@ function drawObjs() {
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function drawVector(room) {
-  const cv = $('#vec');
-  const empty = $('#vec-empty');
+function renderVecInto(cv, room) {
   const ptr = M._hob_vec_ptr();
-  if (room < 0 || M._hob_vec_key(room) < 0 || !M._hob_vec_render(room, ptr)) {
-    cv.style.display = 'none';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-  cv.style.display = 'block';
+  if (room < 0 || M._hob_vec_key(room) < 0 || !M._hob_vec_render(room, ptr)) return false;
   const ctx = cv.getContext('2d');
   const img = ctx.createImageData(240, 128);
   for (let i = 0; i < 240 * 128; i++) {
@@ -123,6 +115,19 @@ function drawVector(room) {
     img.data[i * 4 + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
+  return true;
+}
+
+function drawVector(room) {
+  const cv = $('#vec');
+  const empty = $('#vec-empty');
+  if (!renderVecInto(cv, room)) {
+    cv.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  cv.style.display = 'block';
 }
 
 // --- carte : placement directionnel par BFS (directions des sorties) ---
@@ -215,7 +220,7 @@ function drawMap(playerRoom) {
   for (const id of ids) {
     const [x, y] = at(id);
     const here = id === playerRoom;
-    nodes += `<circle cx="${x}" cy="${y}" r="${here ? 7 : 4}" fill="${here ? '#ff5a5a' : '#5f86a8'}"${here ? ' class="here"' : ''}/>`;
+    nodes += `<circle cx="${x}" cy="${y}" r="${here ? 7 : 4}" fill="${here ? '#ff5a5a' : '#5f86a8'}" data-room="${id}"${here ? ' class="here"' : ''}/>`;
     nodes += `<text x="${x + 8}" y="${y + 3}" fill="#7d8794" font-size="10">$${hex(id)}</text>`;
     const who = npc.get(id);
     if (who && who.length) {
@@ -224,6 +229,65 @@ function drawMap(playerRoom) {
   }
   $('#map-svg').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
 }
+
+// --- modale : détail d'un lieu (clic sur la carte) ---
+const DIR = { 1: 'nord', 2: 'sud', 3: 'est', 4: 'ouest', 5: 'NE',
+              6: 'NO', 7: 'SE', 8: 'SO', 9: 'haut', 10: 'bas' };
+
+function roomName(id) {
+  return id >= 0 && M._hob_room_name(id)
+    ? M.UTF8ToString(M._hob_room_name(id)) : '?';
+}
+
+function openRoomModal(id) {
+  $('#modal-title').textContent = `$${hex(id)} ${roomName(id)}`;
+
+  const cv = $('#modal-vec');
+  const empty = $('#modal-empty');
+  if (renderVecInto(cv, id)) {
+    cv.style.display = 'block';
+    empty.style.display = 'none';
+  } else {
+    cv.style.display = 'none';
+    empty.style.display = 'block';
+  }
+
+  const rows = [];
+  const ne = M._hob_room_exit_count(id);
+  const exits = [];
+  for (let j = 0; j < ne; j++) {
+    const d = M._hob_room_exit_dir(id, j);
+    const t = M._hob_room_exit_dst(id, j);
+    const cond = M._hob_room_exit_cond(id, j);
+    exits.push(`${DIR[d] || 'dir' + d} → $${hex(t)} ${roomName(t)}` +
+               (cond ? ' (cond.)' : ''));
+  }
+  rows.push(['Sorties', exits.length ? exits.join('<br>') : 'aucune']);
+
+  const who = [];
+  for (let i = 0; i < M._hob_obj_count(); i++) {
+    if (!M._hob_obj_alive(i)) continue;
+    if (M._hob_obj_field(i, 7) !== id) continue;
+    who.push(esc(M.UTF8ToString(M._hob_obj_name(i))));
+  }
+  rows.push(['Présents', who.length ? who.join('<br>') : '—']);
+
+  if (id === M._hob_player_room()) rows.push(['', '<b>vous êtes ici</b>']);
+
+  $('#modal-info').innerHTML = rows
+    .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  $('#modal').classList.remove('hidden');
+}
+
+function closeModal() { $('#modal').classList.add('hidden'); }
+
+$('#map-svg').addEventListener('click', (e) => {
+  const c = e.target.closest('circle[data-room]');
+  if (c) openRoomModal(+c.dataset.room);
+});
+$('#modal-close').addEventListener('click', closeModal);
+$('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
 async function loadBlobFromStorage() {
   const saved = localStorage.getItem(SAVE_KEY);
