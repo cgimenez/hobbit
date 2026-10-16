@@ -37,6 +37,7 @@ static int      blob_ready;
 static int      blob_len;
 
 static int      prompt_flag;
+static unsigned keys_consumed;   /* @@K vus depuis io_clear_prompt() */
 
 void io_reset(void)
 {
@@ -48,6 +49,7 @@ void io_reset(void)
     blob_ready = 0;
     blob_len = 0;
     prompt_flag = 0;
+    keys_consumed = 0;
 }
 
 static void emit(uint8_t c)
@@ -119,6 +121,7 @@ static void parse(void)
             continue;
         }
         if (avail >= 4 && p[0] == '@' && p[1] == '@' && p[2] == 'K') {
+            keys_consumed++;
             rawpos += 4;
             continue;
         }
@@ -225,6 +228,21 @@ int io_prompt_seen(void)
 void io_clear_prompt(void)
 {
     prompt_flag = 0;
+}
+
+void io_keys_reset(void)
+{
+    keys_consumed = 0;
+}
+
+int io_kb_pending(void)
+{
+    return khead != ktail;
+}
+
+unsigned io_keys_consumed(void)
+{
+    return keys_consumed;
 }
 
 const uint8_t *io_text_ptr(void)

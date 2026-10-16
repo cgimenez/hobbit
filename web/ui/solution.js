@@ -1,19 +1,22 @@
-// Solution vérifiée de The Hobbit (Oric) — variante "continue", sans SAVE/LOAD
-// (rejouable dans le navigateur) : victoire 70.0 %.
-// Source : docs/game_solution.md, Annexe 2 (une entrée = un tour).
-// Les deux "NORTH puis SOUTHWEST" de la doc sont dédoublés en deux tours.
+// Solution de The Hobbit (Oric) — variante "continue", sans SAVE/LOAD.
+// Source : docs/game_solution.md, Annexe 2. Une entrée = un run.
+//
+// Corrections par rapport à l'annexe (qui écrit les mots en clair) :
+//  - "NORTH puis SOUTHWEST" = un seul run "NORTH\rSW" (anti-mange clairière).
+//  - le parser de cette édition Oric mappe mal les diagonales ÉCRITES
+//    (SOUTHWEST -> "go SOUTH", NORTHWEST -> "go NORTH") : le harness vérifié
+//    (routes/*.txt) utilise les abréviations SW/SE/NE/NW.
 export const SOLUTION = [
   'OPEN CHEST',
   'EAST',
-  'NORTH',
-  'SOUTHWEST',
+  'NORTH\rSW',
   'WAIT',
   'WAIT',
   'WAIT',
   'WAIT',
   'NORTH',
   'GET KEY',
-  'SOUTHWEST',
+  'SW',
   'NORTHEAST',
   'UNLOCK DOOR',
   'OPEN DOOR',
@@ -41,8 +44,7 @@ export const SOLUTION = [
   'WEST',
   'SOUTHEAST',
   'SOUTH',
-  'NORTH',
-  'SOUTHWEST',
+  'NORTH\rSW',
   'GET RING',
   'NORTH',
   'DOWN',
@@ -57,7 +59,7 @@ export const SOLUTION = [
   'EAST',
   'EAST',
   'WAIT',
-  'SOUTHWEST',
+  'SW',
   'WEAR RING',
   'WAIT',
   'CLIMB INTO BARREL',
@@ -94,16 +96,16 @@ export const SOLUTION = [
   'WEST',
   'NORTH',
   'WEST',
-  'SOUTHWEST',
+  'SW',
   'WEST',
   'WEST',
   'WEST',
   'WEST',
-  'SOUTHWEST',
+  'SW',
   'WEST',
   'OPEN CHEST',
   'PUT TREASURE IN CHEST',
 ];
 
-// Marqueur de victoire cherché dans le texte de sortie (fin de partie).
-export const EXPECTED_VICTORY = 'mastered 70.0';
+// Marqueur de victoire (le résumé de mort écrit aussi "mastered X%").
+export const EXPECTED_VICTORY = 'cheering crowd of dwarves';

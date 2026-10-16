@@ -124,14 +124,25 @@ void hob_key_flush(void)
     io_key_flush();
 }
 
+int hob_keys_consumed(void)
+{
+    return (int)io_keys_consumed();
+}
+
 int hob_run(int max_insn)
 {
     long long budget = max_insn > 0 ? max_insn : 100000000LL;
 
     io_clear_prompt();
+    io_keys_reset();
     while (!Halt) {
         ExecuteInsn();
-        if (io_prompt_seen()) {
+        if (io_kb_pending()) {
+            /* Des commandes sont encore en file (ex. "NORTH\rSW" de
+             * l'anti-mange) : le prompt affiche n'est pas un point d'arret,
+             * on continue pour traiter la suite dans le meme run. */
+            io_clear_prompt();
+        } else if (io_prompt_seen()) {
             io_flush();
             return 0;
         }

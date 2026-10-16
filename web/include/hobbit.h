@@ -51,6 +51,9 @@ HOB_API void hob_key(int c);
 /* Efface la file d'entree (mouse/keyboard flush). */
 HOB_API void hob_key_flush(void);
 
+/* Octets clavier consommes par le dernier hob_run (diagnostic @@K). */
+HOB_API int hob_keys_consumed(void);
+
 /* --- Texte de sortie (cumulatif ; le JS lit le delta) --- */
 HOB_API const uint8_t *hob_text_ptr(void);
 HOB_API int            hob_text_len(void);

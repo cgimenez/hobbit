@@ -24,9 +24,19 @@ void io_flush(void);
 int io_prompt_seen(void);
 void io_clear_prompt(void);
 
+/* Nombre d'octets clavier consommes (@@K) depuis io_clear_prompt()
+ * (donc depuis le debut du dernier hob_run). */
+unsigned io_keys_consumed(void);
+
 /* Copie un octet clavier a emettre par le shim. */
 void io_key_push(uint8_t c);
 void io_key_flush(void);
+
+/* Reste-t-il des octets clavier en attente (file non vide) ? */
+int io_kb_pending(void);
+
+/* Remet a zero le compteur d'octets consommes (@@K). */
+void io_keys_reset(void);
 
 /* Texte decode (cumulatif). */
 const uint8_t *io_text_ptr(void);
