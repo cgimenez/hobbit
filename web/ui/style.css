@@ -18,6 +18,15 @@ header button {
 }
 header button:hover { background: #29313a; }
 #status { margin-left: auto; color: #8b95a1; font-size: 12px; }
+.langs { display: inline-flex; gap: 4px; }
+.lang-flag {
+  background: #20262d; color: #cfd6dd; border: 1px solid #333b44;
+  border-radius: 5px; padding: 2px 7px; cursor: pointer; font-size: 15px;
+  line-height: 1.2; filter: grayscale(1) opacity(.55);
+}
+.lang-flag:hover { background: #29313a; filter: grayscale(0) opacity(1); }
+.lang-flag.active { border-color: #6fa8dc; filter: none;
+  box-shadow: 0 0 0 1px #6fa8dc inset; }
 
 main {
   flex: 1; min-height: 0;

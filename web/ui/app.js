@@ -4,6 +4,61 @@ const $ = (s) => document.querySelector(s);
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
+// --- i18n (EN/FR) : chaînes statiques via [data-i18n], dynamiques via L().
+// Le choix est mémorisé dans le cookie "hobbit.lang". ---
+const STR = {
+  cmd_placeholder: ['EAST · LOOK · OPEN DOOR · SAY TO THORIN "CARRY ME"',
+                    'EAST · LOOK · OPEN DOOR · SAY TO THORIN "CARRY ME"'],
+  objs_title: ['Objects & characters', 'Objets & personnages'],
+  map_title: ['Map', 'Carte'],
+  room_label: ['Room', 'Lieu'],
+  vec_empty: ['(no illustration here)', "(pas d'illustration ici)"],
+  th_hash: ['#', '#'],
+  th_name: ['Name', 'Nom'],
+  th_room: ['Room', 'Lieu'],
+  th_carrier: ['Carrier', 'Porteur'],
+  th_hp: ['HP', 'PV'],
+  th_attrs: ['Attributes', 'Attributs'],
+  btn_load_title: ['Reload local save', 'Recharger la sauvegarde locale'],
+  btn_save_title: ['Save game (localStorage + file)',
+                   'Enregistrer la partie (localStorage + fichier)'],
+  btn_about_title: ['About / credits', 'À propos / crédits'],
+};
+
+const getCookie = (k) => {
+  const m = document.cookie.match('(^|;)\\s*' + k + '\\s*=\\s*([^;]*)');
+  return m ? decodeURIComponent(m[2]) : null;
+};
+const setCookie = (k, v) => {
+  document.cookie = `${k}=${encodeURIComponent(v)}; max-age=31536000; path=/; SameSite=Lax`;
+};
+
+let LANG = getCookie('hobbit.lang')
+  || ((navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+const t = (k) => STR[k][LANG === 'fr' ? 1 : 0];
+const L = (en, fr) => (LANG === 'fr' ? fr : en);
+
+let statusEn = 'loading…', statusFr = 'chargement…';
+function setStatus(en, fr) {
+  statusEn = en; statusFr = fr;
+  $('#status').textContent = L(en, fr);
+}
+
+function applyI18n() {
+  document.documentElement.lang = LANG;
+  for (const el of document.querySelectorAll('[data-i18n]'))
+    el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll('[data-i18n-ph]'))
+    el.placeholder = t(el.dataset.i18nPh);
+  for (const el of document.querySelectorAll('[data-i18n-title]'))
+    el.title = t(el.dataset.i18nTitle);
+  for (const el of document.querySelectorAll('[data-lang-block]'))
+    el.hidden = el.dataset.langBlock !== LANG;
+  for (const b of document.querySelectorAll('.lang-flag'))
+    b.classList.toggle('active', b.dataset.lang === LANG);
+  $('#status').textContent = L(statusEn, statusFr);
+}
+
 const SLOT = { IMG: 0, ROM: 1, SHIM: 2, SNAP: 3, BLOB: 4 };
 const SAVE_KEY = 'hobbit.oric.save';
 const ATTR = ['l', 'F', 'f', 'b', '*', 'o', 'A', 'v']; // bit0..7
@@ -56,7 +111,8 @@ const persistSave = () => {
 
 function afterTurn() {
   drainText();
-  if (persistSave()) $('#status').textContent = 'sauvegarde enregistree (localStorage)';
+  if (persistSave())
+    setStatus('save written (localStorage)', 'sauvegarde enregistree (localStorage)');
   refreshLive();
 }
 
@@ -273,12 +329,24 @@ function centerMapOnPlayer() {
   $('#map-pany').value = Math.round(cl(cy) * 1000);
 }
 
+let mapFocus = -1;
+
+function updateModalTitle() {
+  if (!$('#modal-about').hidden) {
+    $('#modal-title').textContent = L('About', 'À propos');
+  } else {
+    $('#modal-title').textContent = mapFocus >= 0
+      ? L(`Map — $${hex(mapFocus)} ${roomName(mapFocus)}`,
+          `Carte — $${hex(mapFocus)} ${roomName(mapFocus)}`)
+      : t('map_title');
+  }
+}
+
 function openMapModal(focus) {
   const player = M._hob_player_room();
   const m = buildMapSvg(player, focus);
   if (!m) return;
-  $('#modal-title').textContent = focus >= 0
-    ? `Carte — $${hex(focus)} ${roomName(focus)}` : 'Carte';
+  mapFocus = focus;
   $('#modal-map').innerHTML = m.svg;
   MAPVIEW.W = m.W; MAPVIEW.H = m.H;
   MAPVIEW.player = player >= 0 ? m.at(player) : [m.W / 2, m.H / 2];
@@ -290,17 +358,29 @@ function openMapModal(focus) {
   $('#modal-about').hidden = true;
   $('#modal-controls').hidden = false;
   $('#modal').classList.remove('hidden');
+  updateModalTitle();
 }
 
 function openAboutModal() {
-  $('#modal-title').textContent = 'À propos';
   $('#modal-about').hidden = false;
   $('#modal-map').hidden = true;
   $('#modal-controls').hidden = true;
   $('#modal').classList.remove('hidden');
+  updateModalTitle();
 }
 
 function closeModal() { $('#modal').classList.add('hidden'); }
+
+function setLang(lang) {
+  LANG = lang === 'fr' ? 'fr' : 'en';
+  setCookie('hobbit.lang', LANG);
+  applyI18n();
+  if (!$('#modal').classList.contains('hidden')) updateModalTitle();
+  if (M) refreshLive();
+}
+
+for (const b of document.querySelectorAll('.lang-flag'))
+  b.addEventListener('click', () => setLang(b.dataset.lang));
 
 $('#map-zoom').addEventListener('input', () => {
   MAPVIEW.zoom = +$('#map-zoom').value;
@@ -319,6 +399,8 @@ $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
+applyI18n();
+
 async function loadBlobFromStorage() {
   const saved = localStorage.getItem(SAVE_KEY);
   if (!saved) { M._hob_slot_len(SLOT.BLOB, 0); return false; }
@@ -329,9 +411,9 @@ async function loadBlobFromStorage() {
 }
 
 async function boot() {
-  $('#status').textContent = 'compilation wasm…';
+  setStatus('compiling wasm…', 'compilation wasm…');
   M = await createHobbit({ locateFile: (f) => f });
-  $('#status').textContent = 'chargement des fichiers…';
+  setStatus('loading files…', 'chargement des fichiers…');
   await fetchInto('hobbit.bin', SLOT.IMG);
   await fetchInto('basic10.rom', SLOT.ROM);
   await fetchInto('shim.bin', SLOT.SHIM);
@@ -339,8 +421,8 @@ async function boot() {
   const isSave = await loadBlobFromStorage();
 
   const rc = M._hob_init();
-  if (rc !== 0) { $('#status').textContent = `init: erreur ${rc}`; return; }
-  $('#status').textContent = 'boot…';
+  if (rc !== 0) { setStatus(`init: error ${rc}`, `init: erreur ${rc}`); return; }
+  setStatus('boot…', 'boot…');
   M._hob_boot();
   textLen = 0;
   drainText();
@@ -350,7 +432,8 @@ async function boot() {
     sendCommand('');
   }
   refreshLive();
-  $('#status').textContent = isSave ? 'sauvegarde locale restauree' : '';
+  setStatus(isSave ? 'local save restored' : '',
+            isSave ? 'sauvegarde locale restauree' : '');
   $('#cmd').focus();
 }
 
@@ -379,12 +462,15 @@ $('#cmd').addEventListener('keydown', (e) => {
 });
 
 $('#btn-save').addEventListener('click', () => {
-  if (persistSave()) $('#status').textContent = 'sauvegarde (localStorage)';
-  else $('#status').textContent = 'rien a sauver — tapez SAVE en jeu';
+  if (persistSave()) setStatus('saved (localStorage)', 'sauvegarde (localStorage)');
+  else setStatus('nothing to save — type SAVE in the game',
+                 'rien a sauver — tapez SAVE en jeu');
 });
 
 $('#btn-load').addEventListener('click', async () => {
-  if (!(await loadBlobFromStorage())) { $('#status').textContent = 'pas de sauvegarde'; return; }
+  if (!(await loadBlobFromStorage())) {
+    setStatus('no save', 'pas de sauvegarde'); return;
+  }
   M._hob_init();
   textLen = 0;
   $('#screen').textContent = '';
@@ -394,11 +480,11 @@ $('#btn-load').addEventListener('click', async () => {
   sendCommand('');
   sendCommand('');
   refreshLive();
-  $('#status').textContent = 'sauvegarde rechargee';
+  setStatus('save reloaded', 'sauvegarde rechargee');
   $('#cmd').focus();
 });
 
 boot().catch((e) => {
-  $('#status').textContent = 'erreur: ' + e.message;
+  setStatus('error: ' + e.message, 'erreur: ' + e.message);
   console.error(e);
 });
