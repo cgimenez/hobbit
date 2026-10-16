@@ -159,7 +159,7 @@ RANGE { START $6EA0; END $6EA3; TYPE CODE; NAME "code_6EA0"; };
 RANGE { START $6EA6; END $6EE6; TYPE CODE; NAME "code_6EA6"; };
 RANGE { START $6EE9; END $6F24; TYPE CODE; NAME "code_6EE9"; };
 RANGE { START $6F27; END $6FAB; TYPE CODE; NAME "code_6F27"; };
-RANGE { START $70B5; END $7110; TYPE CODE; NAME "evt_arme16"; COMMENT "Cle $16 : dans un cas precis, fait apparaitre une entite et arme l'evenement"; };
+RANGE { START $70B5; END $7110; TYPE CODE; NAME "evt_arme16"; COMMENT "Cle $16 : reveille le BUTLER (e4 $2B61:=$42) si sa fiche +7 bit3 est clair, puis marque +7 bit7"; };
 RANGE { START $7113; END $7115; TYPE CODE; NAME "code_7113"; };
 RANGE { START $71A8; END $7295; TYPE CODE; NAME "vec_keypause"; COMMENT "Illustration (vec_01) : attend une touche avant de poursuivre"; };
 RANGE { START $7298; END $729D; TYPE CODE; NAME "code_7298"; };
@@ -761,7 +761,7 @@ LABEL { NAME "act_v14_17"; ADDR $6EA7; COMMENT "PNJ : efface des drapeaux, met a
 LABEL { NAME "img_poke"; ADDR $6EF7; COMMENT "Illustration : si le bloc 3 est present, modifie 2 octets a (ptr)+1"; };
 LABEL { NAME "evt_arme2"; ADDR $70CB; COMMENT "Arme l'evenement e2 (minuterie = id) ; declenche par la cle $1A"; };
 LABEL { NAME "evt_arme4"; ADDR $70D2; COMMENT "Arme l'evenement e4 (minuterie = id) ; declenche par la cle $1D"; };
-LABEL { NAME "evt_arme9"; ADDR $70D9; COMMENT "Arme l'evenement e9 et place des entites ; declenche par la cle $20"; };
+LABEL { NAME "evt_arme9"; ADDR $70D9; COMMENT "Cle $20 : reveille DRAGON (e8 $2B7D:=$3C) et BARD (e7 $2B76:=$46) si leur fiche +7 bit3 est clair, puis arme l'evenement e9 (cpt:=3)"; };
 LABEL { NAME "evt_arme8"; ADDR $70F8; COMMENT "Declenche par les cles $02/$03 : rearme l'evenement e8"; };
 LABEL { NAME "evt_gate21"; ADDR $7103; COMMENT "Cle $21 : dans un cas precis, declenche un ecran et affiche"; };
 LABEL { NAME "tape_verify"; ADDR $71CB; COMMENT "Verifie un bloc cassette en le relisant (vec_04)"; };

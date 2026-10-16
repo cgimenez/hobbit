@@ -826,3 +826,38 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   nœuds 300/304/305/306 ; `$42` reste *rendu seul* (capture *wood elf* →
   `snap-incomplet`). Comptage rectifié : **78/78 records valides** (79 slots
   `$01`–`$4F`, `$2F` nul), pas « 79/79 ».
+
+### Reprise — élucidation entités `$2B45` / événements `$2B12` / état `+0` (commit `a01cfa0`)
+
+Note pour contexte neuf (détails : `docs/memory-map.md` §2/§3c/§3d,
+`docs/block4-analysis.md` § AnimAction/§ événements, `scripts/disasm.py`
+`ROUTINE_DOCS`/`NOTES`).
+
+- **Entités `$2B45`** (`[id,nmax,PC,base,reply]`) : `n` (`+1`) → **`nmax`** =
+  index max (0-based) de la table `base` = nb d'entrées − 1 (clamp
+  `script_indir`/`script_rand` : `min(op,nmax)`) ; `s6` (`+6`) → **`reply`** =
+  poids de réplique, lu **au seul site** `npc_say_no` (`$5F81`, orphelin wid
+  `$35` de la table `$6FAC`) qui fait dire `<id>SAY 'NO '` (`$15BE`, énigme) ;
+  `0` = muet. Ni `nmax` ni `reply` ne sont jamais écrits (DB : deltas `$28CC`
+  seulement sur `+0/+2/+3`). **Fix annexe** : `INDIR_TABLES[$2943]` 15 → 25 o
+  (8 entrées, pas 5 — les 3 dernières étaient étiquetées « code » à tort).
+- **Événements `$2B12`** : `actA` **n'est pas** une voie morte — il tire **une
+  fois, à l'échéance de `cpt`**, via la garde `L4E58` (RAZ par `world_tick`,
+  reposée par `evt_act0`) ; `actB` tant que `cond>=cpt`. Prouvé harnais : `e0.cpt`
+  (`$2B13`) alterne `0↔1` (armé à 2) et `evt_act0` s'exécute (run `f9a` t65,
+  `$1D94` `$21`→`$20`). 3 handlers récupérés en zones données : `evt_arme0`
+  `$64E2` (tonneau état `$13` à Forestriver `$21` → `e0.cpt:=2`), `evt_act0`
+  `$688D` (berge du Long Lake `$170C`), `evt_hole` `$6DBB` (trou Montagne).
+  `evt_lookup` `$5DE2` appelé par `act_probe_event` `$5DCB` (`obj==0`).
+- **État `+0` (type)** : **classe d'objet** ; `$01` = objet localisé (eloc en
+  `+$10` valide) = **seul cas branché** (`entity_state_resolve` `$57BB`,
+  `is_dark`, `holder_scan`, arme `act_p14_00`, `act_p14_03`) ; `$02/$03/$05/$08`
+  = objets-figures non localisés (portes/eau/toile…), **jamais discriminés**
+  entre eux (aucun `cmp` — scan exhaustif des `ldy #$00; lda (zp),y`).
+
+**Toolchain** : `disasm_check` PROPRE (**441** routines), `memmap_check` PROPRE,
+`disasm_rebuild --all` byte-identique (36274 o). Commit `a01cfa0`, arbre propre.
+
+**Pistes ouvertes** : déclencheurs des entrants dormants `$2B61/$2B76/$2B7D` ;
+compteur de tête `$2AD0` ; triggers gameplay des events via `$709F` ; B1
+cassette VERIFY/LOAD ; couverture memmap (rejouer les branches en jeu).

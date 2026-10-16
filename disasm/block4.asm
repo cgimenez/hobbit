@@ -10368,7 +10368,7 @@ L7015:  .byte   $FF,$BF
         .byte   $D9
         .byte   "p"
         .byte   $FF
-; Cle $16 : dans un cas precis, fait apparaitre une entite et arme l'evenement
+; Cle $16 : reveille le BUTLER (e4 $2B61:=$42) si sa fiche +7 bit3 est clair, puis marque +7 bit7
 evt_arme16:
         lda     $1DC5
         and     #$08
@@ -10394,7 +10394,7 @@ evt_arme4:
         sta     $2B27
         rts
 
-; Arme l'evenement e9 et place des entites ; declenche par la cle $20
+; Cle $20 : reveille DRAGON (e8 $2B7D:=$3C) et BARD (e7 $2B76:=$46) si leur fiche +7 bit3 est clair, puis arme l'evenement e9 (cpt:=3)
 evt_arme9:
         lda     #$03
         sta     $2B40

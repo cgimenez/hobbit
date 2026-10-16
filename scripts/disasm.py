@@ -617,7 +617,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x6915: ("evt_tip", "Tirage (~20%) : affiche 'expect me'"),
     0x70B5: (
         "evt_arme16",
-        "Cle $16 : dans un cas precis, fait apparaitre une entite et arme l'evenement",
+        "Cle $16 : reveille le BUTLER (e4 $2B61:=$42) si sa fiche +7 bit3 est clair, puis marque +7 bit7",
     ),
     0x70CB: (
         "evt_arme2",
@@ -629,7 +629,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     ),
     0x70D9: (
         "evt_arme9",
-        "Arme l'evenement e9 et place des entites ; declenche par la cle $20",
+        "Cle $20 : reveille DRAGON (e8 $2B7D:=$3C) et BARD (e7 $2B76:=$46) si leur fiche +7 bit3 est clair, puis arme l'evenement e9 (cpt:=3)",
     ),
     0x70F8: ("evt_arme8", "Declenche par les cles $02/$03 : rearme l'evenement e8"),
     0x7103: (

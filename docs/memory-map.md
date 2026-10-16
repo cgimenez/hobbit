@@ -276,8 +276,16 @@ Rôles : `docs/block4-analysis.md` (§ événements).
 `script_indir`/`script_rand` : `min(opérande, nmax)`) ; `reply` (`+6`) = **poids
 de réplique** : au seul site `npc_say_no` (`$5F81`), borne du tirage
 `rand_range` décidant l'émission de `<id>SAY 'NO '` (`$15BE`, énigme ; `0` =
-muet). Ni `nmax` ni `reply` ne sont jamais écrits. id `$00` = dormant (activé
-par id seul : `$42` par `evt_arme16`, `$46`/`$3C` par `evt_arme9`).
+muet). Ni `nmax` ni `reply` ne sont jamais écrits. id `$00` = **dormant**
+(`entity_tick` saute l'entrée) ; **l'activation se fait en écrivant l'id réel
+dans `+0`**, par deux handlers d'événement dispatchés par la table à clés
+`$709F` (`evt_lookup` `$5DE2`) : `evt_arme16` (`$70B5`, clé `$16`) pose `$42`
+(BUTLER) puis le bit7 de sa fiche ; `evt_arme9` (`$70D9`, clé `$20`) pose `$3C`
+(DRAGON) et `$46` (BARD) et arme l'événement **e9** (`$2B40` = e9.`cpt` := `3`).
+Chaque pose est **gardée par le `+$07` bit3 de la fiche cible** (`$1DC5` butler,
+`$1B37` dragon, `$1E54` bard) : si ce bit est posé (personnage « à terre » — le
+combat le pose quand les PV tombent : `(orec)+7 |= $08`), le spawn est sauté
+(un boss vaincu ne revient pas).
 
 | Slot | Addr | id | nmax | PC init | base (table) | reply | Qui |
 |---|---|---|---|---|---|---|---|
@@ -586,9 +594,9 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   valider à `-x` court ou via sim_tickdiff uniquement.
 - **Résolus** : `+0` `$02/$03/$05/$08` = objets-figures non localisés, non
   discriminés entre eux (cf. §2) ; driver events (`actA` à l'échéance via la
-  garde `L4E58`, cf. §3c).
-- **Reste ouvert** : compteur de tête `$2AD0`, déclencheurs des entrants
-  dormants (`$2B61`/`$2B76`/`$2B7D`).
+  garde `L4E58`, cf. §3c) ; activation des entrants dormants (`$2B61`/`$2B76`/
+  `$2B7D` par `evt_arme16`/`evt_arme9`, garde `+7` bit3, cf. §3d).
+- **Reste ouvert** : compteur de tête `$2AD0`.
 
 <!-- BEGIN AUTO-COUVERTURE -->
 couverture (fusion sim_tickdiff+solver) : 237/3623 octets (6.5 %).
