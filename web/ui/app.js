@@ -278,7 +278,7 @@ function openMapModal(focus) {
   const m = buildMapSvg(player, focus);
   if (!m) return;
   $('#modal-title').textContent = focus >= 0
-    ? `Carte — $${hex(focus)} ${roomName(focus)}` : 'Carte des lieux';
+    ? `Carte — $${hex(focus)} ${roomName(focus)}` : 'Carte';
   $('#modal-map').innerHTML = m.svg;
   MAPVIEW.W = m.W; MAPVIEW.H = m.H;
   MAPVIEW.player = player >= 0 ? m.at(player) : [m.W / 2, m.H / 2];
