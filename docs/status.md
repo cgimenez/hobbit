@@ -948,12 +948,11 @@ les 8 « pointeurs nuls » (= slots de message, pas des routines).
 
 ### Handoff — travail en cours (à reprendre)
 
-**État courant** : renommages ZX appliqués dans `scripts/disasm.py` + docs/harness,
-listings régénérés. Vérifs vertes : `disasm_check --block block4` PROPRE,
-`memmap_check` PROPRE, `disasm_rebuild --all` byte-identique (36274 o).
-**Modifs NON commitées** (9 fichiers) : `disasm/block4.{asm,info}`,
-`docs/{block4-analysis,memory-map,status}.md`, `harness/{shim,snap}.s`,
-`scripts/{disasm,sim_pack}.py`.
+**État courant** : tout est **commité** (arbre propre). Derniers commits :
+`9804e41` (verbes/entités/lieux) → `b68d8d5` (you_are_dead) → `8718de6` (reco
+ports 6502) → `647106d` + `12d4769` (dico exact, étape 3a). Vérifs vertes :
+`disasm_check --block block4` PROPRE, `memmap_check` PROPRE,
+`disasm_rebuild --all` byte-identique (36274 o). **Items 1-3 faits.**
 
 **Gisement externe** : `external_ressources/` (gitignoré). Non exploité en majorité.
 
