@@ -950,9 +950,10 @@ les 8 « pointeurs nuls » (= slots de message, pas des routines).
 
 **État courant** : tout est **commité** (arbre propre). Derniers commits :
 `9804e41` (verbes/entités/lieux) → `b68d8d5` (you_are_dead) → `8718de6` (reco
-ports 6502) → `647106d` + `12d4769` (dico exact, étape 3a). Vérifs vertes :
-`disasm_check --block block4` PROPRE, `memmap_check` PROPRE,
-`disasm_rebuild --all` byte-identique (36274 o). **Items 1-3 faits.**
+ports 6502) → `647106d`+`12d4769` (dico exact) → `f9ff895` (queue de bloc objet).
+Vérifs vertes : `disasm_check --block block4` PROPRE, `memmap_check` PROPRE,
+`disasm_rebuild --all` byte-identique (36274 o). **Items 1-3 faits** ; carte
+monde : **P1 fait** (cf. §« Carte monde » ci-dessous).
 
 **Gisement externe** : `external_ressources/` (gitignoré). Non exploité en majorité.
 
@@ -1014,6 +1015,30 @@ Non exploité : `WL.c` (98 K, logique carte/menus) et `dict_v12.txt`/`rooms_v12.
   (`CurrentObject`/`CurrentCharacter`/`CurrentAction`/`PercentageComplete`/
   `NightDay`/`RandomSeed` `$B6E6+`) = **RAM absolue ZX**, sans équivalent ZP direct.
 - **Non exploité** : `WL.c`, `dict_v12.txt` complet.
+
+**Carte monde (NPC/objets/lieux) — but : tout afficher + tick-diff aux adresses connues.**
+Couverture carte actuelle : **6.5 %** (237/3623 o ; états 7.7 %, scripts 4.9 %,
+records 5.3 %). Décomposition : `STATE_KEYS`/`STATE_FIELD`/`STATE_IDENTITY`
+(61 objets/NPC), `RECORD_FIELD` (79 lieux), `$2B45` (17 entités), `$2B12`
+(10 events), 13 INDIR.
+- **P1 FAIT** (`f9ff895`) : **queue de bloc objet = liste des verbes autorisés**.
+  Bloc = `champs(+0..+$0F, 16 o) + N lieux(+$10..) + liste-verbes(offset 16+N)`.
+  Entrées **2 o `[verbe, action]`**, fin `$FF` ; `verb_obj_ok` `$52FB` (via
+  `index_id_table2`) ; `action` = index `$7014`/`$7114` (bit7 ⇒ étendue), boucle
+  `L4BB2`. Validé 61/61 blocs, 119 paires. `memmap_defs` : `_STATE_FIELD_LEN`,
+  slots `verb{i}`/`act{i}`/`vlend`. Doc : `memory-map.md` §2.
+- **Restant** : **P2** sémantique des champs restants (`+4` classe, `+6`
+  robustesse ; records `conds` mot/masque → condition ; conditions de sortie ;
+  template `$2110`) ; **P3** join **entité↔objet↔record** en donnée (le champ
+  `id` de `$2B45` = cible réveil dormant, pas le n° d'objet ; mapping actuel en
+  prose seulement) ; **P4** table **lieu→(x,y)** (absente côté Oric → porter du
+  ZX, lieux 1:1) ; **P5** couverture 100 % (classer chaque octet VAR/CONST).
+- Rappel affichage : écran Oric hires = bitmap `$A000-$BF3F` + **footer 3 lignes
+  ASCII `$BF68-$BFDF`** (flux défilant, ULA) ; le flux texte est **déjà capté**
+  par `asc_plot` (`@@A<octet>`, table `texts`) → pas besoin de l'OCR hires ;
+  `sim_frames.py` ignore le footer (à corriger si vue écran voulue).
+- Réutilisable pour cartographier : `Wilderland/{MapCoordinates.h,npc_stats.xlsx,
+  WL.h}` + `sources/hobbit.{ctl,skool}` (déjà en partie exploités).
 
 **Plus tard (4) — ports 6502 (`HobbitOSX/…/{BBCDisk,Apple2Disk,C64Disk}`). [RECO]**
 - **BBC** (`*Disk 1* .ssd`, DFS) : loader **custom BDOS**, 3 fichiers seulement
