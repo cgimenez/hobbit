@@ -993,12 +993,17 @@ Non exploité : `WL.c` (98 K, logique carte/menus) et `dict_v12.txt`/`rooms_v12.
 - **LocGFX** : clés d'images bloc 3 = **ids de lieux** confirmé (ZX
   `LocGFXTable` `$CC00`). Mapping + noms dans `docs/block4-analysis.md` §Bloc 3
   et `docs/tape-archive.md`. ZX v1.2 = 22 images, Oric v1.0 = 13.
-- **Dictionnaire** : notre dico v1.0 (`$0540`) est un **sur-ensemble** du
-  `dict_v12.txt` (ZX v1.2) : ~530 mots communs, ~26 ZX-only (`BUTLER DALE LAKE
-  LOAD MEAN NARROW NIGHT SAND WALL WARG…`), ~70 Oric-only (mots anglais rares).
-  ⚠️ `msg_decode.py words` a ~12 artefacts de frontière (`CBUTLER`, `BDALE`,
-  `BFLAKE`… = préfixe 1-2 lettres) → `decode_word_at` à revoir (n'affecte pas le
-  décodage des messages).
+- **Dictionnaire** : notre dico v1.0 (`$0540`→ table mots courants `$1117`) est
+  precede d'un **`WordIndex` `$0500`** (offsets 2 o par lettre A→Y, base `$0500`),
+  mots ranges par **blocs alphabetiques**. `dict_v12.txt` (ZX v1.2) est une liste
+  **filtrée** (adresses dispersées), pas un dump complet → la comparaison
+  « sur-ensemble » nuance (530 communs ; ZX-only/Oric-only = v1.2 tronque +
+  v1.0 enrichi). ⚠️ **3a : pas un bug de `decode_word_at`.** Les « ~12 artefacts »
+  (`CBUTLER`, `BDALE`…) viennent d'**entrées inter-mots de forme flechie (2 o)**
+  que le parcours **sequentiel** de `dict_words` ne sait pas sauter (le ROM
+  `word_render` ne les traverse jamais : le jeu adresse chaque mot par pointeur).
+  → `dict_words` documente/plafonne desormais a `$1117` (approx., ~585 mots) ;
+  decodage des **messages non affecte**. Fix exact = RE des marqueurs (non fait).
 - **CommonWords** : notre table `$1117` (32 ptr) diffère du ZX `$AD3D`
   (ordre = fréquence chez nous, alphabétique chez ZX ; jeux ≠ : version).
 - **Objets** : déjà alignés (`STATE_IDENTITY` = `OBJNR_*`, cf. étape 2).

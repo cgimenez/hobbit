@@ -21,13 +21,13 @@ contexte runtime) mais lisible. Usage :
 
     from msg_decode import decode_message, dict_words
     texte = decode_message(raw, 0x18AA)   # -> "A COMFORTABLE TUNNEL LIKE HALL"
-    mots  = dict_words(raw)               # 600 mots du dictionnaire ($0540-$1156)
+    mots  = dict_words(raw)               # ~580 mots du dictionnaire ($0540-$1116)
 
 En ligne de commande :
 
     python scripts/msg_decode.py            # aperçu de 3 messages
     python scripts/msg_decode.py 18AA       # message à $18AA
-    python scripts/msg_decode.py words      # dump des 600 mots (1 par ligne)
+    python scripts/msg_decode.py words      # dump des mots du dictionnaire (1 par ligne)
 """
 
 from __future__ import annotations
@@ -83,11 +83,25 @@ def decode_word_at(raw: bytes, addr: int) -> tuple[str, int]:
     return "".join(chr(0x40 + c) for c in codes), y
 
 
-DICT_LO, DICT_HI = 0x0540, 0x1157
+# Le dictionnaire occupe ``$0540`` jusqu'a la table des mots courants ``$1117``
+# (32 pointeurs 2 o, cf. Decoder._build_common). Il est precede d'un ``WordIndex``
+# en ``$0500`` (offsets 2 o par lettre A->Y, base ``$0500``) : les mots sont ranges
+# par blocs alphabetiques. ATTENTION : entre certains mots se trouvent de petites
+# entrees de *forme flechie* (2 o) ; le ROM ``word_render`` ($4241) ne les
+# traverse jamais (le jeu adresse chaque mot par pointeur), donc un parcours
+# sequentiel est seulement APPROXIMATIF et peut recoller 1-2 caracteres
+# (ex. ``CBUTLER`` = marqueur + ``BUTLER``). Le decodage des MESSAGES (par
+# pointeur explicite) n'est pas affecte.
+DICT_LO, DICT_HI = 0x0540, 0x1117
+WORD_INDEX = 0x0500  # table d'offsets par lettre (base $0500), 2 o/lettre
 
 
 def dict_words(raw: bytes) -> list[str]:
-    """Dictionnaire complet ``$0540-$1156`` (600 mots, ordre alphabétique)."""
+    """Mots du dictionnaire ``$0540-$1116`` (parcours sequentiel, cf. ci-dessus).
+
+    Approximatif : ~580 mots, avec quelques recollages aux entrees de forme
+    flechie (non traversables en sequentiel). Suffit pour l'usage diagnostic.
+    """
     words: list[str] = []
     i = DICT_LO
     while i < DICT_HI:
@@ -201,7 +215,7 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if args and args[0] in ("words", "dict", "--words"):
         ws = dict_words(raw)
-        print(f"; {len(ws)} mots du dictionnaire ($0540-$1156)")
+        print(f"; {len(ws)} mots du dictionnaire ($0540-$1116, approx.)")
         print("\n".join(ws))
     else:
         addrs = [int(x, 16) for x in args] or [0x18AA, 0x143F, 0x1582]
