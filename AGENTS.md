@@ -110,6 +110,9 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
                                              # [--out DIR] [--mono] [--scale N]
 SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
     --seed NOM --goal coverage --budget B   # BFS depuis un checkpoint
+make -C web            # app web (WASM) : check + shims + wasm + assets
+make -C web test       # boot + commandes en Node (sans navigateur)
+make -C web serve      # http://localhost:8000 (HMR) ; doc : docs/web-wasm.md
 ```
 
 ## 7. État et pistes
@@ -146,7 +149,12 @@ SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
   `> LOOK.`), entrées scriptées + réponses parser observées
   (`I DO NOT KNOW THE WORD " OOK."`), écho caractère par caractère OK.
 - Détails à jour : `docs/status.md`, `docs/block4-analysis.md`,
-  `docs/tape-archive.md`, `docs/tape-format.md`.
+  `docs/tape-archive.md`, `docs/tape-format.md`, `docs/web-wasm.md`.
+- **App web WASM** (`web/`) : jeu jouable dans le navigateur + état live
+  (objets/PNC), carte et illustrations vectorielles. Cœur sim65 compilé par
+  `emcc` ; les scripts `sim_pack/sim_play/memmap_defs/map_static/vec_decode`
+  sont portés en C (zéro Python au runtime). Build/HMR/test :
+  `make -C web [test|serve]` ; détails et limites : `docs/web-wasm.md`.
 - Pistes : AnimTalk (parser, via harnais) ; AnimAction (PNJ autonomes :
   l'init recopie une table `$28E6`+ vers le workspace haut — base de données
   jeu probable) ; zéro-page nommée (51 `ZP_NAMES`) ; bloc 3 élucidé
