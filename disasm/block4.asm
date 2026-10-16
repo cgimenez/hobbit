@@ -1,7 +1,8 @@
 ; ============================================================
 ; The Hobbit (Oric, 1982)
-; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)
-; 6502 port : Greg Barrett (Beam Software)
+; Original authors : Veronika Megler & Philip Mitchell (Beam Software)
+; 6502 port : Gregg Barnett (Beam Software)
+; Publisher : Melbourne House
 ; - bloc 4 ($2C00-$7A80) : programme principal
 ; Listing généré par scripts/disasm.py (descente récursive + da65)
 ; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.

@@ -170,28 +170,73 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         None,
         "Point de depart du jeu : prepare la memoire, affiche le prompt, puis boucle de commandes",
     ),
-    0x2DC8: ("init_vars", "Remet a zero les compteurs de depart (variables de travail, pile de messages, score)"),
-    0x3097: ("boot_copy", "Copie l'etat de depart de la cassette vers la memoire de travail (le jeu joue sur cette copie)"),
-    0x30BB: ("boot_copyback", "Copie la memoire de travail vers la zone de sauvegarde (sens inverse de boot_copy)"),
+    0x2DC8: (
+        "init_vars",
+        "Remet a zero les compteurs de depart (variables de travail, pile de messages, score)",
+    ),
+    0x3097: (
+        "boot_copy",
+        "Copie l'etat de depart de la cassette vers la memoire de travail (le jeu joue sur cette copie)",
+    ),
+    0x30BB: (
+        "boot_copyback",
+        "Copie la memoire de travail vers la zone de sauvegarde (sens inverse de boot_copy)",
+    ),
     # ---- Parser AnimTalk : saisie ($2DDB-$2EA8) ----
     # Editeur de ligne : lit les touches, echo, backspace, guillemets, fleches.
     # Le tampon de commande est $40BE (une ligne, terminee par $0D).
-    0x2DDB: ("input_abort", "'@' en tete de ligne : recule le curseur de 2 et annule la saisie en cours"),
-    0x2DEA: ("read_line", "Saisie d'une commande : affiche '> ', lit les touches et remplit le tampon $40BE"),
+    0x2DDB: (
+        "input_abort",
+        "'@' en tete de ligne : recule le curseur de 2 et annule la saisie en cours",
+    ),
+    0x2DEA: (
+        "read_line",
+        "Saisie d'une commande : affiche '> ', lit les touches et remplit le tampon $40BE",
+    ),
     0x2E04: ("line_loop", "Lit une touche, la traduit (fleches) puis la traite"),
-    0x2E0F: ("line_read", "Lit une touche sans traduction (relecture apres effacement)"),
-    0x2E12: ("line_dispatch", "Repartit la touche : fin de ligne, effacement ou edition"),
+    0x2E0F: (
+        "line_read",
+        "Lit une touche sans traduction (relecture apres effacement)",
+    ),
+    0x2E12: (
+        "line_dispatch",
+        "Repartit la touche : fin de ligne, effacement ou edition",
+    ),
     0x2E1A: ("line_del", "Touche DEL ($7F) : efface toute la ligne saisie"),
-    0x2E24: ("line_backspace", "Retour arriere ($08) : efface le dernier caractere et suit l'etat guillemet"),
-    0x2E40: ("line_edit", "Edition d'un caractere : guillemets, espaces et ponctuation"),
-    0x2E58: ("line_classify", "Trie le caractere saisi (espace, CR, point, virgule) avant stockage"),
-    0x2E68: ("line_store", "Stocke le caractere dans le tampon de commande $40BE et l'affiche (echo)"),
-    0x2E76: ("line_cr", "Entree : ferme la ligne (guillemet/point manquants), stocke CR et renvoie 1"),
+    0x2E24: (
+        "line_backspace",
+        "Retour arriere ($08) : efface le dernier caractere et suit l'etat guillemet",
+    ),
+    0x2E40: (
+        "line_edit",
+        "Edition d'un caractere : guillemets, espaces et ponctuation",
+    ),
+    0x2E58: (
+        "line_classify",
+        "Trie le caractere saisi (espace, CR, point, virgule) avant stockage",
+    ),
+    0x2E68: (
+        "line_store",
+        "Stocke le caractere dans le tampon de commande $40BE et l'affiche (echo)",
+    ),
+    0x2E76: (
+        "line_cr",
+        "Entree : ferme la ligne (guillemet/point manquants), stocke CR et renvoie 1",
+    ),
     0x2E8C: ("ins_quote", "Ajoute un guillemet fermant si la saisie en a ouvert un"),
-    0x2E98: ("ins_period", "Ajoute un point final a la commande si elle n'en a pas deja"),
-    0x2EA9: ("key_arrow", "Fleches du clavier : les remplace par N/S/E/W (deplacement immediat, Oric)"),
+    0x2E98: (
+        "ins_period",
+        "Ajoute un point final a la commande si elle n'en a pas deja",
+    ),
+    0x2EA9: (
+        "key_arrow",
+        "Fleches du clavier : les remplace par N/S/E/W (deplacement immediat, Oric)",
+    ),
     0x2EBA: ("key_n", "Fleche haut : ecrit 'N' puis valide"),
-    0x2EBC: ("key_dir_put", "Ecrit la lettre de direction dans le tampon, echo, puis valide par CR"),
+    0x2EBC: (
+        "key_dir_put",
+        "Ecrit la lettre de direction dans le tampon, echo, puis valide par CR",
+    ),
     0x2EC6: ("key_w", "Fleche gauche : ecrit 'W' puis valide"),
     0x2ECB: ("key_e", "Fleche droite : ecrit 'E' puis valide"),
     0x2ED0: ("key_s", "Fleche bas : ecrit 'S' puis valide"),
@@ -199,80 +244,224 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     # tokenize() lit un mot du tampon $40BE, le cherche dans le dictionnaire
     # 5-bit du bloc 2 ($0540) et renvoie son type + son adresse. La file de
     # tokens est $4783 ([type<<4|page, lo] ; 2 octets par mot).
-    0x2ED5: ("tokenize", "Lit le mot suivant du tampon, le cherche au dictionnaire et renvoie son type et son adresse"),
+    0x2ED5: (
+        "tokenize",
+        "Lit le mot suivant du tampon, le cherche au dictionnaire et renvoie son type et son adresse",
+    ),
     0x2F26: ("lex_cr", "Fin de ligne : produit le token de type $C0 (fin de commande)"),
-    0x2F28: ("lex_emit", "Prepare le token courant (adresse vide) puis passe a l'emission du type"),
-    0x2F30: ("lex_type", "Renseigne le type du token ($5B), combine l'adresse et rend la main"),
-    0x2F3B: ("lex_restore", "Restaure le pointeur d'entree sauvegarde apres le test d'abreviation"),
-    0x2F43: ("word_finish", "Mot trouve : suit un eventuel renvoi, extrait son type et son adresse de dictionnaire"),
-    0x2F47: ("word_skip", "Avance jusqu'au dernier octet de lettres du mot (bit7 pose)"),
-    0x2F60: ("word_grammar", "Teste le bit de renvoi de l'entree et suit la redirection de pointeur si pose"),
-    0x2F78: ("word_type", "Extrait le nibble de type (bits 6-5 des 2 premiers octets) et le range dans $5B"),
-    0x2FA3: ("punct_class", "Classe un signe de ponctuation : point ($B0), virgule ($A0) ou guillemet ($90)"),
-    0x2FB8: ("punct_hit", "Signe de ponctuation reconnu : avance le curseur et renvoie son type"),
-    0x2FBB: ("dict_bucket", "Decode les lettres du mot cherche et se place sur le seau de dictionnaire de sa 1re lettre"),
-    0x2FCE: ("dict_start", "Calcule le seau $0500[2*lettre] et positionne le pointeur sur sa 1re entree"),
-    0x2FEA: ("dict_next", "Avance de la taille de l'entree courante et compare la 1re lettre de la suivante"),
+    0x2F28: (
+        "lex_emit",
+        "Prepare le token courant (adresse vide) puis passe a l'emission du type",
+    ),
+    0x2F30: (
+        "lex_type",
+        "Renseigne le type du token ($5B), combine l'adresse et rend la main",
+    ),
+    0x2F3B: (
+        "lex_restore",
+        "Restaure le pointeur d'entree sauvegarde apres le test d'abreviation",
+    ),
+    0x2F43: (
+        "word_finish",
+        "Mot trouve : suit un eventuel renvoi, extrait son type et son adresse de dictionnaire",
+    ),
+    0x2F47: (
+        "word_skip",
+        "Avance jusqu'au dernier octet de lettres du mot (bit7 pose)",
+    ),
+    0x2F60: (
+        "word_grammar",
+        "Teste le bit de renvoi de l'entree et suit la redirection de pointeur si pose",
+    ),
+    0x2F78: (
+        "word_type",
+        "Extrait le nibble de type (bits 6-5 des 2 premiers octets) et le range dans $5B",
+    ),
+    0x2FA3: (
+        "punct_class",
+        "Classe un signe de ponctuation : point ($B0), virgule ($A0) ou guillemet ($90)",
+    ),
+    0x2FB8: (
+        "punct_hit",
+        "Signe de ponctuation reconnu : avance le curseur et renvoie son type",
+    ),
+    0x2FBB: (
+        "dict_bucket",
+        "Decode les lettres du mot cherche et se place sur le seau de dictionnaire de sa 1re lettre",
+    ),
+    0x2FCE: (
+        "dict_start",
+        "Calcule le seau $0500[2*lettre] et positionne le pointeur sur sa 1re entree",
+    ),
+    0x2FEA: (
+        "dict_next",
+        "Avance de la taille de l'entree courante et compare la 1re lettre de la suivante",
+    ),
     0x2FF4: ("dict_cmp1", "Compare la 1re lettre de l'entree au mot cherche"),
-    0x3000: ("dict_read", "Entree correspondante : decode ses lettres dans $47D3 et mesure sa longueur"),
-    0x3008: ("dict_letters", "Decode les lettres 5 bits d'une entree de dictionnaire (bit7 = suite)"),
-    0x3012: ("dict_letter_next", "Gere les cas particuliers de 2 et 3 lettres (fin de mot)"),
-    0x302B: ("dict_end", "Fin des lettres : note la longueur du candidat ($67) et le bit de renvoi"),
-    0x3037: ("dict_done", "Fin de lecture d'une entree : rend Z (A=0) quand la 1re lettre correspond"),
-    0x303C: ("word_prefix_cmp", "Compare le mot saisi et le candidat sur la longueur commune (prefixe)"),
+    0x3000: (
+        "dict_read",
+        "Entree correspondante : decode ses lettres dans $47D3 et mesure sa longueur",
+    ),
+    0x3008: (
+        "dict_letters",
+        "Decode les lettres 5 bits d'une entree de dictionnaire (bit7 = suite)",
+    ),
+    0x3012: (
+        "dict_letter_next",
+        "Gere les cas particuliers de 2 et 3 lettres (fin de mot)",
+    ),
+    0x302B: (
+        "dict_end",
+        "Fin des lettres : note la longueur du candidat ($67) et le bit de renvoi",
+    ),
+    0x3037: (
+        "dict_done",
+        "Fin de lecture d'une entree : rend Z (A=0) quand la 1re lettre correspond",
+    ),
+    0x303C: (
+        "word_prefix_cmp",
+        "Compare le mot saisi et le candidat sur la longueur commune (prefixe)",
+    ),
     0x3048: ("cmp_min", "Longueur de comparaison = minimum des deux longueurs"),
     0x304B: ("cmp_loop", "Boucle de comparaison lettre a lettre"),
     0x305E: ("cmp_diff", "Difference trouvee : rend Z clair (A=1)"),
-    0x3065: ("cmd_store", "Recopie les mots de la commande du tampon de travail $4927 vers $4A17"),
+    0x3065: (
+        "cmd_store",
+        "Recopie les mots de la commande du tampon de travail $4927 vers $4A17",
+    ),
     # ---- Parser AnimTalk : grammaire / interpreteur ($3111-$356E) ----
     # parse_cmd() consomme la file de tokens $4783 et construit la commande
     # (verbe, objets, direction...) en dispatchant sur la classe du mot via
     # la table $315A. Les handlers partagent un petit enregistrement de travail
     # (24 octets) a (ptr2) et l'accumulateur de groupe nominal $A3..$AC.
-    0x3111: ("parse_cmd", "Analyse la suite de tokens et construit la commande (verbe, objets, deplacement)"),
-    0x311C: ("next_word", "Debut d'un nouveau mot a analyser (remet le compteur de virgules $9D)"),
-    0x3135: ("next_phrase", "Reinitialise l'accumulateur de groupe nominal et lit le token suivant"),
-    0x3144: ("dispatch", "Lit le token courant et saute vers le handler de sa classe (table $315A)"),
-    0x3172: ("cmd_end", "Classe 11 (point/THEN) : valide la fin de commande ou poursuit"),
-    0x328F: ("cls_direction", "Classe 2 (direction) : enregistre la direction demandee"),
-    0x3299: ("cls_adverb", "Classe 0 (adverbe) : annonce le mode de l'action (doucement, vite...)"),
-    0x32B9: ("cls_conj", "Classe 10 (AND / virgule) : enchainement de plusieurs objets"),
+    0x3111: (
+        "parse_cmd",
+        "Analyse la suite de tokens et construit la commande (verbe, objets, deplacement)",
+    ),
+    0x311C: (
+        "next_word",
+        "Debut d'un nouveau mot a analyser (remet le compteur de virgules $9D)",
+    ),
+    0x3135: (
+        "next_phrase",
+        "Reinitialise l'accumulateur de groupe nominal et lit le token suivant",
+    ),
+    0x3144: (
+        "dispatch",
+        "Lit le token courant et saute vers le handler de sa classe (table $315A)",
+    ),
+    0x3172: (
+        "cmd_end",
+        "Classe 11 (point/THEN) : valide la fin de commande ou poursuit",
+    ),
+    0x328F: (
+        "cls_direction",
+        "Classe 2 (direction) : enregistre la direction demandee",
+    ),
+    0x3299: (
+        "cls_adverb",
+        "Classe 0 (adverbe) : annonce le mode de l'action (doucement, vite...)",
+    ),
+    0x32B9: (
+        "cls_conj",
+        "Classe 10 (AND / virgule) : enchainement de plusieurs objets",
+    ),
     0x32E9: ("cls_go", "Classe 4 (GO/RUN) : verbes de deplacement"),
-    0x32F3: ("cls_verb", "Classe 3 (verbe) : fixe le verbe de la commande et attend ses objets"),
-    0x3374: ("cls_article", "Classe 8 (article/determinant : THE, A...) : annonce un nom et lit la suite"),
+    0x32F3: (
+        "cls_verb",
+        "Classe 3 (verbe) : fixe le verbe de la commande et attend ses objets",
+    ),
+    0x3374: (
+        "cls_article",
+        "Classe 8 (article/determinant : THE, A...) : annonce un nom et lit la suite",
+    ),
     0x337D: ("cls_prep_in", "Classe 1 (IN/INTO) : preposition de lieu"),
-    0x3390: ("cls_preposition", "Classe 7 (preposition : ON, THROUGH, WITH...) : separe sujet et complement"),
-    0x33BF: ("cls_adjective", "Classe 6 (adjectif) : ajoute un qualificatif au groupe nominal courant"),
+    0x3390: (
+        "cls_preposition",
+        "Classe 7 (preposition : ON, THROUGH, WITH...) : separe sujet et complement",
+    ),
+    0x33BF: (
+        "cls_adjective",
+        "Classe 6 (adjectif) : ajoute un qualificatif au groupe nominal courant",
+    ),
     0x33C8: ("cls_noun", "Classe 5 (nom) : enregistre l'objet ou le lieu designe"),
-    0x3471: ("rec_back_mode0", "Recule a l'enregistrement precedent puis remet le mode de commande a zero"),
+    0x3471: (
+        "rec_back_mode0",
+        "Recule a l'enregistrement precedent puis remet le mode de commande a zero",
+    ),
     0x3474: ("set_mode0", "Remet le mode de commande ($6E) a zero"),
-    0x3479: ("rec_clear", "Efface l'enregistrement de commande courant (26 octets a (ptr2))"),
-    0x3485: ("next_token", "Lit le token suivant de la file $4783 (type en $5A/$5B, adresse en adr)"),
-    0x34A7: ("rec_prev_dec", "Recule d'un enregistrement et decremente le compteur de commandes"),
-    0x34A9: ("rec_rewind", "Rembobine sur le premier enregistrement de la file courante"),
-    0x34B1: ("rec_rewind_loop", "Boucle de rembobinage (recule tant que le bit $40 est pose)"),
+    0x3479: (
+        "rec_clear",
+        "Efface l'enregistrement de commande courant (26 octets a (ptr2))",
+    ),
+    0x3485: (
+        "next_token",
+        "Lit le token suivant de la file $4783 (type en $5A/$5B, adresse en adr)",
+    ),
+    0x34A7: (
+        "rec_prev_dec",
+        "Recule d'un enregistrement et decremente le compteur de commandes",
+    ),
+    0x34A9: (
+        "rec_rewind",
+        "Rembobine sur le premier enregistrement de la file courante",
+    ),
+    0x34B1: (
+        "rec_rewind_loop",
+        "Boucle de rembobinage (recule tant que le bit $40 est pose)",
+    ),
     0x34BD: ("rec_prev", "Enregistrement precedent : (ptr2) -= $18"),
-    0x34CB: ("rec_fwd_dec", "Decremente le compteur et avance a l'enregistrement suivant"),
-    0x34D0: ("rec_merge", "Fusionne l'enregistrement pointe par (ptr) dans (ptr2) puis chaine le suivant"),
-    0x34F1: ("rec_fixup1", "Apres fusion : echange des champs si le drapeau $6D bit7 est pose"),
-    0x34F8: ("rec_swap6", "Echange 6 octets (+8..+$0D) avec (+$12..+$17) dans l'enregistrement"),
-    0x3516: ("rec_copy_check", "Copie un bloc de champs de l'enregistrement puis teste la suite"),
+    0x34CB: (
+        "rec_fwd_dec",
+        "Decremente le compteur et avance a l'enregistrement suivant",
+    ),
+    0x34D0: (
+        "rec_merge",
+        "Fusionne l'enregistrement pointe par (ptr) dans (ptr2) puis chaine le suivant",
+    ),
+    0x34F1: (
+        "rec_fixup1",
+        "Apres fusion : echange des champs si le drapeau $6D bit7 est pose",
+    ),
+    0x34F8: (
+        "rec_swap6",
+        "Echange 6 octets (+8..+$0D) avec (+$12..+$17) dans l'enregistrement",
+    ),
+    0x3516: (
+        "rec_copy_check",
+        "Copie un bloc de champs de l'enregistrement puis teste la suite",
+    ),
     0x3529: ("rec_copy6", "Copie 6 octets de (ptr) vers (ptr2)"),
     0x352E: ("rec_copy10", "Copie 10 octets de (ptr) vers (ptr2)"),
     0x3533: ("rec_copy2", "Copie 2 octets de (ptr) vers (ptr2)"),
     0x3535: ("copy_bytes", "Copie X octets de (ptr) vers (ptr2)"),
-    0x353E: ("rec_store_here", "Range l'adresse du mot courant dans le champ de l'enregistrement"),
+    0x353E: (
+        "rec_store_here",
+        "Range l'adresse du mot courant dans le champ de l'enregistrement",
+    ),
     0x3546: ("rec_store_at", "Ecrit adr/adr_hi a (ptr2)+2*X"),
     0x3552: ("parse_fail_pop", "Abandon : depile deux octets puis signale l'erreur"),
-    0x3554: ("parse_fail", "Echec du parseur : revient a la boucle de commandes avec 'WHAT ?'"),
-    0x355A: ("rec_rewind2", "Rembobine puis avance jusqu'au premier enregistrement marque"),
-    0x3562: ("rec_rewind2_loop", "Boucle d'avance (avance tant que le bit $40 est pose)"),
+    0x3554: (
+        "parse_fail",
+        "Echec du parseur : revient a la boucle de commandes avec 'WHAT ?'",
+    ),
+    0x355A: (
+        "rec_rewind2",
+        "Rembobine puis avance jusqu'au premier enregistrement marque",
+    ),
+    0x3562: (
+        "rec_rewind2_loop",
+        "Boucle d'avance (avance tant que le bit $40 est pose)",
+    ),
     0x356E: ("rec_next", "Enregistrement suivant : (ptr2) += $18"),
     0x440D: (
         "print_msg",
         "Affiche le message ecrit juste apres l'appel, puis reprend l'execution apres lui",
     ),
-    0x44BE: ("msgptr_inc", "Avance d'un cran le pointeur de lecture du message courant"),
+    0x44BE: (
+        "msgptr_inc",
+        "Avance d'un cran le pointeur de lecture du message courant",
+    ),
     0x4C82: (
         "is_dark",
         "Distingue un lieu sombre d'un lieu eclaire (lumiere portee) ; dit 'IT IS DARK.' si sombre",
@@ -299,9 +488,18 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "token_dispatch",
         "Saut vers la routine du marqueur courant (lue dans la table des marqueurs)",
     ),
-    0x44AE: ("text_end", "Termine un message et applique sa ponctuation finale (rien, point ou saut de ligne)"),
-    0x44C5: ("tok_nested", "Marqueur $00 : affiche un message imbrique (sous-message empile)"),
-    0x44F5: ("tok_stkword", "Marqueur $01 : affiche un mot dont l'adresse a ete empilee"),
+    0x44AE: (
+        "text_end",
+        "Termine un message et applique sa ponctuation finale (rien, point ou saut de ligne)",
+    ),
+    0x44C5: (
+        "tok_nested",
+        "Marqueur $00 : affiche un message imbrique (sous-message empile)",
+    ),
+    0x44F5: (
+        "tok_stkword",
+        "Marqueur $01 : affiche un mot dont l'adresse a ete empilee",
+    ),
     0x44FB: (
         "tok_skip",
         "Marqueur $02 : saute a un autre endroit du message (sans revenir)",
@@ -310,7 +508,10 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "tok_noop",
         "Marqueurs $05/$0A/$0F/$12 : sans effet",
     ),
-    0x452E: ("tok_objw", "Marqueur $03 : affiche le mot pointe par le pointeur de travail"),
+    0x452E: (
+        "tok_objw",
+        "Marqueur $03 : affiche le mot pointe par le pointeur de travail",
+    ),
     0x4539: (
         "tok_stkvar",
         "Marqueur $04 : affiche un mot empile (variante selon le contexte)",
@@ -339,40 +540,85 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Marqueur $10 : affiche le nom de l'objet ('is' si absent, 'someone' si inconnu)",
     ),
     0x45F4: ("tok_name15", "Marqueur $11 : nom de l'autre objet"),
-    0x45FC: ("tok_nameSTK", "Marqueur $13 : nom de l'objet dont l'adresse a ete empilee"),
+    0x45FC: (
+        "tok_nameSTK",
+        "Marqueur $13 : nom de l'objet dont l'adresse a ete empilee",
+    ),
     0x44E4: ("stk_pop", "Depile une adresse de la pile de messages"),
     0x460A: (
         "nested_render",
         "Affiche un message imbrique en preservant l'etat du rendu courant",
     ),
-    0x461B: ("obj_lookup", "Traduit un identifiant d'objet en son nom ('someone' si inconnu)"),
-    0x46DB: ("cr_aware_out", "Affiche un caractere, en signalant les retours a la ligne"),
+    0x461B: (
+        "obj_lookup",
+        "Traduit un identifiant d'objet en son nom ('someone' si inconnu)",
+    ),
+    0x46DB: (
+        "cr_aware_out",
+        "Affiche un caractere, en signalant les retours a la ligne",
+    ),
     0x42CE: (
         "word_space",
         "Place les espaces entre les mots et coupe la ligne en fin d'ecran",
     ),
     # Evenements differes : table $2B12 (entrees de 5 octets [id,cpt,actA,cond,actB],
     # terminee par $FF), balayee par world_tick ; actions via la table de sauts $7169.
-    0x4E75: ("evt_tick", "Parcourt les evenements differes : decompte leur minuterie et declenche leur action quand elle est atteinte"),
-    0x4E9D: ("evt_cond", "Teste si la condition d'un evenement est remplie pour le declencher"),
-    0x4EAB: ("evt_fire", "Execute l'action d'un evenement en allant chercher son adresse dans une table"),
+    0x4E75: (
+        "evt_tick",
+        "Parcourt les evenements differes : decompte leur minuterie et declenche leur action quand elle est atteinte",
+    ),
+    0x4E9D: (
+        "evt_cond",
+        "Teste si la condition d'un evenement est remplie pour le declencher",
+    ),
+    0x4EAB: (
+        "evt_fire",
+        "Execute l'action d'un evenement en allant chercher son adresse dans une table",
+    ),
     0x4ECC: ("evt_end", "Fin de la liste des evenements : rend la main"),
-    0x5DE2: ("evt_lookup", "Retrouve l'evenement associe a une cle (table des evenements)"),
+    0x5DE2: (
+        "evt_lookup",
+        "Retrouve l'evenement associe a une cle (table des evenements)",
+    ),
     0x6689: ("evt_disarme6", "Desarme l'evenement e6 (remet sa minuterie a zero)"),
     0x66AA: ("evt_arme6", "Arme l'evenement e6 avec un delai aleatoire (2 a 10)"),
     0x65A5: ("evt_arme3", "Arme l'evenement e3 (minuterie = id) apres une action"),
-    0x6A19: ("evt_disarme7", "Desarme l'evenement e7 dans un cas particulier (objet present)"),
-    0x6AEB: ("evt_arme9b", "Arme l'evenement e9 (minuterie 6) puis affiche le trou qui disparait"),
+    0x6A19: (
+        "evt_disarme7",
+        "Desarme l'evenement e7 dans un cas particulier (objet present)",
+    ),
+    0x6AEB: (
+        "evt_arme9b",
+        "Arme l'evenement e9 (minuterie 6) puis affiche le trou qui disparait",
+    ),
     0x6B66: ("evt_arme5", "Arme l'evenement e5 et affiche 'magic door'"),
-    0x6C5F: ("evt_act5", "Action de l'evenement e4 : au marais affiche un message, sinon desarme e4"),
+    0x6C5F: (
+        "evt_act5",
+        "Action de l'evenement e4 : au marais affiche un message, sinon desarme e4",
+    ),
     0x6D72: ("evt_print", "Affiche le trou qui disparait"),
     0x6915: ("evt_tip", "Tirage (~20%) : affiche 'expect me'"),
-    0x70B5: ("evt_arme16", "Cle $16 : dans un cas precis, fait apparaitre une entite et arme l'evenement"),
-    0x70CB: ("evt_arme2", "Arme l'evenement e2 (minuterie = id) ; declenche par la cle $1A"),
-    0x70D2: ("evt_arme4", "Arme l'evenement e4 (minuterie = id) ; declenche par la cle $1D"),
-    0x70D9: ("evt_arme9", "Arme l'evenement e9 et place des entites ; declenche par la cle $20"),
+    0x70B5: (
+        "evt_arme16",
+        "Cle $16 : dans un cas precis, fait apparaitre une entite et arme l'evenement",
+    ),
+    0x70CB: (
+        "evt_arme2",
+        "Arme l'evenement e2 (minuterie = id) ; declenche par la cle $1A",
+    ),
+    0x70D2: (
+        "evt_arme4",
+        "Arme l'evenement e4 (minuterie = id) ; declenche par la cle $1D",
+    ),
+    0x70D9: (
+        "evt_arme9",
+        "Arme l'evenement e9 et place des entites ; declenche par la cle $20",
+    ),
     0x70F8: ("evt_arme8", "Declenche par les cles $02/$03 : rearme l'evenement e8"),
-    0x7103: ("evt_gate21", "Cle $21 : dans un cas precis, declenche un ecran et affiche"),
+    0x7103: (
+        "evt_gate21",
+        "Cle $21 : dans un cas precis, declenche un ecran et affiche",
+    ),
     0x4E59: (
         "world_tick",
         "Fait vivre le monde apres chaque commande : PNJ (scripts), puis evenements differes",
@@ -410,16 +656,43 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Fait jouer le script d'un personnage (se deplacer, parler...), meme loin du joueur",
     ),
     0x5020: ("script_adv", "Avance d'un cran le script d'un personnage"),
-    0x502A: ("script_step4", "Passage a l'instruction suivante du script d'un personnage"),
-    0x502C: ("script_step2", "Passage a l'instruction suivante du script (version courte)"),
-    0x511C: ("entity_move", "Deplace un personnage et annonce son mouvement s'il est visible"),
-    0x5249: ("entity_goto", "Fait sauter le script d'un personnage a une autre instruction"),
-    0x5279: ("say_if_visible", "Affiche un message si le personnage est au meme endroit que le joueur"),
-    0x36DB: ("move_core", "Coeur du deplacement : trouve la sortie, verifie ses conditions, puis deplace ou refuse"),
-    0x43CB: ("exit_ptr", "Retrouve la fiche de la sortie demandee dans la table des sorties du lieu"),
+    0x502A: (
+        "script_step4",
+        "Passage a l'instruction suivante du script d'un personnage",
+    ),
+    0x502C: (
+        "script_step2",
+        "Passage a l'instruction suivante du script (version courte)",
+    ),
+    0x511C: (
+        "entity_move",
+        "Deplace un personnage et annonce son mouvement s'il est visible",
+    ),
+    0x5249: (
+        "entity_goto",
+        "Fait sauter le script d'un personnage a une autre instruction",
+    ),
+    0x5279: (
+        "say_if_visible",
+        "Affiche un message si le personnage est au meme endroit que le joueur",
+    ),
+    0x36DB: (
+        "move_core",
+        "Coeur du deplacement : trouve la sortie, verifie ses conditions, puis deplace ou refuse",
+    ),
+    0x43CB: (
+        "exit_ptr",
+        "Retrouve la fiche de la sortie demandee dans la table des sorties du lieu",
+    ),
     0x3759: ("cond_eval", "Prepare la condition a remplir pour emprunter une sortie"),
-    0x3770: ("move_flags", "Met de cote les options de la sortie (directe ou en variante)"),
-    0x5386: ("act_probe", "Teste une action : soit l'execute, soit annule et retient qu'elle passe (mode sonde)"),
+    0x3770: (
+        "move_flags",
+        "Met de cote les options de la sortie (directe ou en variante)",
+    ),
+    0x5386: (
+        "act_probe",
+        "Teste une action : soit l'execute, soit annule et retient qu'elle passe (mode sonde)",
+    ),
     0x56D7: ("rand_range", "Fabrique un nombre aleatoire borne"),
     0x5B24: ("act_msg", "Affiche le message d'une action puis termine l'action"),
     # Actions dispatchees par la table L7014 (index 0-14), declenchees par
@@ -451,8 +724,14 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "act_p14_06",
         "Dit que la cle ne va pas sur cette serrure, ou qu'on ne peut pas faire ca",
     ),
-    0x65F1: ("act_p14_10", "Selon le type de l'objet, poursuit un traitement ou un autre"),
-    0x66D6: ("act_p14_11", "Araignees : annonce qu'elles tissent leur toile et arme un evenement"),
+    0x65F1: (
+        "act_p14_10",
+        "Selon le type de l'objet, poursuit un traitement ou un autre",
+    ),
+    0x66D6: (
+        "act_p14_11",
+        "Araignees : annonce qu'elles tissent leur toile et arme un evenement",
+    ),
     0x6B72: (
         "act_p14_09",
         "Pour un objet donne, parcourt une liste et affiche 'go...from...to'",
@@ -472,12 +751,18 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "PNJ : au meme endroit et sans drapeau, dit 'WHERE'S the thief ?'",
     ),
     0x697A: ("act_v14_05", "PNJ : dans un lieu precis, ajuste un compteur"),
-    0x6C09: ("act_v14_12", "Gollum : au bon endroit, affiche un message (prepare par le jeu)"),
+    0x6C09: (
+        "act_v14_12",
+        "Gollum : au bon endroit, affiche un message (prepare par le jeu)",
+    ),
     0x6C33: (
         "act_v14_11",
         "Action jouee une seule fois : remet un verrou et memorise des valeurs",
     ),
-    0x6C8D: ("act_v14_09", "PNJ : dans certains lieux, annonce l'arrivee d'un personnage"),
+    0x6C8D: (
+        "act_v14_09",
+        "PNJ : dans certains lieux, annonce l'arrivee d'un personnage",
+    ),
     0x6CBE: (
         "act_v14_10",
         "Dragon au meme endroit : annonce 'PREPARE TO DIE' ou l'aveuglement",
@@ -513,7 +798,10 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "indirect_call",
         "Appelle la routine dont l'adresse a ete posee dans $4C64/$4C65 (dispatch des tables d'actions)",
     ),
-    0x5008: ("entity_tick_done", "Fin de la table des entites : restaure le contexte du joueur"),
+    0x5008: (
+        "entity_tick_done",
+        "Fin de la table des entites : restaure le contexte du joueur",
+    ),
     0x5048: (
         "script_move",
         "Opcode MOVE long : avance le PC puis deplace le personnage (ou joue l'action ACT)",
@@ -534,8 +822,14 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "script_indir",
         "Opcode INDIR : saute a la cible choisie dans la table de base de l'entite",
     ),
-    0x520D: ("entity_find", "Retrouve l'entree d'un personnage par son id dans la table $2B45"),
-    0x5235: ("entity_tick_init", "Init du tick : lieu du joueur, detection du noir, compteur de bruit"),
+    0x520D: (
+        "entity_find",
+        "Retrouve l'entree d'un personnage par son id dans la table $2B45",
+    ),
+    0x5235: (
+        "entity_tick_init",
+        "Init du tick : lieu du joueur, detection du noir, compteur de bruit",
+    ),
     # ---- AnimAction : moteur d'errance / placement des PNJ ($3E5B-$406F) ----
     # Quand un personnage doit se deplacer seul (errance), le jeu empile ses
     # commandes dans $4905 et evalue les destinations candidates ($48D3) sous
@@ -544,7 +838,10 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "actq_pull",
         "Retire l'action suivante de la file $4905 et prepare ses tokens (reprise du parseur)",
     ),
-    0x3E8E: ("cand_check", "Teste si le personnage courant figure dans la liste de candidats $48D3"),
+    0x3E8E: (
+        "cand_check",
+        "Teste si le personnage courant figure dans la liste de candidats $48D3",
+    ),
     0x3EB2: (
         "wander_core",
         "Coeur du moteur d'errance : parse les deplacements en file et calcule leur poids",
@@ -589,24 +886,54 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "wander_pack_byte",
         "Boucle interne d'empilement : un octet d'enregistrement a la fois",
     ),
-    0x3F7F: ("wander_start", "Declenche le deplacement d'errance retenu pour le personnage courant"),
+    0x3F7F: (
+        "wander_start",
+        "Declenche le deplacement d'errance retenu pour le personnage courant",
+    ),
     0x3F8E: (
         "wander_step",
         "Execute le deplacement d'errance : choisit un candidat, tente le move, memorise l'echec",
     ),
-    0x3FE5: ("wander_rewind", "Rembobine la file des commandes et consomme le poids du deplacement"),
-    0x4035: ("wander_select", "Selectionne l'entree candidate (index) et pointe sa suite de commandes"),
-    0x4051: ("wander_remove", "Retire un personnage de la liste des candidats d'errance"),
+    0x3FE5: (
+        "wander_rewind",
+        "Rembobine la file des commandes et consomme le poids du deplacement",
+    ),
+    0x4035: (
+        "wander_select",
+        "Selectionne l'entree candidate (index) et pointe sa suite de commandes",
+    ),
+    0x4051: (
+        "wander_remove",
+        "Retire un personnage de la liste des candidats d'errance",
+    ),
     0x4737: ("fetch_retaddr", "Recupere l'adresse de retour empilee"),
     0x71DB: ("tape_load", "Charge un bloc depuis la cassette et verifie son en-tete"),
-    0x7215: ("tape_save", "Ecrit un bloc sur la cassette (leader, en-tete, donnees, checksum)"),
-    0x72A0: ("tape_prompt", "Affiche les invites de cassette ('PREPARE TAPE', 'PRESS ANY KEY'...)"),
-    0x7353: ("kb_scan", "Lit le clavier : renvoie la touche appuyee, ou 'aucune touche'"),
+    0x7215: (
+        "tape_save",
+        "Ecrit un bloc sur la cassette (leader, en-tete, donnees, checksum)",
+    ),
+    0x72A0: (
+        "tape_prompt",
+        "Affiche les invites de cassette ('PREPARE TAPE', 'PRESS ANY KEY'...)",
+    ),
+    0x7353: (
+        "kb_scan",
+        "Lit le clavier : renvoie la touche appuyee, ou 'aucune touche'",
+    ),
     0x7481: ("kb_wait", "Attend que le joueur appuie sur une touche"),
     0x7489: ("cr_out", "Affiche un retour a la ligne"),
-    0x7491: ("ch_out", "Point d'entree de l'affichage : peut ignorer certains caracteres selon le contexte"),
-    0x75B4: ("glyph_out", "Dessine un caractere a l'ecran graphique avec la police du jeu"),
-    0x75F6: ("ch_put", "Affiche un caractere : gere espaces, saut de ligne, effacement, majuscules et pause"),
+    0x7491: (
+        "ch_out",
+        "Point d'entree de l'affichage : peut ignorer certains caracteres selon le contexte",
+    ),
+    0x75B4: (
+        "glyph_out",
+        "Dessine un caractere a l'ecran graphique avec la police du jeu",
+    ),
+    0x75F6: (
+        "ch_put",
+        "Affiche un caractere : gere espaces, saut de ligne, effacement, majuscules et pause",
+    ),
     0x7619: (
         "pause_key",
         "Toutes les 16 lignes, marque une pause pour laisser le joueur lire",
@@ -641,203 +968,638 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "vec_setup",
         "Prepare l'ecran pour une illustration",
     ),
-    0x79FB: ("vec_testpx", "Illustration : teste si un pixel est dans la zone dessinable"),
+    0x79FB: (
+        "vec_testpx",
+        "Illustration : teste si un pixel est dans la zone dessinable",
+    ),
     0x7A0F: ("vec_plot", "Illustration : allume un pixel"),
     0x7A22: ("vec_addr", "Illustration : calcule l'adresse d'un pixel"),
     # ---- Execution d'une commande joueur / description ----
-    0x357C: ("cmd_run", "Chaine d'execution d'une commande joueur : tente le deplacement, sinon lance l'action"),
-    0x36D5: ("cmd_probe", "Rejoue la commande en mode sonde (phase=0) et renvoie passok : l'action passe-t-elle ?"),
-    0x4B37: ("perform_action", "Execute la commande du joueur : verifie noirceur et compatibilite verbe/objet, puis lance l'action"),
-    0x417C: ("describe_room", "Decrit le lieu courant : nom, sorties visibles (LOOK et arrivee dans un lieu)"),
-    0x4D84: ("intro_look", "Premier regard au demarrage : cale la fiche du joueur puis decrit le lieu de depart"),
-    0x4D47: ("unit_remove", "Retire un personnage du jeu : marque son record puis le sort des listes d'etat et d'errance"),
-    0x3B75: ("special_cmd", "Dispatch des commandes speciales (SAVE/LOAD/QUIT/HELP/SCORE/PAUSE/ALL/EXCEPT/IT/ONE/PRINT)"),
+    0x357C: (
+        "cmd_run",
+        "Chaine d'execution d'une commande joueur : tente le deplacement, sinon lance l'action",
+    ),
+    0x36D5: (
+        "cmd_probe",
+        "Rejoue la commande en mode sonde (phase=0) et renvoie passok : l'action passe-t-elle ?",
+    ),
+    0x4B37: (
+        "perform_action",
+        "Execute la commande du joueur : verifie noirceur et compatibilite verbe/objet, puis lance l'action",
+    ),
+    0x417C: (
+        "describe_room",
+        "Decrit le lieu courant : nom, sorties visibles (LOOK et arrivee dans un lieu)",
+    ),
+    0x4D84: (
+        "intro_look",
+        "Premier regard au demarrage : cale la fiche du joueur puis decrit le lieu de depart",
+    ),
+    0x4D47: (
+        "unit_remove",
+        "Retire un personnage du jeu : marque son record puis le sort des listes d'etat et d'errance",
+    ),
+    0x3B75: (
+        "special_cmd",
+        "Dispatch des commandes speciales (SAVE/LOAD/QUIT/HELP/SCORE/PAUSE/ALL/EXCEPT/IT/ONE/PRINT)",
+    ),
     # ---- Deplacement joueur : entree et essais en deux temps ----
-    0x358F: ("move_raz", "Remet a zero l'espace de resolution ($D7-$E7) et le mode brut avant un essai de deplacement"),
-    0x359B: ("move_begin", "Entree du deplacement : force arg1/arg2=$FF, raz puis cherche la sortie correspondant au mot"),
-    0x35AE: ("move_go", "Suite d'un deplacement : cale wid sur l'index de sortie ($6C), derive les options et tente l'essai"),
-    0x35E4: ("move_iter", "Un essai de deplacement : resout un objet-porte, sinon enchaine sur l'essai suivant"),
-    0x35FD: ("move_iter2", "Essai suivant : incremente le compteur d'objet ($D9) et reprend la resolution"),
-    0x361C: ("move_iter_none", "Aucun objet-porte : rejoue l'action en sonde (cmd_probe) puis reprend"),
-    0x3622: ("move_second", "Resout le 2e operateur d'un deplacement a plusieurs objets"),
-    0x363E: ("move_find_obj", "Cherche dans les records un objet-porte (record+1 bit6) dont l'id vaut arg1"),
-    0x3674: ("move_saveopt", "Met de cote les options de la sortie (svptr) sauf si une annonce est en cours ($7E)"),
-    0x3679: ("move_saveptr", "Sauve le pointeur de travail dans svptr (branche directe)"),
+    0x358F: (
+        "move_raz",
+        "Remet a zero l'espace de resolution ($D7-$E7) et le mode brut avant un essai de deplacement",
+    ),
+    0x359B: (
+        "move_begin",
+        "Entree du deplacement : force arg1/arg2=$FF, raz puis cherche la sortie correspondant au mot",
+    ),
+    0x35AE: (
+        "move_go",
+        "Suite d'un deplacement : cale wid sur l'index de sortie ($6C), derive les options et tente l'essai",
+    ),
+    0x35E4: (
+        "move_iter",
+        "Un essai de deplacement : resout un objet-porte, sinon enchaine sur l'essai suivant",
+    ),
+    0x35FD: (
+        "move_iter2",
+        "Essai suivant : incremente le compteur d'objet ($D9) et reprend la resolution",
+    ),
+    0x361C: (
+        "move_iter_none",
+        "Aucun objet-porte : rejoue l'action en sonde (cmd_probe) puis reprend",
+    ),
+    0x3622: (
+        "move_second",
+        "Resout le 2e operateur d'un deplacement a plusieurs objets",
+    ),
+    0x363E: (
+        "move_find_obj",
+        "Cherche dans les records un objet-porte (record+1 bit6) dont l'id vaut arg1",
+    ),
+    0x3674: (
+        "move_saveopt",
+        "Met de cote les options de la sortie (svptr) sauf si une annonce est en cours ($7E)",
+    ),
+    0x3679: (
+        "move_saveptr",
+        "Sauve le pointeur de travail dans svptr (branche directe)",
+    ),
     0x3690: ("move_saveptr2", "Meme sauvegarde pour la variante (dans $EA/$EB)"),
-    0x36A5: ("move_pick_tbl", "Choisit la table de conditions (directe $1A5F / etendue $1A62) selon xaux"),
-    0x36BB: ("move_gate", "Porte de controle du deplacement : teste xmode/$D8 et rend 1 (continuer) ou 0"),
-    0x3743: ("move_core_end", "Fin de move_core : restaure les pointeurs de travail et rend le resultat"),
+    0x36A5: (
+        "move_pick_tbl",
+        "Choisit la table de conditions (directe $1A5F / etendue $1A62) selon xaux",
+    ),
+    0x36BB: (
+        "move_gate",
+        "Porte de controle du deplacement : teste xmode/$D8 et rend 1 (continuer) ou 0",
+    ),
+    0x3743: (
+        "move_core_end",
+        "Fin de move_core : restaure les pointeurs de travail et rend le resultat",
+    ),
     # ---- Resolution de la sortie et des operandes ($37xx-$39xx) ----
-    0x3790: ("exit_resolve", "Construit les arguments VM de la commande puis cherche la sortie du lieu correspondant au mot"),
-    0x37DE: ("exit_scan", "Boucle de parcours des sorties du lieu (pas de 8) jusqu'a correspondance ou fin de table"),
+    0x3790: (
+        "exit_resolve",
+        "Construit les arguments VM de la commande puis cherche la sortie du lieu correspondant au mot",
+    ),
+    0x37DE: (
+        "exit_scan",
+        "Boucle de parcours des sorties du lieu (pas de 8) jusqu'a correspondance ou fin de table",
+    ),
     0x3804: ("exit_found", "Sortie trouvee : assemble ses arguments et rend 1"),
-    0x380A: ("exit_build_args", "Prepare les 2 operandes de la sortie (echange + copie des conditions) et leurs offsets"),
+    0x380A: (
+        "exit_build_args",
+        "Prepare les 2 operandes de la sortie (echange + copie des conditions) et leurs offsets",
+    ),
     0x384A: ("exit_arg_swap", "Mise en forme des operandes : echange selon xmode"),
     0x3851: ("exit_arg_mix", "Suite de mise en forme des operandes (bits de xmode)"),
-    0x3868: ("exit_arg_load", "Charge les conditions de la sortie dans l'espace de travail"),
-    0x38A0: ("op_load_cond", "Copie des octets de condition depuis le record vers l'espace de travail"),
-    0x38C9: ("op_copy_pair", "Recopie une paire d'operandes (mot + masque) du record de commande"),
-    0x38E2: ("op_stub", "Saut indirect auto-modifie vers le matcher ($53C3 direct ou $54F8 variante)"),
-    0x38E5: ("op_resolve1", "Boucle de resolution du 1er operande : essaye chaque candidat jusqu'a ce que l'action passe"),
-    0x3908: ("op_loop1", "Corps de la boucle de resolution du 1er operande (sauve/restaure les pointeurs)"),
-    0x3928: ("op_step1", "Un candidat du 1er operande : matche, pose arg1 et rejoue l'action (cmd_probe)"),
+    0x3868: (
+        "exit_arg_load",
+        "Charge les conditions de la sortie dans l'espace de travail",
+    ),
+    0x38A0: (
+        "op_load_cond",
+        "Copie des octets de condition depuis le record vers l'espace de travail",
+    ),
+    0x38C9: (
+        "op_copy_pair",
+        "Recopie une paire d'operandes (mot + masque) du record de commande",
+    ),
+    0x38E2: (
+        "op_stub",
+        "Saut indirect auto-modifie vers le matcher ($53C3 direct ou $54F8 variante)",
+    ),
+    0x38E5: (
+        "op_resolve1",
+        "Boucle de resolution du 1er operande : essaye chaque candidat jusqu'a ce que l'action passe",
+    ),
+    0x3908: (
+        "op_loop1",
+        "Corps de la boucle de resolution du 1er operande (sauve/restaure les pointeurs)",
+    ),
+    0x3928: (
+        "op_step1",
+        "Un candidat du 1er operande : matche, pose arg1 et rejoue l'action (cmd_probe)",
+    ),
     0x3948: ("op_resolve2", "Boucle de resolution du 2e operande"),
     0x396D: ("op_loop2", "Corps de la boucle de resolution du 2e operande"),
-    0x3993: ("op_step2", "Un candidat du 2e operande : matche, pose arg2 et rejoue l'action"),
+    0x3993: (
+        "op_step2",
+        "Un candidat du 2e operande : matche, pose arg2 et rejoue l'action",
+    ),
     # ---- Assemblage des arguments VM / revision d'action ($39xx-$3Bxx) ----
-    0x39B1: ("print_spc", "Affiche le message inline en mode reel (raw=1, phase=1) ; variante de print_msg"),
+    0x39B1: (
+        "print_spc",
+        "Affiche le message inline en mode reel (raw=1, phase=1) ; variante de print_msg",
+    ),
     0x39B7: ("set_real", "Repasse en mode reel : raw=1 et phase=1"),
-    0x39BE: ("vm_arg_set", "Copie le record de commande (24 o) vers le tampon de travail $490F"),
-    0x39CF: ("rev_1", "Assemble un argument depuis l'espace de travail, affiche le message puis rend 1"),
-    0x39D3: ("rev_1_loop", "Corps de rev_1 : copie une paire d'octets vers l'argument VM"),
-    0x39EE: ("rev_dispatch", "Aiguillage de revision d'apres les etats $D8/$DB (2e operande)"),
-    0x3A0B: ("rev_dispatch2", "Aiguillage de revision d'apres les compteurs $DA/$D9 (1er operande)"),
+    0x39BE: (
+        "vm_arg_set",
+        "Copie le record de commande (24 o) vers le tampon de travail $490F",
+    ),
+    0x39CF: (
+        "rev_1",
+        "Assemble un argument depuis l'espace de travail, affiche le message puis rend 1",
+    ),
+    0x39D3: (
+        "rev_1_loop",
+        "Corps de rev_1 : copie une paire d'octets vers l'argument VM",
+    ),
+    0x39EE: (
+        "rev_dispatch",
+        "Aiguillage de revision d'apres les etats $D8/$DB (2e operande)",
+    ),
+    0x3A0B: (
+        "rev_dispatch2",
+        "Aiguillage de revision d'apres les compteurs $DA/$D9 (1er operande)",
+    ),
     0x3A2D: ("rev_real", "Rejoue l'action en mode reel (set_real + perform_action)"),
     0x3A36: ("rev_obj2", "Resolution du 2e objet en variante puis reprise de l'action"),
     0x3A6B: ("rev_obj1", "Resolution du 1er objet en direct puis reprise de l'action"),
-    0x3AB5: ("rev_exec2", "Assemble les arguments VM et enchaine l'execution (variante 2)"),
-    0x3ADF: ("rev_exec1", "Assemble les arguments VM et enchaine l'execution (variante 1)"),
+    0x3AB5: (
+        "rev_exec2",
+        "Assemble les arguments VM et enchaine l'execution (variante 2)",
+    ),
+    0x3ADF: (
+        "rev_exec1",
+        "Assemble les arguments VM et enchaine l'execution (variante 1)",
+    ),
     0x3B21: ("rev_sel_lo", "Fixe la source des 2 derniers mots d'argument (jeu bas)"),
     0x3B26: ("rev_sel_hi", "Fixe la source des 2 derniers mots d'argument (jeu haut)"),
-    0x3B28: ("rev_sel", "Ajoute conditionnellement 2 mots de la fiche de sortie au bloc d'arguments"),
+    0x3B28: (
+        "rev_sel",
+        "Ajoute conditionnellement 2 mots de la fiche de sortie au bloc d'arguments",
+    ),
     0x3B52: ("rev_sel2", "Seconde partie de rev_sel (octet +7 bit7 de la sortie)"),
     # ---- Epilogue d'action ----
-    0x5A62: ("act_look", "Epilogue d'action : en mode reel decrit le lieu (describe_room), en sonde rend passok=0"),
+    0x5A62: (
+        "act_look",
+        "Epilogue d'action : en mode reel decrit le lieu (describe_room), en sonde rend passok=0",
+    ),
     # ---- Objets, records et tables ----
-    0x530B: ("room_record", "Retrouve la fiche d'un lieu a partir de son identifiant (table $2070, id < $50)"),
-    0x5331: ("obj_record", "Retrouve la fiche d'un objet a partir de son identifiant (table $1A62)"),
-    0x5399: ("tbl_lookup", "Cherche une cle dans une table d'entrees de 3 octets [cle,lo,hi], fin $FF"),
+    0x530B: (
+        "room_record",
+        "Retrouve la fiche d'un lieu a partir de son identifiant (table $2070, id < $50)",
+    ),
+    0x5331: (
+        "obj_record",
+        "Retrouve la fiche d'un objet a partir de son identifiant (table $1A62)",
+    ),
+    0x5399: (
+        "tbl_lookup",
+        "Cherche une cle dans une table d'entrees de 3 octets [cle,lo,hi], fin $FF",
+    ),
     0x5394: ("tbl_lookup2", "Comme tbl_lookup, mais pour des entrees de 2 octets"),
-    0x52EA: ("verb_obj_ok", "Teste si le verbe courant est autorise pour l'objet (liste attachee au record)"),
-    0x4CDF: ("obj_check", "Verifie l'etat d'un objet avant l'action (porteur, presence) ; peut annoncer qui le porte"),
+    0x52EA: (
+        "verb_obj_ok",
+        "Teste si le verbe courant est autorise pour l'objet (liste attachee au record)",
+    ),
+    0x4CDF: (
+        "obj_check",
+        "Verifie l'etat d'un objet avant l'action (porteur, presence) ; peut annoncer qui le porte",
+    ),
     # ---- Pile interne des pointeurs de travail ($0200) ----
-    0x46E6: ("push_ptr", "Sauvegarde ptr ($8A) puis ptr2 ($88) sur la pile interne $0200"),
+    0x46E6: (
+        "push_ptr",
+        "Sauvegarde ptr ($8A) puis ptr2 ($88) sur la pile interne $0200",
+    ),
     0x4702: ("push_ptr2", "Sauvegarde ptr2 ($88) sur la pile interne $0200"),
-    0x471B: ("pop_ptr2", "Restaure ptr2 ($88) depuis la pile interne $0200 puis rend la main"),
+    0x471B: (
+        "pop_ptr2",
+        "Restaure ptr2 ($88) depuis la pile interne $0200 puis rend la main",
+    ),
     0x471E: ("pop_ptr", "Restaure ptr ($8A) depuis la pile interne $0200"),
     # ---- Documentation exhaustive des routines restees anonymes (Lxxxx/code_xxxx) ----
     # Deuxieme passe : chaque sous-routine encore non baptisee est nommee et
     # resume en une ligne (cf. docs/block4-analysis.md). Regroupees par sous-systeme.
     # -- Boot / parser : utilitaires internes --
-    0x30DF: ("boot_ptr_step", "Avance les pointeurs de copie (ptr, $8C) et recule ptr2 d'un cran ; rend Z en fin de segment"),
-    0x340B: ("noun_slot_set6", "Cherche un emplacement libre du groupe nominal a partir de l'offset 6 et y range l'adresse du mot"),
-    0x3429: ("noun_prep_count", "Compteur de prepositions ($9D) : +1, echoue au-dela de 2, sinon cherche un emplacement"),
-    0x343A: ("noun_slot_put", "Range le groupe nominal courant dans l'enregistrement de commande (offset selon $6D) ou echoue"),
-    0x3466: ("noun_store_adj", "Range le groupe nominal courant a l'offset 4 de l'enregistrement (cas adjectif)"),
+    0x30DF: (
+        "boot_ptr_step",
+        "Avance les pointeurs de copie (ptr, $8C) et recule ptr2 d'un cran ; rend Z en fin de segment",
+    ),
+    0x340B: (
+        "noun_slot_set6",
+        "Cherche un emplacement libre du groupe nominal a partir de l'offset 6 et y range l'adresse du mot",
+    ),
+    0x3429: (
+        "noun_prep_count",
+        "Compteur de prepositions ($9D) : +1, echoue au-dela de 2, sinon cherche un emplacement",
+    ),
+    0x343A: (
+        "noun_slot_put",
+        "Range le groupe nominal courant dans l'enregistrement de commande (offset selon $6D) ou echoue",
+    ),
+    0x3466: (
+        "noun_store_adj",
+        "Range le groupe nominal courant a l'offset 4 de l'enregistrement (cas adjectif)",
+    ),
     # -- Commandes speciales / errance --
-    0x3C46: ("one_flag_store", "IT/ONE : selon le bit7 de $6D, range le groupe nominal a l'offset 4 ou $0E"),
-    0x3CD4: ("score_show", "SCORE : affiche 'YOU HAVE MASTERED' puis le pourcentage du score (code_3CE0)"),
-    0x3D14: ("score_digit", "SCORE : extrait un chiffre decimal d'un compteur BCD par soustractions repetees"),
-    0x3D6A: ("load_block", "LOAD : charge un bloc via tape_tramp et vec_02 ; en echec affiche TAPE LOADING ERROR"),
-    0x3E95: ("wander_reset", "Moteur d'errance : remet a zero les index de parcours (X/Y) avant le balayage"),
-    0x4038: ("wander_add_cand", "Moteur d'errance : retient un candidat $48D3 (index cand, poids mwt)"),
-    0x406D: ("read_key", "Lit une touche au clavier (kb_scan) et signale si une touche est presente"),
-    0x40AC: ("line_clear", "Efface toute la ligne de saisie (touche DEL) et repositionne le curseur"),
+    0x3C46: (
+        "one_flag_store",
+        "IT/ONE : selon le bit7 de $6D, range le groupe nominal a l'offset 4 ou $0E",
+    ),
+    0x3CD4: (
+        "score_show",
+        "SCORE : affiche 'YOU HAVE MASTERED' puis le pourcentage du score (code_3CE0)",
+    ),
+    0x3D14: (
+        "score_digit",
+        "SCORE : extrait un chiffre decimal d'un compteur BCD par soustractions repetees",
+    ),
+    0x3D6A: (
+        "load_block",
+        "LOAD : charge un bloc via tape_tramp et vec_02 ; en echec affiche TAPE LOADING ERROR",
+    ),
+    0x3E95: (
+        "wander_reset",
+        "Moteur d'errance : remet a zero les index de parcours (X/Y) avant le balayage",
+    ),
+    0x4038: (
+        "wander_add_cand",
+        "Moteur d'errance : retient un candidat $48D3 (index cand, poids mwt)",
+    ),
+    0x406D: (
+        "read_key",
+        "Lit une touche au clavier (kb_scan) et signale si une touche est presente",
+    ),
+    0x40AC: (
+        "line_clear",
+        "Efface toute la ligne de saisie (touche DEL) et repositionne le curseur",
+    ),
     # -- Deplacement / description du lieu --
-    0x4141: ("move_flags_decode", "Decode les drapeaux de la sortie courante (exitp) vers xaux/xmode (direct ou variante)"),
-    0x416A: ("move_run_real", "Execute le mouvement en mode reel (phase=1) puis decrit le lieu s'il n'y a pas d'annonce"),
-    0x4232: ("exit_word_out", "Affiche le mot de sortie pointe par exitp (adresse + page) via word_render"),
-    0x433A: ("exit_sig_match", "Teste les 3 paires (mot, masque) d'une sortie contre l'entree courante"),
-    0x436C: ("sig_match_a", "Compare la 1re paire (mot, masque) d'une signature a l'operande courant (nibble bas)"),
-    0x4387: ("sig_match_b", "Compare une paire croisee de la signature a l'operande courant"),
-    0x43A8: ("sig_match_c", "Compare une autre paire croisee de la signature a l'operande courant"),
-    0x43E4: ("room_cond_ptr", "Fiche du lieu : pointe record+2 (acces aux conditions de deplacement)"),
-    0x43F3: ("obj_cond_ptr", "Fiche de l'objet : pointe record+8 (acces aux conditions de deplacement)"),
-    0x4402: ("probe_flag_end", "Repasse en mode sonde (phase=0) quand une annonce est en cours ($5E)"),
+    0x4141: (
+        "move_flags_decode",
+        "Decode les drapeaux de la sortie courante (exitp) vers xaux/xmode (direct ou variante)",
+    ),
+    0x416A: (
+        "move_run_real",
+        "Execute le mouvement en mode reel (phase=1) puis decrit le lieu s'il n'y a pas d'annonce",
+    ),
+    0x4232: (
+        "exit_word_out",
+        "Affiche le mot de sortie pointe par exitp (adresse + page) via word_render",
+    ),
+    0x433A: (
+        "exit_sig_match",
+        "Teste les 3 paires (mot, masque) d'une sortie contre l'entree courante",
+    ),
+    0x436C: (
+        "sig_match_a",
+        "Compare la 1re paire (mot, masque) d'une signature a l'operande courant (nibble bas)",
+    ),
+    0x4387: (
+        "sig_match_b",
+        "Compare une paire croisee de la signature a l'operande courant",
+    ),
+    0x43A8: (
+        "sig_match_c",
+        "Compare une autre paire croisee de la signature a l'operande courant",
+    ),
+    0x43E4: (
+        "room_cond_ptr",
+        "Fiche du lieu : pointe record+2 (acces aux conditions de deplacement)",
+    ),
+    0x43F3: (
+        "obj_cond_ptr",
+        "Fiche de l'objet : pointe record+8 (acces aux conditions de deplacement)",
+    ),
+    0x4402: (
+        "probe_flag_end",
+        "Repasse en mode sonde (phase=0) quand une annonce est en cours ($5E)",
+    ),
     # -- Rendu des messages --
-    0x4507: ("tok_ptr_seek", "Rendu : avance le pointeur de travail de tidx (position courante dans le message)"),
-    0x454F: ("tok_obj_cur", "Rendu marqueur $06 : affiche le nom de l'objet courant (obj)"),
-    0x455B: ("tok_obj_direct", "Rendu marqueur $07 : affiche le nom de l'objet direct (arg1)"),
-    0x4573: ("tok_obj_variant", "Rendu marqueur $07 variante : affiche le nom du second objet (arg2)"),
-    0x4683: ("word_dispatch", "Rendu d'un mot : applique la capitalisation puis word_render (tables $28BC/$28C4)"),
-    0x469B: ("word_cap_fix", "Rendu : ajuste majuscule et suffixe (cap) selon le nibble de la tete de mot"),
-    0x46E9: ("push_ptr_ax", "Sauve A et X puis empile ptr ($8A) sur la pile interne $0200 (entree de push_ptr)"),
+    0x4507: (
+        "tok_ptr_seek",
+        "Rendu : avance le pointeur de travail de tidx (position courante dans le message)",
+    ),
+    0x454F: (
+        "tok_obj_cur",
+        "Rendu marqueur $06 : affiche le nom de l'objet courant (obj)",
+    ),
+    0x455B: (
+        "tok_obj_direct",
+        "Rendu marqueur $07 : affiche le nom de l'objet direct (arg1)",
+    ),
+    0x4573: (
+        "tok_obj_variant",
+        "Rendu marqueur $07 variante : affiche le nom du second objet (arg2)",
+    ),
+    0x4683: (
+        "word_dispatch",
+        "Rendu d'un mot : applique la capitalisation puis word_render (tables $28BC/$28C4)",
+    ),
+    0x469B: (
+        "word_cap_fix",
+        "Rendu : ajuste majuscule et suffixe (cap) selon le nibble de la tete de mot",
+    ),
+    0x46E9: (
+        "push_ptr_ax",
+        "Sauve A et X puis empile ptr ($8A) sur la pile interne $0200 (entree de push_ptr)",
+    ),
     # -- Execution de commande --
-    0x4B07: ("action_probe", "Sonde une action sans l'executer : passok=1 si le verbe est autorise pour l'objet"),
+    0x4B07: (
+        "action_probe",
+        "Sonde une action sans l'executer : passok=1 si le verbe est autorise pour l'objet",
+    ),
     0x4C57: ("cannot_do", "Affiche 'I CANNOT DO THAT' et rend la main"),
-    0x4C6D: ("announce_move", "Annonce le deplacement de l'objet courant aupres du joueur (entity_goto)"),
+    0x4C6D: (
+        "announce_move",
+        "Annonce le deplacement de l'objet courant aupres du joueur (entity_goto)",
+    ),
     # -- Intro / evenements / description des lieux --
-    0x4D95: ("probe_guard", "Garde de sonde : si phase et passok, depile deux octets pour sortir de l'appelant"),
-    0x4D9E: ("print_via_stack", "Empile une adresse de reprise puis saute a print_msg (helper d'affichage inline)"),
-    0x4DB7: ("intro_caption", "Prepare et affiche le message contextuel $13E0 (helper de description)"),
-    0x4DF6: ("room_image_msg", "Affiche la description du lieu courant (room_record puis texte du record)"),
-    0x4E20: ("record_desc_out", "Affiche le texte de description pointe par un enregistrement"),
-    0x4E33: ("record_words_out", "Affiche les mots d'un enregistrement de lieu (3 paires) via record_words_render"),
-    0x501E: ("script_adv4", "Avance le script d'un personnage de 4 octets (script_adv)"),
+    0x4D95: (
+        "probe_guard",
+        "Garde de sonde : si phase et passok, depile deux octets pour sortir de l'appelant",
+    ),
+    0x4D9E: (
+        "print_via_stack",
+        "Empile une adresse de reprise puis saute a print_msg (helper d'affichage inline)",
+    ),
+    0x4DB7: (
+        "intro_caption",
+        "Prepare et affiche le message contextuel $13E0 (helper de description)",
+    ),
+    0x4DF6: (
+        "room_image_msg",
+        "Affiche la description du lieu courant (room_record puis texte du record)",
+    ),
+    0x4E20: (
+        "record_desc_out",
+        "Affiche le texte de description pointe par un enregistrement",
+    ),
+    0x4E33: (
+        "record_words_out",
+        "Affiche les mots d'un enregistrement de lieu (3 paires) via record_words_render",
+    ),
+    0x501E: (
+        "script_adv4",
+        "Avance le script d'un personnage de 4 octets (script_adv)",
+    ),
     # -- Resolution d'objet / d'operande / d'action --
-    0x52CA: ("arg1_check", "Verifie la presence et le role du 1er objet (arg1/direct/obj/variant) avant l'action"),
-    0x5349: ("light_from_arg1", "Teste si l'objet arg1 fournit de la lumiere (utilise par is_dark)"),
-    0x534B: ("light_from_a", "Teste si l'objet passe dans A fournit de la lumiere (offset de drapeau en X)"),
-    0x534D: ("light_test_core", "Coeur du test de lumiere : cherche un objet dans la fiche courante, rend C=1 si trouve"),
-    0x535F: ("obj_present", "Parcourt les objets presents pour retrouver obj (rend C=1 si trouve)"),
-    0x5374: ("obj_room_slot", "Fiche de l'objet A puis pointe son emplacement de lieu (record+$10)"),
-    0x53C3: ("cond_match_direct", "Matcher direct : filtre les records compatibles (conditions comparees a record+8)"),
-    0x540F: ("rec_adv3", "Avance le pointeur d'enregistrement de 3 octets (rend l'etat Z)"),
-    0x542C: ("rec_adv3_save", "Sauve A, avance de 3 octets (rec_adv3) puis restaure A en conservant le Z"),
-    0x5439: ("act_try_obj", "Tente une action sur un objet (via act_try_core) en sauvant le contexte"),
-    0x5454: ("act_try_core", "Coeur de resolution : parcourt les records compatibles et rejoue l'action"),
-    0x54A9: ("act_try_swap", "Echange (ptr)/(ptr2) puis relance la resolution d'action"),
-    0x54B2: ("swap_ptr_ptr2", "Echange les pointeurs ptr et ptr2 (adresses et octets hauts)"),
-    0x54C8: ("record_scan", "Sauve le contexte puis scanne les enregistrements d'une fiche"),
+    0x52CA: (
+        "arg1_check",
+        "Verifie la presence et le role du 1er objet (arg1/direct/obj/variant) avant l'action",
+    ),
+    0x5349: (
+        "light_from_arg1",
+        "Teste si l'objet arg1 fournit de la lumiere (utilise par is_dark)",
+    ),
+    0x534B: (
+        "light_from_a",
+        "Teste si l'objet passe dans A fournit de la lumiere (offset de drapeau en X)",
+    ),
+    0x534D: (
+        "light_test_core",
+        "Coeur du test de lumiere : cherche un objet dans la fiche courante, rend C=1 si trouve",
+    ),
+    0x535F: (
+        "obj_present",
+        "Parcourt les objets presents pour retrouver obj (rend C=1 si trouve)",
+    ),
+    0x5374: (
+        "obj_room_slot",
+        "Fiche de l'objet A puis pointe son emplacement de lieu (record+$10)",
+    ),
+    0x53C3: (
+        "cond_match_direct",
+        "Matcher direct : filtre les records compatibles (conditions comparees a record+8)",
+    ),
+    0x540F: (
+        "rec_adv3",
+        "Avance le pointeur d'enregistrement de 3 octets (rend l'etat Z)",
+    ),
+    0x542C: (
+        "rec_adv3_save",
+        "Sauve A, avance de 3 octets (rec_adv3) puis restaure A en conservant le Z",
+    ),
+    0x5439: (
+        "act_try_obj",
+        "Tente une action sur un objet (via act_try_core) en sauvant le contexte",
+    ),
+    0x5454: (
+        "act_try_core",
+        "Coeur de resolution : parcourt les records compatibles et rejoue l'action",
+    ),
+    0x54A9: (
+        "act_try_swap",
+        "Echange (ptr)/(ptr2) puis relance la resolution d'action",
+    ),
+    0x54B2: (
+        "swap_ptr_ptr2",
+        "Echange les pointeurs ptr et ptr2 (adresses et octets hauts)",
+    ),
+    0x54C8: (
+        "record_scan",
+        "Sauve le contexte puis scanne les enregistrements d'une fiche",
+    ),
     0x54E9: ("cond_match_alt", "Matcher variante : compare les conditions a record+2"),
-    0x54F8: ("cond_match_var", "Matcher de variante : balaye les records jusqu'a correspondance de signature"),
-    0x5521: ("record_copy8", "Copie les 8 premiers octets d'un enregistrement vers le suivant (ptr2 += 8)"),
-    0x5535: ("record_words_render", "Affiche les paires de mots d'un enregistrement (word_render) hors imbrication"),
-    0x5576: ("slot_count", "Compte les slots d'un objet dans la table $1A5F (flag bit7) et rend le compte"),
-    0x55AE: ("slot_alloc3", "Cherche un emplacement de taille 3 pour l'objet courant (table $1A62) et rend X"),
-    0x55B3: ("slot_alloc2", "Cherche un emplacement de taille 2 pour l'objet courant (table $1A62) et rend X"),
-    0x55C9: ("slot_find_free", "Cherche un emplacement libre de la table $1A62 et y ecrit l'objet"),
-    0x5612: ("event_arm_obj", "Arme l'evenement de cle X pour l'objet courant (table $1A5F)"),
-    0x5651: ("event_key_scan", "Parcourt $1A5F et fixe la cle d'evenement de l'enregistrement correspondant"),
+    0x54F8: (
+        "cond_match_var",
+        "Matcher de variante : balaye les records jusqu'a correspondance de signature",
+    ),
+    0x5521: (
+        "record_copy8",
+        "Copie les 8 premiers octets d'un enregistrement vers le suivant (ptr2 += 8)",
+    ),
+    0x5535: (
+        "record_words_render",
+        "Affiche les paires de mots d'un enregistrement (word_render) hors imbrication",
+    ),
+    0x5576: (
+        "slot_count",
+        "Compte les slots d'un objet dans la table $1A5F (flag bit7) et rend le compte",
+    ),
+    0x55AE: (
+        "slot_alloc3",
+        "Cherche un emplacement de taille 3 pour l'objet courant (table $1A62) et rend X",
+    ),
+    0x55B3: (
+        "slot_alloc2",
+        "Cherche un emplacement de taille 2 pour l'objet courant (table $1A62) et rend X",
+    ),
+    0x55C9: (
+        "slot_find_free",
+        "Cherche un emplacement libre de la table $1A62 et y ecrit l'objet",
+    ),
+    0x5612: (
+        "event_arm_obj",
+        "Arme l'evenement de cle X pour l'objet courant (table $1A5F)",
+    ),
+    0x5651: (
+        "event_key_scan",
+        "Parcourt $1A5F et fixe la cle d'evenement de l'enregistrement correspondant",
+    ),
     0x568D: ("holder_scan", "Parcourt $1A5F et met a jour le porteur d'un objet"),
-    0x56D9: ("ratio_scale", "Ajuste un compteur selon un ratio (comparaison L570F/L5710)"),
+    0x56D9: (
+        "ratio_scale",
+        "Ajuste un compteur selon un ratio (comparaison L570F/L5710)",
+    ),
     0x5711: ("prob_from_arg1", "Teste une probabilite pour l'objet arg1 (table $1A5F)"),
-    0x5713: ("prob_scan", "Coeur du test de probabilite : parcourt $1A5F pour l'objet courant"),
+    0x5713: (
+        "prob_scan",
+        "Coeur du test de probabilite : parcourt $1A5F pour l'objet courant",
+    ),
     0x576D: ("weapon_test_a", "Verifie l'objet arg1 en tant qu'arme (variante A)"),
-    0x576F: ("item_flag_test", "Teste un flag d'objet (A) et met a jour son etat (variante 1)"),
-    0x5774: ("item_flag_test2", "Teste un flag d'objet (A) et met a jour son etat (variante 2)"),
-    0x5793: ("call_action_at", "Pose l'adresse X/Y dans $4C64/$4C65 puis l'appelle (indirect_call)"),
-    0x579F: ("call_action_off", "Prepare l'appel indirect de l'action dont l'adresse est lue dans un record (Y)"),
-    0x57BB: ("entity_state_resolve", "Resout lieu et etat d'un personnage a partir de sa fiche"),
-    0x57D5: ("obj_render_lookup", "Retrouve un objet et affiche son nom (via cond_match_alt)"),
-    0x580F: ("list_visible_init", "Affiche les objets visibles d'un lieu, ou 'NOTHING' si aucun"),
-    0x5836: ("list_visible_scan", "Balaye les objets d'un lieu et les rend (filtre L5835)"),
-    0x58E7: ("obj_visible", "Teste si l'objet A est visible dans le lieu courant (flags du record)"),
-    0x5959: ("room_objects_out", "Affiche les objets presents dans un lieu (record+$0A)"),
-    0x59E7: ("word_ptr_table", "Affiche un mot via une paire de pointeurs (table $59F7)"),
-    0x5A0D: ("room_desc_show", "Affiche la description d'un lieu (room_record, offset 7)"),
-    0x5A43: ("rec_ptr_adv3", "Avance le pointeur d'enregistrement de 3 octets (parcours)"),
+    0x576F: (
+        "item_flag_test",
+        "Teste un flag d'objet (A) et met a jour son etat (variante 1)",
+    ),
+    0x5774: (
+        "item_flag_test2",
+        "Teste un flag d'objet (A) et met a jour son etat (variante 2)",
+    ),
+    0x5793: (
+        "call_action_at",
+        "Pose l'adresse X/Y dans $4C64/$4C65 puis l'appelle (indirect_call)",
+    ),
+    0x579F: (
+        "call_action_off",
+        "Prepare l'appel indirect de l'action dont l'adresse est lue dans un record (Y)",
+    ),
+    0x57BB: (
+        "entity_state_resolve",
+        "Resout lieu et etat d'un personnage a partir de sa fiche",
+    ),
+    0x57D5: (
+        "obj_render_lookup",
+        "Retrouve un objet et affiche son nom (via cond_match_alt)",
+    ),
+    0x580F: (
+        "list_visible_init",
+        "Affiche les objets visibles d'un lieu, ou 'NOTHING' si aucun",
+    ),
+    0x5836: (
+        "list_visible_scan",
+        "Balaye les objets d'un lieu et les rend (filtre L5835)",
+    ),
+    0x58E7: (
+        "obj_visible",
+        "Teste si l'objet A est visible dans le lieu courant (flags du record)",
+    ),
+    0x5959: (
+        "room_objects_out",
+        "Affiche les objets presents dans un lieu (record+$0A)",
+    ),
+    0x59E7: (
+        "word_ptr_table",
+        "Affiche un mot via une paire de pointeurs (table $59F7)",
+    ),
+    0x5A0D: (
+        "room_desc_show",
+        "Affiche la description d'un lieu (room_record, offset 7)",
+    ),
+    0x5A43: (
+        "rec_ptr_adv3",
+        "Avance le pointeur d'enregistrement de 3 octets (parcours)",
+    ),
     0x5A70: ("obj_flag1_test", "Teste le bit0 du flag record+7 et branche"),
     0x5A85: ("obj_flag20_test", "Teste le bit5 du flag record+7 et branche"),
     0x5A9D: ("name_from_record", "Affiche un nom d'objet lu a l'adresse (ptr)+8"),
-    0x5AF0: ("obj_state_clear", "Remet a zero des champs d'etat d'un objet (record+$0C/+$0D) et branche"),
-    0x5B1B: ("obj_flag48_test", "Teste les bits du flag record+7 (masque $48) contre $40"),
-    0x5B9B: ("obj_type_route", "Aiguille le traitement selon le type de l'objet (record+4 et 7 == 6)"),
+    0x5AF0: (
+        "obj_state_clear",
+        "Remet a zero des champs d'etat d'un objet (record+$0C/+$0D) et branche",
+    ),
+    0x5B1B: (
+        "obj_flag48_test",
+        "Teste les bits du flag record+7 (masque $48) contre $40",
+    ),
+    0x5B9B: (
+        "obj_type_route",
+        "Aiguille le traitement selon le type de l'objet (record+4 et 7 == 6)",
+    ),
     0x5BBB: ("light_gate", "Teste la presence de lumiere (light_from_arg1) et branche"),
-    0x5C2B: ("obj_count_add", "Ajoute une quantite (record+3) a l'objet via un emplacement de la table"),
-    0x5C88: ("obj_render_resolve", "Resout l'objet courant et l'affiche (obj_record puis rendu)"),
-    0x5D53: ("combat_round", "Tour de combat : resout l'adversaire puis enchaine l'action"),
-    0x5DCB: ("act_probe_event", "Joue act_probe puis arme l'evenement associe (evt_lookup) si le joueur est implique"),
-    0x5DFD: ("dark_gate", "Garde d'obscurite : rend sans rien faire si le lieu est sombre"),
-    0x5E50: ("obj_two_words", "Affiche les 2 mots d'un objet lus a l'adresse $CA (L466F/L4670)"),
-    0x5E66: ("obj_enter_check", "Verifie si un objet peut entrer dans le lieu ou etre porte (flags record+7)"),
+    0x5C2B: (
+        "obj_count_add",
+        "Ajoute une quantite (record+3) a l'objet via un emplacement de la table",
+    ),
+    0x5C88: (
+        "obj_render_resolve",
+        "Resout l'objet courant et l'affiche (obj_record puis rendu)",
+    ),
+    0x5D53: (
+        "combat_round",
+        "Tour de combat : resout l'adversaire puis enchaine l'action",
+    ),
+    0x5DCB: (
+        "act_probe_event",
+        "Joue act_probe puis arme l'evenement associe (evt_lookup) si le joueur est implique",
+    ),
+    0x5DFD: (
+        "dark_gate",
+        "Garde d'obscurite : rend sans rien faire si le lieu est sombre",
+    ),
+    0x5E50: (
+        "obj_two_words",
+        "Affiche les 2 mots d'un objet lus a l'adresse $CA (L466F/L4670)",
+    ),
+    0x5E66: (
+        "obj_enter_check",
+        "Verifie si un objet peut entrer dans le lieu ou etre porte (flags record+7)",
+    ),
     0x5FBD: ("obj_id_minus1", "Lit (orec)+0 moins 1 (index d'objet)"),
-    0x6250: ("obj_flag_clear", "Remet a zero le flag (mask $10) de (orec)+4 selon le contexte"),
-    0x6341: ("counter_add_ratio", "Ajoute un ratio (0-10 via ratio_scale) a un compteur, avec saturation"),
+    0x6250: (
+        "obj_flag_clear",
+        "Remet a zero le flag (mask $10) de (orec)+4 selon le contexte",
+    ),
+    0x6341: (
+        "counter_add_ratio",
+        "Ajoute un ratio (0-10 via ratio_scale) a un compteur, avec saturation",
+    ),
     0x64D7: ("obj_flag20_get", "Teste le bit5 de (ptr)+7 (utilitaire d'action)"),
     0x6AE3: ("rand_half", "Tirage 0-99 compare a 50 (rend C=1 si superieur ou egal)"),
     0x6DEF: ("at_room_1E", "Verifie si le joueur se trouve dans le lieu $1E"),
-    0x6EF7: ("img_poke", "Illustration : si le bloc 3 est present, modifie 2 octets a (ptr)+1"),
+    0x6EF7: (
+        "img_poke",
+        "Illustration : si le bloc 3 est present, modifie 2 octets a (ptr)+1",
+    ),
     # -- Cassette et affichage hires / vectoriel --
     0x720A: ("tape_dot", "Affiche un point avant une operation cassette"),
-    0x72FC: ("tape_read_verify", "Lit un bloc cassette et verifie son en-tete et son checksum"),
-    0x7454: ("via_scan", "Scan clavier bas niveau : teste une ligne et une colonne du VIA"),
-    0x7464: ("via_setup_ee", "Configure le VIA pour le scan clavier (valeur $EE en $030C)"),
-    0x7472: ("via_setup_ec", "Configure le VIA pour le scan clavier (valeur $EC en $030C)"),
-    0x7514: ("hires_scroll_setup", "Prepare un defilement hires (repertoire de lignes $B940)"),
+    0x72FC: (
+        "tape_read_verify",
+        "Lit un bloc cassette et verifie son en-tete et son checksum",
+    ),
+    0x7454: (
+        "via_scan",
+        "Scan clavier bas niveau : teste une ligne et une colonne du VIA",
+    ),
+    0x7464: (
+        "via_setup_ee",
+        "Configure le VIA pour le scan clavier (valeur $EE en $030C)",
+    ),
+    0x7472: (
+        "via_setup_ec",
+        "Configure le VIA pour le scan clavier (valeur $EC en $030C)",
+    ),
+    0x7514: (
+        "hires_scroll_setup",
+        "Prepare un defilement hires (repertoire de lignes $B940)",
+    ),
     0x754B: ("hires_row_next", "Avance d'une ligne la copie d'ecran hires"),
     0x7551: ("hires_col_next", "Avance d'une colonne la copie d'ecran hires"),
-    0x7558: ("hires_fill_setup", "Prepare un remplissage d'ecran hires (pointeurs $BF3F)"),
+    0x7558: (
+        "hires_fill_setup",
+        "Prepare un remplissage d'ecran hires (pointeurs $BF3F)",
+    ),
     0x758F: ("hires_row_prev", "Recule d'une ligne la copie d'ecran hires"),
     0x759A: ("hires_col_prev", "Recule d'une colonne la copie d'ecran hires"),
     0x75A6: ("cursor_adv", "Avance le curseur texte (col--, position++)"),
@@ -845,13 +1607,19 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x7694: ("hires_clear_zone", "Efface une zone de l'ecran hires par blocs"),
     0x76DF: ("cursor_down", "Descend le curseur texte d'une ligne"),
     0x76E4: ("cursor_up", "Remonte le curseur texte d'une ligne"),
-    0x76ED: ("char_plot_pos", "Dessine le caractere A a la position texte courante (via L75B8)"),
+    0x76ED: (
+        "char_plot_pos",
+        "Dessine le caractere A a la position texte courante (via L75B8)",
+    ),
     0x76F9: ("via_write", "Ecrit une valeur sur le port clavier du VIA ($0300/$0301)"),
     0x770A: ("via_reset", "Reinitialise le port clavier du VIA ($0302/$0303)"),
     0x771A: ("screen_scroll", "Defile verticalement l'ecran hires (copie de lignes)"),
     0x781D: ("vec_next_byte", "Illustration : avance le pointeur de flux d'un octet"),
     # -- Cibles des vecteurs $2Cxx encore anonymes --
-    0x71A8: ("vec_keypause", "Illustration (vec_01) : attend une touche avant de poursuivre"),
+    0x71A8: (
+        "vec_keypause",
+        "Illustration (vec_01) : attend une touche avant de poursuivre",
+    ),
     0x71CB: ("tape_verify", "Verifie un bloc cassette en le relisant (vec_04)"),
     0x71FF: ("ok_rts", "Rend la main avec C=0 (succes) (vec_08)"),
     0x7201: ("vec_cr", "Affiche un retour a la ligne (vec_10)"),
@@ -874,11 +1642,17 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
         "Nombre de colonnes restantes sur la ligne (pour couper la ligne au bon moment)",
     ),
     0x0B: ("outen", "Autorise ou non l'affichage du texte (1 = autorise)"),
-    0x0C: ("phase", "0 = simulation (le jeu calcule sans rien afficher), 1 = action reelle"),
+    0x0C: (
+        "phase",
+        "0 = simulation (le jeu calcule sans rien afficher), 1 = action reelle",
+    ),
     0x0D: ("raw", "Affichage brut : 1 = texte force, sans mise en forme"),
     0x0E: ("cap", "1 = mettre une majuscule a la prochaine lettre (apres un point)"),
     0x0F: ("sppend", "Un espace a inserer avant le prochain mot"),
-    0x11: ("crcnt", "Nombre de lignes affichees depuis la derniere pause (remis a zero toutes les 16)"),
+    0x11: (
+        "crcnt",
+        "Nombre de lignes affichees depuis la derniere pause (remis a zero toutes les 16)",
+    ),
     0x12: ("passok", "1 = la simulation a reussi, on passe a l'action reelle"),
     # Operandes de commande (parser L359B, VM L5048/L50AC, $FF=absent).
     0x13: ("wid", "Mot courant interprete (verbe ou direction)"),
@@ -887,7 +1661,10 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     # Enregistrements d'objets (deref ($..),y ; swap L57A1).
     0x17: ("orec", "Pointeur vers la fiche du premier objet (octet haut en $18)"),
     0x19: ("orec2", "Pointeur vers la fiche du second objet (octet haut en $1A)"),
-    0xC6: ("crec", "Pointeur vers la fiche courante (compteurs du personnage/objet en cours)"),
+    0xC6: (
+        "crec",
+        "Pointeur vers la fiche courante (compteurs du personnage/objet en cours)",
+    ),
     # Moteur de messages (render_text, tokens, pile $466F/$0200).
     0x5C: ("adr", "Adresse de travail : mot de message en cours (octet haut en $5D)"),
     0x6F: ("tidx", "Position du caractere en cours dans le message affiche"),
@@ -907,7 +1684,10 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0xE8: ("svptr", "Sauvegarde du pointeur de travail"),
     0xF8: ("exitp", "Curseur dans la table des sorties du lieu"),
     # Resolution de commande (deplacement/action : $D7-$E7, $EC-$F7).
-    0xD7: ("op1", "Etat du 1er operateur lors de la resolution d'une sortie (bits 0 et 1 testes)"),
+    0xD7: (
+        "op1",
+        "Etat du 1er operateur lors de la resolution d'une sortie (bits 0 et 1 testes)",
+    ),
     0xD8: ("op2", "Etat du 2e operateur lors de la resolution (bits 0 et 1 testes)"),
     0xD9: ("rn1", "Compteur n°1 de la boucle de resolution d'operande"),
     0xDA: ("rn2", "Compteur n°2 de la boucle de resolution d'operande"),
@@ -918,7 +1698,10 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0xEF: ("roff2", "Offset du 2e operateur dans le record de commande"),
     0xF0: ("rid1", "Id du 1er operateur resolu"),
     0xF1: ("rid2", "Id du 2e operateur resolu"),
-    0xF2: ("rword", "Mot/verbe de la commande en cours (alimente les arguments VM $466F)"),
+    0xF2: (
+        "rword",
+        "Mot/verbe de la commande en cours (alimente les arguments VM $466F)",
+    ),
     0xF4: ("rarg1", "Operande n°1 de la commande (paire de mots VM)"),
     0xF6: ("rarg2", "Operande n°2 de la commande (paire de mots VM)"),
     # Pointeurs de travail universels.
@@ -930,19 +1713,46 @@ ZP_NAMES: dict[int, tuple[str, str]] = {
     0x93: ("noise", "Source du hasard (pour les tirages aleatoires)"),
     0xBE: ("exploc", "Lieu attendu par l'evenement en cours"),
     0xC5: ("obj", "Objet ou personnage courant ($FF = un personnage)"),
-    0xC8: ("ploc", "Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)"),
-    0xC9: ("eloc", "Lieu d'un personnage (visible quand il est identique a celui du joueur)"),
+    0xC8: (
+        "ploc",
+        "Lieu du joueur (simple copie : la vraie valeur est player.eloc en $1B2A)",
+    ),
+    0xC9: (
+        "eloc",
+        "Lieu d'un personnage (visible quand il est identique a celui du joueur)",
+    ),
     0xCE: ("once", "Verrou 'une seule fois' : pose puis consomme"),
     # Scratch transitoire (moteur d'errance/placement des PNJ + file d'actions).
-    0xC3: ("dflag", "Flag de l'action du dragon : initialise a 0 par l'intro, jamais arme (inactif)"),
-    0xC4: ("sflag", "Flag de sortie texte : arme au desarmement de l'evenement e7, ajoute un H apres s/S"),
-    0xCF: ("cand", "Index de candidat dans les tables de deplacement $48D3/$48D5 (moteur d'errance)"),
-    0xD0: ("mwt", "Budget/poids du deplacement (moteur d'errance : $0A moins les couts)"),
-    0xD1: ("qrd", "Curseur de lecture de la file d'actions $4905 (remis a 0 a chaque commande)"),
-    0xD2: ("qwr", "Curseur d'ecriture de la file d'actions $4905 (remis a 0 a chaque commande)"),
+    0xC3: (
+        "dflag",
+        "Flag de l'action du dragon : initialise a 0 par l'intro, jamais arme (inactif)",
+    ),
+    0xC4: (
+        "sflag",
+        "Flag de sortie texte : arme au desarmement de l'evenement e7, ajoute un H apres s/S",
+    ),
+    0xCF: (
+        "cand",
+        "Index de candidat dans les tables de deplacement $48D3/$48D5 (moteur d'errance)",
+    ),
+    0xD0: (
+        "mwt",
+        "Budget/poids du deplacement (moteur d'errance : $0A moins les couts)",
+    ),
+    0xD1: (
+        "qrd",
+        "Curseur de lecture de la file d'actions $4905 (remis a 0 a chaque commande)",
+    ),
+    0xD2: (
+        "qwr",
+        "Curseur d'ecriture de la file d'actions $4905 (remis a 0 a chaque commande)",
+    ),
     0xD3: ("macc", "Accumulateur de poids du moteur d'errance"),
     0xD4: ("mcnt", "Compteur de candidats retenus par le moteur d'errance"),
-    0xD5: ("said", "Flag : le PNJ a parle/refuse (pose par code_6C2E, remis a 0 par act_v14_13)"),
+    0xD5: (
+        "said",
+        "Flag : le PNJ a parle/refuse (pose par code_6C2E, remis a 0 par act_v14_13)",
+    ),
     # Octets hauts des paires (da65 ne rend pas `nom+1` : nommage explicite).
     0x18: ("orec_hi", "Octet haut de orec"),
     0x1A: ("orec2_hi", "Octet haut de orec2"),
@@ -970,7 +1780,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "Editeur de ligne du parser (prompt '> '). Lit les touches une a une et",
         "construit la commande dans le tampon $40BE jusqu'a un CR. Le dernier",
         "caractere doit etre un point ($2E) : ins_period l'ajoute si besoin, ce point",
-        "sert de marqueur de fin pour le lexeur. Les guillemets \" encadrent un nom ;",
+        'sert de marqueur de fin pour le lexeur. Les guillemets " encadrent un nom ;',
         "l'etat ouvert/ferme est memorise en $B8. Backspace ($08) et DEL ($7F)",
         "corrigent la saisie. Les fleches sont converties en N/S/E/W (key_arrow).",
         "Sortie : A=1 quand la ligne est valide (CR), A=0 pour '@' en tete (annule).",
@@ -2071,7 +2881,7 @@ ROM_LABELS = {
     0xE75A: "WRITELEADER_11",
     0xE76A: "SETUPTAPE_11",
     0xF77C: "CHAR2SCR_11",
-     0xF9AA: "RESETSTAT_11",
+    0xF9AA: "RESETSTAT_11",
 }
 
 # Pointeurs de message `.word $0000` remplis a l'execution : adresse du slot ->
@@ -2134,8 +2944,9 @@ class Block:
 B4_HEADER = (
     "; ============================================================\n"
     "; The Hobbit (Oric, 1982)\n"
-    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
-    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Beam Software)\n"
+    "; 6502 port : Gregg Barnett (Beam Software)\n"
+    "; Publisher : Melbourne House\n"
     "; - bloc 4 ($2C00-$7A80) : programme principal\n"
     "; Listing généré par scripts/disasm.py (descente récursive + da65)\n"
     "; Charge en mémoire à $2C00, entrée autorun $2C00 -> $2C35.\n"
@@ -2232,8 +3043,9 @@ B1_VECTORS: dict[int, str] = {
 B1_HEADER = (
     "; ============================================================\n"
     "; The Hobbit (Oric, 1982)\n"
-    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
-    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Beam Software)\n"
+    "; 6502 port : Gregg Barnett (Beam Software)\n"
+    "; Publisher : Melbourne House\n"
     "; - bloc 1 ($0400-$04FF)\n"
     "; Listing généré par scripts/disasm.py (descente récursive + da65)\n"
     "; Charge par autorun à $0400 -> JMP $047C (b1_start).\n"
@@ -2249,68 +3061,69 @@ B1_HEADER = (
 # est un partitionnement type (WORDTABLE/BYTETABLE) + labels des structures.
 # Detail des formats : docs/block4-analysis.md, docs/memory-map.md.
 B2_LABELS: dict[int, str] = {
-    0x0500: "dict_index",       # index 26 lettres -> 1er mot
-    0x0540: "dict",             # dico packe 5-bit (~600 mots)
-    0x1117: "common_words",     # 32 mots courants ($60-$7F)
-    0x1157: "messages",         # catalogue de messages
-    0x18AA: "loc_desc",         # 29 descriptions de lieux
-    0x1A62: "state_keys",       # 61 triplets [cle,lo,hi] + $FF
-    0x1B1A: "states",           # 61 blocs d'etat
-    0x2070: "rec_table",        # 80 mots id -> record
-    0x2110: "rec_templates",    # 5 gabarits (pointeurs bloc 3)
-    0x211A: "records",          # records lieux/objets/creatures
-    0x26E2: "dir_names",        # noms des directions (10 x 8 o)
-    0x2732: "exits_ext",        # sorties etendues conditionnelles
-    0x28CC: "indir0",           # table de sauts 3 o [cle,lo,hi]
+    0x0500: "dict_index",  # index 26 lettres -> 1er mot
+    0x0540: "dict",  # dico packe 5-bit (~600 mots)
+    0x1117: "common_words",  # 32 mots courants ($60-$7F)
+    0x1157: "messages",  # catalogue de messages
+    0x18AA: "loc_desc",  # 29 descriptions de lieux
+    0x1A62: "state_keys",  # 61 triplets [cle,lo,hi] + $FF
+    0x1B1A: "states",  # 61 blocs d'etat
+    0x2070: "rec_table",  # 80 mots id -> record
+    0x2110: "rec_templates",  # 5 gabarits (pointeurs bloc 3)
+    0x211A: "records",  # records lieux/objets/creatures
+    0x26E2: "dir_names",  # noms des directions (10 x 8 o)
+    0x2732: "exits_ext",  # sorties etendues conditionnelles
+    0x28CC: "indir0",  # table de sauts 3 o [cle,lo,hi]
     0x28D3: "indir1",
     0x28DA: "indir2",
-    0x28E1: "script_goblins",   # VM : gobelins e11/e12
+    0x28E1: "script_goblins",  # VM : gobelins e11/e12
     0x2910: "script_goblin13",  # VM : gobelin e13
     0x2934: "script_goblins14",  # VM : gobelins e14-e16
     0x2943: "indir3",
-    0x295C: "script_gandalf",   # VM : Gandalf e0 (errance)
+    0x295C: "script_gandalf",  # VM : Gandalf e0 (errance)
     0x2984: "indir4",
-    0x298E: "script_thorin",    # VM : Thorin e1
+    0x298E: "script_thorin",  # VM : Thorin e1
     0x29B2: "indir5",
-    0x29BC: "script_elf",       # VM : elfe e2
+    0x29BC: "script_elf",  # VM : elfe e2
     0x29C3: "indir6",
-    0x29C7: "script_warg",      # VM : warg e3
+    0x29C7: "script_warg",  # VM : warg e3
     0x29E4: "indir7",
-    0x29EE: "script_butler",    # VM : butler dormant e4
+    0x29EE: "script_butler",  # VM : butler dormant e4
     0x2A2E: "indir8",
-    0x2A38: "script_elrond",    # VM : Elrond e5
+    0x2A38: "script_elrond",  # VM : Elrond e5
     0x2A4D: "indir9",
-    0x2A54: "script_dragon",    # VM : dragon dormant e8
+    0x2A54: "script_dragon",  # VM : dragon dormant e8
     0x2A70: "indir10",
-    0x2A77: "script_bard",      # VM : Bard dormant e7
+    0x2A77: "script_bard",  # VM : Bard dormant e7
     0x2A88: "indir11",
-    0x2A8F: "script_gollum",    # VM : Gollum e6
+    0x2A8F: "script_gollum",  # VM : Gollum e6
     0x2AC9: "indir12",
-    0x2AD0: "script_trolls",    # VM : trolls e9/e10 (lieu 5)
-    0x2B12: "events",           # 10 x 5 o [id,cpt,actA,cond,actB]
-    0x2B45: "entities",         # 17 x 7 o [id,n,PC,base,s6]
+    0x2AD0: "script_trolls",  # VM : trolls e9/e10 (lieu 5)
+    0x2B12: "events",  # 10 x 5 o [id,cpt,actA,cond,actB]
+    0x2B45: "entities",  # 17 x 7 o [id,n,PC,base,s6]
 }
 
 B2_RANGES: dict[int, str] = {
-    0x0500: "WORDTABLE",   # index 26 lettres
-    0x0540: "BYTETABLE",   # dictionnaire packe
-    0x1117: "WORDTABLE",   # 32 mots courants
-    0x1157: "BYTETABLE",   # catalogue de messages
-    0x1A62: "BYTETABLE",   # cles d'etat
-    0x1B1A: "BYTETABLE",   # blocs d'etat
-    0x2070: "WORDTABLE",   # table des records
-    0x2110: "WORDTABLE",   # gabarits de description
-    0x211A: "BYTETABLE",   # records
-    0x26E2: "BYTETABLE",   # noms des directions
-    0x2732: "BYTETABLE",   # sorties etendues
-    0x28CC: "BYTETABLE",   # INDIR + scripts VM + events + entites
+    0x0500: "WORDTABLE",  # index 26 lettres
+    0x0540: "BYTETABLE",  # dictionnaire packe
+    0x1117: "WORDTABLE",  # 32 mots courants
+    0x1157: "BYTETABLE",  # catalogue de messages
+    0x1A62: "BYTETABLE",  # cles d'etat
+    0x1B1A: "BYTETABLE",  # blocs d'etat
+    0x2070: "WORDTABLE",  # table des records
+    0x2110: "WORDTABLE",  # gabarits de description
+    0x211A: "BYTETABLE",  # records
+    0x26E2: "BYTETABLE",  # noms des directions
+    0x2732: "BYTETABLE",  # sorties etendues
+    0x28CC: "BYTETABLE",  # INDIR + scripts VM + events + entites
 }
 
 B2_HEADER = (
     "; ============================================================\n"
     "; The Hobbit (Oric, 1982)\n"
-    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
-    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Beam Software)\n"
+    "; 6502 port : Gregg Barnett (Beam Software)\n"
+    "; Publisher : Melbourne House\n"
     "; - bloc 2 ($0500-$2BBD) : donnees du jeu (aucun code 6502)\n"
     "; Listing généré par scripts/disasm.py (partitionnement type + labels).\n"
     "; Dictionnaire packe 5-bit, catalogue de messages, etats, records,\n"
@@ -2326,32 +3139,33 @@ B2_HEADER = (
 # image = [mode,$08,x,y] + commandes ($08 curseur, $20 skip, bit6 fill,
 # bit7 ligne). Moteur vec_* en bloc 4 ; decodeur : scripts/vec_decode.py.
 B3_LABELS: dict[int, str] = {
-    0x7AC0: "img_table",   # 13 entrees [cle, lo, hi] + $FF
-    0x7AE8: "img_01",      # mode $05
-    0x7D09: "img_06",      # mode $02
-    0x7FA4: "img_0b",      # mode $01
-    0x809F: "img_25",      # mode $13
-    0x82EC: "img_26",      # mode $04
-    0x8569: "img_07",      # mode $14
-    0x8766: "img_0d",      # mode $03 (contient l'image $15 + 29 o)
-    0x8783: "img_15",      # mode $01
-    0x887B: "img_20",      # mode $04
-    0x8AE4: "img_19",      # mode $04
-    0x8D13: "img_29",      # mode $05
-    0x8ED0: "img_1a",      # mode $01
-    0x90B1: "img_27",      # mode $56
+    0x7AC0: "img_table",  # 13 entrees [cle, lo, hi] + $FF
+    0x7AE8: "img_01",  # mode $05
+    0x7D09: "img_06",  # mode $02
+    0x7FA4: "img_0b",  # mode $01
+    0x809F: "img_25",  # mode $13
+    0x82EC: "img_26",  # mode $04
+    0x8569: "img_07",  # mode $14
+    0x8766: "img_0d",  # mode $03 (contient l'image $15 + 29 o)
+    0x8783: "img_15",  # mode $01
+    0x887B: "img_20",  # mode $04
+    0x8AE4: "img_19",  # mode $04
+    0x8D13: "img_29",  # mode $05
+    0x8ED0: "img_1a",  # mode $01
+    0x90B1: "img_27",  # mode $56
 }
 
 B3_RANGES: dict[int, str] = {
-    0x7AC0: "BYTETABLE",   # table a cles [cle,lo,hi]
-    0x7AE8: "BYTETABLE",   # flux d'images $00-terminés
+    0x7AC0: "BYTETABLE",  # table a cles [cle,lo,hi]
+    0x7AE8: "BYTETABLE",  # flux d'images $00-terminés
 }
 
 B3_HEADER = (
     "; ============================================================\n"
     "; The Hobbit (Oric, 1982)\n"
-    "; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)\n"
-    "; 6502 port : Greg Barrett (Beam Software)\n"
+    "; Original authors : Veronika Megler & Philip Mitchell (Beam Software)\n"
+    "; 6502 port : Gregg Barnett (Beam Software)\n"
+    "; Publisher : Melbourne House\n"
     "; - bloc 3 ($7AC0-$91B1) : banque d'illustrations vectorielles\n"
     "; Listing généré par scripts/disasm.py (partitionnement type + labels).\n"
     "; Table a cles $7AC0 + 13 flux d'octets $00-terminés (dessins, pas de\n"
@@ -2782,7 +3596,7 @@ def inject_notes(asm: list[str], block: Block) -> list[str]:
 
 # Ligne de texte da65 : label optionnel + `.byte "..."` (sans commentaire).
 _TEXT_BYTE_RE = re.compile(
-    r'^(?P<indent>\s*)(?P<label>[A-Za-z_][A-Za-z0-9_]*:)?(?P<pad>\s*)'
+    r"^(?P<indent>\s*)(?P<label>[A-Za-z_][A-Za-z0-9_]*:)?(?P<pad>\s*)"
     r'\.byte\s+"(?P<txt>[^"]*)"\s*$'
 )
 
@@ -2949,7 +3763,9 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
     import subprocess
 
-    ap = argparse.ArgumentParser(description="Desassemble un bloc en listing da65 annote.")
+    ap = argparse.ArgumentParser(
+        description="Desassemble un bloc en listing da65 annote."
+    )
     ap.add_argument(
         "--block",
         default="block4",

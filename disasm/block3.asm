@@ -1,7 +1,8 @@
 ; ============================================================
 ; The Hobbit (Oric, 1982)
-; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)
-; 6502 port : Greg Barrett (Beam Software)
+; Original authors : Veronika Megler & Philip Mitchell (Beam Software)
+; 6502 port : Gregg Barnett (Beam Software)
+; Publisher : Melbourne House
 ; - bloc 3 ($7AC0-$91B1) : banque d'illustrations vectorielles
 ; Listing généré par scripts/disasm.py (partitionnement type + labels).
 ; Table a cles $7AC0 + 13 flux d'octets $00-terminés (dessins, pas de

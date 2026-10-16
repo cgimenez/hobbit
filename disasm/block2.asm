@@ -1,7 +1,8 @@
 ; ============================================================
 ; The Hobbit (Oric, 1982)
-; Original authors : Veronika Megler & Philip Mitchell (Melbourne House)
-; 6502 port : Greg Barrett (Beam Software)
+; Original authors : Veronika Megler & Philip Mitchell (Beam Software)
+; 6502 port : Gregg Barnett (Beam Software)
+; Publisher : Melbourne House
 ; - bloc 2 ($0500-$2BBD) : donnees du jeu (aucun code 6502)
 ; Listing généré par scripts/disasm.py (partitionnement type + labels).
 ; Dictionnaire packe 5-bit, catalogue de messages, etats, records,
