@@ -256,8 +256,7 @@ async function boot() {
     sendCommand('');
   }
   refreshLive();
-  $('#status').textContent = isSave ? 'sauvegarde locale restauree'
-                                    : 'pret — tapez une commande';
+  $('#status').textContent = isSave ? 'sauvegarde locale restauree' : '';
   $('#cmd').focus();
 }
 
