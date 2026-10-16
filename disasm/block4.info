@@ -737,6 +737,7 @@ LABEL { NAME "action_run"; ADDR $5F07; COMMENT "Verbe Run ($24) : fuit dans une 
 LABEL { NAME "action_follow"; ADDR $5F28; COMMENT "Verbe Follow ($27) : suit une entite presente"; };
 LABEL { NAME "action_throw_at"; ADDR $5F40; COMMENT "Verbe Throw At ($2A) : lance l'objet (arme) sur la cible"; };
 LABEL { NAME "action_talk_to"; ADDR $5F81; COMMENT "Verbe Talk To ($35) : entite arg1, replique liee a son champ 'reply'"; };
+LABEL { NAME "you_are_dead"; ADDR $5FAE; COMMENT "Mort du joueur : '<NAME>DEAD', affiche le score puis relance (code_3C8B)"; };
 LABEL { NAME "obj_id_minus1"; ADDR $5FBD; COMMENT "Lit (orec)+0 moins 1 (index d'objet)"; };
 LABEL { NAME "act_p14_13"; ADDR $6041; COMMENT "Selon les drapeaux de l'objet : l'objet est emporte, ou l'objet est tue"; };
 LABEL { NAME "act_p14_00"; ADDR $60BF; COMMENT "Combat : applique les degats, epuise le compteur, annonce la mort"; };

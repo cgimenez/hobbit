@@ -787,6 +787,10 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x685E: ("action_burn", "Verbe Burn ($2D) : met le feu a un objet"),
     0x686D: ("action_climb_out", "Verbe Climb Out Of ($37) : sort d'un contenant/lieu"),
     0x698B: ("action_shoot", "Verbe Shoot ($3A) : tire une fleche (arme)"),
+    0x5FAE: (
+        "you_are_dead",
+        "Mort du joueur : '<NAME>DEAD', affiche le score puis relance (code_3C8B)",
+    ),
     # Actions dispatchees par la table L7143 (index 0-14) : comportements
     # autonomes des PNJ dans la machine virtuelle $4ED5.
     0x68D0: ("act_v14_06", "PNJ : dit 'hello' s'il est au meme endroit que le joueur"),

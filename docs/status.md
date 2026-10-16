@@ -1002,8 +1002,14 @@ Non exploité : `WL.c` (98 K, logique carte/menus) et `dict_v12.txt`/`rooms_v12.
 - **CommonWords** : notre table `$1117` (32 ptr) diffère du ZX `$AD3D`
   (ordre = fréquence chez nous, alphabétique chez ZX ; jeux ≠ : version).
 - **Objets** : déjà alignés (`STATE_IDENTITY` = `OBJNR_*`, cf. étape 2).
-- **Non exploité** : `Actions`/`TextMessages`/`Script*`/`Event*` nommés ZX (renommage
-  de routines Oric par correspondance), `WL.c`, `dict_v12.txt` complet.
+- **Routines** : seul mapping net = `YouAreDead` → `you_are_dead` (`$5FAE`,
+  `<NAME>DEAD` + score + relance). Les autres noms ZX (`Actions`, `ScriptGandalf_1..5`,
+  `ScriptThorin_1`, `EventBeornsHouse/DeepBog/ElvenkingsCellar/Forest/Forestriver/
+  SpiderThreadsPlace`) désignent des **tables/scripts VM**, pas de routine Oric 1:1
+  (nos `act_v14_*`/`evt_*` restent propres). Variables ZX nommées
+  (`CurrentObject`/`CurrentCharacter`/`CurrentAction`/`PercentageComplete`/
+  `NightDay`/`RandomSeed` `$B6E6+`) = **RAM absolue ZX**, sans équivalent ZP direct.
+- **Non exploité** : `WL.c`, `dict_v12.txt` complet.
 
 **Plus tard (4)** : ports **6502** dans `HobbitOSX/…/BBCDisk`, `Apple2Disk`,
 `C64Disk` (v1.00) → extraction + diff pour aligner le code Oric (même CPU).

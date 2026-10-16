@@ -5072,7 +5072,7 @@ code_4D45:
 unit_remove:
         cmp     #$00
         bne     L4D4E
-        jmp     L5FAE
+        jmp     you_are_dead
 
 L4D4E:  jsr     push_ptr
         sta     L4D83
@@ -7641,7 +7641,7 @@ L5DA7:  jsr     print_msg
 msg_5DAA:
         .word   $1161
 code_5DAC:
-        jmp     L5FAE
+        jmp     you_are_dead
 
 L5DAF:  ldy     #$02
         lda     (ptr),y
@@ -7957,7 +7957,9 @@ code_5FA9:
         lda     #$00
         jmp     L5FA0
 
-L5FAE:  lda     #$00
+; Mort du joueur : '<NAME>DEAD', affiche le score puis relance (code_3C8B)
+you_are_dead:
+        lda     #$00
         sta     obj
         jsr     print_msg
 ; -> $13D1 <NAME>DEAD
@@ -8041,7 +8043,7 @@ code_6027:
         jsr     event_arm_obj
         lda     $1B2A
         bne     L6040
-        jmp     L5FAE
+        jmp     you_are_dead
 
 L6040:  rts
 
@@ -9902,7 +9904,7 @@ code_6C70:
         beq     L6C76
         rts
 
-L6C76:  jmp     L5FAE
+L6C76:  jmp     you_are_dead
 
         lda     $1D26
         and     #$DF
@@ -9993,7 +9995,7 @@ L6CE2:  jsr     act_probe
         sta     arg2
         jsr     act_look
         jsr     act_p14_00
-        jmp     L5FAE
+        jmp     you_are_dead
 
 ; PNJ : au meme endroit, joue une action sur l'objet $26 (wid $1D, arg1 $26) s'il
 ; ne l'a pas deja fait ($1FC1/$1FB2), et memorise le lieu courant.
@@ -10049,7 +10051,7 @@ code_6D4D:
 msg_6D50:
         .word   $16FF
 code_6D52:
-        jmp     L5FAE
+        jmp     you_are_dead
 
         lda     $1C7B
         and     #$20
@@ -10206,7 +10208,7 @@ L6E29:  lda     #$01
 msg_6E30:
         .word   $15B6
 code_6E32:
-        jmp     L5FAE
+        jmp     you_are_dead
 
 L6E35:  lda     $1CC5
         cmp     #$FF
@@ -10265,7 +10267,7 @@ L6E83:  jsr     print_msg
 msg_6E86:
         .word   $1596
 code_6E88:
-        jmp     L5FAE
+        jmp     you_are_dead
 
 ; Trolls : au lieu $05. Si obj==$47 (un troll deja cuit) -> 'BLIMEY, LOOK AT THIS
 ; !! CAN YER COOK 'EM?' ($1615), sinon 'YER CAN TRY, BUT...' ($162B).
@@ -10368,7 +10370,7 @@ L6F22:  jsr     print_msg
 msg_6F25:
         .word   $14DF
 code_6F27:
-        jmp     L5FAE
+        jmp     you_are_dead
 
         lda     $1BF0
         and     #$D7
@@ -10667,7 +10669,7 @@ msg_7111:
 code_7113:
 L7114           := * + 1
 L7115           := * + 2
-        jmp     L5FAE
+        jmp     you_are_dead
 
         .byte   $32,$07,$C8,$15,$92,$06,$97,$16
         .byte   $32,$07,$C8,$15,$92,$06,$97,$16
