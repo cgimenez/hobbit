@@ -118,3 +118,35 @@ Validé (commit `e3774c9`) :
   rasteriseur ; le footer ASCII `$BF68+` de l'écran Oric est ignoré.
 - Pas de gestion clavier spéciale Oric (au-delà de `$0D`=ENTREE et des
   guillemets pour `SAY TO X "..."`).
+
+## 7. Reprise (handoff)
+
+**État** : tout est commité (`e3774c9` web, `9f5f680` + `3b534df` doc) ;
+`web/build/` est gitignoré → régénérer avec `make -C web` avant `serve`/`test`.
+Toolchain déjà validée : `emcc` + `EMSDK_PYTHON=/opt/local/bin/python3.14`.
+
+**ABI WASM** (`web/include/hobbit.h`, exports `EMSCRIPTEN_KEEPALIVE`) :
+slots `hob_slot/_cap/_len` ; cycle `hob_init` → `hob_boot` → `hob_key` +
+`hob_run` ; texte `hob_text_ptr/_len` ; SAVE `hob_save_ready/_ptr/_len/_clear` ;
+état `hob_player_room`, `hob_obj_*` (61), `hob_ent_*` (17), `hob_evt_*` (10) ;
+carte `hob_room_*` (78) ; vecteurs `hob_vec_render/_ptr/_key/_mode/_popcount`.
+Le JS (`web/ui/app.js`) ne fait que `fetch` + appels + rendu.
+
+**Pistes V1+ (par ordre de valeur)**
+1. **Coordonnées de carte réelles** : porter `MapCoordinates.h` (ZX, lieux 1:1)
+   dans `map.c`/`app.js` (remplace le layout BFS ; cf. `status.md` P4).
+2. **Fenêtre log NPC hors-vue** : exploiter `entity_tick` + filtre
+   `say_if_visible $5279` (actions des PNJ invisibles au joueur).
+3. **Clavier Oric** : flèches → `N/S/E/W` (`key_arrow $2EA9`), `@` = répéter,
+   touche quote pour `SAY TO X "..."`.
+4. **Table** : tri/filtre (vivants/portés), surlignage joueur, timeline.
+5. Optionnel : rendu hires live (`$A000`+footer `$BF68`) au lieu des SVG.
+
+**Pièges à ne pas rouvrir**
+- `hob_boot` = **2 prompts** (`> LOOK.` tutoriel puis vrai prompt) ; ne jamais
+  courir au-delà d'un vrai prompt (auto-`WAIT` du jeu = tour parasite).
+- Ne pas re-`LOOK` en 1re commande après boot (le jeu le fait déjà).
+- Patchs sensibles (`make check` les garde) : `$7353`, `$75B8/$7694/$7514`,
+  `$7628`, `$2C4A`, `$2C0B/$2C0E/$2C11`.
+- `vbuf` en ligne mémoire `r = $7F - y` (sinon image miroir).
+- HMR : serveur dev uniquement (`web/serve.js`), jamais dans `web/build`.
