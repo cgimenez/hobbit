@@ -255,6 +255,15 @@ function openMapModal(focus) {
   $('#modal-title').textContent = focus >= 0
     ? `Carte — $${hex(focus)} ${roomName(focus)}` : 'Carte des lieux';
   $('#modal-map').innerHTML = svg;
+  $('#modal-map').hidden = false;
+  $('#modal-about').hidden = true;
+  $('#modal').classList.remove('hidden');
+}
+
+function openAboutModal() {
+  $('#modal-title').textContent = 'À propos';
+  $('#modal-about').hidden = false;
+  $('#modal-map').hidden = true;
   $('#modal').classList.remove('hidden');
 }
 
@@ -264,6 +273,7 @@ $('#map-svg').addEventListener('click', (e) => {
   const c = e.target.closest('circle[data-room]');
   openMapModal(c ? +c.dataset.room : -1);
 });
+$('#btn-about').addEventListener('click', openAboutModal);
 $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
