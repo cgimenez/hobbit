@@ -96,21 +96,21 @@ STATE_KEYS: list[tuple[int, int]] = [
 # Offsets de champ (sens generique d'un bloc d'etat). +0 = regime, jamais
 # mute (doc §6 : "jamais modifie") -> constante.
 STATE_FIELD: dict[int, tuple[str, str, str]] = {
-    0x00: ("nloc", CONST, "N = nombre de lieux ; lieux en +$10..+$10+N-1 (N=1 objet localise ; N>1 portes/eau/toile, cf. L5FFA)"),
-    0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne)"),
-    0x02: ("volume", CONST, "volume (objet) / capacite (contenant) ; act_p14_13 'IS TOO FULL' ; ref. npc_stats"),
-    0x03: ("masse", CONST, "masse/poids de portage (obj_count_add $5C2B ; ref. npc_stats Mass)"),
-    0x04: ("oclass", CONST, "bits0-2 = classe d'objet/contenant ($06 = cas special) ; obj_type_route $5B9B"),
-    0x05: ("hp", VAR, "force/degats (combat : +10/coup, bit7=>tue ; x2 transfo $6F1B ; ref. npc_stats Strength)"),
-    0x06: ("tough", VAR, "seuil de robustesse (compare aux degats +$05 ; act_p14_01)"),
-    0x07: ("flags", VAR, "attributs (cf. Wilderland ATTR_*) : b0 verrou, b1 fluide, b2 plein, b3 casse/mort, b4 eclaire, b5 ouvert, b6 animal, b7 visible"),
+    0x00: ("nloc", CONST, "N = nombre de lieux (WL.h P0_OFF_QTY) ; lieux en +$10..+$10+N-1 (N=1 objet localise ; N>1 portes/eau/toile, cf. L5FFA)"),
+    0x01: ("carrier", VAR, "porteur (id entite ; $FF=personne) (= WL.h P1_OFF_MO, 'Mother object')"),
+    0x02: ("volume", CONST, "volume (objet) / capacite (contenant) (WL.h P2_OFF_VOLUME) ; act_p14_13 'IS TOO FULL' ; ref. npc_stats"),
+    0x03: ("masse", CONST, "masse/poids de portage (WL.h P3_OFF_MASS ; obj_count_add $5C2B ; ref. npc_stats Mass)"),
+    0x04: ("oclass", CONST, "bits0-2 = classe d'objet/contenant ($06 = cas special) ; obj_type_route $5B9B (WL.h P4_OFF)"),
+    0x05: ("hp", VAR, "force/degats (WL.h P5_OFF_STRENGTH ; combat : +10/coup, bit7=>tue ; x2 transfo $6F1B ; ref. npc_stats Strength)"),
+    0x06: ("tough", VAR, "seuil de robustesse (WL.h P6_OFF ; compare aux degats +$05 ; act_p14_01)"),
+    0x07: ("flags", VAR, "attributs (= WL.h ATTRIBUTE_OFF ; ATTR_*) : b0 verrou, b1 fluide, b2 plein, b3 casse/mort, b4 eclaire, b5 ouvert, b6 animal, b7 visible"),
     0x08: ("noun", GABARIT, "mot du dictionnaire = nom de l'objet (word_render ; name_from_record $5A9D) ; sert de gabarit au LOOK"),
     0x09: ("noun_hi", GABARIT, "haut de noun"),
     0x0A: ("adj1/altptr", VAR, "adjectif 1 (mot dico) ; reutilise en pointeur secondaire (ex. $098F pose par $6F1B)"),
     0x0B: ("adj1_hi", VAR, "haut de adj1"),
     0x0C: ("adj2/descp", VAR, "adjectif 2 (mot dico) ; RAZ en pointeur de description runtime (obj_state_clear $5AF0)"),
     0x0D: ("adj2_hi", VAR, "haut de adj2"),
-    0x10: ("eloc", VAR, "premier des N lieux (+$00) ; liste +$10..+$10+N-1"),
+    0x10: ("eloc", VAR, "premier des N lieux (+$00) (= WL.h P10_OFF_ROOM) ; liste +$10..+$10+N-1"),
 }
 # Champs specifiques a une cle (cle, offset) -> (nom, genre, doc).
 STATE_SPECIAL: dict[tuple[int, int], tuple[str, str, str]] = {
@@ -188,22 +188,22 @@ STATE_IDENTITY: dict[int, str] = {
     0x2A: "river2a",      # RIVER
     0x2B: "key2b",        # KEY
     0x3C: "dragon",       # DRAGON (dormant, arme par event)
-    0x3D: "goblin3d",     # GOBLIN
-    0x3E: "gandalf",      # GANDALF
-    0x3F: "thorin",       # THORIN
-    0x40: "elf",          # ELF
-    0x41: "elrond",       # ELROND (corrige l'ancien « dragon presume »)
-    0x42: "butler",       # BUTLER (dormant, eloc $20)
-    0x43: "warg",         # WARG
-    0x44: "gollum",       # GOLLUM
-    0x45: "goblin45",     # GOBLIN
-    0x46: "bard",         # BARD (dormant)
-    0x47: "troll_hideous",  # TROLL
-    0x48: "troll_vicious",  # TROLL
-    0x49: "goblin49",     # GOBLIN
-    0x4A: "goblin4a",     # GOBLIN
-    0x4B: "goblin4b",     # GOBLIN
-    0x4C: "goblin4c",     # GOBLIN
+    0x3D: "nasty_goblin",   # NASTYGOBLIN (Wilderland OBJNR_NASTYGOBLIN, "nG")
+    0x3E: "gandalf",      # GANDALF (OBJNR_GANDALF)
+    0x3F: "thorin",       # THORIN (OBJNR_THORIN)
+    0x40: "wood_elf",     # ELF (OBJNR_ELF, "WE")
+    0x41: "elrond",       # ELROND (OBJNR_ELROND ; corrige l'ancien « dragon presume »)
+    0x42: "butler",       # BUTLER (OBJNR_BUTLER, dormant, eloc $20)
+    0x43: "warg",         # WARG (OBJNR_WARG)
+    0x44: "gollum",       # GOLLUM (OBJNR_GOLLUM)
+    0x45: "hideous_goblin", # OBJNR_HIDEOUSGOBLIN, "hG"
+    0x46: "bard",         # BARD (OBJNR_BARD, dormant)
+    0x47: "hideous_troll",  # TROLL (OBJNR_HIDEOUSTROLL, "hT")
+    0x48: "vicious_troll",  # TROLL (OBJNR_VICIOUSTROLL, "vT")
+    0x49: "horrible_goblin", # OBJNR_HORRIBLEGOBLIN, "oG"
+    0x4A: "mean_goblin",  # OBJNR_MEANGOBLIN, "mG"
+    0x4B: "vicious_goblin", # OBJNR_VICIOUSGOBLIN, "vG"
+    0x4C: "disgusting_goblin", # OBJNR_DISGUSTINGGOBLIN, "dG"
 }
 
 # --- §3. Scripts/tables $28CC (753 o) -----------------------------------

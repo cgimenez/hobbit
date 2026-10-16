@@ -2,7 +2,7 @@
 
 Tout l'état mutable tient dans 4 régions basses, recopiées au boot vers
 le workspace haut contigu **`$91D0`–`$9FF7` (`$0E28` o)** et écrites sur
-cassette par SAVE (`cmd_save` `$3DD9`, 4 blocs + VERIFY). Chaque ligne
+cassette par SAVE (`save_game` `$3DD9`, 4 blocs + VERIFY). Chaque ligne
 ci-dessous = adresse exacte → signification, relevée dans
 `data/hobbit.bin` (image initiale ; le runtime mute via harnais).
 
@@ -76,7 +76,7 @@ base est la plus grande `≤` l'adresse, jusqu'à la base suivante (blocs de
 
 Format de bloc (via `L57BB`, `code_5AF0`, `act_p14_00/01`, `act_p14_13`) :
 `+0` = **N, nombre de lieux** ; les `N` lieux suivent en `+$10`, `+$11`, … (balayés
-par `L5FFA`). `N`=`$01` = objet **à un seul lieu** (seul cas que `entity_state_resolve`
+par `L5FFA`). `N`=`$01` = objet **à un seul lieu** (seul cas que `get_object_location`
 `$57BB` résout : rend `(fiche)+$10`, sinon `$FF` = « nulle part »). `N`≥`$02` =
 **objet multi-lieux** (portes, eau, toile, rivière : ex. eau `$17` en 8 lieux).
 `+1` = porteur (id entité, `$FF`=personne : carte `$03`→`$3E` = Gandalf au boot) ;
@@ -225,7 +225,15 @@ plein/cassé/éclaire/ouvert/animal/visible`, cf. table ci-dessous). Encodés da
 > **Cross-check externe** (`external_ressources/`) : le moteur ZX du même jeu
 > (Megler/Mitchell, `Wilderland/`) partage **tout** le layout objet : `+00`
 > nombre de lieux, `+01` porteur, `+02` volume, `+03` masse, `+05` force,
-> `+07` attributs, `+08` nom, `+0A`/`+0C` adjectifs, `+10` lieux. Confirmé par
+> `+07` attributs, `+08` nom, `+0A`/`+0C` adjectifs, `+10` lieux. Noms officiels
+> des offsets (`Wilderland/WL.h`) : `P0_OFF_QTY`, `P1_OFF_MO` (Mother object =
+> porteur), `P2_OFF_VOLUME`, `P3_OFF_MASS`, `P5_OFF_STRENGTH`, `ATTRIBUTE_OFF`,
+> `P10_OFF_ROOM` ; entités `OBJNR_*` : `00` YOU, `3C` DRAGON, `3D` NASTYGOBLIN,
+> `3E` GANDALF, `3F` THORIN, `40` ELF, `41` ELROND, `42` BUTLER, `43` WARG,
+> `44` GOLLUM, `45` HIDEOUSGOBLIN, `46` BARD, `47` HIDEOUSTROLL, `48`
+> VICIOUSTROLL, `49` HORRIBLEGOBLIN, `4A` MEANGOBLIN, `4B` VICIOUSGOBLIN, `4C`
+> DISGUSTINGGOBLIN (`MapCoordinates.h` `AnimalInitials`, `WL.c`
+> `SearchByteWordTable` = index `[id,lo,hi]` terminé `$FF`). Confirmé par
 > `HobbitOSX/…/npc_stats.xlsx` (Strength/Mass/Volume des PNJ : Gandalf
 > `15/60/70`, Trolls `90/90/A0`, Gollum `05/05/20`…) et par le manuel
 > (`HobbitOSX/…/instructions.rtf`, « lois de la physique »).
@@ -303,7 +311,7 @@ Rôles : `docs/block4-analysis.md` (§ événements).
 `world_tick` (`$4E59`) → `entity_tick` (`$4ED5`, VM §3b). `nmax` (`+1`) =
 **index maximal (0-based) dans la table `base` = nombre d'entrées − 1** (clamp
 `script_indir`/`script_rand` : `min(opérande, nmax)`) ; `reply` (`+6`) = **poids
-de réplique** : au seul site `npc_say_no` (`$5F81`), borne du tirage
+de réplique** : au seul site `action_talk_to` (`$5F81`), borne du tirage
 `rand_range` décidant l'émission de `<id>SAY 'NO '` (`$15BE`, énigme ; `0` =
 muet). Ni `nmax` ni `reply` ne sont jamais écrits. id `$00` = **dormant**
 (`entity_tick` saute l'entrée) ; **l'activation se fait en écrivant l'id réel
@@ -607,9 +615,9 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   = exécute le `jsr vec_0x` suivant. Le `18 00` après `jsr
   save_block` = len `$0018` (pas `CLC;BRK` — da65 affiche des params
   comme du code ; idem les « programmes BRK » et le ASCII-salad =
-  params + `JSR $2C1D` + `JSR L471B` + `JMP L3C07`). `cmd_save` :
+  params + `JSR $2C1D` + `JSR L471B` + `JMP L3C07`). `save_game` :
   `vec_06` + 4× `save_block` (ZP/états/scripts/records) + verify ;
-  `load_handler` : `vec_05` + 4× `L3D6A` (charge direct en `(ptr)`,
+  `load_game` : `vec_05` + 4× `L3D6A` (charge direct en `(ptr)`,
   sans staging) + `jsr $2C1D` (`vec_08`=`L71FF`=`CLC`, no-op) +
   `L471B` + boucle. Pile retours logicielle `$0200`+`rstk`
   (`L46E6` push ptr/ptr2, `L471B`/`fetch_retaddr` pop).

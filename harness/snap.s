@@ -5,7 +5,7 @@
 ;   vec_03 ($2C0E, JMP tape_save $7215) -> JMP snap_save
 ;   vec_04 ($2C11, JMP L71CB)           -> JMP s_clc
 ;   + 6 vecteurs bloc 1 $0405-$0414 -> stubs no-op (table $F700).
-; vec_05/vec_06 (prompts PREPARE/PRESS ANY KEY + kb_wait) conserves :
+; vec_05/vec_06 (prompts PREPARE/PRESS ANY KEY + wait_for_key) conserves :
 ; SAVE/LOAD coutent chacun 1 touche sacrificielle, transcript authentique.
 ;
 ; Protocole SANS ETAT (index deduit de l'adresse, pas de compteur) :

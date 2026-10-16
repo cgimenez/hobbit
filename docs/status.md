@@ -15,7 +15,7 @@
 - Routines documentées via `ROUTINE_DOCS` dans `scripts/disasm.py`
   (**124** : socle + 33 actions + 27 moteur de messages + 20 événements
   `evt_*` (`evt_tick`/`evt_fire`, stubs `evt_armeN`, `evt_lookup`…) + 10
-  moteur vectoriel (`vec_image`/`vec_line`/`vec_fill`/`vec_pos`/`vec_skip`/
+  moteur vectoriel (`drawing`/`vec_line`/`vec_fill`/`vec_pos`/`vec_skip`/
   `vec_setup`/`vec_testpx`/`vec_plot`/`vec_addr`, `img_show`) ; nom +
   résumé → labels/commentaires régénérés ; checker H : début d'instruction,
   nom unique/valide). Zéro-page nommée via `ZP_NAMES` (**51** : 40 bases +
@@ -424,7 +424,7 @@ E/N/W/S, warg offensif)** ; triggers d'armement events,
    `$29xx`, opcodes VM connus).
 3. `STA $6A5C` (auto-modification) : octet gardé en donnée, code dès `$6A5E`.
 4. Rôles de `vec_06`, `vec_07` à confirmer (`vec_init` établi : entrée
-   du renderer d'illustrations → `vec_image` `$77D4`).
+   du renderer d'illustrations → `drawing` `$77D4`).
 5. SAVE/LOAD non testés : les vecteurs cassette (`$0405-$0417`) pointent
    vers la ROM 1.0, morte sous sim65 → tout `SAVE`/`LOAD` plantera (stubs
    à prévoir si on teste ces chemins).
@@ -836,7 +836,7 @@ Note pour contexte neuf (détails : `docs/memory-map.md` §2/§3c/§3d,
 - **Entités `$2B45`** (`[id,nmax,PC,base,reply]`) : `n` (`+1`) → **`nmax`** =
   index max (0-based) de la table `base` = nb d'entrées − 1 (clamp
   `script_indir`/`script_rand` : `min(op,nmax)`) ; `s6` (`+6`) → **`reply`** =
-  poids de réplique, lu **au seul site** `npc_say_no` (`$5F81`, orphelin wid
+  poids de réplique, lu **au seul site** `action_talk_to` (`$5F81`, orphelin wid
   `$35` de la table `$6FAC`) qui fait dire `<id>SAY 'NO '` (`$15BE`, énigme) ;
   `0` = muet. Ni `nmax` ni `reply` ne sont jamais écrits (DB : deltas `$28CC`
   seulement sur `+0/+2/+3`). **Fix annexe** : `INDIR_TABLES[$2943]` 15 → 25 o
@@ -851,7 +851,7 @@ Note pour contexte neuf (détails : `docs/memory-map.md` §2/§3c/§3d,
   `evt_lookup` `$5DE2` appelé par `act_probe_event` `$5DCB` (`obj==0`).
 - **État `+0`** : **corrigé** en « N lieux » (voir entrée plus bas) — `+0` =
   **nombre de lieux N** (et non une classe) ; les N lieux suivent en `+$10..`.
-  `N`=`$01` = objet à un seul lieu (seul cas que `entity_state_resolve` `$57BB`,
+  `N`=`$01` = objet à un seul lieu (seul cas que `get_object_location` `$57BB`,
   `is_dark`, `holder_scan`, arme `act_p14_00/03` résolvent) ; `N`≥`2` =
   multi-lieux (portes/eau/toile) dont la liste est gérée par `L5FFA`.
 
@@ -879,7 +879,7 @@ Cross-check sur `data/hobbit.bin` :
   l'ancien `tpl`/`altptr`/`descp` (noms composés, réutilisation runtime gardée).
 - **`+$00` = N, nombre de lieux** (et non une « classe ») : les `N` lieux suivent
   en `+$10..` (balayés par `L5FFA`) ; `N`=`$01` = objet à un seul lieu, `N`≥`2` =
-  multi-lieux (portes, eau `$17` en **8** lieux, toile, rivière). `entity_state_resolve`
+  multi-lieux (portes, eau `$17` en **8** lieux, toile, rivière). `get_object_location`
   `$57BB` ne résout que `N`=`$01` (sinon `$FF` = « nulle part »).
 - **`+$02`=volume, `+$03`=masse, `+$04`(bits0-2)=classe/contenant** : ma lecture
   initiale (« divergence ») était **fausse** ; `act_p14_13` (« IS TOO FULL ») lit
@@ -919,3 +919,94 @@ le code :
 
 Lecture du PDF : le modèle ne lit pas les PDF en pièce jointe ; le texte est
 extractible en stdlib (`zlib` sur les flux `FlateDecode` + opérateurs `Tj`).
+
+### Désassemblage ZX de référence (`pobtastic/hobbit`)
+
+Sous `external_ressources/hobbit/` (gitignoré) : désassemblage **SkoolKit**
+complet de la version ZX Spectrum du même jeu (Paul Maddern, `pobtastic/hobbit`,
+2021-2023), **217 labels** nommés. Fichiers : `sources/hobbit.skool` (code Z80
+annoté), `sources/hobbit.py` + `utils/hobbitmessages.py`/`hobbitimages.py`
+(décodeurs dico/messages/graphismes). Même moteur que l'Oric (adresses ≠) :
+confirme la fiche objet, la table d'actions `$C730` (mêmes IDs), les attributs
+`+$07`, et fournit des **noms canoniques** (`LocateObject`, `IndexIdTable`,
+`ContainerLit`, `CheckValidAction`, `TriggerAction`, `Drawing*`, `Event*`,
+`ScriptGandalf_*`).
+
+Renommages adoptés (nom ZX → `snake_case`, notre règle) :
+
+- `locate_object` (`$5331`), `locate_location` (`$530B`),
+  `get_object_location` (`$57BB`), `index_id_table`/`index_id_table2`
+  (`$5399`/`$5394`), `step3byte_table`/`step3byte_table_next`
+  (`$540F`/`$542C`), `print_char` (`$75B4`), `get_key` (`$7353`),
+  `wait_for_key` (`$7481`), `save_game` (`$3DD9`), `load_game` (`$3D7F`),
+  `tape_verify` (`$71CB`), `drawing` (`$77D4`, flux d'illustration).
+
+Non renommés (pas de correspondance nette) : `act_p14_*` (table d'action Oric à
+15 entrées indexées, ≠ `ActionTable` ZX classée par ID), `act_v14_*` (scripts
+PNJ par personnage côté ZX), `ch_out`/`ch_put`, `render_text` (≠ `PrintToken`),
+les 8 « pointeurs nuls » (= slots de message, pas des routines).
+
+### Handoff — travail en cours (à reprendre)
+
+**État courant** : renommages ZX appliqués dans `scripts/disasm.py` + docs/harness,
+listings régénérés. Vérifs vertes : `disasm_check --block block4` PROPRE,
+`memmap_check` PROPRE, `disasm_rebuild --all` byte-identique (36274 o).
+**Modifs NON commitées** (9 fichiers) : `disasm/block4.{asm,info}`,
+`docs/{block4-analysis,memory-map,status}.md`, `harness/{shim,snap}.s`,
+`scripts/{disasm,sim_pack}.py`.
+
+**Gisement externe** : `external_ressources/` (gitignoré). Non exploité en majorité.
+
+**Étape 1 — `hobbit/sources/hobbit.ctl` (tables sémantiques). [FAIT]**
+Map `#ACTION` lue → noms officiels des `wid` dans `docs/block4-analysis.md`
+(§Verbes ordinaires), et **handlers nommés** dans `ROUTINE_DOCS` :
+`action_none/look/pickup/take_out_of/dir/drop/enter/run/follow/throw_at/
+talk_to/strike/inventory/examine/give/capture/untie/tie/burn/climb_out/shoot`.
+Corrige `$0B`→Strike with, `$1C`→Examine, `$1D`→Give To, `$13/$3B`→Take/Carry ;
+`$0E`=**Drop** (routine `$5EB7` imprime `EVAPORATE.` = ZX `Action_Putdown`) ;
+`$0F/$11`→`act_p14_13` (corps *partagé*) ; `$00`→`entity_tick_init` ; `$2C`→`$61E5`.
+6 handlers étaient enfouis en zones données (`$637B $6760 $67CA $67E3 $685E
+$686D`) → ajoutés à `MANUAL_ENTRIES` ; + `$66F1` = entrée **[35]** de `L7014`
+(attention : **table de mots**, base `$7016`, indexée par `(orec)+1`×2) →
+`act_p14_35`. `$5D44` (`action_dir`) : préambule `is_dark` + direction aléatoire
+dans le noir, puis `combat_round` ($5D53) qui résout en fait le **déplacement**
+(messages « FALL AND HIT YOUR HEAD ») — nom `combat_round` **à revoir**. Vérifié
+`disasm_check`/`memmap_check` PROPRE + `rebuild --all` byte-identique.
+(NB : `AGENTS.md` §7 « 102 sites $440D » → **108**, à rafraîchir.)
+
+**Étape 2 — `Wilderland/WL.h`/`GlobalVars.h`/`MapCoordinates.h`. [FAIT]**
+Ces entêtes sont surtout émulateur/constantes : **pas de table de variables ZP**
+(`GlobalVars.h` = SDL/Z80 ; `WL.h` = adresses ZX + macros objet). Aucune ZP
+renommée. Apports : `WL.h` `P*_OFF_*` (offsets objet) et `ATTR_*` (attributs) ;
+`OBJNR_*` (n° entités `3C`-`4C`) ; `MapCoordinates.h` = carte des `0x50` lieux +
+`AnimalInitials`. Reportés dans `scripts/memmap_defs.py` (`STATE_FIELD` renvoie
+à `WL.h`, `STATE_IDENTITY` = noms PNJ exacts : nasty/hideous/horrible/mean/
+vicious/disgusting goblin, hideous/vicious troll, wood_elf…) et
+`docs/memory-map.md`. ZP : noms inchangés (issus du désassemblage + `L_*`).
+Non exploité : `WL.c` (98 K, logique carte/menus) et `dict_v12.txt`/`rooms_v12.txt`.
+
+**Étape 3 — reste de `hobbit.skool` (lieux/objets/LocGFX/dico). [FAIT]**
+- **Lieux** : nos 79 records `$2070` (`$00-$4F` sauf `$2F`) = **numéro pour
+  numéro** les 79 rooms de `Wilderland/rooms_v12.txt` (desc Oric `+8` == desc
+  ZX). Table complète (id ↔ nom ZX ↔ desc Oric) ajoutée à
+  `docs/block4-analysis.md` §« Records lieux ↔ rooms_v12 ».
+- **LocGFX** : clés d'images bloc 3 = **ids de lieux** confirmé (ZX
+  `LocGFXTable` `$CC00`). Mapping + noms dans `docs/block4-analysis.md` §Bloc 3
+  et `docs/tape-archive.md`. ZX v1.2 = 22 images, Oric v1.0 = 13.
+- **Dictionnaire** : notre dico v1.0 (`$0540`) est un **sur-ensemble** du
+  `dict_v12.txt` (ZX v1.2) : ~530 mots communs, ~26 ZX-only (`BUTLER DALE LAKE
+  LOAD MEAN NARROW NIGHT SAND WALL WARG…`), ~70 Oric-only (mots anglais rares).
+  ⚠️ `msg_decode.py words` a ~12 artefacts de frontière (`CBUTLER`, `BDALE`,
+  `BFLAKE`… = préfixe 1-2 lettres) → `decode_word_at` à revoir (n'affecte pas le
+  décodage des messages).
+- **CommonWords** : notre table `$1117` (32 ptr) diffère du ZX `$AD3D`
+  (ordre = fréquence chez nous, alphabétique chez ZX ; jeux ≠ : version).
+- **Objets** : déjà alignés (`STATE_IDENTITY` = `OBJNR_*`, cf. étape 2).
+- **Non exploité** : `Actions`/`TextMessages`/`Script*`/`Event*` nommés ZX (renommage
+  de routines Oric par correspondance), `WL.c`, `dict_v12.txt` complet.
+
+**Plus tard (4)** : ports **6502** dans `HobbitOSX/…/BBCDisk`, `Apple2Disk`,
+`C64Disk` (v1.00) → extraction + diff pour aligner le code Oric (même CPU).
+
+**Commandes** : `.venv/bin/python scripts/disasm.py` ; `scripts/disasm_check.py
+--block block4` ; `scripts/memmap_check.py` ; `scripts/disasm_rebuild.py --all`.

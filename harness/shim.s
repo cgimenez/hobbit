@@ -14,7 +14,7 @@
 ; Variante SOLVER (ca65 -D SOLVER, cf. sim_pack.py --solver) : aucun dump
 ; ecran/memoire (shim_kb = lecture clavier pure) ; a la place, capture
 ; ASCII a la source via 2 hooks poses par sim_pack :
-;   - L75B8 (corps commun du plot : glyph_out + L76ED->L75B8) -> asc_plot :
+;   - L75B8 (corps commun du plot : print_char + L76ED->L75B8) -> asc_plot :
 ;     A = caractere final rendu (capitales appliquees) ; emis "@@A"+octet.
 ;     Le curseur '+' ($2B, reecrit par le caractere suivant) est emis aussi :
 ;     filtre cote Python. A/X/Y/$02/$03 preserves, octet remplace rejoue.

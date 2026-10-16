@@ -29,7 +29,7 @@ Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
            --solver : variante capture ASCII (shim -D SOLVER, hooks L75B8/
              L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py
              ET play.sh. Se combine avec --snapshot (ex. --snapshot SLVW
-             --solver). Patche aussi pause_key : le `JSR kb_scan` de la pause
+             --solver). Patche aussi pause_key : le `JSR get_key` de la pause
              de lecture ($7628) est neutralise (LDA #$00) pour qu'elle
              n'absorbe plus un octet du flux clavier pre-injecte (cf. journal,
              "touche sacrifiee") ; les images classiques ne sont pas touchees.
@@ -93,7 +93,7 @@ FAST_OUT = BUILD / "hobbit_fast.sim"
 # start: LDX #$FF / TXS / BNE L2C49 ($56=1 force) ; L2C49 = LDA #$01.
 # Forcer $56=0 (pas d'images) = patcher l'immediat $2C4A ($01 -> $00).
 NOIMG_ADDR, NOIMG_WANT = 0x2C4A, 0x01
-# Pause de lecture (pause_key, $7620-) : tous les 16 CR, `JSR $7353` (kb_scan)
+# Pause de lecture (pause_key, $7620-) : tous les 16 CR, `JSR $7353` (get_key)
 # detecte une touche et, si presente, la consomme (BMI $7640). Avec un flux
 # clavier pre-injecte (solver/play.sh), cette pause absorbe le 1er caractere
 # de la commande suivante (cf. journal : "touche sacrifiee"). En mode

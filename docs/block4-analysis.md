@@ -360,7 +360,7 @@ Une fois la commande construite, `start` l'exécute :
   (`rev_dispatch2` `$3A0B`), **3** = action à rejouer en réel (`rev_real`
   `$3A2D`).
 - `perform_action` (`$4B37`) exécute l'action ordinaire : résolution des objets
-  (`orec`/`orec2` via `obj_record` `$5331`, contrôle `obj_check` `$4CDF`),
+  (`orec`/`orec2` via `locate_object` `$5331`, contrôle `obj_check` `$4CDF`),
   obscurité (`is_dark` `$4C82` → `I SEE NOTHING HERE.`), compatibilité
   verbe/objet (`verb_obj_ok` `$52EA`), puis dispatch dans la table d'actions
   `$7014` (objet normal) ou `$7114` (étendue) par `indirect_call` (`$4C5D`).
@@ -543,7 +543,7 @@ terminée par `$FF` en `$2BBC` :
 - `PC` (`+2/+3`) = pointeur du script courant dans le bloc 2.
 - `base` (`+4/+5`) = table de sauts 3 o `[clé, lo, hi]` propre à l'entité
   (cibles des `GOTO`/`RAND`/`INDIR`).
-- `reply` (`+6`) = **poids de réplique** : lu au seul site `npc_say_no`
+- `reply` (`+6`) = **poids de réplique** : lu au seul site `action_talk_to`
   (`$5F81`), borne du tirage `rand_range` qui décide si l'entité `arg1` dit
   `<ARG1>SAY 'NO '` (`$15BE`, réplique d'énigme) ; `0` = muet. Jamais écrit
   (config, comme `id`-hors-activation/`nmax`/`base`).
@@ -748,6 +748,100 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   `L363E`, absent de `$A0`/`$B0` ; bit7 ?).
   Décodeurs : `/tmp/condmatch.py`, `/tmp/condmat.py` (non promus).
 
+### Records lieux ↔ `rooms_v12.txt` (ZX) — alignement 1:1 par numéro
+
+Nos 79 records (`$2070`, ids `$00-$4F` sauf `$2F`) correspondent **numéro pour
+numéro** aux 79 rooms de `Wilderland/rooms_v12.txt` (ZX v1.2 ; `$2F` = lieu nul
+des deux côtés). Le `desc` Oric (`+8`) égale la description ZX ; les lieux Oric
+sans `desc` (`+8`=`$0000`) prennent leur texte runtime des mots-nom ZX (colonne
+du milieu). Vérifié sur l'image : `$01` `A COMFORTABLE TUNNEL LIKE HALL`, `$04`
+`A GLOOMY EMPTY LAND…`, `$42`/`$43` berges de la rivière noire, etc. Extrait par
+`rooms_v12.txt` (noms + sorties) ; sorties ZX : `[dir, clé, dest]` terminées
+`$FF`, cf. nos exits étendues `$26DA`.
+
+| id | mots-nom / desc (ZX) | desc Oric `+8` |
+|---|---|---|
+| `$00` | — | — |
+| `$01` | hall tunnel like comfortable tunnel like hall | A COMFORTABLE TUNNEL LIKE HALL |
+| `$02` | road forest | — |
+| `$03` | forest | — |
+| `$04` | lonelands gloomy empty land dreary hills ahead | A GLOOMY EMPTY LAND WITH DREARY HILLS AHEAD |
+| `$05` | clearing trolls | — |
+| `$06` | path trolls hidden path trolls foot print S [16] | A HIDDEN PATH WITH TROLLS FOOT PRINTS |
+| `$07` | cave trolls trolls cave | THE TROLLS CAVE |
+| `$08` | river running | — |
+| `$09` | rivendell | — |
+| `$0A` | mountain misty hard dangerous path misty mountains | A HARD DANGEROUS PATH IN THE MISTY MOUNTAINS |
+| `$0B` | place narrow narrow place dreadful drop into dim valley | A NARROW PLACE WITH A DREADFUL DROP INTO A DIM VALLEY |
+| `$0C` | path dangerous narrow narrow dangerous path | A NARROW DANGEROUS PATH |
+| `$0D` | dungeon goblins | — |
+| `$0E` | cave large dry large dry cave which climb quite comfortable | A LARGE DRY CAVE WHICH IS QUITE COMFORTABLE |
+| `$0F` | passage dark stuffy | — |
+| `$10` | cavern big goblins big cavern torch ESalong wall S [16] | A BIG CAVERN WITH TORCHES ALONG THE WALLS |
+| `$11` | lake deep dark brink deep dark under ground lake | THE BRINK OF A DEEP DARK UNDER GROUND LAKE |
+| `$12` | passage dark winding | — |
+| `$13` | gate inside goblins goblins gate | THE GOBLINS GATE |
+| `$14` | gate outside goblins goblins gate | THE GOBLINS GATE |
+| `$15` | opening treeless | — |
+| `$16` | house beorns | — |
+| `$17` | forestriver | — |
+| `$18` | gate forest gate mirkwood | THE GATE TO MIRKWOOD |
+| `$19` | place bewitched gloomy | A BEWITCHED GLOOMY PLACE SURROUNDED BY THICK TREE |
+| `$1A` | place spider threads place black spider S [16] | A PLACE OF BLACK SPIDERS |
+| `$1B` | forest smothering forest tangled smothering /3.Person/trees  [16] | A FOREST OF TANGLED SMOTHERING TREE |
+| `$1C` | clearing levelled elvish Nelvish clearing levelled ground untie logs | AN ELVISH CLEARING WITH LEVELLED GROUND AND LOGS |
+| `$1D` | bog deep | — |
+| `$1E` | halls elvenkings great | — |
+| `$1F` | dungeon dark dark dungeon elvenkings halls | A DARK DUNGEON IN THE ELVENKINGS HALLS |
+| `$20` | cellar elvenkings cellar where king keeps his barrel Swine | THE CELLAR WHERE THE KING KEEPS HIS BARRELS OF WINE |
+| `$21` | forestriver | — |
+| `$22` | lake long | — |
+| `$23` | town lake wooden town middle long lake | A WOODEN TOWN IN THE MIDDLE OF LONG LAKE |
+| `$24` | river running strong river :current climb now strong move against | A STRONG RIVER :THE CURRENT IS NOW TOO STRONG TO MOVE AGAINST |
+| `$25` | desolation dragons bleak barren land that was once green | A BLEAK BARREN LAND THAT WAS ONCE GREEN |
+| `$26` | valley dale ruins town dale | THE RUINS OF THE TOWN OF DALE |
+| `$27` | gate front front gate lonely mountain | THE FRONT GATE OF THE LONELY MOUNTAIN |
+| `$28` | ravenhill west side ravenhill | THE WEST SIDE OF RAVENHILL |
+| `$29` | halls lower halls where /3.Person/sleeps  [16] | THE HALLS WHERE THE DRAGON SLEEP |
+| `$2A` | sidedoor little steep bay ,still untie quiet ,an over hanging cliff | A LITTLE STEEP BAY,STILL AND QUIET,WITH AN OVER HANGING CLIFF |
+| `$2B` | passage smooth straight smooth straight passage | A SMOOTH STRAIGHT PASSAGE |
+| `$2C` | mountain lonely lonely mountain | THE LONELY MOUNTAIN |
+| `$2D` | waterfall | — |
+| `$2E` | road forest | — |
+| `$2F` | place empty (lieu nul) | (nul) |
+| `$30` | mountains | — |
+| `$31` | river great | — |
+| `$32` | forest green | — |
+| `$33` | place empty | — |
+| `$34` | passage dark stuffy | — |
+| `$35` | passage dark stuffy | — |
+| `$36` | passage dark stuffy | — |
+| `$37` | passage dark stuffy | — |
+| `$38` | passage dark stuffy | — |
+| `$39` | passage dark stuffy | — |
+| `$3A` | passage dark stuffy | — |
+| `$3B` | passage dark stuffy | — |
+| `$3C` | passage dark stuffy | — |
+| `$3D` | passage dark stuffy | — |
+| `$3E` | passage dark stuffy | — |
+| `$3F` | passage dark stuffy | — |
+| `$40` | passage dark stuffy | — |
+| `$41` | passage dark stuffy | — |
+| `$42` | bank west west  [02] [04]east bank black river | THE WEST BANK OF A BLACK RIVER |
+| `$43` | bank east east bank black river | THE EAST BANK OF A BLACK RIVER |
+| `$44` | path narrow | — |
+| `$45` | path narrow | — |
+| `$46` | path narrow | — |
+| `$47` | path narrow | — |
+| `$48` | path narrow | — |
+| `$49` | path narrow | — |
+| `$4A` | path narrow | — |
+| `$4B` | path steep | — |
+| `$4C` | path steep | — |
+| `$4D` | path steep | — |
+| `$4E` | valley deep misty | — |
+| `$4F` | valley deep misty | — |
+
 ## Bloc 4 : commandes spéciales et SAVE/LOAD (`$3B75`, `$3D3F`–`$3E40`)
 
 - Dispatch (`L3B75`/`L3B9F`) : le mot parsé (`adr`, lo + hi&`$0F`)
@@ -759,18 +853,35 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   `$0DA0`), QUIT `$3C88` (score + `JMP $2C3D`), HELP `$3C8E`,
   SCORE `$3CCE`, PAUSE `$3D39`.
 - Verbes ordinaires : table **`$6FAC`–`$7014`** (35 entrées `[wid,lo,hi]`,
-  `$FF` en `$7015`). Dispatch `L4C20` (`lda wid` → `tbl_lookup` `$5395` →
-  handler) :
+  `$FF` en `$7015`). Dispatch `L4C20` (`lda wid` → `index_id_table` `$5395` →
+  handler). Noms **officiels** des `wid` d'après `hobbit.ctl` (map `#ACTION`) et
+  **confirmés par nos messages Oric** :
   ```
-  $01-$0A → $5D44   mouvements (10 directions, cf. manuel)
-  $13 $3B → $5BC9 GET     $0B → $6272 KILL   $1A → $637B INVENTORY
-  $17 → $5B44 LOOK        $1D → $63DC DROP   $1C → $63A4 OPEN
-  $0E → $5EB7   $1F $20 → $5EFF   $24 → $5F07   $27 → $5F28   $2A → $5F40
-  $30 → $6760   $33 → $67CA   $2E → $67E3   $2D → $685E   $35 → $5F81 (SAY-no)
-  $3A → $698B   $37 → $686D   $0F $11 → $6041   $14 → $5D31   $2C → $61E5
-  $00 → $5235
+  $01-$0A → $5D44   N S E W NE NW SE SW UP DOWN (déplacement)
+  $00 → $5235 None        $13 → $5BC9 Take      $3B → $5BC9 Carry
+  $0B → $6272 Strike with $17 → $5B44 Look      $1A → $637B Inventory
+  $1C → $63A4 Examine     $1D → $63DC Give To
+  $1F → $5EFF Enter       $20 → $5EFF Go into   $24 → $5F07 Run
+  $27 → $5F28 Follow      $2A → $5F40 Throw At  $30 → $6760 Capture
+  $33 → $67CA Untie       $2E → $67E3 Tie To    $2D → $685E Burn
+  $35 → $5F81 Talk To     $3A → $698B Shoot     $37 → $686D Climb Out Of
+  $0F → $6041 Attack      $11 → $6041 Put in    $14 → $5D31 Take out of
+  $0E → $5EB7 Drop        $2C → $61E5 (action objet L7014[?])
   ```
-  Noms confirmés par les messages ; `wid` (code d'action) est distinct du mot.
+  Chaque handler est une routine Oric nommée `action_<verbe>` dans
+  `ROUTINE_DOCS` (sauf `$0F`/`$11` → `act_p14_13`, corps *partagé* avec la
+  table d'actions `L7014` ; et `$00` → `entity_tick_init`).
+  Corrige des libellés erronés : `$0B` KILL→**Strike with**, `$1C` OPEN→
+  **Examine**, `$1D` DROP→**Give To**, `$13`/`$3B` GET→**Take**/**Carry**.
+  Vérif Oric : `$63A4` (`$1C`) dit `SEE` (examine), `$63DC` (`$1D`) teste
+  `NOT CARRYING IT.`/`CARRYING TOO MUCH` puis pose le porteur (give), `$6272`
+  (`$0B`) dit `YOU CANNOT KILL WITH…` (strike). `$0E` = **Drop** (prouvé : la
+  routine `$5EB7` imprime `EVAPORATE.`, comme `Action_Putdown` du ZX ; Oric
+  décale Drop de `$0D` à `$0E`). `$2C` pointe `act_p14_07` (action objet).
+  Réciproquement, les verbes ZX `$0C` Close / `$0D` Drop / `$10` Open /
+  `$12` Put on / `$15` Take from / `$16` Take off sont **absents** de `$6FAC`
+  (verbes *avec* objet → table `L7014`/`act_p14_*`). `wid` (code d'action) est
+  distinct du mot.
   Verbe **avec** objet : `verb_obj_ok` (`$52EA`) cherche `wid` dans la **liste de
   verbes autorisés** du record (record + `(N)` + `$10`, entrées 2 o `[verbe,idx]`) ;
   l'`idx` bit7 choisit la table d'actions `L7014`/`L7114` (`L4BA3`/`L4BB2`).
@@ -779,7 +890,7 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   d'action + 11 prépositions (ACROSS AT FROM IN INTO ON OUT OFF THROUGH TO WITH)
   + 5 adverbes (CAREFULLY GENTLY QUICKLY SOFTLY VICIOUSLY) : confirme les
   classes 0/1/2/3/7 du parser (`$6FAC` = verbes *sans* objet).
-- SAVE (`cmd_save` `$3DD9`) : `vec_06` (PREPARE TAPE) + 4×
+- SAVE (`save_game` `$3DD9`) : `vec_06` (PREPARE TAPE) + 4×
   `save_block` (`$3DAA` = `L3D3F` + `vec_03`/`tape_save`, params
   inline `[len src]` : ZP `$0018`@`$00BE`, états `$0556`@`$1B1A`,
   scripts `$02F1`@`$28CC`, records `$05C8`@`$211A`) + `vec_10` +
@@ -787,7 +898,7 @@ nul) ; 79 records non-nuls (`$00-$4F` sauf `$2F`), cond nulle
   `cmd_next` (`$3E20` : `L471B` + `JMP $3C07`). Échec → `save_err`
   (`$3DBC` : dit `$1A1A`, `keyin`, abandonne params). En-tête bloc :
   10 o (`$FF/start/end/$50/$50/$FF/$FF/$24`), checksum EOR (`$3B`).
-- LOAD (`load_handler` `$3D7F`, fall-through après erreur LOAD
+- LOAD (`load_game` `$3D7F`, fall-through après erreur LOAD
   comme `$6EA7` dans `$6E8B`) : `vec_05` (PRESS ANY KEY) +
   `L3D6A` (`L3D3F` + `vec_02`/`tape_load`, `SEC` = échec) + copies
   workspace→bas ; échec → dit `$3E26` (TAPE LOADING ERROR) +
@@ -829,9 +940,17 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
   `vec_init`, `keyin` (tourne-page) ; `L6EF7` (clé `$05`, depuis `L64AE`/
   `code_6EE9`) — lit `(ptr)+1/+2` comme **pointeur de données** et y poke
   2 octets (`$00/$10` ou `$03/$03`).
-- Clés : `$01 $06 $0B $25 $26 $07 $0D $15 $20 $19 $29 $1A $27` (modes
-  `$05 $02 $01 $13 $04 $14 $03 $01 $04 $04 $05 $01 $56`) — plausiblement des
-  ids de lieux (à confirmer en jeu : image de la clé == lieu ?).
+- Clés = **ids de lieux — confirmé** (le ZX `LocGFXTable` `$CC00` suit le même
+  principe `[lieu, gfx]` et nos `desc` collent aux rooms ZX). Mapping clé → lieu
+  (nom `rooms_v12`) : `$01` *hall* (comfortable tunnel like hall) · `$06` hidden
+  path (trolls) · `$0B` narrow place / dim valley · `$25` desolation of the
+  dragon · `$26` ruins of Dale · `$07` trolls cave · `$0D` dungeon (goblins) ·
+  `$15` opening treeless · `$20` cellar (wine barrels) · `$19` bewitched gloomy
+  place (Mirkwood) · `$29` halls where the dragon sleeps · `$1A` black spiders ·
+  `$27` front gate of the Lonely Mountain. Modes `$05 $02 $01 $13 $04 $14 $03
+  $01 $04 $04 $05 $01 $56`. Le ZX v1.2 a **22** images (`LocGFX` `$CC43`, lieux
+  `01 31 06 0B 25 2B 26 07 18 23 0D 1F 05 1C 04 20 10 19 08 29 1A 27`) ; Oric
+  v1.0 en a **13** (sous-ensemble, plus `$15`).
 - Cas notés : l'image `$0D` (`$8766`) **contient** l'image `$15`
   (`$8783`–`$887B`) précédée de 29 o (rendus comparés : composite réel,
   pas d'artefact) ; la clé `$05` est **absente** de la table → `L5399`
@@ -848,7 +967,7 @@ Le bloc 3 est une **banque d'images** : table à clés `$7AC0` (13 entrées
 
 ### Protocole de dessin (commandes)
 
-Entrée : `vec_image` (`$77D4`, = `vec_init`) reçoit **X/Y = adresse de
+Entrée : `drawing` (`$77D4`, = `vec_init`) reçoit **X/Y = adresse de
 l'image**, stockée dans `$28/$29` (ZP). Octet 0 = **mode/couleurs** →
 `vec_setup` (`$7990`) : efface le hires `$A000`–`$B3FF` (aplats `$40`) puis
 fixe papier (`mode & 7`, bas 3 bits) / encre (`(mode >> 4) & 7`, bits 4-6).
@@ -905,7 +1024,7 @@ sur bit5.
   (`cmd_run`, `perform_action`, `describe_room`, `special_cmd`) et la
   résolution sortie/opérandes (`move_begin`, `exit_resolve`, `op_resolve1/2`,
   `rev_dispatch2`, `rev_real`, `act_look`), les records
-  (`room_record`/`obj_record`/`tbl_lookup`), 10 `vec_*`/`img_show`, 33 actions
+  (`locate_location`/`locate_object`/`index_id_table`), 10 `vec_*`/`img_show`, 33 actions
   `L7014`/`L7143` et 6 handlers SAVE/LOAD) + commentaires au niveau instruction
   (dispatch de classe du parser, VM des PNJ, exécution des commandes), 0 conflit.
   La **deuxième passe** a baptisé et résumé les 131 routines encore anonymes

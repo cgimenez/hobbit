@@ -125,21 +125,27 @@ le moteur de rendu `vec_*` est en bloc 4). Table à clés `$7AC0` (13 entrées
 `[mode,$08,x,y]`. Décodage : [`scripts/vec_decode.py`](../scripts/vec_decode.py)
 → `docs/vectors/vec_<clé>.svg`.
 
-| Clé | Image | Mode | Remarque |
-|---|---|---|---|
-| `$01` | `$7AE8` | `$05` | |
-| `$06` | `$7D09` | `$02` | |
-| `$0B` | `$7FA4` | `$01` | |
-| `$25` | `$809F` | `$13` | |
-| `$26` | `$82EC` | `$04` | |
-| `$07` | `$8569` | `$14` | |
-| `$0D` | `$8766` | `$03` | contient l'image `$15` (+29 o) |
-| `$15` | `$8783` | `$01` | incluse dans `$0D` |
-| `$20` | `$887B` | `$04` | |
-| `$19` | `$8AE4` | `$04` | |
-| `$29` | `$8D13` | `$05` | |
-| `$1A` | `$8ED0` | `$01` | |
-| `$27` | `$90B1` | `$56` | |
+La clé est un **id de lieu** (confirmé : `LocGFXTable` ZX `$CC00` = même
+`[lieu,gfx]` ; cf. `docs/block4-analysis.md` §Bloc 3 et la table des 79 lieux).
+
+| Clé | Image | Mode | Lieu (ZX `rooms_v12`) | Remarque |
+|---|---|---|---|---|
+| `$01` | `$7AE8` | `$05` | hall (comfortable tunnel like hall) | |
+| `$06` | `$7D09` | `$02` | hidden path (trolls) | |
+| `$0B` | `$7FA4` | `$01` | narrow place / dim valley | |
+| `$25` | `$809F` | `$13` | desolation of the dragon | |
+| `$26` | `$82EC` | `$04` | ruins of Dale | |
+| `$07` | `$8569` | `$14` | trolls cave | |
+| `$0D` | `$8766` | `$03` | dungeon (goblins) | contient l'image `$15` (+29 o) |
+| `$15` | `$8783` | `$01` | opening treeless | incluse dans `$0D` |
+| `$20` | `$887B` | `$04` | cellar (wine barrels) | |
+| `$19` | `$8AE4` | `$04` | bewitched gloomy place (Mirkwood) | |
+| `$29` | `$8D13` | `$05` | halls where the dragon sleeps | |
+| `$1A` | `$8ED0` | `$01` | black spiders | |
+| `$27` | `$90B1` | `$56` | front gate of the Lonely Mountain | |
+
+> Le ZX v1.2 a **22** illustrations (`LocGFX` `$CC43`) ; Oric v1.0 en a **13**
+> (sous-ensemble, plus `$15`).
 
 ## Patch de vecteurs selon la ROM
 

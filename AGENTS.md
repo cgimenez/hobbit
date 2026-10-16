@@ -114,10 +114,11 @@ SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
 
 ## 7. État et pistes
 
-- Bloc 4 (`$2C00`–`$7A80`) : checker PROPRE — 16 980 o de code (85 %), 102
+- Bloc 4 (`$2C00`–`$7A80`) : checker PROPRE — 17 490 o de code (87 %), 108
   sites `$440D`, 0 conflit. 8 pointeurs nuls (`$3CB7 $4DFC $4E30 $52C6
   $5BB8 $631D $63C1 $6C2C`) = adresses résolues à l'exécution (TODO dans le
-  listing).
+  listing). Verbes sans objet `$6FAC` : handlers nommés `action_*` (cf.
+  `hobbit.ctl` map `#ACTION`).
 - Bloc 1 (`$0400`–`$04FF`) : bootstrap/chargeur cassette — checker PROPRE,
   182 o de code (3 plages), round-trip byte-identique. Vecteurs ROM 1.0/1.1
   `$0405`–`$0416`, `b1_load $0417`, `b1_start $047C` ; blob de patch ROM

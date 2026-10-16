@@ -140,6 +140,13 @@ MANUAL_ENTRIES: list[int] = (
         0x6D3D,
         0x6D9F,
     ]
+    # Handlers de la table de verbes sans objet $6FAC tombes dans des zones
+    # donnees (indirect -> hors descente) : Inventory $637B, Capture $6760,
+    # Untie $67CA, Tie To $67E3, Burn $685E, Climb Out Of $686D.
+    + [0x637B, 0x6760, 0x67CA, 0x67E3, 0x685E, 0x686D]
+    # Action d'objet $66F1 (index 35 de la table de mots $7014, base $7016) :
+    # sans seed la zone restait en BYTETABLE decodable comme code (regle D).
+    + [0x66F1]
     # Handler du token $09 ($456F, table $4641) : sans seed, la plage
     # code_436C s'arrete au RTS $456E et $456F-$4572 tombent en donnees
     # (le JMP patche est indirect, invisible de la descente).
@@ -649,7 +656,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Passage vers une routine cassette : lit ses parametres ecrits apres l'appel",
     ),
     0x3D7F: (
-        "load_handler",
+        "load_game",
         "Commande LOAD : demande une touche puis charge un bloc depuis la cassette",
     ),
     0x3DAA: (
@@ -661,7 +668,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Echec de SAVE : affiche l'erreur, attend une touche puis abandonne",
     ),
     0x3DD9: (
-        "cmd_save",
+        "save_game",
         "Commande SAVE : ecrit les 4 blocs du jeu puis verifie la cassette",
     ),
     0x3E20: (
@@ -753,13 +760,33 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "act_p14_09",
         "Pour un objet donne, parcourt une liste et affiche 'go...from...to'",
     ),
-    # Corps d'action orphelin, cible de la table de verbes $6FAC ($6FFD : wid
-    # $35) : si l'entite arg1 est trouvee et n'a pas encore parle, decide par un
-    # tirage borne par son champ 'reply' si elle dit "<ARG1>SAY 'NO '".
-    0x5F81: (
-        "npc_say_no",
-        "Entite arg1 : dit 'NO' avec une probabilite liee a son champ 'reply'",
+    0x66F1: (
+        "act_p14_35",
+        "Action d'objet (index 35 de $7014) : controle le contenant puis deplace l'objet",
     ),
+    # ---- Handlers de la table de verbes sans objet $6FAC (wid -> handler) ----
+    # Noms officiels des verbes d'apres hobbit.ctl (map #ACTION) ; entree Oric
+    # propre (ex. $0E=Drop, absent de la v1.2 ZX). Cf. docs/block4-analysis.md.
+    0x5B44: ("action_look", "Verbe Look ($17) : decrit l'objet courant et liste ce qui est visible"),
+    0x5BC9: ("action_pickup", "Verbes Take ($13)/Carry ($3B) : prend l'objet (pose le porteur)"),
+    0x5D31: ("action_take_out_of", "Verbe Take out of ($14) : verifie le contenant puis prend"),
+    0x5D44: ("action_dir", "Verbes $01-$0A (deplacement N..DOWN) : resout le mouvement"),
+    0x5EB7: ("action_drop", "Verbe Drop ($0E) : pose l'objet ; un liquide s'evapore"),
+    0x5EFF: ("action_enter", "Verbes Enter ($1F)/Go into ($20) : entre dans le contenant"),
+    0x5F07: ("action_run", "Verbe Run ($24) : fuit dans une direction aleatoire"),
+    0x5F28: ("action_follow", "Verbe Follow ($27) : suit une entite presente"),
+    0x5F40: ("action_throw_at", "Verbe Throw At ($2A) : lance l'objet (arme) sur la cible"),
+    0x5F81: ("action_talk_to", "Verbe Talk To ($35) : entite arg1, replique liee a son champ 'reply'"),
+    0x6272: ("action_strike", "Verbe Strike with ($0B) : combat, ratio de force"),
+    0x637B: ("action_inventory", "Verbe Inventory ($1A) : liste ce que porte le joueur"),
+    0x63A4: ("action_examine", "Verbe Examine ($1C) : affiche le message propre de l'objet"),
+    0x63DC: ("action_give", "Verbe Give To ($1D) : verifie poids/lumiere puis donne l'objet"),
+    0x6760: ("action_capture", "Verbe Capture ($30) : tente d'attraper un animal (flag bit6)"),
+    0x67CA: ("action_untie", "Verbe Untie ($33) : defait un lien"),
+    0x67E3: ("action_tie", "Verbe Tie To ($2E) : noue un objet a une cible"),
+    0x685E: ("action_burn", "Verbe Burn ($2D) : met le feu a un objet"),
+    0x686D: ("action_climb_out", "Verbe Climb Out Of ($37) : sort d'un contenant/lieu"),
+    0x698B: ("action_shoot", "Verbe Shoot ($3A) : tire une fleche (arme)"),
     # Actions dispatchees par la table L7143 (index 0-14) : comportements
     # autonomes des PNJ dans la machine virtuelle $4ED5.
     0x68D0: ("act_v14_06", "PNJ : dit 'hello' s'il est au meme endroit que le joueur"),
@@ -941,17 +968,17 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Affiche les invites de cassette ('PREPARE TAPE', 'PRESS ANY KEY'...)",
     ),
     0x7353: (
-        "kb_scan",
+        "get_key",
         "Lit le clavier : renvoie la touche appuyee, ou 'aucune touche'",
     ),
-    0x7481: ("kb_wait", "Attend que le joueur appuie sur une touche"),
+    0x7481: ("wait_for_key", "Attend que le joueur appuie sur une touche"),
     0x7489: ("cr_out", "Affiche un retour a la ligne"),
     0x7491: (
         "ch_out",
         "Point d'entree de l'affichage : peut ignorer certains caracteres selon le contexte",
     ),
     0x75B4: (
-        "glyph_out",
+        "print_char",
         "Dessine un caractere a l'ecran graphique avec la police du jeu",
     ),
     0x75F6: (
@@ -975,7 +1002,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Affiche l'illustration associee a une cle (si elle existe)",
     ),
     0x77D4: (
-        "vec_image",
+        "drawing",
         "Dessine une illustration en suivant un flux de trace",
     ),
     0x7824: (
@@ -1182,18 +1209,18 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     ),
     # ---- Objets, records et tables ----
     0x530B: (
-        "room_record",
+        "locate_location",
         "Retrouve la fiche d'un lieu a partir de son identifiant (table $2070, id < $50)",
     ),
     0x5331: (
-        "obj_record",
+        "locate_object",
         "Retrouve la fiche d'un objet a partir de son identifiant (table $1A62)",
     ),
     0x5399: (
-        "tbl_lookup",
+        "index_id_table",
         "Cherche une cle dans une table d'entrees de 3 octets [cle,lo,hi], fin $FF",
     ),
-    0x5394: ("tbl_lookup2", "Comme tbl_lookup, mais pour des entrees de 2 octets"),
+    0x5394: ("index_id_table2", "Comme index_id_table, mais pour des entrees de 2 octets"),
     0x52EA: (
         "verb_obj_ok",
         "Teste si le verbe courant est autorise pour l'objet (liste attachee au record)",
@@ -1264,7 +1291,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     ),
     0x406D: (
         "read_key",
-        "Lit une touche au clavier (kb_scan) et signale si une touche est presente",
+        "Lit une touche au clavier (get_key) et signale si une touche est presente",
     ),
     0x40AC: (
         "line_clear",
@@ -1365,7 +1392,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     ),
     0x4DF6: (
         "room_image_msg",
-        "Affiche la description du lieu courant (room_record puis texte du record)",
+        "Affiche la description du lieu courant (locate_location puis texte du record)",
     ),
     0x4E20: (
         "record_desc_out",
@@ -1409,12 +1436,12 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Matcher direct : filtre les records compatibles (conditions comparees a record+8)",
     ),
     0x540F: (
-        "rec_adv3",
+        "step3byte_table",
         "Avance le pointeur d'enregistrement de 3 octets (rend l'etat Z)",
     ),
     0x542C: (
-        "rec_adv3_save",
-        "Sauve A, avance de 3 octets (rec_adv3) puis restaure A en conservant le Z",
+        "step3byte_table_next",
+        "Sauve A, avance de 3 octets (step3byte_table) puis restaure A en conservant le Z",
     ),
     0x5439: (
         "act_try_obj",
@@ -1501,7 +1528,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
         "Prepare l'appel indirect de l'action dont l'adresse est lue dans un record (Y)",
     ),
     0x57BB: (
-        "entity_state_resolve",
+        "get_object_location",
         "Resout lieu et etat d'un personnage a partir de sa fiche",
     ),
     0x57D5: (
@@ -1530,7 +1557,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     ),
     0x5A0D: (
         "room_desc_show",
-        "Affiche la description d'un lieu (room_record, offset 7)",
+        "Affiche la description d'un lieu (locate_location, offset 7)",
     ),
     0x5A43: (
         "rec_ptr_adv3",
@@ -1558,7 +1585,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     ),
     0x5C88: (
         "obj_render_resolve",
-        "Resout l'objet courant et l'affiche (obj_record puis rendu)",
+        "Resout l'objet courant et l'affiche (locate_object puis rendu)",
     ),
     0x5D53: (
         "combat_round",
@@ -1886,7 +1913,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "terminee par $FF. id=$00 = emplacement dormant (saute). PC = pointeur du script",
         "dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite ;",
         "nmax = index max (0-based) dans la table base (nb d'entrees - 1) ; reply =",
-        "poids de replique (borne du tirage gating '<id>SAY NO', cf. npc_say_no ; 0 = muet).",
+        "poids de replique (borne du tirage gating '<id>SAY NO', cf. action_talk_to ; 0 = muet).",
         "",
         "On execute au plus 6 opcodes par tick (garde-fou L4ED3, evite les boucles",
         "infinies). L'opcode est l'octet pointe par le PC ; on dispatch sur le nibble bas :",
@@ -2301,7 +2328,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
     ],
     0x7481: [
         "Attend que le joueur appuie sur une touche, puis renvoie son code.",
-        "Technique : boucle sur kb_scan jusqu'a bit7 pose, retour & $7F.",
+        "Technique : boucle sur get_key jusqu'a bit7 pose, retour & $7F.",
     ],
     0x7489: [
         "Affiche un retour a la ligne.",
@@ -2326,7 +2353,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
     0x7619: [
         "Pause de lecture : tous les 16 sauts de ligne, le jeu attend une touche (ou un court",
         "delai), puis fait defiler l'ecran et remet le compteur de lignes a zero.",
-        "Technique : 10 essais kb_scan avec delai, compteur crcnt mod 16, scroll L7694.",
+        "Technique : 10 essais get_key avec delai, compteur crcnt mod 16, scroll L7694.",
     ],
     0x4C82: [
         "Determine si la scene est sombre pour le joueur. La fiche du joueur (crec)",
@@ -2337,7 +2364,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "puis teste +$07 (masque $5C) et +$04 bit7 ; la seule source possible est l'epee $0E.",
     ],
     0x57BB: [
-        "Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (obj_record)",
+        "Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (locate_object)",
         "puis lit son champ +0 (N = nombre de lieux). Seul +0 = $01 (objet a un seul lieu) est",
         "resolu : la fiche porte alors son lieu en +$10 ; sinon rend $FF = 'nulle part' (les objets",
         "multi-lieux +0 >= 2, ex. porte/eau/toile, ont leur liste en +$10.. geree par L5FFA).",
@@ -2418,7 +2445,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "Execution de la commande du joueur (le coeur d'AnimTalk cote action) :",
         "  1. sauve le contexte (L46E9) et resout les objets de la commande.",
         "  2. dans un lieu sombre sans lumiere portee (is_dark) : I SEE NOTHING HERE.",
-        "  3. range arg1 (puis arg2) dans orec/orec2 via obj_record ; un objet",
+        "  3. range arg1 (puis arg2) dans orec/orec2 via locate_object ; un objet",
         "     inconnu ou inaccessible est intercepte par obj_check.",
         "  4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle",
         "     l'action : table $7014 pour un objet ordinaire, table etendue $7114",
@@ -2467,7 +2494,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "sur $FF. Rend Z=1 (A=$FF) si absente, Z=0 sinon ; ptr pointe l'entree.",
     ],
     0x5394: [
-        "Memes conventions que tbl_lookup, mais entrees de 2 octets.",
+        "Memes conventions que index_id_table, mais entrees de 2 octets.",
     ],
     0x52EA: [
         "Teste la compatibilite verbe/objet : la liste des verbes autorises est",
@@ -2476,7 +2503,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
     ],
     0x4CDF: [
         "Controle un objet avant que perform_action ne l'utilise : dans le contexte",
-        "du joueur (obj=0) il resout la fiche (obj_record) et, selon l'etat et le",
+        "du joueur (obj=0) il resout la fiche (locate_object) et, selon l'etat et le",
         "drapeau $1B21, annonce que quelqu'un le porte ('... IS CARRYING ...').",
         "Sortie : A=0 si l'objet est utilisable, A<>0 si un cas particulier a ete",
         "traite (l'action est alors sautee).",
@@ -2639,7 +2666,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
     ],
     0x76ED: [
         "Dessine le caractere A a la position texte courante : memorise la ligne (col)",
-        "puis saute a glyph_out ($75B8) avec X/Y = position courante ($08/$09).",
+        "puis saute a print_char ($75B8) avec X/Y = position courante ($08/$09).",
     ],
     0x781D: [
         "Avance d'un octet le pointeur de flux d'illustration ($28/$29) et rend l'octet",
@@ -2680,7 +2707,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "pas visible, declenche l'annonce des objets visibles (list_visible_init).",
     ],
     0x5CA9: [
-        "Index 4. Resout arg1 (obj_record) ; si son flag bit5 est pose, bascule vers",
+        "Index 4. Resout arg1 (locate_object) ; si son flag bit5 est pose, bascule vers",
         "act_p14_14 (bascule), sinon affiche son nom.",
     ],
     0x5D06: [
@@ -2765,7 +2792,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "(chaque octet recoit $40 = fond), puis trace les bordures gauche ($A000) et",
         "droite ($A001) tous les $28 octets, avec l'encre donnee par A : nibble bas =",
         "bordure gauche, nibble haut = bordure droite (chacun force en $10-$17).",
-        "Appelee par vec_image avec le 1er octet du flux comme parametre.",
+        "Appelee par drawing avec le 1er octet du flux comme parametre.",
     ],
     0x79FB: [
         "Teste le pixel ($30,$31) : rend A<>0 si un point est deja dessine ou si la",

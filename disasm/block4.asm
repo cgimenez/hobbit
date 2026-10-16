@@ -144,7 +144,7 @@ ptr_block3:
         .byte   $C0
 L2C04:  .byte   $7A
 vec_init:
-        jmp     vec_image
+        jmp     drawing
 
 vec_01: jmp     vec_keypause
 
@@ -166,9 +166,9 @@ vec_09: jmp     vec_kbd_clear
 
 vec_10: jmp     vec_cr
 
-vec_11: jmp     kb_scan
+vec_11: jmp     get_key
 
-keyin:  jmp     kb_wait
+keyin:  jmp     wait_for_key
 
 print_cr:
         jmp     cr_out
@@ -2852,7 +2852,7 @@ L3C95:  jsr     push_ptr_ax
         ldx     #$85
         ldy     #$71
         lda     ploc
-        jsr     tbl_lookup
+        jsr     index_id_table
         beq     L3CBF
         ldy     #$01
         lda     (ptr),y
@@ -2991,7 +2991,7 @@ code_3D7C:
         jmp     L2C3D
 
 ; Commande LOAD : demande une touche puis charge un bloc depuis la cassette
-load_handler:
+load_game:
         jsr     push_ptr
         jsr     vec_05
         jsr     load_block
@@ -3046,7 +3046,7 @@ code_3DD6:
         jmp     save_err
 
 ; Commande SAVE : ecrit les 4 blocs du jeu puis verifie la cassette
-cmd_save:
+save_game:
         jsr     push_ptr
         jsr     vec_06
         jsr     save_block
@@ -3426,7 +3426,7 @@ L4067:  pla
         sta     obj
         jmp     pop_ptr2
 
-; Lit une touche au clavier (kb_scan) et signale si une touche est presente
+; Lit une touche au clavier (get_key) et signale si une touche est presente
 read_key:
         jsr     vec_11
         bmi     L409F
@@ -3905,7 +3905,7 @@ exit_ptr:
 
 ; Fiche du lieu : pointe record+2 (acces aux conditions de deplacement)
 room_cond_ptr:
-        jsr     room_record
+        jsr     locate_location
         lda     ptr
         clc
         adc     #$02
@@ -3916,7 +3916,7 @@ L43F2:  rts
 
 ; Fiche de l'objet : pointe record+8 (acces aux conditions de deplacement)
 obj_cond_ptr:
-        jsr     obj_record
+        jsr     locate_object
         lda     ptr
         clc
         adc     #$08
@@ -4496,7 +4496,7 @@ L475F:  pla
         jsr     push_ptr_ax
         ldx     ptr_block3
         ldy     L2C04
-        jsr     tbl_lookup
+        jsr     index_id_table
         beq     L477E
         ldy     #$01
         lda     (ptr),y
@@ -4741,12 +4741,12 @@ action_probe:
         lda     wid
         ldx     #$AC
         ldy     #$6F
-        jsr     tbl_lookup
+        jsr     index_id_table
         ldx     #$01
         cmp     #$FF
         bne     L4B32
         lda     arg1
-        jsr     obj_record
+        jsr     locate_object
         lda     wid
         jsr     verb_obj_ok
         ldx     #$01
@@ -4758,7 +4758,7 @@ L4B32:  stx     passok
 ; Execution de la commande du joueur (le coeur d'AnimTalk cote action) :
 ;   1. sauve le contexte (L46E9) et resout les objets de la commande.
 ;   2. dans un lieu sombre sans lumiere portee (is_dark) : I SEE NOTHING HERE.
-;   3. range arg1 (puis arg2) dans orec/orec2 via obj_record ; un objet
+;   3. range arg1 (puis arg2) dans orec/orec2 via locate_object ; un objet
 ;      inconnu ou inaccessible est intercepte par obj_check.
 ;   4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle
 ;      l'action : table $7014 pour un objet ordinaire, table etendue $7114
@@ -4796,7 +4796,7 @@ L4B65:  jmp     L4C20                           ; verbe sans objet -> dispatch d
 L4B68:  lda     arg1
         cmp     #$FF
         beq     L4B65
-        jsr     obj_record                      ; fiche du 1er objet -> orec
+        jsr     locate_object                   ; fiche du 1er objet -> orec
         lda     ptr
         sta     orec
         lda     ptr_hi
@@ -4813,7 +4813,7 @@ L4B68:  lda     arg1
         jmp     L4C20
 
 L4B8F:  lda     arg2
-        jsr     obj_record                      ; fiche du 2nd objet -> orec2
+        jsr     locate_object                   ; fiche du 2nd objet -> orec2
         lda     ptr
         sta     orec2
         lda     ptr_hi
@@ -4885,7 +4885,7 @@ L4C1D:  jmp     fetch_retaddr
 L4C20:  lda     wid                             ; dispatch verbe sans objet (table $6FAC)
         ldx     #$AC
         ldy     #$6F
-        jsr     tbl_lookup
+        jsr     index_id_table
         cmp     #$FF
         beq     L4C51
 L4C2D:  ldy     #$01
@@ -4977,7 +4977,7 @@ L4CA5:  lda     #$62
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L4CAD:  jsr     rec_adv3
+L4CAD:  jsr     step3byte_table
         beq     L4CDA
         ldy     #$00
         lda     (ptr2),y
@@ -5005,7 +5005,7 @@ L4CDA:  jsr     pop_ptr2
         rts
 
 ; Controle un objet avant que perform_action ne l'utilise : dans le contexte
-; du joueur (obj=0) il resout la fiche (obj_record) et, selon l'etat et le
+; du joueur (obj=0) il resout la fiche (locate_object) et, selon l'etat et le
 ; drapeau $1B21, annonce que quelqu'un le porte ('... IS CARRYING ...').
 ; Sortie : A=0 si l'objet est utilisable, A<>0 si un cas particulier a ete
 ; traite (l'action est alors sautee).
@@ -5026,7 +5026,7 @@ L4CF2:  php
         rts
 
 L4CF8:  lda     L4D44
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$08
         lda     (ptr),y
         sta     L4671
@@ -5040,7 +5040,7 @@ L4CF8:  lda     L4D44
         lda     L4D44
         jsr     light_from_a
         bcs     L4CF0
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$40
@@ -5062,7 +5062,9 @@ code_4D3F:
         lda     #$01
         jmp     L4CF2
 
-L4D44:  .byte   $3A,$A5,$15
+L4D44:  .byte   ":"
+code_4D45:
+        lda     arg1
 ; Retire un personnage du jeu (mort ou disparu) : marque son record
 ; ((record)+7 bit3), remet son compteur (code_5AF0), le sort de la table des
 ; entites (entity_find) et de la liste d'errance (wander_remove). Appele
@@ -5074,7 +5076,7 @@ unit_remove:
 
 L4D4E:  jsr     push_ptr
         sta     L4D83
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         ora     #$08
@@ -5148,7 +5150,7 @@ intro_caption:
         jmp     L4DE9
 
 L4DC6:  pha
-        jsr     room_record
+        jsr     locate_location
         ldy     #$00
         lda     (ptr),y
         and     #$0E
@@ -5169,9 +5171,9 @@ L4DE9:  sta     L4DF5
         jmp     pop_ptr2
 
 L4DF5:  .byte   $22
-; Affiche la description du lieu courant (room_record puis texte du record)
+; Affiche la description du lieu courant (locate_location puis texte du record)
 room_image_msg:
-        jsr     room_record
+        jsr     locate_location
         jsr     print_msg
 ; TODO pointeur $0000 : slot rempli au runtime : amorce de lieu (ex. $13DC) avant la description
 msg_4DFC:
@@ -5220,7 +5222,7 @@ record_words_out:
         jmp     pop_ptr
 
 L4E49:  sta     L4DF5
-        jsr     room_record
+        jsr     locate_location
         jsr     record_words_out
         jsr     print_cr
         jmp     L4E17
@@ -5319,7 +5321,7 @@ L4ED4:  .byte   $0E
 ; terminee par $FF. id=$00 = emplacement dormant (saute). PC = pointeur du script
 ; dans le bloc 2 ; base = table de sauts 3 o [cle, lo, hi] propre a l'entite ;
 ; nmax = index max (0-based) dans la table base (nb d'entrees - 1) ; reply =
-; poids de replique (borne du tirage gating '<id>SAY NO', cf. npc_say_no ; 0 = muet).
+; poids de replique (borne du tirage gating '<id>SAY NO', cf. action_talk_to ; 0 = muet).
 ;
 ; On execute au plus 6 opcodes par tick (garde-fou L4ED3, evite les boucles
 ; infinies). L'opcode est l'octet pointe par le PC ; on dispatch sur le nibble bas :
@@ -5354,7 +5356,7 @@ L4EF0:  cmp     #$00                            ; id $00 = emplacement dormant -
         jmp     L4FFA
 
 L4EF7:  sta     obj                             ; entite active : obj=id, resolve lieu et fiche (L57BB)
-        jsr     entity_state_resolve
+        jsr     get_object_location
         sta     eloc
         lda     ptr
         sta     crec
@@ -5694,7 +5696,7 @@ move_announce:
 L513A:  lda     arg1
         cmp     #$FF
         beq     L5197
-        jsr     entity_state_resolve
+        jsr     get_object_location
         sta     $92
         cmp     #$FF
         bne     L5197
@@ -5841,7 +5843,7 @@ L5234:  .byte   $E1
 ; quand le bruit a ete signale). A lancer une fois avant de parcourir $2B45.
 entity_tick_init:
         lda     #$00                            ; init du tick : lieu joueur, noir, compteur de bruit
-        jsr     entity_state_resolve
+        jsr     get_object_location
         sta     ploc
         jsr     is_dark
         lda     #$00
@@ -5867,7 +5869,7 @@ entity_goto:
         lda     (ptr2),y
         tay
         pla
-        jsr     tbl_lookup
+        jsr     index_id_table
         cmp     #$FF
         beq     L5276
         ldy     #$01
@@ -5898,7 +5900,7 @@ say_if_visible:
         cmp     #$02
         beq     code_52C8
         lda     L5234
-        jsr     entity_state_resolve
+        jsr     get_object_location
         sta     L52C9
 L529B           := * + 1
         cmp     L0000
@@ -5911,7 +5913,7 @@ L529B           := * + 1
         lda     #$01
         sta     outen
         lda     L5234
-        jsr     obj_record
+        jsr     locate_object
         lda     #$08
         clc
         adc     ptr
@@ -5975,7 +5977,7 @@ verb_obj_ok:
         adc     ptr_hi
         tay
         pla
-        jsr     tbl_lookup2
+        jsr     index_id_table2
         beq     L5309
         sec
         rts
@@ -5986,7 +5988,7 @@ L5309:  clc
 ; Fiche d'un lieu : id < $50, entree de pointeur dans la table $2070. Au-dela
 ; de $4F, aucune fiche (A=0). Le record obtenu porte description et
 ; conditions.
-room_record:
+locate_location:
         cmp     #$50
         bcc     L5312
         lda     #$00
@@ -6015,10 +6017,10 @@ L5312:  pha
 
 ; Fiche d'un objet/personnage : cherche l'id dans la table a cles $1A62
 ; (entrees [cle,lo,hi], fin $FF) et pose ptr sur le record pointe.
-obj_record:
+locate_object:
         ldx     #$62
         ldy     #$1A
-        jsr     tbl_lookup
+        jsr     index_id_table
         php
         pha
         ldy     #$01
@@ -6052,7 +6054,7 @@ L5356:  jsr     push_ptr_ax
 
 ; Parcourt les objets presents pour retrouver obj (rend C=1 si trouve)
 obj_present:
-        jsr     obj_record
+        jsr     locate_object
         tax
         ldy     #$01
         lda     (ptr),y
@@ -6077,7 +6079,7 @@ obj_room_slot:
         sta     ptr_hi
         ldy     #$10
         lda     (ptr),y
-        jsr     room_record
+        jsr     locate_location
         pla
         rts
 
@@ -6094,15 +6096,15 @@ L538D:  lda     #$01
         pla
         rts
 
-; Memes conventions que tbl_lookup, mais entrees de 2 octets.
-tbl_lookup2:
+; Memes conventions que index_id_table, mais entrees de 2 octets.
+index_id_table2:
         pha
         lda     #$02
         bne     L539C
 ; Recherche lineaire dans une table (X/Y = adresse) d'entrees de 3 octets
 ; [cle,lo,hi] : compare la cle A, avance de 3 tant que non trouve et s'arrete
 ; sur $FF. Rend Z=1 (A=$FF) si absente, Z=0 sinon ; ptr pointe l'entree.
-tbl_lookup:
+index_id_table:
         pha
         lda     #$03
 L539C:  sta     L53B6
@@ -6133,7 +6135,7 @@ L53C0:  cmp     #$FF
 ; condition (record)+8 a celle de l'operande. Rend l'id du record compatible.
 cond_match_direct:
         jsr     push_ptr2
-L53C6:  jsr     rec_adv3
+L53C6:  jsr     step3byte_table
         beq     L5405
         lda     #$02
         cmp     $81
@@ -6172,7 +6174,7 @@ L5405:  ldy     #$00
         rts
 
 ; Avance le pointeur d'enregistrement de 3 octets (rend l'etat Z)
-rec_adv3:
+step3byte_table:
         lda     ptr
         clc
         adc     #$03
@@ -6190,10 +6192,10 @@ L541A:  ldy     #$01
         cmp     #$FF
         rts
 
-; Sauve A, avance de 3 octets (rec_adv3) puis restaure A en conservant le Z
-rec_adv3_save:
+; Sauve A, avance de 3 octets (step3byte_table) puis restaure A en conservant le Z
+step3byte_table_next:
         sta     L5438
-        jsr     rec_adv3
+        jsr     step3byte_table
         php
         lda     L5438
         plp
@@ -6288,7 +6290,7 @@ L54CB:  ldy     #$01
         sta     L54E8
         cmp     #$FF
         beq     L54E1
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$28
@@ -6313,12 +6315,12 @@ L54F7:  rts
 ; (record)+2, en s'appuyant sur exit_sig_match (code_433A) pour filtrer selon la
 ; signature de sortie. Utilise par la resolution d'operande en mode variante.
 cond_match_var:
-        jsr     rec_adv3
+        jsr     step3byte_table
         beq     L5520
         ldy     #$02
         jsr     push_ptr_ax
         lda     (ptr),y
-        jsr     room_record
+        jsr     locate_location
         lda     ptr
         clc
         adc     #$02
@@ -6393,7 +6395,7 @@ slot_count:
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L5589:  jsr     rec_adv3_save
+L5589:  jsr     step3byte_table_next
         beq     L55A5
         ldy     #$01
         lda     (ptr2),y
@@ -6440,7 +6442,7 @@ slot_find_free:
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L55D4:  jsr     rec_adv3_save
+L55D4:  jsr     step3byte_table_next
         beq     L5607
         ldy     #$01
         lda     (ptr2),y
@@ -6522,7 +6524,7 @@ event_key_scan:
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L565F:  jsr     rec_adv3_save
+L565F:  jsr     step3byte_table_next
         beq     L568A
         ldy     #$01
         lda     (ptr2),y
@@ -6550,7 +6552,7 @@ L568A:  jmp     pop_ptr2
 holder_scan:
         sta     L5610
         jsr     push_ptr
-        jsr     room_record
+        jsr     locate_location
         ldy     #$01
         lda     (ptr),y
         sta     L56D6
@@ -6558,7 +6560,7 @@ holder_scan:
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L56A5:  jsr     rec_adv3
+L56A5:  jsr     step3byte_table
         beq     L56CB
         ldy     #$00
         lda     (ptr2),y
@@ -6629,7 +6631,7 @@ prob_from_arg1:
 prob_scan:
         sta     L5710
         jsr     push_ptr
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$01
         lda     (ptr),y
         sta     L570F
@@ -6637,7 +6639,7 @@ prob_scan:
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L572B:  jsr     rec_adv3_save
+L572B:  jsr     step3byte_table_next
         beq     L576A
         ldy     #$01
         lda     (ptr2),y
@@ -6689,7 +6691,7 @@ L5777:  sta     L5789
         jsr     push_ptr2
         sta     $6C
         jsr     cond_match_alt
-L5783:  jsr     rec_adv3
+L5783:  jsr     step3byte_table
         beq     L5790
 L5789           := * + 1
         ldy     #$00
@@ -6721,17 +6723,17 @@ L57A1:  lda     orec,y
         stx     arg1
         rts
 
-; Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (obj_record)
+; Resout le lieu d'un personnage/objet a partir de son id : cherche sa fiche (locate_object)
 ; puis lit son champ +0 (N = nombre de lieux). Seul +0 = $01 (objet a un seul lieu) est
 ; resolu : la fiche porte alors son lieu en +$10 ; sinon rend $FF = 'nulle part' (les objets
 ; multi-lieux +0 >= 2, ex. porte/eau/toile, ont leur liste en +$10.. geree par L5FFA).
 ; Meme regle que is_dark, holder_scan et la verification d'arme (act_p14_00).
-entity_state_resolve:
+get_object_location:
         cmp     #$FF
         bne     L57C0
         rts
 
-L57C0:  jsr     obj_record
+L57C0:  jsr     locate_object
         ldy     #$00
         lda     (ptr),y
         cmp     #$01
@@ -6751,7 +6753,7 @@ obj_render_lookup:
         sta     L57FB
         stx     L57FC
         jsr     cond_match_alt
-L57E1:  jsr     rec_adv3
+L57E1:  jsr     step3byte_table
         beq     L57F5
         ldy     #$02
         lda     (ptr),y
@@ -6817,7 +6819,7 @@ list_visible_scan:
         sta     ptr
         lda     #$1A
         sta     ptr_hi
-L5849:  jsr     rec_adv3_save
+L5849:  jsr     step3byte_table_next
         bne     L5851
         jmp     L58E0
 
@@ -6902,7 +6904,7 @@ obj_visible:
         sta     L5958
         jsr     push_ptr_ax
         lda     L5958
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$28
@@ -6966,7 +6968,7 @@ room_objects_out:
         sta     L5958
         jsr     push_ptr
         lda     L5958
-        jsr     room_record
+        jsr     locate_location
         lda     ptr
         clc
         adc     #$0A
@@ -6977,7 +6979,7 @@ room_objects_out:
 L5972:  ldy     #$01
         lda     (ptr2),y
         beq     code_59CE
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$80
@@ -7059,12 +7061,12 @@ L59F7:  pla
 
         .byte   $03,$C2,$0B,$4B,$07,$54,$07,$71
         .byte   $09,$7A,$09,$42,$0B,$F6,$02
-; Affiche la description d'un lieu (room_record, offset 7)
+; Affiche la description d'un lieu (locate_location, offset 7)
 room_desc_show:
         sta     L5958
         jsr     push_ptr
         lda     L5958
-        jsr     room_record
+        jsr     locate_location
         lda     ptr
         clc
         adc     #$07
@@ -7199,7 +7201,7 @@ L5AD0:  .byte   $35,$0B,$00,$00,$65,$03,$00,$00
 ; Remet a zero des champs d'etat d'un objet (record+$0C/+$0D) et branche
 obj_state_clear:
         jsr     push_ptr_ax
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$0C
         lda     #$00
         sta     (ptr),y
@@ -7258,6 +7260,8 @@ msg_5B41:
 code_5B43:
         rts
 
+; Verbe Look ($17) : decrit l'objet courant et liste ce qui est visible
+action_look:
         jsr     act_probe
         lda     crec
         sta     ptr
@@ -7278,7 +7282,7 @@ msg_5B64:
 code_5B66:
         pla
         pha
-        jsr     obj_record
+        jsr     locate_object
         jsr     obj_type_route
         ldy     #$08
         lda     (ptr),y
@@ -7343,6 +7347,8 @@ msg_5BC6:
 code_5BC8:
         rts
 
+; Verbes Take ($13)/Carry ($3B) : prend l'objet (pose le porteur)
+action_pickup:
         jsr     light_from_arg1
         bcc     L5BD4
         jsr     print_msg
@@ -7354,7 +7360,7 @@ code_5BD3:
 
 L5BD4:  jsr     obj_count_add
         lda     obj
-L5BD9:  jsr     obj_record
+L5BD9:  jsr     locate_object
         lda     arg1
         ldy     #$01
         cmp     (ptr),y
@@ -7379,7 +7385,7 @@ L5C00:  lda     obj
         rts
 
 L5C07:  jsr     push_ptr_ax
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$04
         lda     (ptr),y
         and     #$07
@@ -7456,15 +7462,15 @@ msg_5C85:
 code_5C87:
         rts
 
-; Resout l'objet courant et l'affiche (obj_record puis rendu)
+; Resout l'objet courant et l'affiche (locate_object puis rendu)
 obj_render_resolve:
         jsr     push_ptr_ax
-        jsr     obj_record
+        jsr     locate_object
 L5C8E:  ldy     #$01
         lda     (ptr),y
         cmp     #$FF
         beq     L5CA3
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$20
@@ -7475,11 +7481,11 @@ L5CA3:  php
         plp
         rts
 
-; Index 4. Resout arg1 (obj_record) ; si son flag bit5 est pose, bascule vers
+; Index 4. Resout arg1 (locate_object) ; si son flag bit5 est pose, bascule vers
 ; act_p14_14 (bascule), sinon affiche son nom.
 act_p14_04:
         lda     arg1
-        jsr     obj_record
+        jsr     locate_object
         jsr     obj_flag20_get
         bne     act_p14_14
         jmp     name_from_record
@@ -7503,7 +7509,7 @@ L5CC8:  ldy     #$02
         beq     L5CC5
         jsr     act_probe
         jsr     push_ptr_ax
-        jsr     room_record
+        jsr     locate_location
         ldy     #$00
         lda     (ptr),y
         jsr     fetch_retaddr
@@ -7557,6 +7563,8 @@ L5D09:  cmp     #$FF
         sta     arg1
         jmp     combat_round
 
+; Verbe Take out of ($14) : verifie le contenant puis prend
+action_take_out_of:
         lda     arg1
         ldx     #$16
         jsr     light_test_core
@@ -7571,7 +7579,8 @@ code_5D42:
         rts
 
 L5D43:  .byte   $04
-code_5D44:
+; Verbes $01-$0A (deplacement N..DOWN) : resout le mouvement
+action_dir:
         jsr     is_dark
         bcc     combat_round
         lda     #$09
@@ -7591,7 +7600,7 @@ combat_round:
         lda     (ptr2),y
         cmp     #$FF
         beq     L5D74
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$40
@@ -7669,7 +7678,7 @@ evt_lookup:
         ldx     #$9F
         ldy     #$70
         lda     key
-        jsr     tbl_lookup
+        jsr     index_id_table
         beq     dark_gate
         ldy     #$01
         lda     (ptr),y
@@ -7702,7 +7711,7 @@ L5E18:  lda     ($CA),y
         lda     key
         ldx     #$74
         ldy     #$70
-        jsr     tbl_lookup
+        jsr     index_id_table
         beq     L5E39
         ldy     #$01
         lda     (ptr),y
@@ -7750,7 +7759,7 @@ obj_two_words:
 obj_enter_check:
         and     #$FF
         beq     L5E8B
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$28
@@ -7767,7 +7776,7 @@ L5E81:  ldy     #$02
         sbc     (ptr),y
         bcs     L5EAE
 L5E8B:  lda     key
-        jsr     room_record
+        jsr     locate_location
         lda     ptr
         sta     $CA
         lda     ptr_hi
@@ -7793,6 +7802,8 @@ L5EB1:  lda     #$02
 L5EB4:  lda     #$01
         rts
 
+; Verbe Drop ($0E) : pose l'objet ; un liquide s'evapore
+action_drop:
         jsr     light_gate
         jsr     act_probe
         lda     orec
@@ -7833,14 +7844,18 @@ msg_5EFC:
 code_5EFE:
         rts
 
+; Verbes Enter ($1F)/Go into ($20) : entre dans le contenant
+action_enter:
         lda     arg1
         jsr     item_flag_test2
         jmp     L5D09
 
-L5F07:  lda     #$0A
+; Verbe Run ($24) : fuit dans une direction aleatoire
+action_run:
+        lda     #$0A
         jsr     rand_range
         cmp     #$00
-        beq     L5F07
+        beq     action_run
         tax
 L5F11:  txa
         jsr     obj_render_lookup
@@ -7853,8 +7868,10 @@ L5F11:  txa
         jmp     L5F11
 
 L5F23:  sta     wid
-        jmp     code_5D44
+        jmp     action_dir
 
+; Verbe Follow ($27) : suit une entite presente
+action_follow:
         ldy     #$10
         lda     (orec),y
         cmp     (crec),y
@@ -7871,6 +7888,8 @@ msg_5F3D:
 code_5F3F:
         rts
 
+; Verbe Throw At ($2A) : lance l'objet (arme) sur la cible
+action_throw_at:
         jsr     obj_count_add
         ldy     #$07
         lda     (orec2),y
@@ -7911,7 +7930,7 @@ L5F6A:  lda     orec
 ; rand_range(reply) : resultat nul -> la creature dit '<ARG1>SAY 'NO '' ($15BE,
 ; replique d'enigme type Gollum), puis pull. Seul site du bloc 4 qui lit 'reply'
 ; ((ptr2)+6) des entrees $2B45.
-npc_say_no:
+action_talk_to:
         jsr     act_probe
         lda     arg1
         jsr     entity_find
@@ -8092,7 +8111,7 @@ L609A:  lda     #$05
         ldy     #$01
         cmp     #$FF
         beq     act_p14_00
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$07
         lda     (ptr),y
         and     #$FD
@@ -8358,6 +8377,8 @@ L626B:  pla
         sta     passok
         rts
 
+; Verbe Strike with ($0B) : combat, ratio de force
+action_strike:
         jsr     obj_flag_clear
         lda     #$F6
         sta     wptr
@@ -8496,16 +8517,41 @@ L635A:  .byte   $00,$16,$13,$05,$13,$FA,$12,$EF
         .byte   $12,$E3,$12,$CE,$12,$BC,$12,$AB
         .byte   $12,$94,$12,$86,$12,$71,$12,$64
         .byte   $12,$52,$12,$48,$12,$31,$12,$20
-        .byte   $12,$20,$86,$53,$20,$0D,$44,$CD
-        .byte   $11,$A5,$C5,$20,$76,$55,$C9,$00
-        .byte   $D0,$06,$20,$0D,$44,$1B,$17,$60
-        .byte   $A5,$C6,$85,$8A,$A5,$C7,$85,$8B
-        .byte   $A0,$10,$B1,$8A,$AA,$A5,$C5,$4C
-        .byte   $0F,$58
-code_63A4:
+        .byte   $12
+; Verbe Inventory ($1A) : liste ce que porte le joueur
+action_inventory:
+        jsr     act_probe
+        jsr     print_msg
+; -> $11CD <NAME>CARRYING.
+msg_6381:
+        .word   $11CD
+code_6383:
+        lda     obj
+        jsr     slot_count
+        cmp     #$00
+        bne     L6392
+        jsr     print_msg
+; -> $171B NOTHING
+msg_638F:
+        .word   $171B
+code_6391:
+        rts
+
+L6392:  lda     crec
+        sta     ptr
+        lda     crec_hi
+        sta     ptr_hi
+        ldy     #$10
+        lda     (ptr),y
+        tax
+        lda     obj
+        jmp     list_visible_init
+
+; Verbe Examine ($1C) : affiche le message propre de l'objet
+action_examine:
         jsr     act_probe
         lda     arg1
-        jsr     obj_record
+        jsr     locate_object
         ldy     #$0E
         lda     (ptr),y
         sta     msg_63C1
@@ -8535,7 +8581,9 @@ code_63C9:
         jsr     putchar
         jmp     print_cr
 
-L63DC:  lda     orec2
+; Verbe Give To ($1D) : verifie poids/lumiere puis donne l'objet
+action_give:
+        lda     orec2
         sta     ptr2
         lda     orec2_hi
         sta     ptr2_hi
@@ -8947,58 +8995,239 @@ msg_66EE:
 code_66F0:
         rts
 
-        .byte   $A0,$01,$B1,$C6,$C5,$15,$D0,$03
-        .byte   $4C,$62,$5A,$A5,$17,$85,$88,$A5
-        .byte   $18,$85,$89,$A5,$15,$20,$39,$54
-        .byte   $F0,$EE,$A5,$15,$20,$31,$53,$A0
-        .byte   $01,$B1,$8A,$C9,$FF,$F0,$08,$C5
-        .byte   $C5,$D0,$F1,$A9,$FF,$91,$17,$A5
-        .byte   $C5,$20,$AE,$55,$A0,$02,$18,$71
-        .byte   $C6,$90,$02,$A9,$FF,$8D,$5F,$67
-        .byte   $A5,$17,$85,$8A,$A5,$18,$85,$8B
-        .byte   $20,$D7,$64,$D0,$03,$4C,$9D,$5A
-        .byte   $A0,$02,$B1,$8A,$C9,$FF,$F0,$0C
-        .byte   $38,$ED,$5F,$67,$B0,$06,$20,$0D
-        .byte   $44,$1D,$15,$60,$20,$86,$53,$A5
-        .byte   $15,$A0,$01,$91,$C6,$60,$00,$A0
-        .byte   $04,$B1,$17,$29,$70,$31,$C6,$F0
-        .byte   $03,$4C,$62,$5A,$A0,$07,$B1,$17
-        .byte   $29,$40,$F0,$F5,$A5,$C5,$A2,$1F
-        .byte   $C9,$40,$F0,$06,$C9,$42,$F0,$02
-        .byte   $A2,$0D,$E4,$C9,$F0,$E3,$8E,$C9
-        .byte   $67,$20,$86,$53,$A0,$10,$AD,$C9
-        .byte   $67,$91,$17,$A0,$01,$A9,$FF,$91
-        .byte   $17,$A5,$15,$AE,$C9,$67,$20,$12
-        .byte   $56,$A5,$15,$C9,$00,$F0,$01,$60
-        .byte   $85,$C5,$A9,$1A,$85,$C6,$A9,$1B
-        .byte   $85,$C7,$20,$82,$4C,$90,$01,$60
-        .byte   $A9,$DC,$8D,$FC,$4D,$A9,$13,$8D
-        .byte   $FD,$4D,$AD,$C9,$67,$4C,$E9,$4D
-        .byte   $85,$A0,$01,$B1,$17,$C9,$12,$F0
-        .byte   $06,$20,$0D,$44,$73,$14,$60,$20
-        .byte   $86,$53,$AD,$08,$1D,$A0,$01,$91
-        .byte   $17,$60,$A5,$15,$C9,$12,$F0,$6E
-        .byte   $A5,$16,$C9,$12,$F0,$0B,$A5,$15
-        .byte   $A6,$16,$85,$16,$86,$15,$4C,$62
-        .byte   $5A,$20,$BD,$5F,$D0,$F0,$A0,$07
-        .byte   $B1,$17,$29,$02,$D0,$E8,$A5,$16
-        .byte   $20,$76,$55,$C9,$00,$F0,$06,$20
-        .byte   $0D,$44,$60,$14,$60,$A0,$07,$B1
-        .byte   $17,$29,$08,$D0,$0D,$B1,$17,$29
-        .byte   $40,$D0,$CB,$A5,$16,$20,$4B,$53
-        .byte   $90,$C4,$20,$86,$53,$20,$49,$53
-        .byte   $A5,$16,$A0,$01,$91,$17,$B0,$13
-        .byte   $A9,$00,$85,$0C,$20,$C9,$5B,$A5
-        .byte   $12,$08,$A9,$01,$85,$0C,$85,$12
-        .byte   $28,$F0,$07,$A5,$C5,$A0,$01,$91
-        .byte   $19,$60,$A9,$FF,$D0,$F7,$A2,$E3
-        .byte   $A0,$67,$4C,$93,$57,$A5,$C5,$C9
-        .byte   $3C,$F0,$03,$4C,$62,$5A,$20,$86
-        .byte   $53,$4C,$45,$4D,$A0,$01,$A5,$15
-        .byte   $D1,$C6,$F0,$03,$4C,$62,$5A,$20
-        .byte   $31,$53,$20,$D7,$64,$D0,$03,$4C
-        .byte   $9D,$5A,$20,$86,$53,$A0,$01,$A9
-        .byte   $FF,$91,$C6,$60
+; Action d'objet (index 35 de $7014) : controle le contenant puis deplace l'objet
+act_p14_35:
+        ldy     #$01
+        lda     (crec),y
+        cmp     arg1
+        bne     L66FC
+L66F9:  jmp     act_look
+
+L66FC:  lda     orec
+        sta     ptr2
+        lda     orec_hi
+        sta     ptr2_hi
+        lda     arg1
+        jsr     act_try_obj
+        beq     L66F9
+        lda     arg1
+L670D:  jsr     locate_object
+        ldy     #$01
+        lda     (ptr),y
+        cmp     #$FF
+        beq     L6720
+        cmp     obj
+        bne     L670D
+        lda     #$FF
+        sta     (orec),y
+L6720:  lda     obj
+        jsr     slot_alloc3
+        ldy     #$02
+        clc
+        adc     (crec),y
+        bcc     L672E
+        lda     #$FF
+L672E:  sta     L675F
+        lda     orec
+        sta     ptr
+        lda     orec_hi
+        sta     ptr_hi
+        jsr     obj_flag20_get
+        bne     L6741
+        jmp     name_from_record
+
+L6741:  ldy     #$02
+        lda     (ptr),y
+        cmp     #$FF
+        beq     L6755
+        sec
+        sbc     L675F
+        bcs     L6755
+        jsr     print_msg
+; -> $151D <NAME>TOO BIG
+msg_6752:
+        .word   $151D
+code_6754:
+        rts
+
+L6755:  jsr     act_probe
+        lda     arg1
+        ldy     #$01
+        sta     (crec),y
+        rts
+
+L675F:  .byte   $00
+; Verbe Capture ($30) : tente d'attraper un animal (flag bit6)
+action_capture:
+        ldy     #$04
+        lda     (orec),y
+        and     #$70
+        and     (crec),y
+        beq     L676D
+L676A:  jmp     act_look
+
+L676D:  ldy     #$07
+        lda     (orec),y
+        and     #$40
+        beq     L676A
+        lda     obj
+        ldx     #$1F
+        cmp     #$40
+        beq     L6783
+        cmp     #$42
+        beq     L6783
+        ldx     #$0D
+L6783:  cpx     eloc
+        beq     L676A
+        stx     L67C9
+        jsr     act_probe
+        ldy     #$10
+        lda     L67C9
+        sta     (orec),y
+        ldy     #$01
+        lda     #$FF
+        sta     (orec),y
+        lda     arg1
+        ldx     L67C9
+        jsr     event_arm_obj
+        lda     arg1
+        cmp     #$00
+        beq     L67A9
+        rts
+
+L67A9:  sta     obj
+        lda     #$1A
+        sta     crec
+        lda     #$1B
+        sta     crec_hi
+        jsr     is_dark
+        bcc     L67B9
+        rts
+
+L67B9:  lda     #$DC
+        sta     msg_4DFC
+        lda     #$13
+        sta     msg_4DFC+1
+        lda     L67C9
+        jmp     L4DE9
+
+L67C9:  .byte   $85
+; Verbe Untie ($33) : defait un lien
+action_untie:
+        ldy     #$01
+        lda     (orec),y
+        cmp     #$12
+        beq     L67D8
+        jsr     print_msg
+; -> $1473 <ARG1>IS NOT TIED
+msg_67D5:
+        .word   $1473
+code_67D7:
+        rts
+
+L67D8:  jsr     act_probe
+        lda     $1D08
+        ldy     #$01
+        sta     (orec),y
+        rts
+
+; Verbe Tie To ($2E) : noue un objet a une cible
+action_tie:
+        lda     arg1
+        cmp     #$12
+        beq     L6857
+        lda     arg2
+        cmp     #$12
+        beq     L67FA
+L67EF:  lda     arg1
+        ldx     arg2
+        sta     arg2
+        stx     arg1
+        jmp     act_look
+
+L67FA:  jsr     obj_id_minus1
+        bne     L67EF
+        ldy     #$07
+        lda     (orec),y
+        and     #$02
+        bne     L67EF
+        lda     arg2
+        jsr     slot_count
+        cmp     #$00
+        beq     L6816
+        jsr     print_msg
+; -> $1460 <ARG2>IS ALREADY TIED
+msg_6813:
+        .word   $1460
+code_6815:
+        rts
+
+L6816:  ldy     #$07
+        lda     (orec),y
+        and     #$08
+        bne     L682B
+        lda     (orec),y
+        and     #$40
+        bne     L67EF
+        lda     arg2
+        jsr     light_from_a
+        bcc     L67EF
+L682B:  jsr     act_probe
+        jsr     light_from_arg1
+        lda     arg2
+        ldy     #$01
+        sta     (orec),y
+        bcs     L684C
+        lda     #$00
+        sta     phase
+        jsr     action_pickup
+        lda     passok
+        php
+        lda     #$01
+        sta     phase
+        sta     passok
+        plp
+        beq     L6853
+L684C:  lda     obj
+L684E:  ldy     #$01
+        sta     (orec2),y
+        rts
+
+L6853:  lda     #$FF
+        bne     L684E
+L6857:  ldx     #$E3
+        ldy     #$67
+        jmp     call_action_at
+
+; Verbe Burn ($2D) : met le feu a un objet
+action_burn:
+        lda     obj
+        cmp     #$3C
+        beq     L6867
+        jmp     act_look
+
+L6867:  jsr     act_probe
+        jmp     code_4D45
+
+; Verbe Climb Out Of ($37) : sort d'un contenant/lieu
+action_climb_out:
+        ldy     #$01
+        lda     arg1
+        cmp     (crec),y
+        beq     L6878
+        jmp     act_look
+
+L6878:  jsr     locate_object
+        jsr     obj_flag20_get
+        bne     L6883
+        jmp     name_from_record
+
+L6883:  jsr     act_probe
+        ldy     #$01
+        lda     #$FF
+        sta     (crec),y
+        rts
+
 ; Action de l'evenement e0 : le tonneau atteint le Long Lake, joueur jete sur la berge
 evt_act0:
         lda     #$00
@@ -9192,6 +9421,8 @@ L6985:  jsr     print_via_stack
         ror     $14
         rts
 
+; Verbe Shoot ($3A) : tire une fleche (arme)
+action_shoot:
         lda     #$19
         jsr     light_from_a
         bcs     L6998
@@ -9514,7 +9745,7 @@ act_p14_09:
         lda     obj
         cmp     #$41
         beq     L6B7B
-        jmp     code_63A4
+        jmp     action_examine
 
 L6B7B:  jsr     act_probe
         ldy     #$01
@@ -9799,7 +10030,7 @@ L6D0E:  jsr     act_probe
         lda     #$1B
         sta     orec2_hi
         jsr     act_look
-        jmp     L63DC
+        jmp     action_give
 
         lda     ploc
         cmp     #$02
@@ -9982,7 +10213,7 @@ L6E35:  lda     $1CC5
         bne     L6E3D
         rts
 
-L6E3D:  jsr     obj_record
+L6E3D:  jsr     locate_object
         lda     ptr
         sta     crec
         lda     ptr_hi
@@ -10116,7 +10347,7 @@ img_poke:
 L6F00:  ldx     ptr_block3
         ldy     L2C04
         lda     #$05
-        jsr     tbl_lookup
+        jsr     index_id_table
         ldy     #$01
         lda     (ptr),y
         sta     ptr2
@@ -10616,7 +10847,7 @@ tape_prompt:
 msg_72A3:
         .word   $72E3
 code_72A5:
-        jsr     kb_wait
+        jsr     wait_for_key
         clc
         rts
 
@@ -10676,7 +10907,7 @@ L7351:  sec
 ; Lit l'etat du clavier : renvoie la touche appuyee, ou indique qu'aucune touche n'est
 ; enfoncee.
 ; Technique : scan de la matrice via le VIA ($0300) ; A = code touche, bit7 pose si presente.
-kb_scan:stx     $1E
+get_key:stx     $1E
         sty     $1F
         lda     #$FF
         sta     $0303
@@ -10805,9 +11036,10 @@ via_setup_ec:
 
         .byte   "`"
 ; Attend que le joueur appuie sur une touche, puis renvoie son code.
-; Technique : boucle sur kb_scan jusqu'a bit7 pose, retour & $7F.
-kb_wait:jsr     kb_scan
-        bpl     kb_wait
+; Technique : boucle sur get_key jusqu'a bit7 pose, retour & $7F.
+wait_for_key:
+        jsr     get_key
+        bpl     wait_for_key
         and     #$7F
         rts
 
@@ -10863,7 +11095,7 @@ L74BB:  pla
         cmp     #$0D
         bne     L74D1
         lda     #$20
-        jsr     glyph_out
+        jsr     print_char
         jmp     L74E7
 
 L74D1:  cmp     #$08
@@ -10873,7 +11105,7 @@ L74D1:  cmp     #$08
         cmp     #$7B
         bcs     L74DF
         and     #$5F
-L74DF:  jsr     glyph_out
+L74DF:  jsr     print_char
         jsr     cursor_adv
         bne     L74F2
 L74E7:  jsr     hires_scroll_setup
@@ -10882,7 +11114,7 @@ L74E7:  jsr     hires_scroll_setup
         lda     #$28
         sta     col
 L74F2:  lda     #$2B
-        jsr     glyph_out
+        jsr     print_char
         pla
         tax
         pla
@@ -10891,7 +11123,7 @@ L74F2:  lda     #$2B
         rts
 
 L74FD:  lda     #$20
-        jsr     glyph_out
+        jsr     print_char
         jsr     cursor_back
         bne     L74F2
         lda     #$28
@@ -11011,7 +11243,7 @@ cursor_back:
 ; Dessine un caractere a l'ecran graphique (hires) en recopiant son motif depuis la police
 ; du jeu, puis fait avancer le curseur.
 ; Technique : police pointee par $0403/$0404 ; 8 octets en OR $40 (encre) ; ligne += $28.
-glyph_out:
+print_char:
         ldx     L0000
         ldy     $01
 L75B8:  stx     L75E0
@@ -11073,7 +11305,7 @@ L7613:  lda     $02
         bne     L7653
 ; Pause de lecture : tous les 16 sauts de ligne, le jeu attend une touche (ou un court
 ; delai), puis fait defiler l'ecran et remet le compteur de lignes a zero.
-; Technique : 10 essais kb_scan avec delai, compteur crcnt mod 16, scroll L7694.
+; Technique : 10 essais get_key avec delai, compteur crcnt mod 16, scroll L7694.
 pause_key:
         lda     #$00
         sta     sppend
@@ -11082,7 +11314,7 @@ pause_key:
         cmp     #$0F
         bne     L763B
         ldx     #$0A
-L7628:  jsr     kb_scan
+L7628:  jsr     get_key
         bmi     L7640
         lda     #$64
         sta     $03
@@ -11095,7 +11327,7 @@ L7631:  dec     $03
 L763B:  inc     crcnt
         jmp     L7645
 
-L7640:  jsr     kb_scan
+L7640:  jsr     get_key
         bpl     L7640
 L7645:  jsr     hires_clear_zone
         lda     #$80
@@ -11197,7 +11429,7 @@ cursor_up:
         rts
 
 ; Dessine le caractere A a la position texte courante : memorise la ligne (col)
-; puis saute a glyph_out ($75B8) avec X/Y = position courante ($08/$09).
+; puis saute a print_char ($75B8) avec X/Y = position courante ($08/$09).
 char_plot_pos:
         ldy     $05
         sta     $02D7,y
@@ -11339,8 +11571,7 @@ L77CF:  .byte   "aVHVa"
 ;   bit5 saut jusqu'a un marqueur $FF (vec_skip).
 ; Le test est prioritaire dans cet ordre (bit7 avant bit6 avant bit5).
 ; Le pointeur de flux ($28/$29) avance d'un octet par vec_next_byte.
-vec_image:
-        stx     $28
+drawing:stx     $28
         sty     $29
         pha
         ldy     #$00
@@ -11613,7 +11844,7 @@ L798B:  dec     $2E
 ; (chaque octet recoit $40 = fond), puis trace les bordures gauche ($A000) et
 ; droite ($A001) tous les $28 octets, avec l'encre donnee par A : nibble bas =
 ; bordure gauche, nibble haut = bordure droite (chacun force en $10-$17).
-; Appelee par vec_image avec le 1er octet du flux comme parametre.
+; Appelee par drawing avec le 1er octet du flux comme parametre.
 vec_setup:
         pha
         lda     #$A0
