@@ -420,11 +420,14 @@ Le bloc 2 est la **banque de mots + messages** (émulation structurelle de
 observés sous harnais — `PREPARE TO DIE`, `WHAT HAS IT GOT IN ITS POCKET ?`,
 `A CHEERING CROWD OF DWARVES...`, `I CANNOT DO THAT.`) :
 
-- Banque `$0540-$1156` : **600 mots triés** (même format 5-bit que `word_render`
-  : 2e car bit7 → continue, 3e → continue ssi bit7 du 2e, code 0 = fin).
-  Index `$0500-$053F` : 1er mot de chaque lettre (26 entrées, X/Z nuls ;
-  25/26 exacts — 7 lettres pointent des isolées D/E/L/N/S/U/W et O est décalé
-  d'un : séparateurs de groupes ou entrées périmées, ouvert).
+- Banque `$0540-$1116` : **569 mots** rangés en **blocs alphabétiques** (index
+  `WordIndex` `$0500-$0533` : offsets 2 o par lettre, base `$0500`, A=code 1 ;
+  X/Z nuls). La longueur d'entrée est celle du **parseur** `dict_read` (bloc 4),
+  **pas** de `word_render` : lettres jusqu'au bit7 (cas sur l'**index d'octet**
+  `Y==2`/`Y==3`, code 0 sauté), puis **`+2` si le dernier octet a le bit6 posé**
+  (2 o de données annexes/alias). Les mono-lettres en tête de bloc
+  (`D E L N S U W`) sont des entrées **alias** (`[lettre][$40][$C0][ptr]`).
+  `decode_word_at` (messages) suit `word_render` (`$4241`) et n'est pas concerné.
 - Table `$1117` : 32 mots courants (`$60-$7F` = THE A AND YOU TO IS OF IN BUT
   WITH NOT IT SEE TOO AT CANNOT THIS I CARRYING BE DO HERE ON RIVER FROM
   DRAGON BLOW SIDE ARE DOOR THIEF TROLLS, pages `$05-$11`).

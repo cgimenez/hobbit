@@ -993,17 +993,17 @@ Non exploité : `WL.c` (98 K, logique carte/menus) et `dict_v12.txt`/`rooms_v12.
 - **LocGFX** : clés d'images bloc 3 = **ids de lieux** confirmé (ZX
   `LocGFXTable` `$CC00`). Mapping + noms dans `docs/block4-analysis.md` §Bloc 3
   et `docs/tape-archive.md`. ZX v1.2 = 22 images, Oric v1.0 = 13.
-- **Dictionnaire** : notre dico v1.0 (`$0540`→ table mots courants `$1117`) est
-  precede d'un **`WordIndex` `$0500`** (offsets 2 o par lettre A→Y, base `$0500`),
-  mots ranges par **blocs alphabetiques**. `dict_v12.txt` (ZX v1.2) est une liste
-  **filtrée** (adresses dispersées), pas un dump complet → la comparaison
-  « sur-ensemble » nuance (530 communs ; ZX-only/Oric-only = v1.2 tronque +
-  v1.0 enrichi). ⚠️ **3a : pas un bug de `decode_word_at`.** Les « ~12 artefacts »
-  (`CBUTLER`, `BDALE`…) viennent d'**entrées inter-mots de forme flechie (2 o)**
-  que le parcours **sequentiel** de `dict_words` ne sait pas sauter (le ROM
-  `word_render` ne les traverse jamais : le jeu adresse chaque mot par pointeur).
-  → `dict_words` documente/plafonne desormais a `$1117` (approx., ~585 mots) ;
-  decodage des **messages non affecte**. Fix exact = RE des marqueurs (non fait).
+- **Dictionnaire** : `$0540`→`$1116` (table mots courants `$1117`), precede d'un
+  **`WordIndex` `$0500`** (offsets 2 o par lettre, base `$0500`) : mots en
+  **blocs alphabetiques**. **3a RESOLU (Oric seul)** : la longueur d'entree suit
+  le **parseur** `dict_read` (bloc 4), pas `word_render` : lettres jusqu'au bit7
+  (cas sur l'**index d'octet** `Y==2`/`Y==3`), code 0 saute, puis **`+2` si le
+  dernier octet a le bit6 pose** (2 o de donnees annexes/alias). Ignorer ce `+2`
+  desynchronisait le walk -> artefacts (`CBUTLER`...). `msg_decode.dict_entry` +
+  `dict_words` (enumeration par blocs) donnent **569 mots, 0 rupture
+  alphabetique**. Mono-lettres en tete de bloc (`D E L N S U W`) = entrees
+  **alias** (`[lettre][$40][$C0][ptr]`, meme structure en ZX). `decode_word_at`
+  (messages = `word_render`) **inchange** ; `dict_v12.txt` reste une liste filtree.
 - **CommonWords** : notre table `$1117` (32 ptr) diffère du ZX `$AD3D`
   (ordre = fréquence chez nous, alphabétique chez ZX ; jeux ≠ : version).
 - **Objets** : déjà alignés (`STATE_IDENTITY` = `OBJNR_*`, cf. étape 2).

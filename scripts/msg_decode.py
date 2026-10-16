@@ -21,7 +21,7 @@ contexte runtime) mais lisible. Usage :
 
     from msg_decode import decode_message, dict_words
     texte = decode_message(raw, 0x18AA)   # -> "A COMFORTABLE TUNNEL LIKE HALL"
-    mots  = dict_words(raw)               # ~580 mots du dictionnaire ($0540-$1116)
+    mots  = dict_words(raw)               # 570 mots du dictionnaire ($0540-$1116)
 
 En ligne de commande :
 
@@ -83,32 +83,87 @@ def decode_word_at(raw: bytes, addr: int) -> tuple[str, int]:
     return "".join(chr(0x40 + c) for c in codes), y
 
 
-# Le dictionnaire occupe ``$0540`` jusqu'a la table des mots courants ``$1117``
-# (32 pointeurs 2 o, cf. Decoder._build_common). Il est precede d'un ``WordIndex``
-# en ``$0500`` (offsets 2 o par lettre A->Y, base ``$0500``) : les mots sont ranges
-# par blocs alphabetiques. ATTENTION : entre certains mots se trouvent de petites
-# entrees de *forme flechie* (2 o) ; le ROM ``word_render`` ($4241) ne les
-# traverse jamais (le jeu adresse chaque mot par pointeur), donc un parcours
-# sequentiel est seulement APPROXIMATIF et peut recoller 1-2 caracteres
-# (ex. ``CBUTLER`` = marqueur + ``BUTLER``). Le decodage des MESSAGES (par
-# pointeur explicite) n'est pas affecte.
-DICT_LO, DICT_HI = 0x0540, 0x1117
-WORD_INDEX = 0x0500  # table d'offsets par lettre (base $0500), 2 o/lettre
+# Dictionnaire : ``$0540`` jusqu'a la table des mots courants ``$1117`` (32
+# pointeurs 2 o, cf. Decoder._build_common). Precede d'un ``WordIndex`` en
+# ``$0500`` (offsets 2 o par code de lettre, base ``$0500`` : A=code 1 -> $0540).
+# Les mots sont ranges en blocs alphabetiques, un par lettre.
+#
+# Attention : la longueur d'une entree n'est PAS celle de ``word_render`` ($4241)
+# mais celle du PARSEUR (``dict_read``, bloc 4). Apres les lettres (fin sur bit7,
+# cas particuliers sur l'INDEX D'OCTET Y==2 / Y==3, code 0 saute), le parseur
+# teste le BIT6 du dernier octet : s'il est pose, l'entree est suivie de 2 octets
+# annexes (grammaire/flexion) a sauter :
+#     longueur = nb_octets_lettres + (2 si (dernier_octet & $40) sinon 0)
+# Ignorer ce ``+2`` desynchronise tout parcours sequentiel (recollages du type
+# ``CBUTLER`` = ``C`` + ``BUTLER``). Le rendu des MESSAGES (``Decoder.word`` ->
+# ``decode_word_at``, qui suit ``word_render``) n'est pas affecte.
+DICT_LO, DICT_HI = 0x0540, 0x1116
+WORD_INDEX = 0x0500  # table d'offsets 2 o par lettre (base $0500), A=code 1
+
+
+def _u16(raw: bytes, addr: int) -> int:
+    off = addr - BASE
+    if 0 <= off < len(raw) - 1:
+        return raw[off] | (raw[off + 1] << 8)
+    return 0
+
+
+def dict_entry(raw: bytes, addr: int) -> tuple[str, int]:
+    """Entree du dictionnaire a ``addr``, longueur selon le PARSEUR Oric.
+
+    Reproduit ``dict_read`` (bloc 4) : lettres jusqu'au bit7 (cas particuliers
+    sur l'index d'octet ``Y==2`` et ``Y==3``), code 0 saute ; puis ``+2`` si le
+    dernier octet a le bit6 pose (2 octets de grammaire/flexion sautes). Renvoie
+    ``(mot, longueur_totale)``.
+    """
+    off = addr - BASE
+    codes = [raw[off] & 0x1F]  # 1re lettre (dict_cmp1 l'a deja lue)
+    y = 1
+    while y < 64:
+        b = raw[off + y] if off + y < len(raw) else 0
+        if b & 0x1F:
+            codes.append(b & 0x1F)
+        y += 1
+        if (b & 0x80) == 0:
+            continue
+        if y == 2:
+            continue
+        if y != 3:
+            break
+        if raw[off + y - 2] & 0x80:
+            continue
+        break
+    length = y
+    if raw[off + y - 1] & 0x40:  # suffixe 2 o marque par le bit6 (dict_read)
+        length += 2
+    return "".join(chr(0x40 + c) for c in codes), length
 
 
 def dict_words(raw: bytes) -> list[str]:
-    """Mots du dictionnaire ``$0540-$1116`` (parcours sequentiel, cf. ci-dessus).
+    """Mots du dictionnaire ``$0540-$1116``, enumeres par blocs ``WordIndex``.
 
-    Approximatif : ~580 mots, avec quelques recollages aux entrees de forme
-    flechie (non traversables en sequentiel). Suffit pour l'usage diagnostic.
+    Parcours exact (semantique du parseur Oric, cf. ``dict_entry``) : les mots
+    sont lus bloc par bloc (un par lettre A->Y), sans recollage.
     """
+    starts = sorted(
+        {
+            WORD_INDEX + off
+            for letter in range(1, 27)
+            if (off := _u16(raw, WORD_INDEX + 2 * letter))
+            and DICT_LO <= WORD_INDEX + off < DICT_HI
+        }
+    )
     words: list[str] = []
-    i = DICT_LO
-    while i < DICT_HI:
-        w, n = decode_word_at(raw, i)
-        if w:
-            words.append(w)
-        i += n
+    for k, start in enumerate(starts):
+        end = min(starts[k + 1] if k + 1 < len(starts) else DICT_HI, DICT_HI)
+        i = start
+        while i < end:
+            w, n = dict_entry(raw, i)
+            if n <= 0:
+                break
+            if w:
+                words.append(w)
+            i += n
     return words
 
 
@@ -215,7 +270,7 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if args and args[0] in ("words", "dict", "--words"):
         ws = dict_words(raw)
-        print(f"; {len(ws)} mots du dictionnaire ($0540-$1116, approx.)")
+        print(f"; {len(ws)} mots du dictionnaire ($0540-$1116)")
         print("\n".join(ws))
     else:
         addrs = [int(x, 16) for x in args] or [0x18AA, 0x143F, 0x1582]
