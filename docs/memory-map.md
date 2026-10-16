@@ -90,7 +90,8 @@ robustesse ; `+$07` = **attributs** (8 bits : `b0` verrou, `b1` fluide, `b2` ple
 `name_from_record` `$5A9D`) ; `+$0A`/`+$0B` = **adjectif 1** (`adj1`, réutilisé en
 pointeur secondaire : `$098F` posé par `$6F1B`) ; `+$0C`/`+$0D` = **adjectif 2**
 (`adj2`, tenu pour `descp` : RAZ par `code_5AF0` puis posé par les actions, `$04D6`
-→ texte « t while THE… »).
+→ texte « t while THE… »). **Fin du bloc** = liste des **verbes autorisés**
+(cf. infra).
 
 | Clé | Addr | +0 =N | +1 porteur | +8 nom | lieux (+$10..+$10+N-1) |
 |---|---|---|---|---|---|
@@ -159,6 +160,17 @@ pointeur secondaire : `$098F` posé par `$6F1B`) ; `+$0C`/`+$0D` = **adjectif 2*
 Chaînes de porteurs (qui tient quoi) : `$03`→`$3E`, `$04`→`$47`,
 `$0F`→`$42`, `$14`→`$13`, `$19`/`$1A`→`$46`, `$1E`→`$1D`,
 `$1F`→`$1E`, `$21`→`$24`, `$22`→`$21`, `$24`→`$20`, `$02`→`$1F`.
+
+**Queue de bloc = liste des verbes autorisés** (donc taille du bloc =
+`16 + N + 2k + 1`). Après les `N` lieux (`+$10..+$10+N-1`), à l'offset
+**`16+N`**, suit une liste d'**entrées de 2 octets `[verbe, action]`** terminée
+par `$FF` : `verb_obj_ok` (`$52FB`) calcule `ptr + (ptr)+0 + $10` puis cherche
+le verbe tapé (`wid`) via `index_id_table2` (pas 2) ; le **1er octet = code
+verbe** (0 = action enchaînée supplémentaire), le **2e = index d'action** dans
+`$7014` (bit7 ⇒ table étendue `$7114`), dispatché par la boucle `L4BB2`
+(`block4.asm:4831-4855`). Ex. `door05` : `(0C,02)(0D,03)(10,04)(18,05)
+(1E,06)(25,07)(26,07) FF` ; objet sans verbe : `FF` seul. Encodé par
+`memmap_defs` (`_STATE_FIELD_LEN=0x10`, slots `verb{i}`/`act{i}`/`vlend`).
 
 **Nom de chaque clé** : `+$08`/`+$09` est la **clé de dictionnaire** du nom
 de l'objet, rendue par `word_render` (`$4241`, page `$05+hi`, offset `lo`) ;

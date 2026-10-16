@@ -4762,7 +4762,7 @@ L4B32:  stx     passok
 ;      inconnu ou inaccessible est intercepte par obj_check.
 ;   4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle
 ;      l'action : table $7014 pour un objet ordinaire, table etendue $7114
-;      (indexee par le bit7 de (orec)+1) sinon ; appel via indirect_call.
+;      (indexee par l'octet d'action de l'entree [verbe,action] ; bit7 => $7114) sinon ; appel via indirect_call.
 ;   5. en action reelle (phase=1) : gere l'obscurite puis annonce les objets
 ;      transportes qui reagissent.
 ; Le meme corps sert de sonde a cmd_probe ($36D5).
@@ -4832,7 +4832,7 @@ L4BB2:  ldy     #$01                            ; boucle des actions associees a
         lda     (ptr),y
         asl     a
         tax
-        bcs     L4BC9                           ; bit7 de (orec)+1 -> table etendue $7114, sinon $7014
+        bcs     L4BC9                           ; bit7 de l'octet d'action de l'entree [verbe,action] -> table etendue $7114, sinon $7014
         lda     L7014,x
         sta     L4C64
         lda     L7015,x

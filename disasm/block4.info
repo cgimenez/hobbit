@@ -670,7 +670,7 @@ LABEL { NAME "script_indir"; ADDR $51DA; COMMENT "Opcode INDIR : saute a la cibl
 LABEL { NAME "entity_find"; ADDR $520D; COMMENT "Retrouve l'entree d'un personnage par son id dans la table $2B45"; };
 LABEL { NAME "entity_goto"; ADDR $5249; COMMENT "Fait sauter le script d'un personnage a une autre instruction"; };
 LABEL { NAME "say_if_visible"; ADDR $5279; COMMENT "Affiche un message si le personnage est au meme endroit que le joueur"; };
-LABEL { NAME "verb_obj_ok"; ADDR $52EA; COMMENT "Teste si le verbe courant est autorise pour l'objet (liste attachee au record)"; };
+LABEL { NAME "verb_obj_ok"; ADDR $52EA; COMMENT "Teste si le verbe courant est autorise pour l'objet (liste [verbe,action] 2 o, fin $FF, a record+16+N)"; };
 LABEL { NAME "locate_location"; ADDR $530B; COMMENT "Retrouve la fiche d'un lieu a partir de son identifiant (table $2070, id < $50)"; };
 LABEL { NAME "locate_object"; ADDR $5331; COMMENT "Retrouve la fiche d'un objet a partir de son identifiant (table $1A62)"; };
 LABEL { NAME "light_from_arg1"; ADDR $5349; COMMENT "Teste si l'objet arg1 fournit de la lumiere (utilise par is_dark)"; };

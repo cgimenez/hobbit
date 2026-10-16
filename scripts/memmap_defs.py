@@ -124,6 +124,12 @@ STATE_SPECIAL: dict[tuple[int, int], tuple[str, str, str]] = {
 # Verifie sur les 32 references litterales de block4.asm (0 ambiguite).
 _STATE_BASES: list[tuple[int, int]] = sorted((b, k) for k, b in STATE_KEYS)
 _STATE_LO, _STATE_HI = 0x1B1A, 0x2070
+# Partie fixe d'un bloc = champs +0..+$0F (16 o). Suivent : N lieux (+$10..,
+# N = octet +0, balayes par L5FFA) puis la **liste des verbes autorises**
+# (paires 2 o [verbe, param], terminee $FF) a l'offset 16+N, accordee au record
+# et lue par verb_obj_ok ($52FB, via index_id_table2 ; cf. block4.asm:5959-5961).
+_STATE_FIELD_LEN = 0x10
+_KEY_BASE: dict[int, int] = dict(STATE_KEYS)
 
 
 def state_owner(addr: int) -> tuple[int, int] | None:
@@ -287,15 +293,31 @@ def annotate(base: int, off: int) -> list[Slot]:
         own = state_owner(addr)
         if own is not None:
             key, d = own
-            sp = STATE_SPECIAL.get((key, d))
-            fld = sp or STATE_FIELD.get(d)
-            if fld:
-                nm, kind, doc = fld
-            else:
-                nm, kind, doc = f"+${d:02X}", UNKNOWN, "offset de bloc"
             ident = STATE_IDENTITY.get(key, f"state${key:02X}")
-            out.append(Slot("etats", f"{ident}.{nm}", kind,
-                            f"cle ${key:02X} : {doc}", addr))
+            n = _img(_KEY_BASE[key])
+            vl = _STATE_FIELD_LEN + n  # debut de la liste des verbes autorises
+            if d >= vl:
+                if _img(addr) == 0xFF:
+                    nm, kind, doc = "vlend", CONST, "fin liste verbes autorises"
+                else:
+                    i = (d - vl) // 2
+                    if (d - vl) % 2 == 0:
+                        nm, kind, doc = (f"verb{i}", GABARIT,
+                                         "verbe autorise (0 = action enchaine ; verb_obj_ok $52FB)")
+                    else:
+                        nm, kind, doc = (f"act{i}", GABARIT,
+                                         "action du verbe (index table $7014/$7114)")
+                out.append(Slot("etats", f"{ident}.{nm}", kind,
+                                f"cle ${key:02X}, +${d:02X} : {doc}", addr))
+            else:
+                sp = STATE_SPECIAL.get((key, d))
+                fld = sp or STATE_FIELD.get(d)
+                if fld:
+                    nm, kind, doc = fld
+                else:
+                    nm, kind, doc = f"+${d:02X}", UNKNOWN, "offset de bloc"
+                out.append(Slot("etats", f"{ident}.{nm}", kind,
+                                f"cle ${key:02X} : {doc}", addr))
     elif base == 0x28CC:
         if EVENTS_BASE <= addr < EVENTS_BASE + EVENTS_N * EVENTS_SIZE:
             e = (addr - EVENTS_BASE) // EVENTS_SIZE

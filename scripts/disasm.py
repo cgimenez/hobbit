@@ -1227,7 +1227,7 @@ ROUTINE_DOCS: dict[int, tuple[str | None, str]] = {
     0x5394: ("index_id_table2", "Comme index_id_table, mais pour des entrees de 2 octets"),
     0x52EA: (
         "verb_obj_ok",
-        "Teste si le verbe courant est autorise pour l'objet (liste attachee au record)",
+        "Teste si le verbe courant est autorise pour l'objet (liste [verbe,action] 2 o, fin $FF, a record+16+N)",
     ),
     0x4CDF: (
         "obj_check",
@@ -2453,7 +2453,7 @@ ROUTINE_NOTES: dict[int, list[str]] = {
         "     inconnu ou inaccessible est intercepte par obj_check.",
         "  4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle",
         "     l'action : table $7014 pour un objet ordinaire, table etendue $7114",
-        "     (indexee par le bit7 de (orec)+1) sinon ; appel via indirect_call.",
+        "     (indexee par l'octet d'action de l'entree [verbe,action] ; bit7 => $7114) sinon ; appel via indirect_call.",
         "  5. en action reelle (phase=1) : gere l'obscurite puis annonce les objets",
         "     transportes qui reagissent.",
         "Le meme corps sert de sonde a cmd_probe ($36D5).",
@@ -2919,7 +2919,7 @@ INLINE_COMMENTS: dict[int, str] = {
     0x4BAD: "le verbe est-il autorise pour cet objet ?",
     0x4BB0: "non autorise -> I CANNOT DO THAT (L4C20)",
     0x4BB2: "boucle des actions associees a l'objet",
-    0x4BB8: "bit7 de (orec)+1 -> table etendue $7114, sinon $7014",
+    0x4BB8: "bit7 de l'octet d'action de l'entree [verbe,action] -> table etendue $7114, sinon $7014",
     0x4BD5: "appel indirect de l'action (indirect_call)",
     0x4BE9: "action reelle ? sinon fin",
     0x4BF5: "noir et sans lumiere -> IT IS DARK",
