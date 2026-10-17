@@ -8,3 +8,4 @@ tools/cc65/
 /web/build/
 /sav/
 external_ressources/
+/build/host/

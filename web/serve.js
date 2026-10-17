@@ -2,7 +2,7 @@
  *
  * Zero dependance. Usage : node serve.js <dir> [port] [--no-hmr]
  *
- * HMR : surveille les sources (web/ui, web/core, web/cpu, web/include,
+ * HMR : surveille les sources (web/ui, host/,
  * harness/shim.s, harness/snap.s, web/Makefile) ; a chaque changement, lance
  * `make -C web wasm assets` puis pousse un evenement SSE "reload" aux pages
  * connectees (le client HMR est injecte dans le HTML servi, index.html reste
@@ -95,9 +95,11 @@ function watch(target, opts) {
 }
 
 if (hmr) {
-  for (const d of ['ui', 'core', 'cpu', 'include']) {
+  for (const d of ['ui']) {
     watch(path.join(here, d), { recursive: true });
   }
+  watch(path.join(root, 'host'), { recursive: true });
+  // cpu/ (hote natif) exclu : ne participe pas au build wasm.
   // harness (shim.s/snap.s) : recursif ; web/ (Makefile) : non recursif pour
   // ne pas boucler sur web/build (dont les octets changent a chaque build).
   watch(path.join(root, 'harness'), { recursive: true });

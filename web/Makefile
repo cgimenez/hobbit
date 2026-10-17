@@ -18,6 +18,9 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 WEB  := $(ROOT)/web
 BUILD:= $(WEB)/build
 
+HOST  := $(ROOT)/host
+CPU   := $(ROOT)/cpu
+
 CA65 := $(ROOT)/tools/cc65/bin/ca65
 LD65 := $(ROOT)/tools/cc65/bin/ld65
 EMCC ?= /opt/local/bin/emcc
@@ -27,10 +30,10 @@ SIM65_DIR := $(ROOT)/tools/cc65/src/sim65
 SIM65_SRC := $(SIM65_DIR)/6502.c $(SIM65_DIR)/memory.c \
              $(SIM65_DIR)/peripherals.c $(SIM65_DIR)/error.c \
              $(SIM65_DIR)/trace.c
-WEB_SRC   := $(WEB)/cpu/web_main.c $(WEB)/core/hobbit.c $(WEB)/core/io.c \
-             $(WEB)/core/state.c $(WEB)/core/map.c $(WEB)/core/vec.c \
-             $(WEB)/core/msg.c
-INC       := -I$(SIM65_DIR) -I$(ROOT)/tools/cc65/src/common -I$(WEB)/include -I$(WEB)/core
+HOST_SRC  := $(HOST)/core.c $(HOST)/hobbit.c $(HOST)/io.c \
+              $(HOST)/state.c $(HOST)/map.c $(HOST)/vec.c \
+              $(HOST)/msg.c
+INC       := -I$(SIM65_DIR) -I$(ROOT)/tools/cc65/src/common -I$(HOST)/include -I$(HOST)
 
 CFLAGS  := -O2 -std=gnu11 -Wno-attributes
 EMFLAGS := -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME=createHobbit \
@@ -79,10 +82,10 @@ $(BUILD)/snap.bin: $(ROOT)/harness/snap.s $(ROOT)/harness/snap.cfg
 # ---- wasm ----
 wasm: $(BUILD)/hobbit.js
 
-$(BUILD)/hobbit.js: $(WEB_SRC) $(SIM65_SRC) $(WEB)/include/hobbit.h $(WEB)/core/io.h
+$(BUILD)/hobbit.js: $(HOST_SRC) $(SIM65_SRC) $(HOST)/include/hobbit.h $(HOST)/io.h
 	@mkdir -p $(BUILD)
 	EMSDK_PYTHON=$(EMSDK_PYTHON) $(EMCC) $(CFLAGS) $(INC) $(EMFLAGS) \
-	    $(WEB_SRC) $(SIM65_SRC) -o $@
+	    $(HOST_SRC) $(SIM65_SRC) -o $@
 	@echo "wasm : $@ + $(BUILD)/hobbit.wasm"
 
 # ---- assets servis tels quels (fetch cote JS) ----
@@ -93,7 +96,7 @@ assets: wasm shims
 	@echo "assets : $(BUILD)/{hobbit.bin,basic10.rom,index.html,app.js,style.css,solution.js}"
 
 serve:
-	@echo "http://localhost:8000  (HMR : editez web/ui|core|cpu|include -> rebuild+reload)"
+	@echo "http://localhost:8000  (HMR : editez web/ui|host|cpu -> rebuild+reload)"
 	node $(WEB)/serve.js $(BUILD) 8000
 
 # Boot + une commande, valide le wasm sans navigateur (node).
