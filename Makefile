@@ -119,7 +119,10 @@ assets: wasm shims
 	cp $(ROOT)/data/hobbit.bin $(ROOT)/data/basic10.rom $(WASM)/
 	cp $(SHIMS)/shim.bin $(SHIMS)/snap.bin $(WASM)/
 	cp $(UI)/index.html $(UI)/app.js $(UI)/style.css $(UI)/solution.js $(WASM)/
-	@echo "assets : $(WASM)/{hobbit.bin,basic10.rom,shim.bin,snap.bin,index.html,app.js,style.css,solution.js}"
+	cp $(UI)/intro.fr.md $(UI)/intro.en.md $(WASM)/
+	mkdir -p $(WASM)/vendor
+	cp $(UI)/vendor/marked.esm.js $(WASM)/vendor/
+	@echo "assets : $(WASM)/{hobbit.bin,basic10.rom,shim.bin,snap.bin,index.html,app.js,style.css,solution.js,intro.fr.md,intro.en.md,vendor/marked.esm.js}"
 
 serve:
 	@echo "http://localhost:8000  (HMR : editez src/web|src -> rebuild+reload)"

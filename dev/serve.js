@@ -29,6 +29,7 @@ const TYPES = {
   '.rom': 'application/octet-stream',
   '.svg': 'image/svg+xml',
   '.json': 'application/json',
+  '.md': 'text/markdown; charset=utf-8',
 };
 
 // ---- HMR ----

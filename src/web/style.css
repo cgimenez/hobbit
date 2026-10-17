@@ -146,3 +146,38 @@ tr.dead td { color: #6b727a; font-style: italic; }
 .modal-actions button.primary { background: #2b3b2b; color: #d7e3d7;
   border-color: #3d523d; }
 .modal-actions button.primary:hover { background: #354735; }
+
+#intro {
+  position: fixed; inset: 0; z-index: 40; overflow-y: auto;
+  background: #14161a; padding: 6vh 5vw;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+}
+#intro.hidden { display: none; }
+.intro-title { font-size: 20px; margin: 0; font-weight: 600; text-align: center; }
+.intro-title .sub { color: #6d7681; font-weight: 400; font-size: 13px; }
+#intro-play {
+  background: #2b3b2b; color: #d7e3d7; border: 1px solid #3d523d;
+  border-radius: 6px; padding: 10px 46px; cursor: pointer; font: inherit;
+  font-size: 16px;
+}
+#intro-play:hover { background: #354735; }
+#intro-cols {
+  width: min(94vw, 1100px);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+}
+.intro-col {
+  background: #1a1d22; border: 1px solid #262b31; border-radius: 8px;
+  padding: 14px 18px; color: #c5ccd4; font-size: 13px; line-height: 1.55;
+  min-width: 0;
+}
+.intro-col h1, .intro-col h2, .intro-col h3 { color: #d7dde3; margin: 12px 0 8px; }
+.intro-col h1:first-child, .intro-col h2:first-child { margin-top: 0; }
+.intro-col p { margin: 8px 0; }
+.intro-col ul, .intro-col ol { margin: 8px 0; padding-left: 20px; }
+.intro-col a { color: #6fa8dc; text-decoration: none; }
+.intro-col a:hover { text-decoration: underline; }
+.intro-col code { background: #0b0d0f; padding: 1px 5px; border-radius: 4px;
+  color: #cfe3cf; }
+.intro-col pre { background: #0b0d0f; padding: 10px 12px; border-radius: 6px;
+  overflow-x: auto; }
+@media (max-width: 700px) { #intro-cols { grid-template-columns: 1fr; } }

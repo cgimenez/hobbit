@@ -638,6 +638,29 @@ $('#modal-close').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
+// --- intro FR/EN : overlay a chaque chargement, sauf ?skip_intro.
+// Les deux colonnes s'affichent ensemble (independant du toggle EN/FR) ;
+// marked (MIT) est vendore sous src/web/vendor/, charge seulement si affiche. ---
+const SKIP_INTRO = new URLSearchParams(location.search).has('skip_intro');
+if (SKIP_INTRO) $('#intro').classList.add('hidden');
+
+async function loadIntro() {
+  if (SKIP_INTRO) return;
+  const { marked } = await import('./vendor/marked.esm.js');
+  const [fr, en] = await Promise.all([
+    fetch('intro.fr.md').then((r) => { if (!r.ok) throw new Error(`intro.fr.md: ${r.status}`); return r.text(); }),
+    fetch('intro.en.md').then((r) => { if (!r.ok) throw new Error(`intro.en.md: ${r.status}`); return r.text(); }),
+  ]);
+  $('#intro-fr').innerHTML = marked.parse(fr);
+  $('#intro-en').innerHTML = marked.parse(en);
+}
+
+$('#intro-play').addEventListener('click', () => {
+  $('#intro').classList.add('hidden');
+  $('#cmd').focus();
+});
+loadIntro();
+
 applyI18n();
 
 async function loadBlobFromStorage() {
