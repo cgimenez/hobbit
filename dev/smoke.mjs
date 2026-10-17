@@ -1,5 +1,5 @@
 /* Smoke test Node : charge le wasm, boot jusqu'au prompt, joue une commande.
- * Usage : node web/smoke.mjs [--serve [--memfd N]] [cmdfile]
+ * Usage : node dev/smoke.mjs [--serve [--memfd N]] [cmdfile]
  * Lit les fichiers depuis build/wasm/ (meme repertoire que l'image servie).
  *   --serve : mode serveur lockstep (cf. scripts/mem_diff.py) : trace
  *     memoire activee apres boot ; chaque ligne de stdin (meme vide) = 1

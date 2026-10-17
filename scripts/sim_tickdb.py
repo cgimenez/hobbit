@@ -17,7 +17,7 @@ Schema : runs(run) / ticks(run,n,cmd,frames) /
 deltas(run,n,base,off,avant,apres) / texts(run,n,reponse).
 Etat ZP : table state(run,n,ploc,eloc,obj,crec).
 Snapshots : table snapshots(name,run,tick,ploc,eloc,obj,crec,created,data)
-+ fichiers sav/NOM.bin ("SNAP" + 3623 o).
++ fichiers runs/sav/NOM.bin ("SNAP" + 3623 o).
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "build" / "sim" / "hobbit.db"
-SAV = ROOT / "sav"
+SAV = ROOT / "runs" / "sav"
 
 REGIONS = [(0x00BE, 0x18, "ZP"), (0x1B1A, 0x556, "etats"),
            (0x28CC, 0x2F1, "scripts"), (0x211A, 0x5C8, "records")]
@@ -100,7 +100,7 @@ def cmd_snap_diff(a: str, b: str) -> int:
 
 
 def cmd_snap_init(name: str) -> int:
-    """Squelette sav/NOM.bin ("SNAP" + zeros) pour la premiere capture :
+    """Squelette runs/sav/NOM.bin ("SNAP" + zeros) pour la premiere capture :
     pack --snapshot exige un blob valide, que le 1er SAVE ecrasera."""
     if not (1 <= len(name) <= 15) or any(
             c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

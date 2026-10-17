@@ -20,7 +20,7 @@ courant (`ploc`), à recouper avec `docs/map.md`.
   les franchit par **SAVE/LOAD** en jeu (comme la partie d'origine). Ces
   points sont marqués **SAVE / LOAD** ci-dessous.
 - Une **variante sans aucun SAVE/LOAD** existe aussi (run continu unique,
-  état final byte-identique à `sav/win.bin`) : voir **Annexe 2** en fin de
+  état final byte-identique à `runs/sav/win.bin`) : voir **Annexe 2** en fin de
   document (elle décale les fenêtres temporelles de +5 `WAIT` dans le donjon
   gobelin, ce qui réaligne du même coup l'errance de l'elfe des bois).
 - Entrées « doubles » : `NORTH puis SOUTHWEST` doit être tapé sur **deux tours
@@ -96,7 +96,7 @@ capture le héros et le jette dans le donjon du roi elfe.
 
 | Saisir | Affiché |
 |---|---|
-| *SAVE / LOAD* | *(reprise : `sav/ring_surface.bin`)* |
+| *SAVE / LOAD* | *(reprise : `runs/sav/ring_surface.bin`)* |
 | `EAST` | You go east. A narrow place visible exits are : east west north you see : nothing |
 | `EAST` | You go east. You are on a narrow dangerous path visible exits are : east west you see : nothing |
 | `EAST` | You go east. You are in Beorns house visible exits are : northeast northwest south southwest north you see : a heavy curtain. |
@@ -111,7 +111,7 @@ Les déplacements dans le noir sont **tirés au sort** : d'où le **SAVE** au
 
 | Saisir | Affiché |
 |---|---|
-| *SAVE / LOAD* | *(reprise : `sav/ring_dungeon.bin`)* |
+| *SAVE / LOAD* | *(reprise : `runs/sav/ring_dungeon.bin`)* |
 | `SOUTHWEST` | You go southwest. You are in the cellar where the king keeps his barrels of wine to the northeast there is the red door below there is the large trap door visible exits are : north you see : a barrel. the butler. The butler is carrying the red key. The vicious warg enters. The butler closes the red door. |
 
 ## Acte 4 — Le tonneau ($21), le Long Lac ($22), Lake-town ($23)
@@ -122,7 +122,7 @@ se laisse flotter jusqu'au Long Lac.
 
 | Saisir | Affiché |
 |---|---|
-| *SAVE / LOAD* | *(reprise : `sav/ring_cellar.bin`)* |
+| *SAVE / LOAD* | *(reprise : `runs/sav/ring_cellar.bin`)* |
 | `WEAR RING` | You wear the valuable golden ring. The vicious warg runs around you and howls. The butler locks the red door with the red key. |
 | `WAIT` | You wait. Time passes... The vicious warg attacks the butler. But the effort is wasted. His defense is too strong. The butler captures the vicious warg. |
 | `WAIT` | You wait. Time passes... The butler opens the barrel. In the barrel there is some wine. |
@@ -198,7 +198,7 @@ hero of heroes and master adventurer!!!.
 You have mastered 80.0% of this adventure.
 ```
 
-État final **byte-identique** à `sav/win.bin`.
+État final **byte-identique** à `runs/sav/win.bin`.
 
 ---
 
@@ -206,7 +206,7 @@ You have mastered 80.0% of this adventure.
 
 Rejeu sous harnais (`scripts/solver*.py`, `run_one`). `NORTH + SOUTHWEST` est
 injecté en un seul run (`NORTH\rSW`, nécessaire pour survivre à la clairière) ;
-`LOAD sav/<nom>.bin` remplace le blob courant (sauvegarde en jeu). Le reste est
+`LOAD runs/sav/<nom>.bin` remplace le blob courant (sauvegarde en jeu). Le reste est
 une commande par run.
 
 ```
@@ -221,11 +221,11 @@ NORTH+SOUTHWEST / GET RING /
 NORTH / DOWN / NORTH / WAIT / WAIT / WAIT / UP / SOUTH / WEST /
 EAST / EAST / EAST / NORTHEAST / EAST / EAST
 # Acte 2 (capture)
-LOAD sav/ring_surface.bin / EAST / EAST / EAST / NORTHEAST / EAST / EAST
+LOAD runs/sav/ring_surface.bin / EAST / EAST / EAST / NORTHEAST / EAST / EAST
 # Acte 3
-LOAD sav/ring_dungeon.bin / SOUTHWEST
+LOAD runs/sav/ring_dungeon.bin / SOUTHWEST
 # Acte 4
-LOAD sav/ring_cellar.bin / WEAR RING / WAIT / WAIT / CLIMB INTO BARREL /
+LOAD runs/sav/ring_cellar.bin / WEAR RING / WAIT / WAIT / CLIMB INTO BARREL /
 WEAR RING / WAIT / WAIT / WAIT / WAIT / EAST
 # Acte 5
 SAY TO BARD "NORTH" / FOLLOW BARD / SAY TO BARD "UP" / FOLLOW BARD /
@@ -243,7 +243,7 @@ OPEN CHEST / PUT TREASURE IN CHEST
 ## Annexe 2 — Variante **sans SAVE/LOAD** (run continu vérifié)
 
 Le même parcours se termine **en une seule partie continue**, **sans
-aucune sauvegarde** : état final **byte-identique** à `sav/win.bin`.
+aucune sauvegarde** : état final **byte-identique** à `runs/sav/win.bin`.
 Deux réglages diffèrent de la version principale :
 
 - **5 `WAIT` de plus** juste après la chute dans le donjon gobelin

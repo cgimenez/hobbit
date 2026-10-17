@@ -653,7 +653,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   `($FFFE)` toujours `$FFFF` (jamais écrit) — aucun handler BRK.
 - **Snapshots** (`src/6502/snap.s`, images `--snapshot`, runs
   `sna`/`snb`) : bypass `vec_02/03/04`, marqueur binaire `@@SNAP\n`
-  +`NLEN+NOM+IDX+LEN`+payload, `sav/NOM.bin` (`"SNAP"`+3623) +
+  +`NLEN+NOM+IDX+LEN`+payload, `runs/sav/NOM.bin` (`"SNAP"`+3623) +
   table `snapshots`. 0-delta prouvé (LOAD==SAVE byte-exact).
   **Spin EOF-idle non neutre** : ~32 o réécrits sur 2G cycles de
   polls `keyin` à `$00` (pas de tick monde, mais side-effects) —

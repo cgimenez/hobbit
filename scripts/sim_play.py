@@ -12,7 +12,7 @@ Affiche :
 Persistance SAVE/LOAD (mode --snapshot) : le jeu emet 4 blocs
   "@@SNAP\\n" + NLEN + NOM + IDX + LEN(2 LE) + payload
 via src/6502/snap.s. Des que les 4 regions sont vues, le blob 3627 o
-("SNAP" + regions idx 0..3) est ecrit dans l'argument (sav/play.bin) :
+("SNAP" + regions idx 0..3) est ecrit dans l'argument (runs/sav/play.bin) :
 la session suivante le recharge (pack --snapshot).
 
 os.read (1 appel systeme) : rend l'octet disponible immediatement

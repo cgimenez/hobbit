@@ -17,7 +17,7 @@
  *
  * Snapshots (src/6502/snap.s) : "@@SNAP\n" + NLEN(1) + NOM + IDX(1) +
  * LEN(2) + octets bruts, 4 blocs (idx 0..3 = ZP/etats/scripts/records).
- * Un SAVE complet -> sav/NOM.bin ("SNAP" + 3623 o) + ligne snapshots.
+ * Un SAVE complet -> runs/sav/NOM.bin ("SNAP" + 3623 o) + ligne snapshots.
  */
 
 #include <stdio.h>
@@ -100,8 +100,8 @@ static char G_snapname[SNAP_NAMEMAX + 1] = {0};
 static int G_snap_active = 0;
 static char G_savdir[1024] = {0};
 
-/* dir sav : <racine>/sav, racine = simfile sans build/sim + nom
-   (ex. build/sim/x.sim -> ./sav ; /a/b/build/sim/x.sim -> /a/b/sav) */
+/* dir sav : <racine>/runs/sav, racine = simfile sans build/sim + nom
+   (ex. build/sim/x.sim -> ./runs/sav ; /a/b/build/sim/x.sim -> /a/b/runs/sav) */
 static void sav_dir_for(const char *simfile) {
     char tmp[1024];
     snprintf(tmp, sizeof tmp, "%s", simfile);
@@ -110,8 +110,8 @@ static void sav_dir_for(const char *simfile) {
         if (!s) { tmp[0] = 0; break; }
         *s = 0;
     }
-    if (tmp[0] == 0) snprintf(G_savdir, sizeof G_savdir, "sav");
-    else snprintf(G_savdir, sizeof G_savdir, "%s/sav", tmp);
+    if (tmp[0] == 0) snprintf(G_savdir, sizeof G_savdir, "runs/sav");
+    else snprintf(G_savdir, sizeof G_savdir, "%s/runs/sav", tmp);
 }
 
 static int snap_name_ok(const unsigned char *nm, unsigned nl) {
@@ -460,7 +460,7 @@ int main(int argc, char **argv) {
         sqlite3_step(st_state);
         sqlite3_reset(st_state);
         if (G_snap_active && G_got[0] && G_got[1] && G_got[2] && G_got[3]) {
-            /* SAVE complet : sav/NOM.bin ("SNAP"+3623) + ligne snapshots */
+            /* SAVE complet : runs/sav/NOM.bin ("SNAP"+3623) + ligne snapshots */
             static unsigned char blob[4 + 0x0018 + 0x0556 + 0x02F1 + 0x05C8];
             memcpy(blob, SNAP_MAGIC, 4);
             size_t off = 4;

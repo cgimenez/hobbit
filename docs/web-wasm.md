@@ -13,7 +13,8 @@ WASM ; le Python reste cantonné au reverse hors-ligne (`disasm.py`, checkers,
 ## 1. Architecture
 
 Le code émulateur vit sous `src/` (moteur partagé natif+WASM, build par le
-`Makefile` racine) ; l'UI vit sous `web/`. Correspondance fichier ↔ script
+`Makefile` racine) ; l'UI vit sous `src/web/`, l'outillage dev sous `dev/`.
+Correspondance fichier ↔ script
 remplacé ↔ source de vérité (SSOT) :
 
 | Fichier | Remplace (dev) | Rôle |
@@ -29,9 +30,9 @@ remplacé ↔ source de vérité (SSOT) :
 | `src/include/hobbit.h` | — | ABI (exports `hob_*`), slots de chargement |
 | `src/native/platform.h` | — | frontière d'environnement (`platform_*`) |
 | `src/6502/shim.s`, `src/6502/snap.s` | — | shims paravirt (`$C000`/`$F700`) |
-| `web/ui/{index.html,app.js,style.css}` | — | UI vanilla (4 panes) |
-| `web/serve.js` | — | serveur dev statique + HMR |
-| `web/smoke.mjs` | — | test boot+commande sans navigateur |
+| `src/web/{index.html,app.js,style.css}` | — | UI vanilla (4 panes) |
+| `dev/serve.js` | — | serveur dev statique + HMR |
+| `dev/smoke.mjs` | — | test boot+commande sans navigateur |
 
 Le cœur 6502 n'est **pas réécrit** : `tools/cc65/src/sim65/{6502,memory,
 peripherals,error,trace}.c` sont compilés tels quels par `emcc`. Seuls
@@ -67,7 +68,7 @@ make clean
 - `make check` vérifie les octets d'origine des sites patchés (`$7353` clavier,
   `$75B8`/`$7694`/`$7514` hooks texte, `$7628` pause, `$2C4A` fast,
   `$2C0B/$2C0E/$2C11` vecteurs cassette) : échec = arrêt avant tout build.
-- `make serve` : serveur statique + **HMR**. Éditer `web/ui`, `src/core`,
+- `make serve` : serveur statique + **HMR**. Éditer `src/web`, `src/core`,
   `src/6502/*.s` ou le `Makefile` racine relance `make wasm assets` puis
   recharge la
   page (SSE `/__hmr`) ; le client HMR est injecté dans le HTML servi, donc
@@ -136,10 +137,10 @@ slots `hob_slot/_cap/_len` ; cycle `hob_init` → `hob_boot` → `hob_key` +
 `hob_run` ; texte `hob_text_ptr/_len` ; SAVE `hob_save_ready/_ptr/_len/_clear` ;
 état `hob_player_room`, `hob_obj_*` (61), `hob_ent_*` (17), `hob_evt_*` (10) ;
 carte `hob_room_*` (78) ; vecteurs `hob_vec_render/_ptr/_key/_mode/_popcount`.
-Le JS (`web/ui/app.js`) ne fait que `fetch` + appels + rendu. L'UI est
+Le JS (`src/web/app.js`) ne fait que `fetch` + appels + rendu. L'UI est
 bilingue EN/FR (cookie `hobbit.lang`, drapeaux) et propose un bouton
 **AUTO PLAY** (disclaimer spoiler) qui rejoue la solution complète :
-`web/ui/solution.js` = les 100 commandes de `docs/game_solution.md` Annexe 2
+`src/web/solution.js` = les 100 commandes de `docs/game_solution.md` Annexe 2
 (variante continue, victoire 70,0 %), injectées via `sendCommand` (1 tour/800 ms).
 
 **Pistes V1+ (par ordre de valeur)**
@@ -159,4 +160,4 @@ bilingue EN/FR (cookie `hobbit.lang`, drapeaux) et propose un bouton
 - Patchs sensibles (`make check` les garde) : `$7353`, `$75B8/$7694/$7514`,
   `$7628`, `$2C4A`, `$2C0B/$2C0E/$2C11`.
 - `vbuf` en ligne mémoire `r = $7F - y` (sinon image miroir).
-- HMR : serveur dev uniquement (`web/serve.js`), jamais dans `build/wasm`.
+- HMR : serveur dev uniquement (`dev/serve.js`), jamais dans `build/wasm`.

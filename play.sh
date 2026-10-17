@@ -2,11 +2,11 @@
 # The Hobbit (Oric 1982, Melbourne House) jouable en interactif sous sim65.
 #
 # Image dediee build/sim/play.sim (shim ASCII + SAVE/LOAD par snapshots,
-# src/6502/snap.s) et sauvegarde sav/play.bin : RIEN n'est partage avec les
+# src/6502/snap.s) et sauvegarde runs/sav/play.bin : RIEN n'est partage avec les
 # experimentations solver (SLVW*.sim, solver.db, slv_run*.bin) — jouer ne
-# les perturbe pas, ni l'inverse (repack isole, build/sim/ et sav/ ignorés).
+# les perturbe pas, ni l'inverse (repack isole, build/sim/ et runs/sav/ ignorés).
 #
-# SAVE/LOAD in-game : SAVE ecrit sav/play.bin (4 regions memoire) ; au
+# SAVE/LOAD in-game : SAVE ecrit runs/sav/play.bin (4 regions memoire) ; au
 # lancement suivant, play.sh repacke l'image avec ce blob -> LOAD le
 # restaure. (Les invites PREPARE/REWIND/VERIFY + touches sacrifiées sont
 # conservees : seul le "chemin cassette" est remplace.)
@@ -19,15 +19,15 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 PY="$ROOT/.venv/bin/python"
 SIM65="$ROOT/tools/cc65/bin/sim65"
 IMG="$ROOT/build/sim/play.sim"
-BLOB="$ROOT/sav/play.bin"
+BLOB="$ROOT/runs/sav/play.bin"
 
 # Etat initial : faute de sauvegarde, on part du checkpoint tunnel (SLVW).
 if [ ! -f "$BLOB" ]; then
-  if [ -f "$ROOT/sav/SLVW.bin" ]; then
-    cp "$ROOT/sav/SLVW.bin" "$BLOB"
-    echo "play.sh: seed sav/play.bin <- sav/SLVW.bin" >&2
+  if [ -f "$ROOT/runs/sav/SLVW.bin" ]; then
+    cp "$ROOT/runs/sav/SLVW.bin" "$BLOB"
+    echo "play.sh: seed runs/sav/play.bin <- runs/sav/SLVW.bin" >&2
   else
-    echo "play.sh: ni sav/play.bin ni sav/SLVW.bin (etat initial requis)" >&2
+    echo "play.sh: ni runs/sav/play.bin ni runs/sav/SLVW.bin (etat initial requis)" >&2
     exit 1
   fi
 fi

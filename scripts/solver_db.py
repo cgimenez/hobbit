@@ -2,7 +2,7 @@
 """Graphe d'exploration The Hobbit : stockage SQLite (phase 1).
 
 Un noeud = un etat jeu complet apres une commande :
-  blob 3627 o ("SNAP" + 4 regions SAVE, meme format que sav/*.bin),
+  blob 3627 o ("SNAP" + 4 regions SAVE, meme format que runs/sav/*.bin),
   hash sha1 (dedup), etat lisible ploc/eloc/obj/crec, texte ASCII,
   ndiff + edge_deltas vs parent, statut ok/parked/dead/win.
 

@@ -1,6 +1,6 @@
 /* ABI de l'emulateur WASM (The Hobbit, Oric 1982).
  *
- * Le JS (web/ui/app.js) remplit les slots avec les fichiers fetch() des
+ * Le JS (src/web/app.js) remplit les slots avec les fichiers fetch() des
  * octets bruts, appelle hob_init() puis hob_run()/hob_key(). Aucune fonction
  * n'alloue cote JS : les slots sont des buffers statiques C dont l'adresse
  * est exposee.

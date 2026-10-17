@@ -205,12 +205,12 @@ def step(cx, parent: int | None, cmd: str | None, depth: int,
 
 
 def seed_root(cx, name: str) -> int | None:
-    """Racine d'exploration = checkpoint sav/<name>.bin (mode coverage).
+    """Racine d'exploration = checkpoint runs/sav/<name>.bin (mode coverage).
 
     Insere un noeud racine porte sur le blob du checkpoint, texte = un LOOK
     joue depuis ce blob (vocabulaire d'objets du lieu). Le blob racine reste
     l'etat pre-LOOK (le tick du LOOK n'est pas commite dans la racine)."""
-    path = ROOT / "sav" / f"{name}.bin"
+    path = ROOT / "runs" / "sav" / f"{name}.bin"
     if not path.is_file():
         print(f"-- seed: fichier absent {path}")
         return None
@@ -223,12 +223,12 @@ def seed_root(cx, name: str) -> int | None:
     text = r["text"] if r["valid"] else ""
     hit = find_by_hash(cx, blob_hash(blob))
     if hit is not None:
-        print(f"-- seed: sav/{name}.bin deja present (noeud {hit})")
+        print(f"-- seed: runs/sav/{name}.bin deja present (noeud {hit})")
         return hit
     nid = add_node(cx, None, f"SEED:{name}", 0, blob, text, [], "ok",
                    None, None, True)
     cx.commit()
-    print(f"-- seed: noeud {nid} depuis sav/{name}.bin (ploc="
+    print(f"-- seed: noeud {nid} depuis runs/sav/{name}.bin (ploc="
           f"${state_of(blob)[0]:02X})", flush=True)
     return nid
 
@@ -493,7 +493,7 @@ def route(cx, rt_file: str, seed_name: str | None,
     la mort ou a une commande invalide. --save ecrit l'etat final.
     --record persiste chaque transition (noeud+edge_deltas) dans la DB."""
     if seed_name:
-        p = ROOT / "sav" / f"{seed_name}.bin"
+        p = ROOT / "runs" / "sav" / f"{seed_name}.bin"
         if not p.is_file():
             print(f"-- route: checkpoint absent {p}")
             return 1
@@ -544,8 +544,8 @@ def route(cx, rt_file: str, seed_name: str | None,
         print("  nouveaux:", " ".join(f"${b:04X}+${o:04X}"
                                       for b, o in sorted(new)[:40]))
     if save_name:
-        (ROOT / "sav" / f"{save_name}.bin").write_bytes(blob)
-        print(f"  save sav/{save_name}.bin (ploc=${state_of(blob)[0]:02X})")
+        (ROOT / "runs" / "sav" / f"{save_name}.bin").write_bytes(blob)
+        print(f"  save runs/sav/{save_name}.bin (ploc=${state_of(blob)[0]:02X})")
     return 0
 
 

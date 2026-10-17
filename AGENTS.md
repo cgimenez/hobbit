@@ -89,7 +89,7 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
                                              # (build/sim/NOM.sim, implique
                                              # --fast) : bypass SAVE/LOAD
                                              # (vec_02/03/04 -> snap.s),
-                                             # blob sav/NOM.bin en $E800
+                                             # blob runs/sav/NOM.bin en $E800
 .venv/bin/python scripts/sim_tickdb.py snaps     # snapshots (show/diff/verify/init)
 ./tools/cc65/bin/sim65 -x N build/sim/hobbit.sim < input.txt > frames.bin
 .venv/bin/python scripts/sim_frames.py frames.bin   # écrans -> texte
@@ -152,7 +152,7 @@ make serve           # http://localhost:8000 (HMR) ; doc : docs/web-wasm.md
   (`I DO NOT KNOW THE WORD " OOK."`), écho caractère par caractère OK.
 - Détails à jour : `docs/status.md`, `docs/block4-analysis.md`,
   `docs/tape-archive.md`, `docs/tape-format.md`, `docs/web-wasm.md`.
-- **App web WASM** (`web/`, UI + outillage Node) + **émulateur** (`src/` :
+- **App web WASM** (UI sous `src/web/`, outillage dev/test sous `dev/`) + **émulateur** (`src/` :
   `core/` moteur C portable, `native/` CLI natif, `6502/` shims ASM,
   build par le `Makefile` racine → `build/{native,wasm,shims}`) : jeu jouable
   dans le navigateur + état live

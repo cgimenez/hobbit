@@ -6,7 +6,7 @@ Ce script reassemble les octets, decoupe en blocs ($24 + 9 o header +
 $00 + donnees + checksum EOR), verifie et sauve.
 
 Usage : sim65 ... > run.bin ; .venv/bin/python scripts/tape_save.py
-            run.bin sav/game.tape
+            run.bin runs/sav/game.tape
 Sortie 0 si 4 blocs valides (dest/len/cksum OK), sinon 1 (fichier quand
 meme ecrit pour diagnostic).
 """
@@ -68,7 +68,7 @@ def parse_blocks(data: bytes) -> tuple[list[bytes], int]:
 
 def main() -> int:
     if len(sys.argv) != 3:
-        print("usage: tape_save.py run.bin sav/game.tape")
+        print("usage: tape_save.py run.bin runs/sav/game.tape")
         return 1
     data = Path(sys.argv[1]).read_bytes()
     nblk = data.count(MARK_B)

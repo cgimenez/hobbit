@@ -23,9 +23,9 @@ Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
             assemble src/6502/snap.s AU LIEU de tape.s (slot $F700),
             patch vec_02/03/04 ($2C0B/$2C0E/$2C11) vers snap_load/
             snap_save/s_clc (bypass couche octet), bake NOM en $F700+19,
-            embarque sav/NOM.bin (ou --snap-file F) en $E800 ("SNAP"+3623).
+            embarque runs/sav/NOM.bin (ou --snap-file F) en $E800 ("SNAP"+3623).
             Implique --fast ($56=0). Incompatible avec --tape.
-           --snap-file F : blob snapshot explicite (defaut : sav/NOM.bin).
+           --snap-file F : blob snapshot explicite (defaut : runs/sav/NOM.bin).
            --solver : variante capture ASCII (shim -D SOLVER, hooks L75B8/
              L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py
              ET play.sh. Se combine avec --snapshot (ex. --snapshot SLVW
@@ -79,7 +79,7 @@ SNAP_LEN = 4 + 0x0018 + 0x0556 + 0x02F1 + 0x05C8  # 3627 o
 SNAP_NAMELEN_OFF = SNAP_ADDR + 18
 SNAP_NAME_OFF = SNAP_ADDR + 19
 SNAP_NAME_MAX = 15
-SAV_DIR = ROOT / "sav"
+SAV_DIR = ROOT / "runs" / "sav"
 HIBIT_ADDR = 0xC2F2
 TXTSH, TXTSH_END = 0xC300, 0xC300 + 0x460
 VARS, VARS_END = 0xC2F0, 0xC300

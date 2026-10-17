@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare deux .tape (scripts/tape_save.py) bloc a bloc.
 
-Usage : .venv/bin/python scripts/tape_diff.py sav/avant.tape sav/apres.tape
+Usage : .venv/bin/python scripts/tape_diff.py runs/sav/avant.tape runs/sav/apres.tape
 Sortie 0 si donnees identiques (headers dest/len compares separement),
 1 sinon. Affiche par bloc : dest/len, nb d'octets differents, positions
 et valeurs des premiers ecarts. Sert a valider LOAD (SAVE#2 vs SAVE#1 :

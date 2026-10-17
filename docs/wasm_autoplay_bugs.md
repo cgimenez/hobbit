@@ -11,7 +11,7 @@ mais **la liste** + **le shim** :
   **shim classic** + émulateur custom, jamais sur le **shim solveur** du web
   (le shim forge le RNG via `$C0xx` : sous solveur, la capture elfe et la
   phase butler/porte diffèrent).
-Correction (`web/ui/solution.js`, 107 cmds) : SW immédiat en sortie `$1F`,
+Correction (`src/web/solution.js`, 107 cmds) : SW immédiat en sortie `$1F`,
 3e `WEAR RING`→`WAIT`, marche directe `$24→$25→$26→$27→$29` (Bard ne guide
 pas mais `SAY SHOOT` depuis `$24` tue le dragon ; le trésor est en `$29`).
 L'hypothèse §4 (quiescence) est **infirmée** : premier-`@@P` suffit, la
@@ -21,14 +21,14 @@ Détails : `docs/journal.md` séances 14-15 (win_seq), 17-18 (adaptation).
 --- document d'origine (conservé pour traçabilité) ---
 
 Statut : **ouvert**. Le bouton AUTO PLAY (commit `ecae669`) rejoue
-`web/ui/solution.js` sur l'émulateur WASM, mais **ne gagne pas** : la séquence
+`src/web/solution.js` sur l'émulateur WASM, mais **ne gagne pas** : la séquence
 défile en entier dans le vide. Ce document fige les faits mesurés et la piste
 de correction, pour reprise après compaction.
 
 ## 0. Décisions actées (utilisateur)
 
 1. État de départ = **cold boot** (pas de checkpoint).
-2. **Seeder depuis `sav/*.bin` = magouille** → interdit.
+2. **Seeder depuis `runs/sav/*.bin` = magouille** → interdit.
 3. Correction souhaitée = **reproduire le protocole du harness** (pas
    d'adaptatif conditionnel, pas de rustine).
 4. « Aucune raison que ça marche en local (harness) et pas en WASM » → le but
@@ -59,7 +59,7 @@ Le parser de **cette** édition Oric mappe mal les diagonales *écrites* :
 - (`SOUTHEAST`/`NORTHEAST` écrits, eux, marchent.)
 
 Le harness vérifié utilise les **abréviations** : `docs/game_solution.md`
-Annexe 1 dit explicitement `NORTH\rSW`, et `routes/*.txt` n'emploient que
+Annexe 1 dit explicitement `NORTH\rSW`, et `runs/routes/*.txt` n'emploient que
 `SW/SE/NE/NW`. Donc la table du doc (mots en clair) est une normalisation
 humaine : la recopier telle quelle injecte des commandes non fonctionnelles.
 → `solution.js` doit utiliser les abréviations pour les diagonales.
@@ -84,7 +84,7 @@ rouge** — elle s'ouvre après **~11 `WAIT`** chez nous, **1** dans le doc.
 bloquant.
 
 ### 2.6 Seed checkpoint = incohérent (piste écartée)
-Charger `sav/SLVW.bin` (magic `SNAP`) via le slot BLOB puis `LOAD` : le statut
+Charger `runs/sav/SLVW.bin` (magic `SNAP`) via le slot BLOB puis `LOAD` : le statut
 dit « sauvegarde locale restauree » mais l'état est incohérent (lieu `$00`,
 texte tronqué `THE CANNOT OPEN THE D ARGE CHEST`). De toute façon **écarté par
 décision** (§0.2).
@@ -139,9 +139,9 @@ Rendre le WASM fidèle au **protocole harness**, à modèle d'exécution constan
 
 ## 6. État du code (working tree, NON commité)
 
-- `web/ui/solution.js` : liste **nue** (98 entrées), abréviations diagonales +
+- `src/web/solution.js` : liste **nue** (98 entrées), abréviations diagonales +
   `NORTH\rSW` ; commentaires expliquant 2.2/2.3. **Pas d'adaptatif.**
-- `web/ui/app.js` : autoplay **simple** (string-only). `EXPECTED_VICTORY =
+- `src/web/app.js` : autoplay **simple** (string-only). `EXPECTED_VICTORY =
   'cheering crowd of dwarves'` (l'ancien `mastered 70.0` matchait aussi le
   résumé de **mort** → faux positifs).
 - `src/core/io.c`/`io.h`, `src/include/hobbit.h`, `src/core/core.c` :
@@ -159,7 +159,7 @@ Test navigateur headless (Chrome CDP, zéro dépendance) : scripts jetables
 `/tmp/opencode/hobdiag.mjs` (rejeu tour par tour + `@@K`/lieu/delta),
 `hobprobe.mjs`/`hobprobe2.mjs` (cycle porte rouge `$1F`), `hobwords.mjs`
 (mapping des directions), `hobseed*.mjs` (seed, écarté). Motif : `spawn node
-web/serve.js build/wasm <port> --no-hmr`, puis pilotage via un hook
+dev/serve.js build/wasm <port> --no-hmr`, puis pilotage via un hook
 `window.__hob` **temporaire** ajouté à `app.js` (pensé à être retiré).
 
 Test natif : `sim65 -x <cycles> build/sim/play.sim < flux.bin | python

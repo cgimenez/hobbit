@@ -1,4 +1,4 @@
-/* Hote natif in-process (embed sim65) : miroir exact de web/smoke.mjs.
+/* Hote natif in-process (embed sim65) : miroir exact de dev/smoke.mjs.
  *
  * Meme sequence, memes octets : slots depuis fichiers, hob_init, hob_boot,
  * puis par ligne (hors vides et #...) : flush, poussee des octets + 0x0D,

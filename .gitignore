@@ -5,5 +5,5 @@ disasm/.r2_afl.txt
 /tmp/
 tools/cc65/
 /build/
-/sav/
+/runs/sav/
 external_ressources/

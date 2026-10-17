@@ -279,14 +279,14 @@ snap-diff/snap-verify/snap-init`) : `vec_02/03/04`
 (`$2C0B/$2C0E/$2C11`) → `snap_load`/`snap_save`/`s_clc`, sans état
 (index déduit de src/dst : `$00BE/$1B1A/$28CC/$211A`), prompts
 `vec_05/06` conservés (1 touche sacrificielle chacun). Stockage double :
-`sav/NOM.bin` (`"SNAP"`+3623) + table `snapshots` (run,tick,ploc…,
+`runs/sav/NOM.bin` (`"SNAP"`+3623) + table `snapshots` (run,tick,ploc…,
 `data` BLOB). Images par défaut byte-identiques, sim_tickdiff régressé
 (`diverge f37c f37c_new` vide).
 **Validation** : `sna` (Rivendell `$09`, SAVE tick19, salissure
 `EAST`→`$0A`) → `pack --snapshot revise` → `snb` (reboot, LOAD :
 `$09` restauré, `INVENTORY`/`EAST` vivants) → **0-delta byte-exact**
 (3623 o post-LOAD == SAVE, run direct pacé, `-x` court).
-**Pièges trouvés** : `sim_tickdiff` envoyait `sav/` dans `build/sav/`
+**Pièges trouvés** : `sim_tickdiff` envoyait `runs/sav/` dans `build/sav/`
 (dépilage chemin) ; `VALUES` à 10 pour 9 colonnes (prepare silencieux) ;
 run direct non pacé : `pause_key` mange les lignes (¿`LOAD` jamais
 exécuté) ; **spin EOF-idle pollue la mémoire** (~32 o sur 2G cycles —
@@ -465,7 +465,7 @@ variables SAVE/LOAD. Socle posé :
 - **Garde-fou** `scripts/memmap_check.py` → `RÉSULTAT: PROPRE` (sections
   A–F ; `disasm_check.py` reste PROPRE).
 - **Moteur de couverture** : `solver.py --seed NOM --goal coverage`
-  (amorçage checkpoint `sav/NOM.bin`, profondeur 8 par défaut, rapport de
+  (amorçage checkpoint `runs/sav/NOM.bin`, profondeur 8 par défaut, rapport de
   couverture en fin) ; `SOLVER_DB=...` isole les runs. Multi-seed idempotent.
 
 Baseline : **140/3623 octets (3,9 %)** mutés (union) ; var nommés couverts
@@ -501,13 +501,13 @@ les variables SAVE/LOAD. Infrastructure désormais en place (commits
   `scripts` PChi 12 / cpt 8 / id 9 / s6 17, `ZP.exploc/once` 2.
 
 ### Jeu dirigé (outillage)
-- `solver.py` : `--seed NOM` (checkpoint `sav/NOM.bin`, multi-seed
+- `solver.py` : `--seed NOM` (checkpoint `runs/sav/NOM.bin`, multi-seed
   idempotent), `--goal coverage` (prof. 8), `--moves-only` (directions),
   `--route FICHIER [--seed N --save N]` (séquence + suivi couverture,
   stop mort/invalide). `SOLVER_DB=build/sim/cover.db` isole les runs.
 - `map_static.py --path <from> <to> [--via A,B]` : plus court chemin sur le
   graphe statique (78 records/203 sorties).
-- `routes/` : `east.txt`, `barrels.txt` (fichiers de jeu dirigé).
+- `runs/routes/` : `east.txt`, `barrels.txt` (fichiers de jeu dirigé).
 - **Constat** : le BFS sature la couverture dans le monde atteignable
   (0 nouvel octet) ; il faut progresser dans la quête. BFS trouve toutefois
   score **7,5 %** (nœud 10 : `NORTH` depuis `cell20`) vs 2,5 %.
@@ -582,7 +582,7 @@ Commandes utiles :
   `OPEN DOOR` met bit5 (Gandalf peut refermer, aléatoire) ; `NORTH` passe
   quand `+7=$A0`.
 - **`$07` = trolls cave** : prendre « the short strong sword » `$0E`
-  (source de lumière). Checkpoint `sav/sword.bin`.
+  (source de lumière). Checkpoint `runs/sav/sword.bin`.
 - Idées ajoutées : `scripts/memmap_defs.py` `$01`=`rock_door`,
   `$04`=`key` ; `docs/journal.md` séance 11 ; §2 `memory-map.md`.
 - **Suivant** : franchir le labyrinthe noir Elvenking (`$1E/$1F/$20`) avec
@@ -592,7 +592,7 @@ Commandes utiles :
 - **Épée = lumière confirmée en jeu** : à `$1F` (donjon Elvenking), plus de
   `IT IS DARK.` (vs séance 9). Checkpoints : `dungeon_sword.bin` ($1F),
   `cellar_sword.bin` ($20), `forestriver.bin`.
-- **Route rejouable** (depuis `sav/sword.bin`, $07 ; `pad≈20` requis pour
+- **Route rejouable** (depuis `runs/sav/sword.bin`, $07 ; `pad≈20` requis pour
   la capture autour du warg) :
   `S S SE E E E E NE` → `$18` (porte Mirkwood, **warg vicieux**) → `E`
   → `$19` « bewitched gloomy place » → `E` → capture → téléport `$1F`.
@@ -628,14 +628,14 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 - **Prochaine étape : obtenir l'Anneau** (caverne gobelins / Gollum `$44`,
   arg `$10`). Puis araignées → bateau → palais elfe → tonneau → Lac →
   Montagne `$29` → dragon `$41`.
-- Checkpoints : `sav/sword_rope.bin` (map, large key, sword, rope @ `$07`),
-  `sav/forestriver17.bin` (`$17`). Toolchain PROPRE, git commit à suivre.
+- Checkpoints : `runs/sav/sword_rope.bin` (map, large key, sword, rope @ `$07`),
+  `runs/sav/forestriver17.bin` (`$17`). Toolchain PROPRE, git commit à suivre.
 
 ### Séance 12 (suite) — repaire gobelin / Anneau (reprise)
-- Route : `sav/sword_rope.bin` ($07) → `S S SE E E N` → **chute crack
+- Route : `runs/sav/sword_rope.bin` ($07) → `S S SE E E N` → **chute crack
   « the small insignificant crack »** → `$0D` **goblins dungeon** (sand,
-  goblins door N, window W). Checkpoints `sav/crack.bin`,
-  `sav/goblin_dungeon.bin`.
+  goblins door N, window W). Checkpoints `runs/sav/crack.bin`,
+  `runs/sav/goblin_dungeon.bin`.
 - Donjon gobelin : `DIG SAND` → trap door ; `BREAK TRAP DOOR` long/optionnel ;
   `OPEN WINDOW` = « cannot reach » (sortie = coopération PNJ Thorin,
   syntaxe SAY à trancher). Exits N/W cond (`$11`/`$1B`) bloquées sur place
@@ -649,7 +649,7 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 ### Séance 12 (fin) — donjon gobelin (reprise/blocker)
 - **`BREAK TRAP DOOR WITH SWORD`** (il faut l'épée !) → « The door is
   broken. » → **goblins cache** → **small curious key** prise par
-  **Thorin** (autonome). Checkpoint `sav/goblin_key.bin`.
+  **Thorin** (autonome). Checkpoint `runs/sav/goblin_key.bin`.
 - **Blockers** : (1) sortie gobelin = ordre au PNJ `SAY TO THORIN "..."`,
   mais le harnais casse sur le `"` (echo_ok=False) → à investiguer
   (rendu 0x22 / touche quote Oric) ; (2) solver : aucune évasion.
@@ -667,8 +667,8 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
   (segmentation cassée sur le `.` inséré par le jeu après la commande ;
   `echo_ok=False` trompeur).
 - **Évasion gobelin** : `SAY TO THORIN "CARRY ME"` `"OPEN WINDOW"` `"WEST"`
-  → `$12`→`SW`→`$10`→…→`$11` lac/Gollum. Checkpoints `sav/goblin_escaped.bin`,
-  `sav/lake.bin`.
+  → `$12`→`SW`→`$10`→…→`$11` lac/Gollum. Checkpoints `runs/sav/goblin_escaped.bin`,
+  `runs/sav/lake.bin`.
 - **Gollum errant** (état `$44`, `eloc` mouvant) ; riddle `act_v14_14`.
   Anneau introuvable (lac/cache = key). Cellier : Thorin absent ;
   `KILL BUTLER WITH SWORD` = « almost kills » (1 coup insuffisant).
@@ -679,8 +679,8 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 
 ### Séance 12 (suite 4) — Anneau pris (reprise)
 - **Anneau = état `$10`** = « the valuable golden ring », au lieu `$3D`.
-  Chemin `sav/lake.bin`→`N`($37)→`SW`($3D)→`GET RING`. Checkpoint
-  **`sav/ring.bin`** (inventaire : map, large key, sword, golden ring,
+  Chemin `runs/sav/lake.bin`→`N`($37)→`SW`($3D)→`GET RING`. Checkpoint
+  **`runs/sav/ring.bin`** (inventaire : map, large key, sword, golden ring,
   rope). `STATE_IDENTITY[0x10]="ring"` ajouté ; `memmap_check` PROPRE.
 - Famille clés `tpl=$CB` : `$02`/`$04`/`$0F` ; `$0F`=clé rouge (butler).
 - **Prochain** : `WEAR RING` puis guide complet vers le Lac/Montagne.
@@ -688,11 +688,11 @@ process résiduel. Derniers commits : `aecd3d5`, `feb8924`.
 ### Séance 12 (FINALE) — VICTOIRE 80 % (reprise)
 - **Victoire atteinte** : `OPEN CHEST` + `PUT TREASURE IN CHEST` au tunnel
   `$01` → « …master adventurer!!! You have mastered 80.0% ». Checkpoint
-  **`sav/win.bin`**.
+  **`runs/sav/win.bin`**.
 - Parcours complet (10 étapes) consigné dans `docs/journal.md` séance 12
   finale. Mécaniques : `SAY TO X "..."`, Anneau = état `$10` @ `$3D`
-  (`sav/ring.bin`), tonneau (`sav/barrel_ride.bin`), Bard
-  (`sav/strongriver.bin`→`sav/dragon_hall.bin`), araignées WAIT×2.
+  (`runs/sav/ring.bin`), tonneau (`runs/sav/barrel_ride.bin`), Bard
+  (`runs/sav/strongriver.bin`→`runs/sav/dragon_hall.bin`), araignées WAIT×2.
 - **Reste côté projet** : ingérer les nouveaux états dans la DB
   (`sim_tickdiff`/`solver`) pour faire monter la **couverture memmap**
   (rapport inchangé à 140/3623 o car les `run_one` ne sont pas enregistrés).
@@ -715,7 +715,7 @@ Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
   `run_one()['full']`/`['blob']`, jamais `['text']` (segmentation cassée
   sur le `.` post-commande ; `echo_ok=False` trompeur).
 - **Anneau** = état `$10` (`$1CC4`) au lieu `$3D` ; `GET RING`.
-- **Évasion elfique** = tonneau via Anneau (`sav/barrel_ride.bin`).
+- **Évasion elfique** = tonneau via Anneau (`runs/sav/barrel_ride.bin`).
 - **Dragon** = `SAY TO BARD "SHOOT DRAGON"` ; **araignées** = `WAIT`×2.
 - **Lieux** : **78/78 records valides visités** (79 slots `$01`–`$4F`, `$2F`
   nul ; graphe parcouru ; 10 conditionnels `08 14 15 1A 1B 1C 1D 32 42 43`
@@ -730,15 +730,15 @@ Anneau introuvable, couverture inchangée) sont **RÉSOLUS** :
 git clean. Derniers commits : `42f6d3a` (exploration lieux), `eb95415`
 (lieux 79/79 + eloc), `1444777` (partition blocs), `6a74942` (ZP tblA/tblB),
 `f64363d`, `48fb64d` (nommage).
-Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`,
+Checkpoints utiles : `runs/sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`,
 `dragon_hall.bin`, `treasure.bin`.
 
 **Pistes mapping (objectif projet)** — zones/états à couvrir :
 1. ~~**Gollum `$44`** errant + riddle `act_v14_14`~~ **FAIT** : déclenché
-   dynamiquement depuis `sav/ring.bin` à `$3D` — Gollum dit « my precious »
+   dynamiquement depuis `runs/sav/ring.bin` à `$3D` — Gollum dit « my precious »
    (`$16C8`) / « pockets ? » (`$16B9`), **reprend l'Anneau**, récite l'énigme
    « It cannot be seen… » ; capture au lac (`$11`) → `$0D`. Détails
-   `docs/journal.md` séance 12 (Gollum), checkpoint `sav/gollum_riddle.bin`.
+   `docs/journal.md` séance 12 (Gollum), checkpoint `runs/sav/gollum_riddle.bin`.
 2. ~~Gobelins `$10`–`$13`, `$39`–`$41` ; hauts nord-est `$44`–`$4F`~~ **FAIT** :
    tous visités (cf. `map.md`). Conditions `$07`/`$09`/`$0A` non levées
    en jeu (accès debug uniquement).
@@ -756,7 +756,7 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
 - **Run `canon`** injecté dans `hobbit.db` : les 20 checkpoints du parcours
   dans l'ordre, diffs net par diff (`solver_db.diff_blobs`) → table
   `deltas`. 724 deltas. (Méthode : boucle Python, cf. ci-dessous.)
-- **42 seeds BFS** (tous checkpoints `sav/*.bin`, `--goal coverage
+- **42 seeds BFS** (tous checkpoints `runs/sav/*.bin`, `--goal coverage
   --depth 6 --budget ~200`, DB `build/sim/win.db` puis fusion dédup dans
   `solver.db`) : ~240 nœuds.
 - Couverture **184 → 222/3623 o (5.1 → 6.1 %)** ; `records` **41 → 52/79
@@ -765,12 +765,12 @@ Checkpoints utiles : `sav/win.bin`, `ring.bin`, `lake.bin`, `goblin_escaped.bin`
   le reste exige l'exploration de **branches** (combat/morts, tous les
   lieux, riddle Gollum, PNJ). ROI désormais dans le BFS longue haleine,
   pas dans les seeds alignés sur le parcours.
-- **Reproductibilité** : `sav/*.bin`, `build/sim/*.db` et `*.sim` sont
+- **Reproductibilité** : `runs/sav/*.bin`, `build/sim/*.db` et `*.sim` sont
   gitignorés ; le parcours canonique n'est **pas scripté** (joué
   interactivement). Piste : committer les checkpoints (≈3.5 Ko × ~20) et/ou
-  un `routes/canon.txt` rejouable.
+  un `runs/routes/canon.txt` rejouable.
 
-Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
+Repro chaîne (extrait) : `solver_db.diff_blobs(runs/sav/A.bin, runs/sav/B.bin)` →
 `INSERT INTO deltas(run,n,base,off,avant,apres)` sous un run `canon`
 (`sim_tickdb.connect()`).
 
@@ -820,9 +820,9 @@ Repro chaîne (extrait) : `solver_db.diff_blobs(sav/A.bin, sav/B.bin)` →
   blob) + LOOK, puis enregistrés (nœuds `PATCH:xx` dans `solver.db`).
 - **Couverture** : `records` 71 → **78/79** (var nommées 59 → 66) ; total
   **237/3623 (6.5 %)**. `memmap_check` PROPRE.
-- Repro patch : `b=bytearray(sav/ring.bin); b[44]=<ploc>; run_one(b,'LOOK')`.
+- Repro patch : `b=bytearray(runs/sav/ring.bin); b[44]=<ploc>; run_one(b,'LOOK')`.
 - *(2026-10-10) Cohérence `solver.db`* : 4 lieux (`$0E $47 $49 $4A`) rejoués
-  en **vrai jeu** depuis `sav/ring_surface.bin` (`$0A`, `routes/ne_gaps.txt`),
+  en **vrai jeu** depuis `runs/sav/ring_surface.bin` (`$0A`, `runs/routes/ne_gaps.txt`),
   nœuds 300/304/305/306 ; `$42` reste *rendu seul* (capture *wood elf* →
   `snap-incomplet`). Comptage rectifié : **78/78 records valides** (79 slots
   `$01`–`$4F`, `$2F` nul), pas « 79/79 ».

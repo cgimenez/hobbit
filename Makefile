@@ -11,7 +11,7 @@
 #   make shims      # assemble src/6502/shim.s et snap.s -> build/shims/
 #   make native     # build/native/hobplay (miroir exact de smoke.mjs)
 #   make wasm       # build/wasm/hobbit.js + hobbit.wasm
-#   make assets     # stage data/ + shims + web/ui -> build/wasm/
+#   make assets     # stage data/ + shims + src/web -> build/wasm/
 #   make test       # boot + commande en Node (sans navigateur)
 #   make serve      # http://localhost:8000 (HMR)
 #   make clean      # efface native/wasm/shims (build/sim/ est preserve : DBs)
@@ -24,7 +24,8 @@
 
 ROOT  := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SRC   := $(ROOT)/src
-WEB   := $(ROOT)/web
+UI    := $(SRC)/web
+DEV   := $(ROOT)/dev
 BUILD := $(ROOT)/build
 
 SHIMS := $(BUILD)/shims
@@ -117,16 +118,16 @@ assets: wasm shims
 	@mkdir -p $(WASM)
 	cp $(ROOT)/data/hobbit.bin $(ROOT)/data/basic10.rom $(WASM)/
 	cp $(SHIMS)/shim.bin $(SHIMS)/snap.bin $(WASM)/
-	cp $(WEB)/ui/index.html $(WEB)/ui/app.js $(WEB)/ui/style.css $(WEB)/ui/solution.js $(WASM)/
+	cp $(UI)/index.html $(UI)/app.js $(UI)/style.css $(UI)/solution.js $(WASM)/
 	@echo "assets : $(WASM)/{hobbit.bin,basic10.rom,shim.bin,snap.bin,index.html,app.js,style.css,solution.js}"
 
 serve:
-	@echo "http://localhost:8000  (HMR : editez web/ui|src -> rebuild+reload)"
-	node $(WEB)/serve.js $(WASM) 8000
+	@echo "http://localhost:8000  (HMR : editez src/web|src -> rebuild+reload)"
+	node $(DEV)/serve.js $(WASM) 8000
 
 # Boot + une commande, valide le wasm sans navigateur (node).
 test: all
-	node $(WEB)/smoke.mjs
+	node $(DEV)/smoke.mjs
 
 clean:
 	rm -rf $(NATIV) $(WASM) $(SHIMS)

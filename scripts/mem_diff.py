@@ -9,7 +9,7 @@ Au premier octet divergent : stop + explication (memmap_defs.annotate).
 
 Usage : .venv/bin/python scripts/mem_diff.py [cmdfile] [--max N] [--keep]
   cmdfile : 1 commande/ligne (#... ignore, vides = tours CR legitimes).
-            Defaut : SOLUTION de web/ui/solution.js.
+            Defaut : SOLUTION de src/web/solution.js.
   --max N : borne le nombre de tours.  --keep : garde les logs build/sim/.
 Sortie exit 0 si RAM strictement identique, 1 sinon (premiere divergence).
 """
@@ -30,14 +30,14 @@ MEMLEN = 0x10000
 
 
 def solution_cmds() -> list[str]:
-    """SOLUTION de web/ui/solution.js (echappements JS decodes)."""
+    """SOLUTION de src/web/solution.js (echappements JS decodes)."""
     src = (ROOT / "web" / "ui" / "solution.js").read_text(encoding="utf-8")
     out = []
     for m in re.finditer(r"^  '((?:[^'\\]|\\.)*)',?$", src, re.M):
         s = m.group(1).replace("\\r", "\r").replace("\\n", "\n") \
                        .replace("\\'", "'").replace("\\\\", "\\")
         out.append(s)
-    assert out, "SOLUTION introuvable dans web/ui/solution.js"
+    assert out, "SOLUTION introuvable dans src/web/solution.js"
     return out
 
 
@@ -166,7 +166,7 @@ def main() -> int:
     rw, ww = os.pipe()
     pn, lfn = spawn(["build/native/hobplay", "--serve", "--memfd", str(wn)],
                     wn, simdir / "memdiff_native.log")
-    pw, lfw = spawn(["node", "web/smoke.mjs", "--serve", "--memfd", str(ww)],
+    pw, lfw = spawn(["node", "dev/smoke.mjs", "--serve", "--memfd", str(ww)],
                     ww, simdir / "memdiff_wasm.log")
     for w in (wn, ww):
         os.close(w)

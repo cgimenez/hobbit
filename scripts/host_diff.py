@@ -6,7 +6,7 @@ seuls compilateur et backend I/O changent (cc/buffers vs emcc/JS).
 Usage : .venv/bin/python scripts/host_diff.py [cmdfile]
   cmdfile : 1 commande/ligne (#... ignore, vides ignorees).
   Compare stdout (texte jeu) de :
-    node web/smoke.mjs <cmdfile>      (WASM, emcc)
+    node dev/smoke.mjs <cmdfile>      (WASM, emcc)
     build/native/hobplay <cmdfile>      (natif, cc)
   Sortie exit 0 si byte-identique, 1 sinon (avec premier offset divergent).
 """
@@ -34,7 +34,7 @@ def main() -> int:
         Path(cmdfile).write_text("\n".join(DEFAULT_CMDS) + "\n",
                                  encoding="utf-8")
 
-    w = run(["node", "web/smoke.mjs", cmdfile])
+    w = run(["node", "dev/smoke.mjs", cmdfile])
     n = run(["build/native/hobplay", cmdfile])
     if w.returncode != 0:
         print(f"WASM rc={w.returncode}\n{w.stderr.decode()[-2000:]}")
