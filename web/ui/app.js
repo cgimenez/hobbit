@@ -327,12 +327,14 @@ function buildMapSvg(playerRoom, focus) {
   for (const id of ids) {
     const [x, y] = at(id);
     const here = id === playerRoom;
+    const nm = roomName(id);
+    const full = nm && nm !== '?' ? `$${hex(id)} ${nm}` : `$${hex(id)}`;
+    nodes += `<g><title>${esc(full)}</title>`;
     if (id === focus) {
       nodes += `<circle cx="${x}" cy="${y}" r="12" fill="none" class="focus"/>`;
     }
     nodes += `<circle cx="${x}" cy="${y}" r="${here ? 7 : 4}" fill="${here ? '#ff5a5a' : '#5f86a8'}" data-room="${id}"${here ? ' class="here"' : ''}/>`;
     nodes += `<text x="${x + 8}" y="${y + 3}" fill="#7d8794" font-size="10">$${hex(id)}</text>`;
-    const nm = roomName(id);
     if (nm && nm !== '?') {
       const short = nm.length > 16 ? nm.slice(0, 15) + '…' : nm;
       nodes += `<text x="${x + 8}" y="${y + 14}" fill="#aab4bf" font-size="9">${esc(short)}</text>`;
@@ -341,14 +343,29 @@ function buildMapSvg(playerRoom, focus) {
     if (who && who.length) {
       nodes += `<text x="${x + 8}" y="${y + 25}" fill="#c9b46a" font-size="9">${esc(who.join(', '))}</text>`;
     }
+    nodes += `</g>`;
   }
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
   return { svg, W, H, at };
 }
 
+const MINI_ZOOM = 4;   // zoom par defaut de la mini-carte, centree joueur
+
 function drawMap(playerRoom) {
   const m = buildMapSvg(playerRoom, -1);
-  $('#map-svg').innerHTML = m ? m.svg : '(carte indisponible)';
+  if (!m) { $('#map-svg').innerHTML = '(carte indisponible)'; return; }
+  $('#map-svg').innerHTML = m.svg;
+  const c = playerRoom >= 0 ? m.at(playerRoom) : [m.W / 2, m.H / 2];
+  if (miniView.W !== m.W || miniView.H !== m.H) {
+    resetView(miniView, m.W, m.H, c[0], c[1], MINI_ZOOM);
+  } else if (playerRoom >= 0
+    && (c[0] < miniView.x || c[0] > miniView.x + miniView.w
+      || c[1] < miniView.y || c[1] > miniView.y + miniView.h)) {
+    // joueur sorti du champ : recentre sur lui, garde son zoom
+    const z = miniView.W / miniView.w;
+    resetView(miniView, m.W, m.H, c[0], c[1], z);
+  }
+  applyView($('#map-svg'), miniView);
 }
 
 // --- modale : carte des lieux en grand (clic sur la carte) ---
@@ -357,97 +374,103 @@ function roomName(id) {
     ? M.UTF8ToString(M._hob_room_name(id)) : '?';
 }
 
-// --- modale carte : zoom molette/pinch + pan glisser (viewBox manipule) ---
-const MAPVIEW = { W: 0, H: 0, x: 0, y: 0, w: 0, h: 0 };
+// --- zoom molette/pinch + pan glisser, partage modale + mini-carte ---
 const MAX_ZOOM = 8;   // zoom max : largeur vue = W/8 ; zoom min = carte entiere
 
 const clampv = (v, a, b) => Math.max(a, Math.min(b, v));
 
-function applyMapView() {
-  const svg = $('#modal-map svg');
-  if (!svg || !MAPVIEW.W) return;
-  svg.setAttribute('viewBox',
-    `${MAPVIEW.x} ${MAPVIEW.y} ${MAPVIEW.w} ${MAPVIEW.h}`);
+function applyView(box, v) {
+  const svg = box.querySelector('svg');
+  if (!svg || !v.W) return;
+  svg.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
 }
 
-function resetMapView(cx, cy, zoom) {
-  MAPVIEW.w = MAPVIEW.W / zoom;
-  MAPVIEW.h = MAPVIEW.H / zoom;
-  MAPVIEW.x = clampv(cx - MAPVIEW.w / 2, 0, MAPVIEW.W - MAPVIEW.w);
-  MAPVIEW.y = clampv(cy - MAPVIEW.h / 2, 0, MAPVIEW.H - MAPVIEW.h);
+function resetView(v, W, H, cx, cy, zoom) {
+  v.W = W; v.H = H;
+  v.w = W / zoom;
+  v.h = H / zoom;
+  v.x = clampv(cx - v.w / 2, 0, W - v.w);
+  v.y = clampv(cy - v.h / 2, 0, H - v.h);
 }
 
-function zoomAt(mx, my, factor) {
-  const w0 = MAPVIEW.w;
-  const w1 = clampv(w0 * factor, MAPVIEW.W / MAX_ZOOM, MAPVIEW.W);
-  const h1 = w1 * (MAPVIEW.H / MAPVIEW.W);
+function zoomView(box, v, mx, my, factor) {
+  const w0 = v.w;
+  const w1 = clampv(w0 * factor, v.W / MAX_ZOOM, v.W);
+  const h1 = w1 * (v.H / v.W);
   const k = w1 / w0;
-  MAPVIEW.x = clampv(mx - (mx - MAPVIEW.x) * k, 0, MAPVIEW.W - w1);
-  MAPVIEW.y = clampv(my - (my - MAPVIEW.y) * k, 0, MAPVIEW.H - h1);
-  MAPVIEW.w = w1;
-  MAPVIEW.h = h1;
-  applyMapView();
+  v.x = clampv(mx - (mx - v.x) * k, 0, v.W - w1);
+  v.y = clampv(my - (my - v.y) * k, 0, v.H - h1);
+  v.w = w1;
+  v.h = h1;
+  applyView(box, v);
 }
 
-$('#modal-map').addEventListener('wheel', (e) => {
-  const svg = $('#modal-map svg');
-  if (!svg || !MAPVIEW.W) return;
-  e.preventDefault();
-  const r = svg.getBoundingClientRect();
-  const mx = MAPVIEW.x + ((e.clientX - r.left) / r.width) * MAPVIEW.w;
-  const my = MAPVIEW.y + ((e.clientY - r.top) / r.height) * MAPVIEW.h;
-  // pinch touchpad (ctrlKey) = zoom plus fin
-  const step = e.ctrlKey ? 1.1 : 1.25;
-  zoomAt(mx, my, e.deltaY > 0 ? step : 1 / step);
-}, { passive: false });
-
-// pan au glisser (souris + tactile 1 doigt), pinch 2 doigts = zoom
-const mPts = new Map();
-let mPinch = null;
-
-$('#modal-map').addEventListener('pointerdown', (e) => {
-  const svg = $('#modal-map svg');
-  if (!svg || !MAPVIEW.W) return;
-  svg.setPointerCapture(e.pointerId);
-  mPts.set(e.pointerId, [e.clientX, e.clientY]);
-  if (mPts.size === 2) {
-    const [a, b] = [...mPts.values()];
-    mPinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) };
-  }
-  svg.classList.add('dragging');
-});
-
-$('#modal-map').addEventListener('pointermove', (e) => {
-  const svg = $('#modal-map svg');
-  if (!svg || !mPts.has(e.pointerId)) return;
-  const prev = mPts.get(e.pointerId);
-  mPts.set(e.pointerId, [e.clientX, e.clientY]);
-  const r = svg.getBoundingClientRect();
-  if (mPts.size === 2 && mPinch) {
-    const [a, b] = [...mPts.values()];
-    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
-    if (d > 0 && mPinch.d > 0) {
-      const mx = MAPVIEW.x + (((a[0] + b[0]) / 2 - r.left) / r.width) * MAPVIEW.w;
-      const my = MAPVIEW.y + (((a[1] + b[1]) / 2 - r.top) / r.height) * MAPVIEW.h;
-      zoomAt(mx, my, mPinch.d / d);   // doigts écartés (d grand) = zoom avant
+// molette + glisser + pinch sur un conteneur de carte ; getView rend son etat
+function attachPanZoom(box, getView) {
+  const pts = new Map();
+  let pinch = null;
+  box.addEventListener('wheel', (e) => {
+    const v = getView();
+    const svg = box.querySelector('svg');
+    if (!svg || !v.W) return;
+    e.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const mx = v.x + ((e.clientX - r.left) / r.width) * v.w;
+    const my = v.y + ((e.clientY - r.top) / r.height) * v.h;
+    // zoom proportionnel a l'amplitude du scroll (doux au touchpad)
+    const unit = e.deltaMode === 1 ? 16 : 1;
+    zoomView(box, v, mx, my, Math.pow(1.004, -e.deltaY * unit));
+  }, { passive: false });
+  box.addEventListener('pointerdown', (e) => {
+    const v = getView();
+    const svg = box.querySelector('svg');
+    if (!svg || !v.W) return;
+    svg.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) };
     }
-    return;
-  }
-  const k = MAPVIEW.w / r.width;
-  MAPVIEW.x = clampv(MAPVIEW.x - (e.clientX - prev[0]) * k,
-    0, MAPVIEW.W - MAPVIEW.w);
-  MAPVIEW.y = clampv(MAPVIEW.y - (e.clientY - prev[1]) * k,
-    0, MAPVIEW.H - MAPVIEW.h);
-  applyMapView();
-});
-
-for (const ev of ['pointerup', 'pointercancel']) {
-  $('#modal-map').addEventListener(ev, (e) => {
-    mPts.delete(e.pointerId);
-    if (mPts.size < 2) mPinch = null;
-    if (!mPts.size) $('#modal-map svg')?.classList.remove('dragging');
+    box._dragMoved = 0;
+    svg.classList.add('dragging');
   });
+  box.addEventListener('pointermove', (e) => {
+    const v = getView();
+    const svg = box.querySelector('svg');
+    if (!svg || !pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId);
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    box._dragMoved = (box._dragMoved || 0)
+      + Math.abs(e.clientX - prev[0]) + Math.abs(e.clientY - prev[1]);
+    const r = svg.getBoundingClientRect();
+    if (pts.size === 2 && pinch) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (d > 0 && pinch.d > 0) {
+        const mx = v.x + (((a[0] + b[0]) / 2 - r.left) / r.width) * v.w;
+        const my = v.y + (((a[1] + b[1]) / 2 - r.top) / r.height) * v.h;
+        zoomView(box, v, mx, my, pinch.d / d); // doigts ecartes = zoom avant
+      }
+      return;
+    }
+    const k = v.w / r.width;
+    v.x = clampv(v.x - (e.clientX - prev[0]) * k, 0, v.W - v.w);
+    v.y = clampv(v.y - (e.clientY - prev[1]) * k, 0, v.H - v.h);
+    applyView(box, v);
+  });
+  for (const ev of ['pointerup', 'pointercancel']) {
+    box.addEventListener(ev, (e) => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinch = null;
+      if (!pts.size) box.querySelector('svg')?.classList.remove('dragging');
+    });
+  }
 }
+
+const modalView = { W: 0, H: 0, x: 0, y: 0, w: 0, h: 0 };
+const miniView = { W: 0, H: 0, x: 0, y: 0, w: 0, h: 0 };
+attachPanZoom($('#modal-map'), () => modalView);
+attachPanZoom($('#map-svg'), () => miniView);
 
 let mapFocus = -1;
 
@@ -470,11 +493,10 @@ function openMapModal(focus) {
   if (!m) return;
   mapFocus = focus;
   $('#modal-map').innerHTML = m.svg;
-  MAPVIEW.W = m.W; MAPVIEW.H = m.H;
   const c = focus >= 0 ? m.at(focus)
     : player >= 0 ? m.at(player) : [m.W / 2, m.H / 2];
-  resetMapView(c[0], c[1], 3);
-  applyMapView();
+  resetView(modalView, m.W, m.H, c[0], c[1], 3);
+  applyView($('#modal-map'), modalView);
   $('#modal-map').hidden = false;
   $('#modal-about').hidden = true;
   $('#modal-disclaimer').hidden = true;
@@ -555,6 +577,7 @@ for (const b of document.querySelectorAll('.lang-flag'))
   b.addEventListener('click', () => setLang(b.dataset.lang));
 
 $('#map-svg').addEventListener('click', (e) => {
+  if ($('#map-svg')._dragMoved > 4) { $('#map-svg')._dragMoved = 0; return; }
   const c = e.target.closest('circle[data-room]');
   openMapModal(c ? +c.dataset.room : -1);
 });
