@@ -153,8 +153,8 @@ int hob_run(int max_insn)
         if (Regs.PC == 0x7353 && !io_kb_pending()) {
             uint16_t ret = (uint16_t)(MemReadByte(0x0100 + ((Regs.SP + 1) & 0xFF))
                            | (MemReadByte(0x0100 + ((Regs.SP + 2) & 0xFF)) << 8));
-            /* wait_for_key $7481 : jsr get_key -> retour $7484 (cf. emu.cpp
-             * in_readkey, plage $7481-$7486). */
+            /* wait_for_key $7481 : jsr get_key -> retour $7484
+             * (plage $7481-$7486). */
             if (ret >= 0x7481 && ret <= 0x7486) {
                 AutokeyCount++;
                 io_key_push(0x0d);
