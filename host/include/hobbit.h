@@ -70,6 +70,18 @@ HOB_API const uint8_t *hob_save_ptr(void);
 HOB_API int            hob_save_len(void);
 HOB_API void           hob_save_clear(void);
 
+/* --- Trace memoire (delta RAM par tour, cf. docs/protocol.md §4.3) ---
+ * hob_mem() donne la RAM jeu brute (Mem[0x10000], sim65) ; hob_mem_trace(1)
+ * fige l'etat "avant" au prochain hob_run et, a chaque retour (rc 0/1/2),
+ * expose le delta "@@D\n"+turn(2 LE)+rc(1)+nlen(2 LE)+nlen*[addr(2),old,new].
+ * A appeler apres hob_boot() (etat post-boot = base d'induction). */
+HOB_API uint8_t *hob_mem(void);           /* &Mem[0] (RAM jeu brute) */
+HOB_API int      hob_mem_len(void);       /* 0x10000 */
+HOB_API void     hob_mem_trace(int on);   /* 1 = active, 0 = coupe */
+HOB_API const uint8_t *hob_memdiff_ptr(void); /* dernier delta (frame @@D) */
+HOB_API int            hob_memdiff_len(void);
+HOB_API int            hob_mem_turn(void);    /* tour du dernier delta */
+
 /* --- Etat live (decode de Mem[], cf. state.c) --- */
 HOB_API int hob_player_room(void);        /* player.eloc ($1B2A)      */
 HOB_API int hob_ploc(void);               /* miroir $C8               */

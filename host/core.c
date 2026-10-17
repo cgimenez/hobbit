@@ -27,6 +27,14 @@ uint16_t hob_last_pc(void) { return Regs.PC; }
 static unsigned char SPAddr;
 static int Halt;
 
+/* ---- trace memoire (delta RAM par tour, protocol.md §4.3) ---- */
+static int TraceOn;          /* hob_mem_trace(1) */
+static int PrevValid;        /* PrevMem fige (etat "avant") */
+static int MemTurn;          /* compteur de hob_run traces */
+static uint8_t PrevMem[0x10000];
+static uint8_t DiffBuf[9 + 0x10000 * 4];  /* "@@D\n"+turn+rc+nlen+recs */
+static int DiffLen;
+
 /* ---- paravirtualisation : pile logicielle ZP (cf. paravirt.c sim65) ---- */
 
 static unsigned GetAX(CPURegs *R)
@@ -135,12 +143,81 @@ int hob_keys_consumed(void)
     return (int)io_keys_consumed();
 }
 
+uint8_t *hob_mem(void)
+{
+    return Mem;
+}
+
+int hob_mem_len(void)
+{
+    return 0x10000;
+}
+
+void hob_mem_trace(int on)
+{
+    TraceOn = on ? 1 : 0;
+    if (!TraceOn) {
+        PrevValid = 0;
+    }
+}
+
+const uint8_t *hob_memdiff_ptr(void)
+{
+    return DiffBuf;
+}
+
+int hob_memdiff_len(void)
+{
+    return DiffLen;
+}
+
+int hob_mem_turn(void)
+{
+    return MemTurn;
+}
+
+/* Construit le delta "@@D\n"+turn+rc+nlen+recs depuis PrevMem, puis fige
+ * l'etat courant comme base du prochain tour. */
+static void memdiff_build(int rc)
+{
+    uint8_t *o = DiffBuf + 9;
+    int n = 0;
+    unsigned a;
+
+    DiffBuf[0] = '@'; DiffBuf[1] = '@';
+    DiffBuf[2] = 'D'; DiffBuf[3] = '\n';
+    MemTurn++;
+    DiffBuf[4] = (uint8_t)(MemTurn & 0xFF);
+    DiffBuf[5] = (uint8_t)((MemTurn >> 8) & 0xFF);
+    DiffBuf[6] = (uint8_t)rc;
+    for (a = 0; a < 0x10000; a++) {
+        uint8_t old = PrevMem[a], cur = Mem[a];
+        if (old != cur) {
+            o[0] = (uint8_t)(a & 0xFF);
+            o[1] = (uint8_t)((a >> 8) & 0xFF);
+            o[2] = old;
+            o[3] = cur;
+            o += 4;
+            n++;
+        }
+    }
+    DiffBuf[7] = (uint8_t)(n & 0xFF);
+    DiffBuf[8] = (uint8_t)((n >> 8) & 0xFF);
+    DiffLen = (int)(o - DiffBuf);
+    memcpy(PrevMem, Mem, 0x10000);
+}
+
 int hob_run(int max_insn)
 {
     long long budget = max_insn > 0 ? max_insn : 100000000LL;
+    int rc = 2;
 
     io_clear_prompt();
     io_keys_reset();
+    if (TraceOn && !PrevValid) {
+        memcpy(PrevMem, Mem, 0x10000);
+        PrevValid = 1;
+    }
     while (!Halt) {
         /* Pause "press any key" (wait_for_key $7481) : le jeu boucle sur
          * get_key sans jamais imprimer de prompt -> sous harnais tour-par-tour
@@ -168,13 +245,18 @@ int hob_run(int max_insn)
             io_clear_prompt();
         } else if (io_prompt_seen()) {
             io_flush();
-            return 0;
+            rc = 0;
+            break;
         }
         if (--budget <= 0) {
-            return 1;
+            rc = 1;
+            break;
         }
     }
-    return 2;
+    if (TraceOn) {
+        memdiff_build(rc);
+    }
+    return rc;
 }
 
 int hob_boot(void)

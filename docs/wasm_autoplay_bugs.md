@@ -1,5 +1,25 @@
 # AUTO PLAY (web/WASM) — échec du rejeu de la solution : diagnostic
 
+Statut : **FERMÉ (résolu 2026-10-17)**. AUTO PLAY gagne désormais :
+`cheering crowd of dwarves … mastered 70.0%`, cold boot, 107 commandes,
+natif ET WASM (RAM byte-identique tour par tour, `scripts/mem_diff.py`).
+La cause n'était **pas** le moteur WASM (innocenté : natif==WASM à l'octet)
+mais **la liste** + **le shim** :
+- `solution.js` (98 cmds) n'a jamais été gagnante (il manque le padding de
+  phase : 13 `WAIT` devant la porte, ordre trésor/dragon inversé, etc.) ;
+- le seul gagnant connu (`win_seq.txt`, 111 cmds) avait été validé sur le
+  **shim classic** + émulateur custom, jamais sur le **shim solveur** du web
+  (le shim forge le RNG via `$C0xx` : sous solveur, la capture elfe et la
+  phase butler/porte diffèrent).
+Correction (`web/ui/solution.js`, 107 cmds) : SW immédiat en sortie `$1F`,
+3e `WEAR RING`→`WAIT`, marche directe `$24→$25→$26→$27→$29` (Bard ne guide
+pas mais `SAY SHOOT` depuis `$24` tue le dragon ; le trésor est en `$29`).
+L'hypothèse §4 (quiescence) est **infirmée** : premier-`@@P` suffit, la
+quiescence ajoutait un `WAIT` fantôme (cf. `docs/protocol.md` §6).
+Détails : `docs/journal.md` séances 14-15 (win_seq), 17-18 (adaptation).
+
+--- document d'origine (conservé pour traçabilité) ---
+
 Statut : **ouvert**. Le bouton AUTO PLAY (commit `ecae669`) rejoue
 `web/ui/solution.js` sur l'émulateur WASM, mais **ne gagne pas** : la séquence
 défile en entier dans le vide. Ce document fige les faits mesurés et la piste

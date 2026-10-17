@@ -69,6 +69,22 @@ le saut (RETURN + réponse = 1 ligne), sinon émettre `\n`.
 
 Le parseur du core (`host/core.c`) décode les **deux** saveurs (superset).
 
+### 4.3 Trace mémoire (`@@M` / `@@D`, opt-in)
+
+Le host peut exposer l'état RAM par tour (`hob_mem_trace(1)`, off par
+défaut — le texte jeu et `host_diff.py` restent inchangés). Canal dédié
+(`--memfd`, jamais injecté dans `io_text`) :
+
+| Marqueur | Charge | Émis quand |
+|---|---|---|
+| `@@M\n` | 0x10000 o (`Mem[]` brut) | une fois après `hob_boot()` (base d'induction) |
+| `@@D\n` | `turn(2 LE)` + `rc(1)` + `nlen(2 LE)` + `nlen`×`[addr(2 LE), old(1), new(1)]` | à chaque retour de `hob_run()` tracé (rc 0/1/2) |
+
+`old`+`new` inclus → auto-suffisant. Enregistrements triés par adresse
+croissante. `scripts/mem_diff.py` compare natif↔WASM en lockstep
+(`--serve` des deux côtés) et stoppe au premier octet divergent
+(explication via `memmap_defs.annotate`).
+
 ## 5. SAVE/LOAD (`harness/snap.s`)
 
 Émission : `@@SNAP\n` + `NLEN(1)` + `NOM` + `IDX(1)` + `LEN(2 LE)` + payload,
@@ -83,21 +99,17 @@ load `$0400`, reset `$2C00`) + image. Reset : `Mem[$FFFC]=$2C00`,
 
 ## 6. Politique de tour unique (canonique)
 
-Un tour = **une ligne d'entrée** ; le host exécute jusqu'à **quiescence
-à l'attente clavier**, définie par les trois conditions :
-
-1. file clavier vide (toutes les lignes, y compris `\r` interne
-   type `NORTH\rSW`, consommées) ;
-2. au moins un `@@P` vu depuis la dernière entrée ;
-3. aucune sortie (`@@A`/`@@P`) depuis `N` instructions.
-
-`N` et le plafond dur sont des constantes du core (réglées par le test
-différentiel). Déterministe (instructions, pas temps réel) → natif et
-WASM byte-identiques.
-
-Les **lignes vides sont des tours légitimes** (avancent le monde d'un
+Un tour = **une ligne d'entrée**, consommée exactement une fois ; le host
+s'arrête au **premier `@@P`** (prompt) avec file vide. Les lignes vides
+sont des tours légitimes (CR nu = WAIT : le monde avance d'un
 `world_tick`) : la solution autoplay inclut celles du harness pour
 reproduire la phase (butler/porte rouge).
+
+**Piège prouvé (ne pas faire)** : attendre un « silence » prolongé après
+le prompt déclenche l'auto-WAIT authentique du jeu (une inactivité
+suffisante fait jouer `WAIT` tout seul, `play.sh`) : tour fantôme qui
+décale la phase. Toute attente au-delà du premier prompt est interdite.
+Le pacing appartient au flux de lignes, jamais à l'arrêt du run.
 
 ## 7. Frontière d'environnement (`host/platform.h`)
 

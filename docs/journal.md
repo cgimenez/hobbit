@@ -686,3 +686,89 @@ capacités de *notre* édition ; `sav/win.bin` reste la référence.
 - Commits `17ff622 6c8f293` (noms), `de2bf9a 8d8666c a53e7f9` (web),
   `53cd6f5` (flags), `32c50e2`, `5bc7721` (solver WIP), `6532833` (suppr emu),
   `e7bf784` (flags labels). Tree propre.
+
+## Séance 17 — unification host/ + autoplay rejouée jusqu'au dragon (2026-10-17)
+- **Unification (commit `743470e`)** : `web/{core,cpu,include}` → `host/`
+  (moves purs, `host/platform.h` frontière `platform_*`, spec
+  `docs/protocol.md`), `cpu/platform_native.c` + `cpu/Makefile` →
+  `build/host/hobplay` (miroir exact de `web/smoke.mjs`, sim65 embarqué en
+  natif), `scripts/host_diff.py` = **DIFF VIDE** (2141 o, natif cc == WASM
+  emcc, dont `NORTH\rSW`). `make -C web test` exit 0. Shims : web == SLVW
+  == solver (`cc15bd63…`, SOLVER). Suppression `tools/disasm/dcc6502/`
+  (inutile, da65 suffit — faite par l'utilisateur). Non commité restant :
+  rien (tree propre après `743470e` + `.gitignore` += `/build/host/`).
+- **Politique de tour** : quiescence testée puis **rejetée** (déclenche
+  l'auto-WAIT authentique du jeu = tour fantôme). Retour premier-`@@P`
+  (byte-identique vérifié) + lignes vides explicites (`hobplay --blanks`,
+  `docs/protocol.md` §6). Auto-WAIT documenté comme piège.
+- **Porte rouge $1F — cause racine prouvée** (`hobplay --state`, dump/tick) :
+  butler se réveille ~3 tours trop tôt (`e4:00→42`, `evt_arme16`),
+  déroule unlock/open/close/lock (`02 26`/`02 10`/`02 0D`/`02 25` sur état
+  `$08` : `$81→$80→$a0→$80→$81`), porte ouverte ($a0) quand joueur en $19,
+  refermée à la capture, verrouillée après ; butler garé en `$2a21`
+  (`04 30`, MOVE court wid=$30, échec → PC non sauvé → réessai infini).
+  Cycle sous WAITs purs : **période 11 tours**, fenêtre `$a0` = 1 tour.
+  Cond $08 passe sur `$80` (SW immédiat OK) mais pas `$a0`/`$81` dans
+  cette phase (cond lit plus que les flags — butler-PC suspecté).
+- **Corrections solution qui marchent** (base = `sol[:51]+SW+sol[53:]`,
+  indices solution.js ; capture = [50]) : **SW immédiat [51]** (exit $1F→$20,
+  doc-matching « butler closes ») au lieu de WAIT+SW ; **WEAR#3 (idx 58)
+  → WAIT** (le WEAR textuel échoue et empêche le throw ; le ring était
+  déjà porté) → **« thrown onto the bank » OK**, Bard rencontré, dragon
+  suivi jusqu'en $27, trésor ramassé, retour jusqu'en $2.
+- **Ring/e6 élucidé** : `evt_arme6`/`evt_disarme6` adressent `$1CCB`
+  (ring+7) en dur ; e6 = invisibilité du ring, countdown `2+rand(8)`
+  (armé à l'entrée cellier cpt=2, réarmé cpt=6 au CLIMB) ; 3e WEAR tombe
+  dedans en notre phase. Tirage phase-dépendant (bruit `$93/$94`).
+- **Bard** (`e7`, PC figé `$2a7e` = fin de boucle script) : SAY→« No »/
+  absent (toujours un tick d'avance). Sweep WAITs avant EAST-lac
+  (base idx 60) : **W=3,4,6 → SHOOTS** (W=0,1,2,5 non). Prochain run
+  complet à tester : `base[:60] + 3×WAIT + base[60:]`.
+- **Bloqueur ouvert : spin `$5276`** dès l'arrivée en $2 (tour 83) :
+  `hob_run` budget épuisé (`rc=1`, `kb7353=1503` polls, aucun prompt,
+  `say_if_visible` tail) — pause silencieuse non couverte par l'autokey
+  `$7481`. À qualifier (pause bénigne à auto-presser vs garde-fou).
+- FauxKim : `$d` = donjon gobelin `$0D` (capture cmd 21 **conforme** au doc ;
+  la « divergence » était une erreur de lecture hex). Pseudo-découverte
+  annulée. `rtk grep 7353` ne rend rien (quoting ?) — à refaire en brut.
+- Outils : `/tmp/opencode/{sweep.py,traj.py,matrix_*.py,wasm_replay.mjs,
+  p2_door.mjs(non écrit, permission plan),sol*.txt,full_*.txt,err}` ;
+  `hobplay --state` (porte/butler/entités/events + porteurs + ring/barrel).
+
+## Séance 18 — extension protocole `@@D` + preuve RAM natif==WASM (2026-10-17)
+- **Extension `docs/protocol.md` §4.3** : `hob_mem()`/`hob_mem_trace()`/
+  `hob_memdiff_*` dans `host/` (donc natif ET WASM) ; `@@M` (snapshot
+  post-boot 0x10000 o, une fois) + `@@D` (delta/tour : turn+rc+nlen×
+  [addr,old,new]) sur canal dédié (jamais dans `io_text`).
+- **`--serve` lockstep** : `hobplay` et `smoke.mjs` lisent stdin ligne par
+  ligne (vide = tour CR), écrivent les frames sur `--memfd` (déf. 3) ;
+  rebuilds `make -C cpu cli` + `make -C web wasm` verts.
+- **`scripts/mem_diff.py`** (nouveau) : lockstep interleavé (pipes fd 3,
+  read exact + timeout), compare sync puis chaque delta ; stop + explication
+  via `memmap_defs.annotate` au 1er octet divergent.
+- **Résultat : `RAM IDENTIQUE` — sync 0x10000 o + 98 deltas SOLUTION,
+  natif cc == WASM emcc, 0 divergence, 0 stall.** La RAM brute prouve que
+  l'échec autoplay n'est PAS une divergence moteur : c'est la phase jeu
+  (butler/porte rouge), identique des deux côtés. `host_diff.py` reste
+  DIFF VIDE, `make -C web test` exit 0. Non commité.
+
+## Séance 19 — VICTOIRE autoplay natif+WASM (2026-10-17)
+- **Constat** : `win_seq_solver.txt` (récupéré git `6532833^`) rejoué froid
+  sur `hobplay` = **pas de victoire** (Bard jamais rejoint, trésor jamais
+  pris, retour bredouille en `$1`). La variante solveur n'avait jamais été
+  validée (fin ouverte depuis séance 15).
+- **Percée** : avec la base séance 17 (SW immédiat + WEAR#3→WAIT +
+  3×WAIT pré-lac), Bard **tue le dragon depuis `$24`** (« The dragon is
+  dead ») mais `GET TREASURE` échoue en `$27`. Sonde objet (`hob_obj_*`,
+  node inline) : **trésor `$23` en `$29`** (pas `$27`), dragon mort en
+  `$24`, Bard en `$24`. Le chemin est carrossable sans Bard :
+  `$24→UP→$25→N→$26→N→$27→N→$29` (cf. `docs/map.d2`).
+- **Liste gagnante (107 cmds, `/tmp/opencode/d29.txt`)** : base séance 17
+  + `SAY SHOOT` en `$24` + marche directe + `GET TREASURE` en `$29` +
+  retour `win_seq`. `cheering crowd … mastered 70.0%` **natif ET WASM**
+  (vérifié `hobplay` + `smoke.mjs`), `mem_diff.py` = RAM IDENTIQUE
+  (sync + 107 deltas), `host_diff.py` DIFF VIDE (12734 o), `web test` 0.
+- **`web/ui/solution.js` réécrit** (107 cmds, sans fusion `NORTH\rSW` :
+  NORTH puis SW séparés passent sous ce moteur) ; `wasm_autoplay_bugs.md`
+  **fermé** (vraie cause : liste + shim, pas le WASM ; hypothèse
+  quiescence infirmée). Non commité.

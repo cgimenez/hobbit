@@ -1,15 +1,20 @@
-// Solution de The Hobbit (Oric) — variante "continue", sans SAVE/LOAD.
-// Source : docs/game_solution.md, Annexe 2. Une entrée = un run.
+// Solution de The Hobbit (Oric) — sequence GAGNANTE verifiee.
+// Cold boot -> "A cheering crowd of dwarves, hobbits and elves appears"
+// (mastered 70.0%), 107 commandes, moteur sim65 unifie natif==WASM
+// (RAM byte-identique, scripts/mem_diff.py).
 //
-// Corrections par rapport à l'annexe (qui écrit les mots en clair) :
-//  - "NORTH puis SOUTHWEST" = un seul run "NORTH\rSW" (anti-mange clairière).
-//  - le parser de cette édition Oric mappe mal les diagonales ÉCRITES
-//    (SOUTHWEST -> "go SOUTH", NORTHWEST -> "go NORTH") : le harness vérifié
-//    (routes/*.txt) utilise les abréviations SW/SE/NE/NW.
+// Derivee de harness/brute/win_seq.txt (111 cmds, shim classic) adaptee au
+// shim solveur : SW immediat en sortie du donjon $1F (tour capture),
+// 3e WEAR RING -> WAIT (le ring est deja porte ; le throw sinon echoue),
+// marche directe $24->UP->$25->N->$26->N->$27->N->$29 (Bard ne guide pas,
+// mais SAY SHOOT depuis $24 tue le dragon ; le tresor est en $29).
+// Pas de fusion NORTH\rSW : sous ce moteur, NORTH puis SW separes passent.
+// Details : docs/journal.md seances 14-15 (win_seq), 17-18 (adaptation).
 export const SOLUTION = [
   'OPEN CHEST',
   'EAST',
-  'NORTH\rSW',
+  'NORTH',
+  'SW',
   'WAIT',
   'WAIT',
   'WAIT',
@@ -44,7 +49,8 @@ export const SOLUTION = [
   'WEST',
   'SOUTHEAST',
   'SOUTH',
-  'NORTH\rSW',
+  'NORTH',
+  'SW',
   'GET RING',
   'NORTH',
   'DOWN',
@@ -58,7 +64,6 @@ export const SOLUTION = [
   'NORTHEAST',
   'EAST',
   'EAST',
-  'WAIT',
   'SW',
   'WEAR RING',
   'WAIT',
@@ -66,7 +71,10 @@ export const SOLUTION = [
   'WEAR RING',
   'WAIT',
   'WAIT',
-  'WEAR RING',
+  'WAIT',
+  'WAIT',
+  'WAIT',
+  'WAIT',
   'WAIT',
   'EAST',
   'SAY TO BARD "NORTH"',
@@ -82,7 +90,12 @@ export const SOLUTION = [
   'SAY TO BARD "NORTH"',
   'FOLLOW BARD',
   'SAY TO BARD "SHOOT DRAGON"',
+  'UP',
+  'NORTH',
+  'NORTH',
+  'NORTH',
   'GET TREASURE',
+  'SOUTH',
   'SOUTH',
   'SOUTH',
   'SOUTH',
@@ -107,5 +120,5 @@ export const SOLUTION = [
   'PUT TREASURE IN CHEST',
 ];
 
-// Marqueur de victoire (le résumé de mort écrit aussi "mastered X%").
+// Marqueur de victoire (le resume de mort ecrit aussi 'mastered X%' : ne pas l'utiliser).
 export const EXPECTED_VICTORY = 'cheering crowd of dwarves';
