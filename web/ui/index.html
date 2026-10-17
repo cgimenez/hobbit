@@ -22,6 +22,7 @@
 
 <main>
   <section id="game">
+    <div class="game-text">
     <div id="screen" aria-live="polite"></div>
     <form id="cmdline" autocomplete="off">
       <span class="prompt">&gt;</span>
@@ -30,11 +31,11 @@
              placeholder="EAST · LOOK · OPEN DOOR · SAY TO THORIN &quot;CARRY ME&quot;">
       <button type="submit">OK</button>
     </form>
-  </section>
-
-  <section id="vector">
-    <canvas id="vec" width="240" height="128"></canvas>
-    <div id="vec-empty" data-i18n="vec_empty">(pas d'illustration ici)</div>
+    </div>
+    <div class="game-img">
+      <canvas id="vec" width="240" height="128"></canvas>
+      <div id="vec-empty" data-i18n="vec_empty">(pas d'illustration ici)</div>
+    </div>
   </section>
 
   <section id="live">

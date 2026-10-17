@@ -31,14 +31,15 @@ header button:hover { background: #29313a; }
 main {
   flex: 1; min-height: 0;
   display: grid; gap: 12px; padding: 12px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.2fr 1fr 1.2fr;
   grid-template-rows: 1fr 1fr;
   grid-template-areas:
-    "game vector"
-    "live map";
+    "game game live"
+    "map  map  live";
 }
-#game { grid-area: game; display: flex; flex-direction: column; min-height: 0; }
-#vector { grid-area: vector; display: flex; flex-direction: column; min-height: 0; }
+#game { grid-area: game; display: flex; flex-direction: row; gap: 12px; min-height: 0; }
+.game-text { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.game-img { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 #live { grid-area: live; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 #map { grid-area: map; display: flex; flex-direction: column; min-height: 0; }
 section {
@@ -61,7 +62,7 @@ section h2 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
 #cmdline button { background: #2b3b2b; color: #d7e3d7; border: 1px solid #3d523d;
   border-radius: 5px; padding: 6px 12px; cursor: pointer; }
 
-#vec { flex: 1; min-height: 0; width: 100%; height: 100%;
+#vec { flex: 0 0 auto; align-self: flex-start; width: 100%; height: auto;
   object-fit: contain; image-rendering: pixelated;
   background: #000; border: 1px solid #262b31; border-radius: 4px;
   display: none; }
