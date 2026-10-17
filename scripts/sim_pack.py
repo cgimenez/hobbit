@@ -11,7 +11,7 @@
 Artefacts dans build/sim/ (regenerables, gitignore). Sortie 0 si OK.
 
 Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
-                                             [--tape FILE]
+                                             [--tape FILE] [--solver]
            --hires : active aussi le dump de l'ecran hires ($A000-$BFFF).
            --fast : force $56=0 au boot (pas d'illustrations vectorielles ;
              img_show devient no-op -> avance rapide texte seul).
@@ -29,10 +29,14 @@ Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
            --solver : variante capture ASCII (shim -D SOLVER, hooks L75B8/
              L7694, pas de dumps @@FRAME/@@MEM) pour scripts/solver*.py
              ET play.sh. Se combine avec --snapshot (ex. --snapshot SLVW
-             --solver). Patche aussi pause_key : le `JSR get_key` de la pause
-             de lecture ($7628) est neutralise (LDA #$00) pour qu'elle
-             n'absorbe plus un octet du flux clavier pre-injecte (cf. journal,
-             "touche sacrifiee") ; les images classiques ne sont pas touchees.
+             --solver) ; seul, produit l'image FROIDE solveur
+             (build/sim/hobbit_solver.sim : boot $2C00, pas de snapshot,
+             stubs cassette B1 comme les images classiques). Implique
+             --fast ($56=0, texte seul). Patche aussi pause_key : le
+             `JSR get_key` de la pause de lecture ($7628) est neutralise
+             (LDA #$00) pour qu'elle n'absorbe plus un octet du flux
+             clavier pre-injecte (cf. journal, "touche sacrifiee") ; les
+             images classiques ne sont pas touchees.
 """
 from __future__ import annotations
 
@@ -133,6 +137,8 @@ def main() -> int:
                   f"(1-{SNAP_NAME_MAX} car. [A-Za-z0-9_-.])")
             return 1
         fast = True  # checkpoints = jeu texte, toujours sans images
+    if solver:
+        fast = True  # solveur = capture texte seule, jamais d'images
     snap_file = None
     if "--snap-file" in sys.argv:
         i = sys.argv.index("--snap-file")
@@ -145,9 +151,6 @@ def main() -> int:
             return 1
     if snap_name is not None and tape_file is not None:
         print("--snapshot et --tape sont incompatibles (zone $E800 partagee)")
-        return 1
-    if solver and snap_name is None:
-        print("--solver exige --snapshot NOM (images solver)")
         return 1
     if solver and hires:
         print("--solver et --hires sont incompatibles (pas de dumps en solver)")
@@ -163,6 +166,8 @@ def main() -> int:
             return 1
     if snap_name is not None:
         out = BUILD / f"{snap_name}.sim"
+    elif solver:
+        out = BUILD / "hobbit_solver.sim"  # froid solveur (pas de snapshot)
     else:
         out = FAST_OUT if fast else OUT
     BUILD.mkdir(parents=True, exist_ok=True)
@@ -354,7 +359,8 @@ def main() -> int:
           + (", hires ON" if hires else "")
           + (", $56=0 (fast)" if fast else "")
           + (f", --tape {tape_file}" if tape_file is not None else "")
-          + (f", --snapshot {snap_name}" if snap_name is not None else ""))
+           + (f", --snapshot {snap_name}" if snap_name is not None else "")
+           + (", --solver froid" if solver and snap_name is None else ""))
     return 0
 
 

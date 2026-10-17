@@ -605,3 +605,54 @@ Conclusion : sur les 4, trois sont présents dans l'Oric (ordre PNJ comma
 plafonné à 2 ; combat PNJ via Thorin ; `EAT`/`ALL`) et **un est absent**
 (Gandalf non commandable). Les solutions C64/Apple II surestiment les
 capacités de *notre* édition ; `sav/win.bin` reste la référence.
+
+## Séance 14 — brute-force C++ : victoire depuis cold boot (2026-10-17)
+- **Émulateur 6502 C++** (`harness/brute/`, prototype hors toolchain) :
+  parité **bit-identique** avec sim65 (mémoire initiale + régions SAVE
+  `$00BE/$1B1A/$28CC/$211A` au boot et après tour 1 ; texte 45 tours).
+  Clé : `S=$00` au reset (sim65 `Reset()` ne fixe pas SP) — sinon le RNG
+  (`rand_range $56D7`, `noise=$93/$94` lu en `$0100`) diverge. Détails :
+  `harness/brute/NOTES.md`.
+- **Cause racine du « blocage façade »** : `wait_for_key` ($7481) = pause
+  « appuyez sur une touche », boucle `jsr get_key` sans prompt `>` ; ni le
+  `Session` Python ni le WASM ne la modélisaient -> stall jusqu'au budget.
+- **`win_seq.txt` = 111 commandes depuis le cold boot -> victoire** :
+  `A cheering crowd of dwarves, hobbits and elves appears ... You have
+  mastered 80.0% of this adventure.` Déterministe ×3. Fin : `PUT TREASURE`
+  (au hall, coffre ouvert). Sans SAVE/LOAD, sans `sav/*.bin`.
+- **Ouvert** : le WASM diverge avant `wait_for_key` (stalls `$4743 $46e6
+  $524f …`, `autokey=0`). Fix autokey posé (`web/cpu/web_main.c::hob_run`)
+  mais insuffisant ; isoler la divergence `web/core/io.c` vs modèle de
+  l'ému. Diag temporaire à nettoyer (`hob_autokey_count`, `hob_last_pc`,
+  `web/smoke.mjs`).
+
+## Séance 15 — RNG/shim élucidé, pivot Path 1, réparation elfe (2026-10-17)
+- **Même cœur `emu.cpp`, deux images** : `hobbit_fast.sim` (classic) GAGNE,
+  `hobbit_solver.sim` (solveur) STALLE (tour 52, lieu `$42`). Ni le cœur
+  6502, ni `$7628` (testé), ni les hooks texte (ignorés par l'ému), ni
+  `k_log` (NOPé sans effet) : reste les **octets du shim `$C000`**.
+- **Mécanisme** : `rand_range $56D7` échantillonne la mémoire via
+  `(noise),y` (`$93/$94`, pas de 256 o → tout l'espace, dont `$C0xx` vers
+  tours 40-45, mesuré). Shims classic/solveur différents → RNG forké →
+  elfe absent au tour 52 (pas de capture). `$02` (`$FB` vs `$20` tour 0)
+  = résidu bénin (forcer `$FB` : icount identique).
+- **Oric-1 vs Atmos** (`data/basic10.rom` vs `data/basic11b.rom`) : 96,1 %
+  différents, y compris toutes les positions échantillonnées → les deux
+  machines divergent en RNG, donc **le jeu est robuste aux variations RNG**
+  (timing bénin) ; notre stall = script rigide sur-ajusté au timing
+  classic, pas jeu cassé. Inutile de répliquer le RNG exact.
+- **Décisions** : C (moteur unique sim65 multiprocessus, `emu.cpp` gardé en
+  fallback) + **Path 1** (re-chercher sous solveur, pas Path 2).
+  `scripts/sim_pack.py --solver` seul → `build/sim/hobbit_solver.sim`
+  (froide solveur). `sav/SLVW.bin` STALE (ne pas utiliser).
+  `run_one` impropre au rejeu exact (LOAD/SAVE + discontinuité RNG `$93/$94`
+  → diverge ~tour 47) ; stdin fichier/EOF → auto-WAIT idle (toujours PIPE
+  tenu ouvert + kill sur echo+prompt).
+- **Outils** : `scripts/sim_search.py` (réécrit : froid parallèle sim65,
+  verdicts OK) ; `scripts/sim_cold.py` (PTY, dépassé/lent).
+- **Réparation** : sous solveur, `WAIT×3` à la porte → elfe entre + capture
+  pendant WAIT → donjon (EAST inutile). `harness/brute/win_seq_solver.txt`
+  = win_seq L1-51 + `WAIT×3` + L54-111 (112 cmds, **fin à valider**).
+- **Reste** : validation froide complète (~5-10 min, interrompue), puis
+  segments suivants (Bard ~tour 76), `solution.js`, glue WASM, suppression
+  `emu.cpp` + diags web, commit (gardes PROPRE le 2026-10-17).

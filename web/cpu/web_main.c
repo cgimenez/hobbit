@@ -18,6 +18,12 @@
 #include "hobbit.h"
 #include "io.h"
 
+static unsigned long AutokeyCount;   /* diagnostic : nb d'auto-touches pause */
+static unsigned long ShimCount, Kb7353Count;
+unsigned long hob_autokey_count(void) { return AutokeyCount; }
+unsigned long hob_shim_count(void) { return ShimCount; }
+unsigned long hob_kb7353_count(void) { return Kb7353Count; }
+uint16_t hob_last_pc(void) { return Regs.PC; }
 static unsigned char SPAddr;
 static int Halt;
 
@@ -136,6 +142,24 @@ int hob_run(int max_insn)
     io_clear_prompt();
     io_keys_reset();
     while (!Halt) {
+        /* Pause "press any key" (wait_for_key $7481) : le jeu boucle sur
+         * get_key sans jamais imprimer de prompt -> sous harnais tour-par-tour
+         * ce serait un blocage infini. On auto-fournit un CR (comme un joueur
+         * qui appuie sur une touche), uniquement si aucune entree n'est en
+         * file. Le retour de get_key (JSR $7353 depuis wait_for_key) vaut
+         * $7483. */
+        if (Regs.PC == 0xC000) ShimCount++;
+        if (Regs.PC == 0x7353) Kb7353Count++;
+        if (Regs.PC == 0x7353 && !io_kb_pending()) {
+            uint16_t ret = (uint16_t)(MemReadByte(0x0100 + ((Regs.SP + 1) & 0xFF))
+                           | (MemReadByte(0x0100 + ((Regs.SP + 2) & 0xFF)) << 8));
+            /* wait_for_key $7481 : jsr get_key -> retour $7484 (cf. emu.cpp
+             * in_readkey, plage $7481-$7486). */
+            if (ret >= 0x7481 && ret <= 0x7486) {
+                AutokeyCount++;
+                io_key_push(0x0d);
+            }
+        }
         ExecuteInsn();
         if (io_kb_pending()) {
             /* Des commandes sont encore en file (ex. "NORTH\rSW" de

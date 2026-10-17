@@ -40,6 +40,12 @@ HOB_API int hob_init(void);
  * (rend 2). max_insn <= 0 : budget par defaut. */
 HOB_API int hob_run(int max_insn);
 
+/* Diagnostic : nombre d'auto-touches CR fournies aux pauses wait_for_key. */
+HOB_API unsigned long hob_autokey_count(void);
+HOB_API unsigned long hob_shim_count(void);
+HOB_API unsigned long hob_kb7353_count(void);
+HOB_API uint16_t hob_last_pc(void);
+
 /* Boot : le jeu rejoue lui-meme "> LOOK." (prompt tutoriel) puis decrit le
  * lieu et affiche le vrai prompt. hob_boot() absorbe les deux et rend 0 au
  * vrai prompt (pret pour une commande joueur). */

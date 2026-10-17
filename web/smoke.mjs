@@ -51,6 +51,7 @@ for (const line of cmd) {
   for (const b of new TextEncoder().encode(line)) M._hob_key(b);
   M._hob_key(0x0d);
   const r = M._hob_run(0);
+  if (r===1) console.error('  STALL pc=$'+M._hob_last_pc().toString(16)+' autokey='+M._hob_autokey_count()+' shim='+M._hob_shim_count()+' kb7353='+M._hob_kb7353_count());
   drain();
   console.error(`[${line} rc=${r} lieu=$${M._hob_player_room().toString(16)} objs=${M._hob_obj_count()} rooms=${M._hob_room_count()}]`);
 }
