@@ -656,3 +656,33 @@ capacités de *notre* édition ; `sav/win.bin` reste la référence.
 - **Reste** : validation froide complète (~5-10 min, interrompue), puis
   segments suivants (Bard ~tour 76), `solution.js`, glue WASM, suppression
   `emu.cpp` + diags web, commit (gardes PROPRE le 2026-10-17).
+
+## Séance 16 — noms de lieux, carte web, flags orec+7, suppr emu (2026-10-17)
+- **Noms de lieux** : 78 noms courts reformulés (`map_static.NAMES` complet,
+  miroir C `map.c`, `hob_room_name` = curated d'abord) ; `map.d2`/`.svg`/
+  `map.md` régénérés. Doublons fidèles au jeu (15× Dark passage…).
+- **Carte web** : zoom molette proportionnel (`1.004^-ΔY`), pinch, pan
+  glisser (modale + mini-carte, code partagé `attachPanZoom`), mini-carte
+  ×4 centrée joueur + recentrage si sortie du champ, tooltip nom complet,
+  sliders supprimés, sélection texte désactivée. Layout : bloc jeu
+  (texte+image 50/50) + liste 50 % pleine hauteur + carte bas-gauche.
+- **Flags `orec+7` élucidés** (`memory-map.md` §3d-bis, UI = 8 colonnes
+  ✓/vide + tooltip poupée russe « dans ») : bit0 verrou, **bit1 =
+  LIQUIDE** (pas « noué » : seuls eau/vin/rivière au boot, aucun
+  `ora #$02` dans le bloc 4, garde `action_tie` inopérante), bit2 plein
+  (+ épée/torche ?, à confirmer), bit3 à terre, bit4 lumineux (statique),
+  **bit5 = ouvert prouvé** (porte verte `$80`↔`$A0` OPEN/CLOSE), bit6
+  créature, bit7 présent. Colonne `Porteur` → `Contenant` (`+1` = contenant
+  direct : `key ⊂ cache ⊂ door ⊂ sand`).
+- **Outil natif** `/tmp/dumpflags.c` (hors repo : `web/core` + vrai `6502.c`
+  compilés natif, rejoue cmdfile + dump flags ; millisecondes).
+- **Suppression `harness/brute/`** (`6532833`, -1085 lignes) : `emu.cpp`
+  CPU custom parti, **sim65 seul moteur** (CLI + WASM du vrai `6502.c`) ;
+  paravirt gardée (`shim.s`, `web_main.c` PVRead/Write/Exit, `io.c`).
+  `win_seq_solver.txt` parti avec (état committé `5bc7721`, récupérable git).
+- **Mur solveur inchangé** : troll mange tour 1 sous RNG solveur (mort 2,5 %,
+  séquence trolls classique invalide) ; boucle Thorin `$29A3` au lac —
+  TIE ROPE intestable, preuve bit1 statique+code à la place.
+- Commits `17ff622 6c8f293` (noms), `de2bf9a 8d8666c a53e7f9` (web),
+  `53cd6f5` (flags), `32c50e2`, `5bc7721` (solver WIP), `6532833` (suppr emu),
+  `e7bf784` (flags labels). Tree propre.
