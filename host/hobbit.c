@@ -206,10 +206,14 @@ int hob_init(void)
     state_build();
     map_build();
 
-    /* reset CPU */
+    /* reset CPU : sim65 Reset() ne touche pas SP (Regs global, $00 au
+     * premier boot) ; sans RAZ, un 2e hob_init (ex. page web boot() puis
+     * AUTO PLAY) repart avec le SP residuel -> le RNG (qui echantillonne
+     * $0100, cf. harness/brute/NOTES.md) forke des le boot. */
     MemWriteWord(0xFFFC, 0x2C00);
     ParaVirtInit(0, 0x02);
     Reset();
+    Regs.SP = 0x00;
     return 0;
 }
 

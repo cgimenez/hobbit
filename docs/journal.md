@@ -772,3 +772,27 @@ capacités de *notre* édition ; `sav/win.bin` reste la référence.
   NORTH puis SW séparés passent sous ce moteur) ; `wasm_autoplay_bugs.md`
   **fermé** (vraie cause : liste + shim, pas le WASM ; hypothèse
   quiescence infirmée). Non commité.
+
+## Séance 20 — VRAIE cause du bug navigateur : SP non réinitialisé (2026-10-17)
+- **Symptôme** : AUTO PLAY navigateur bloqué `$1F` alors que natif+node
+  gagnaient, RAM prouvée identique entre eux. Transcript navigateur :
+  pas de « someone opens », warg vivant, porte en retard.
+- **Preuve par `mem_browser.bin`** (bouton MEM) vs `native_ref.bin`
+  (`scripts/mem_cmp.py`, nouveau) : sync post-boot diverge déjà :
+  `$11` (crcnt, lignes depuis pause) `$0C` vs `$0B` + `$C2F9`
+  (shim ASC_CHAR) + `$A93C-$B679` (glyphes hires du texte de boot,
+  rendus `$75B4` avec `ORA #$40` — le boot navigateur a imprimé **une
+  ligne de plus**, « Thorin waits », qui décale tout le rendu).
+- **Cause** : le navigateur double-boote (page `boot()` puis AUTO PLAY
+  `startAutoplay`, même instance WASM) ; `sim65 Reset()` ne touche pas
+  `Regs.SP`, et `hob_init` ne le fixait pas → 2e boot avec SP résiduel →
+  le RNG (`rand_range`, échantillonne `$0100`) forke dès le boot.
+  Repro node : boot simple crcnt=`$0B` ×5, double boot `$0C`. C'est le
+  même bug `S` déjà identifié pour `emu.cpp` (NOTES.md) mais jamais
+  corrigé dans `host/` unifié.
+- **Fix (1 ligne, `host/hobbit.c`)** : `Regs.SP = 0x00` dans `hob_init`
+  après `Reset()`. Double/triple boot → `$0B` stable. Validé :
+  `mem_diff.py` RAM IDENTIQUE (107 deltas), `host_diff.py` DIFF VIDE,
+  `web test` 0. Blindage associé : `startAutoplay` vide le slot BLOB
+  (cold boot même avec sauvegarde locale) + bouton MEM (trace `@@M/@@D`
+  téléchargeable pour futurs diagnostics).

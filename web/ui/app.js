@@ -45,6 +45,12 @@ const STR = {
   btn_save_title: ['Save game (localStorage + file)',
                    'Enregistrer la partie (localStorage + fichier)'],
   btn_about_title: ['About / credits', 'À propos / crédits'],
+  btn_copy: ['COPY', 'COPIER'],
+  btn_copy_title: ['Copy game text to clipboard',
+                   'Copier le texte du jeu dans le presse-papiers'],
+  btn_mem: ['MEM', 'MEM'],
+  btn_mem_title: ['Download memory trace (debug)',
+                  'Télécharger la trace mémoire (debug)'],
 };
 
 const getCookie = (k) => {
@@ -96,6 +102,7 @@ let autoPlaying = false;
 let autoTimer = null;
 let autoIdx = 0;
 const AUTO_DELAY = 800;
+let memFrames = null;   /* trace @@M/@@D de l'autoplay en cours (debug) */
 
 // Historique des commandes (fleches HAUT/BAS dans le champ de saisie).
 const cmdHistory = [];
@@ -527,12 +534,18 @@ function sawVictory() { return $('#screen').textContent.includes(EXPECTED_VICTOR
 
 function startAutoplay() {
   closeModal();
+  M._hob_slot_len(SLOT.BLOB, 0);   /* cold boot garanti : ignore toute
+                                      sauvegarde locale (polluerait $E800) */
   M._hob_init();
   textLen = 0;
   $('#screen').textContent = '';
   M._hob_boot();
   drainText();
   refreshLive();
+  /* Trace memoire (debug mem_diff.py) : sync post-boot + 1 delta/tour. */
+  M._hob_mem_trace(1);
+  memFrames = [new TextEncoder().encode('@@M\n'),
+               M.HEAPU8.slice(M._hob_mem(), M._hob_mem() + M._hob_mem_len())];
   autoIdx = 0;
   autoPlaying = true;
   $('#btn-auto').textContent = 'STOP';
@@ -548,6 +561,10 @@ function autoStep() {
   setStatus(`AUTO PLAY ${autoIdx}/${SOLUTION.length}`,
             `AUTO PLAY ${autoIdx}/${SOLUTION.length}`);
   sendCommand(SOLUTION[i]);
+  if (memFrames) {
+    const p = M._hob_memdiff_ptr(), n = M._hob_memdiff_len();
+    memFrames.push(M.HEAPU8.slice(p, p + n));
+  }
   autoTimer = setTimeout(autoStep, AUTO_DELAY);
 }
 
@@ -582,6 +599,36 @@ $('#map-svg').addEventListener('click', (e) => {
   openMapModal(c ? +c.dataset.room : -1);
 });
 $('#btn-about').addEventListener('click', openAboutModal);
+$('#btn-copy').addEventListener('click', async () => {
+  const txt = $('#screen').textContent;
+  try {
+    await navigator.clipboard.writeText(txt);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  setStatus('game text copied', 'texte du jeu copié');
+  $('#cmd').focus();
+});
+$('#btn-mem').addEventListener('click', () => {
+  if (!memFrames || !memFrames.length) {
+    setStatus('no memory trace (run AUTO PLAY first)',
+              'pas de trace mémoire (lance AUTO PLAY d\'abord)');
+    return;
+  }
+  const blob = new Blob(memFrames, { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mem_browser.bin';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  setStatus('memory trace downloaded', 'trace mémoire téléchargée');
+  $('#cmd').focus();
+});
 $('#btn-auto').addEventListener('click', () => {
   if (autoPlaying) stopAutoplay(); else openDisclaimerModal();
 });
@@ -631,6 +678,7 @@ async function boot() {
 
 $('#cmdline').addEventListener('submit', (e) => {
   e.preventDefault();
+  memFrames = null;   /* commande manuelle : la trace autoplay n'est plus valide */
   const v = $('#cmd').value;
   $('#cmd').value = '';
   if (v.trim() && v !== cmdHistory[cmdHistory.length - 1]) cmdHistory.push(v);
