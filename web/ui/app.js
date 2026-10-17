@@ -300,9 +300,14 @@ function buildMapSvg(playerRoom, focus) {
     }
     nodes += `<circle cx="${x}" cy="${y}" r="${here ? 7 : 4}" fill="${here ? '#ff5a5a' : '#5f86a8'}" data-room="${id}"${here ? ' class="here"' : ''}/>`;
     nodes += `<text x="${x + 8}" y="${y + 3}" fill="#7d8794" font-size="10">$${hex(id)}</text>`;
+    const nm = roomName(id);
+    if (nm && nm !== '?') {
+      const short = nm.length > 16 ? nm.slice(0, 15) + '…' : nm;
+      nodes += `<text x="${x + 8}" y="${y + 14}" fill="#aab4bf" font-size="9">${esc(short)}</text>`;
+    }
     const who = npc.get(id);
     if (who && who.length) {
-      nodes += `<text x="${x + 8}" y="${y + 14}" fill="#c9b46a" font-size="9">${esc(who.join(', '))}</text>`;
+      nodes += `<text x="${x + 8}" y="${y + 25}" fill="#c9b46a" font-size="9">${esc(who.join(', '))}</text>`;
     }
   }
   const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%">${edges}${nodes}</svg>`;
@@ -320,27 +325,96 @@ function roomName(id) {
     ? M.UTF8ToString(M._hob_room_name(id)) : '?';
 }
 
-// Zoom/pan de la carte dans la modale (viewBox SVG manipulé par slider).
-const MAPVIEW = { W: 0, H: 0, player: [0, 0], zoom: 3 };
+// --- modale carte : zoom molette/pinch + pan glisser (viewBox manipule) ---
+const MAPVIEW = { W: 0, H: 0, x: 0, y: 0, w: 0, h: 0 };
+const MAX_ZOOM = 8;   // zoom max : largeur vue = W/8 ; zoom min = carte entiere
+
+const clampv = (v, a, b) => Math.max(a, Math.min(b, v));
 
 function applyMapView() {
   const svg = $('#modal-map svg');
   if (!svg || !MAPVIEW.W) return;
-  const { W, H, zoom } = MAPVIEW;
-  const vw = W / zoom, vh = H / zoom;
-  const x = (+$('#map-panx').value / 1000) * (W - vw);
-  const y = (+$('#map-pany').value / 1000) * (H - vh);
-  svg.setAttribute('viewBox', `${x} ${y} ${vw} ${vh}`);
+  svg.setAttribute('viewBox',
+    `${MAPVIEW.x} ${MAPVIEW.y} ${MAPVIEW.w} ${MAPVIEW.h}`);
 }
 
-function centerMapOnPlayer() {
-  const { W, H, player, zoom } = MAPVIEW;
-  const vw = W / zoom, vh = H / zoom;
-  const cx = vw < W ? (player[0] - vw / 2) / (W - vw) : 0.5;
-  const cy = vh < H ? (player[1] - vh / 2) / (H - vh) : 0.5;
-  const cl = (v) => Math.max(0, Math.min(1, v));
-  $('#map-panx').value = Math.round(cl(cx) * 1000);
-  $('#map-pany').value = Math.round(cl(cy) * 1000);
+function resetMapView(cx, cy, zoom) {
+  MAPVIEW.w = MAPVIEW.W / zoom;
+  MAPVIEW.h = MAPVIEW.H / zoom;
+  MAPVIEW.x = clampv(cx - MAPVIEW.w / 2, 0, MAPVIEW.W - MAPVIEW.w);
+  MAPVIEW.y = clampv(cy - MAPVIEW.h / 2, 0, MAPVIEW.H - MAPVIEW.h);
+}
+
+function zoomAt(mx, my, factor) {
+  const w0 = MAPVIEW.w;
+  const w1 = clampv(w0 * factor, MAPVIEW.W / MAX_ZOOM, MAPVIEW.W);
+  const h1 = w1 * (MAPVIEW.H / MAPVIEW.W);
+  const k = w1 / w0;
+  MAPVIEW.x = clampv(mx - (mx - MAPVIEW.x) * k, 0, MAPVIEW.W - w1);
+  MAPVIEW.y = clampv(my - (my - MAPVIEW.y) * k, 0, MAPVIEW.H - h1);
+  MAPVIEW.w = w1;
+  MAPVIEW.h = h1;
+  applyMapView();
+}
+
+$('#modal-map').addEventListener('wheel', (e) => {
+  const svg = $('#modal-map svg');
+  if (!svg || !MAPVIEW.W) return;
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const mx = MAPVIEW.x + ((e.clientX - r.left) / r.width) * MAPVIEW.w;
+  const my = MAPVIEW.y + ((e.clientY - r.top) / r.height) * MAPVIEW.h;
+  // pinch touchpad (ctrlKey) = zoom plus fin
+  const step = e.ctrlKey ? 1.1 : 1.25;
+  zoomAt(mx, my, e.deltaY > 0 ? step : 1 / step);
+}, { passive: false });
+
+// pan au glisser (souris + tactile 1 doigt), pinch 2 doigts = zoom
+const mPts = new Map();
+let mPinch = null;
+
+$('#modal-map').addEventListener('pointerdown', (e) => {
+  const svg = $('#modal-map svg');
+  if (!svg || !MAPVIEW.W) return;
+  svg.setPointerCapture(e.pointerId);
+  mPts.set(e.pointerId, [e.clientX, e.clientY]);
+  if (mPts.size === 2) {
+    const [a, b] = [...mPts.values()];
+    mPinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) };
+  }
+  svg.classList.add('dragging');
+});
+
+$('#modal-map').addEventListener('pointermove', (e) => {
+  const svg = $('#modal-map svg');
+  if (!svg || !mPts.has(e.pointerId)) return;
+  const prev = mPts.get(e.pointerId);
+  mPts.set(e.pointerId, [e.clientX, e.clientY]);
+  const r = svg.getBoundingClientRect();
+  if (mPts.size === 2 && mPinch) {
+    const [a, b] = [...mPts.values()];
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (d > 0 && mPinch.d > 0) {
+      const mx = MAPVIEW.x + (((a[0] + b[0]) / 2 - r.left) / r.width) * MAPVIEW.w;
+      const my = MAPVIEW.y + (((a[1] + b[1]) / 2 - r.top) / r.height) * MAPVIEW.h;
+      zoomAt(mx, my, mPinch.d / d);   // doigts écartés (d grand) = zoom avant
+    }
+    return;
+  }
+  const k = MAPVIEW.w / r.width;
+  MAPVIEW.x = clampv(MAPVIEW.x - (e.clientX - prev[0]) * k,
+    0, MAPVIEW.W - MAPVIEW.w);
+  MAPVIEW.y = clampv(MAPVIEW.y - (e.clientY - prev[1]) * k,
+    0, MAPVIEW.H - MAPVIEW.h);
+  applyMapView();
+});
+
+for (const ev of ['pointerup', 'pointercancel']) {
+  $('#modal-map').addEventListener(ev, (e) => {
+    mPts.delete(e.pointerId);
+    if (mPts.size < 2) mPinch = null;
+    if (!mPts.size) $('#modal-map svg')?.classList.remove('dragging');
+  });
 }
 
 let mapFocus = -1;
@@ -365,15 +439,13 @@ function openMapModal(focus) {
   mapFocus = focus;
   $('#modal-map').innerHTML = m.svg;
   MAPVIEW.W = m.W; MAPVIEW.H = m.H;
-  MAPVIEW.player = player >= 0 ? m.at(player) : [m.W / 2, m.H / 2];
-  MAPVIEW.zoom = 3;
-  $('#map-zoom').value = MAPVIEW.zoom;
-  centerMapOnPlayer();
+  const c = focus >= 0 ? m.at(focus)
+    : player >= 0 ? m.at(player) : [m.W / 2, m.H / 2];
+  resetMapView(c[0], c[1], 3);
   applyMapView();
   $('#modal-map').hidden = false;
   $('#modal-about').hidden = true;
   $('#modal-disclaimer').hidden = true;
-  $('#modal-controls').hidden = false;
   $('#modal').classList.remove('hidden');
   updateModalTitle();
 }
@@ -382,7 +454,6 @@ function openAboutModal() {
   $('#modal-about').hidden = false;
   $('#modal-map').hidden = true;
   $('#modal-disclaimer').hidden = true;
-  $('#modal-controls').hidden = true;
   $('#modal').classList.remove('hidden');
   updateModalTitle();
 }
@@ -391,7 +462,6 @@ function openDisclaimerModal() {
   $('#modal-disclaimer').hidden = false;
   $('#modal-about').hidden = true;
   $('#modal-map').hidden = true;
-  $('#modal-controls').hidden = true;
   $('#modal').classList.remove('hidden');
   updateModalTitle();
 }
@@ -451,14 +521,6 @@ function setLang(lang) {
 
 for (const b of document.querySelectorAll('.lang-flag'))
   b.addEventListener('click', () => setLang(b.dataset.lang));
-
-$('#map-zoom').addEventListener('input', () => {
-  MAPVIEW.zoom = +$('#map-zoom').value;
-  centerMapOnPlayer();   // rester centre sur le joueur en zoomant
-  applyMapView();
-});
-$('#map-panx').addEventListener('input', applyMapView);
-$('#map-pany').addEventListener('input', applyMapView);
 
 $('#map-svg').addEventListener('click', (e) => {
   const c = e.target.closest('circle[data-room]');
