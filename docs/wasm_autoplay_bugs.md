@@ -46,10 +46,10 @@ les PNJ tombent au mauvais moment.
 ## 2. Faits mesurés (reproductibles)
 
 ### 2.1 Ce n'est PAS un bug de patch ni d'image
-`web/core/hobbit.c` applique les **mêmes** patchs que l'image harness vérifiée :
+`src/core/hobbit.c` applique les **mêmes** patchs que l'image harness vérifiée :
 `$2C4A`=00 (`$56=0` fast, sans illustrations), pause `$7628` = `A9 00 EA`
 (neutralisée), stubs cassette `$2C0B/$2C0E/$2C11`, hook clavier `$7353`, hooks
-texte `$75B8/$7694/$7514`. Le checker `make -C web check` garde les octets
+texte `$75B8/$7694/$7514`. Le checker `make check` garde les octets
 source. **Rien à corriger de ce côté.**
 
 ### 2.2 Bug parser (réel, indépendant du WASM)
@@ -91,7 +91,7 @@ décision** (§0.2).
 
 ## 3. Modèle d'exécution : harness vs WASM
 
-| | Harness natif (`solver_run.run_one`) | WASM (`web/cpu/web_main.c`) |
+| | Harness natif (`solver_run.run_one`) | WASM (`src/core/core.c` : `hob_run`) |
 |---|---|---|
 | Unité | 1 commande = 1 process `sim65` | 1 commande = 1 `hob_run()` |
 | Entrée | payload complet (blancs + `LOAD` + cmd + blancs + `SAVE`) écrit d'un coup | file clavier remplie puis `hob_run` |
@@ -144,10 +144,10 @@ Rendre le WASM fidèle au **protocole harness**, à modèle d'exécution constan
 - `web/ui/app.js` : autoplay **simple** (string-only). `EXPECTED_VICTORY =
   'cheering crowd of dwarves'` (l'ancien `mastered 70.0` matchait aussi le
   résumé de **mort** → faux positifs).
-- `web/core/io.c`/`io.h`, `web/include/hobbit.h`, `web/cpu/web_main.c` :
+- `src/core/io.c`/`io.h`, `src/include/hobbit.h`, `src/core/core.c` :
   compteur `@@K` → `hob_keys_consumed()` (diagnostic « commande mangée »).
   À garder ou retirer selon besoin.
-- `web/build/SLVW.bin` : copie temporaire (gitignoré).
+- `build/wasm/SLVW.bin` : copie temporaire (gitignoré).
 
 Déjà commité : `ecae669` (bouton AUTO PLAY + disclaimer + `solution.js`
 initial), `b0dc9e5`/`304d60a` docs, etc. Le `solution.js` commité est la
@@ -159,7 +159,7 @@ Test navigateur headless (Chrome CDP, zéro dépendance) : scripts jetables
 `/tmp/opencode/hobdiag.mjs` (rejeu tour par tour + `@@K`/lieu/delta),
 `hobprobe.mjs`/`hobprobe2.mjs` (cycle porte rouge `$1F`), `hobwords.mjs`
 (mapping des directions), `hobseed*.mjs` (seed, écarté). Motif : `spawn node
-web/serve.js web/build <port> --no-hmr`, puis pilotage via un hook
+web/serve.js build/wasm <port> --no-hmr`, puis pilotage via un hook
 `window.__hob` **temporaire** ajouté à `app.js` (pensé à être retiré).
 
 Test natif : `sim65 -x <cycles> build/sim/play.sim < flux.bin | python

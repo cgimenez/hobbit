@@ -12,22 +12,26 @@ WASM ; le Python reste cantonné au reverse hors-ligne (`disasm.py`, checkers,
 
 ## 1. Architecture
 
-Tout vit sous `web/`. Correspondance fichier ↔ script remplacé ↔ source de
-vérité (SSOT) :
+Le code émulateur vit sous `src/` (moteur partagé natif+WASM, build par le
+`Makefile` racine) ; l'UI vit sous `web/`. Correspondance fichier ↔ script
+remplacé ↔ source de vérité (SSOT) :
 
-| Fichier web | Remplace (dev) | Rôle |
+| Fichier | Remplace (dev) | Rôle |
 |---|---|---|
-| `cpu/web_main.c` | `sim65/main.c` + `paravirt.c` | boucle CPU, paravirt `PV_READ`/`PV_WRITE` (file clavier + tampon texte au lieu de pipes), `hob_boot` |
-| `core/hobbit.c` | `scripts/sim_pack.py` | pose l'image `fetch` à `$0400`, patchs (clavier, hooks texte, pause, fast, vecteurs), init RAM, reset `$2C00` |
-| `core/io.c` | `scripts/sim_play.py` | filtre texte `@@A`/`@@EOL`/`@@EOLR`/`@@P`, file clavier, capture du blob SAVE `@@SNAP` |
-| `core/state.c` | `scripts/memmap_defs.py` | objets/PNJ (61 clés `$1A62`), entités VM `$2B45`, events `$2B12` |
-| `core/map.c` | `scripts/map_static.py` (+ `map_draw.py`) | graphe des lieux (table `$2070`), sorties, noms |
-| `core/vec.c` | `scripts/vec_decode.py` | rasterisation des 13 illustrations (table `$7AC0`) |
-| `core/msg.c` | (`word_render`/`decode_msg` de `map_static.py`) | noms de mots/messages du bloc 2 |
-| `include/hobbit.h` | — | ABI WASM (exports `hob_*`) |
-| `ui/{index.html,app.js,style.css}` | — | UI vanilla (4 panes) |
-| `serve.js` | — | serveur dev statique + HMR |
-| `smoke.mjs` | — | test boot+commande sans navigateur |
+| `src/native/platform_native.c` | `sim65/main.c` + `paravirt.c` | CLI natif : boucle CPU, `read(0)`/`write(1)`, miroir exact de `smoke.mjs` |
+| `src/core/core.c` | (boucle `hob_run`/`hob_boot`, traps `$FFF6/7/9`) | exécution tour par tour partagée natif+WASM |
+| `src/core/hobbit.c` | `scripts/sim_pack.py` | pose l'image `fetch` à `$0400`, patchs (clavier, hooks texte, pause, fast, vecteurs), init RAM, reset `$2C00` |
+| `src/core/io.c` | `scripts/sim_play.py` | filtre texte `@@A`/`@@EOL`/`@@EOLR`/`@@P`, file clavier, capture du blob SAVE `@@SNAP` |
+| `src/core/state.c` | `scripts/memmap_defs.py` | objets/PNJ (61 clés `$1A62`), entités VM `$2B45`, events `$2B12` |
+| `src/core/map.c` | `scripts/map_static.py` (+ `map_draw.py`) | graphe des lieux (table `$2070`), sorties, noms |
+| `src/core/vec.c` | `scripts/vec_decode.py` | rasterisation des 13 illustrations (table `$7AC0`) |
+| `src/core/msg.c` | (`word_render`/`decode_msg` de `map_static.py`) | noms de mots/messages du bloc 2 |
+| `src/include/hobbit.h` | — | ABI (exports `hob_*`), slots de chargement |
+| `src/native/platform.h` | — | frontière d'environnement (`platform_*`) |
+| `src/6502/shim.s`, `src/6502/snap.s` | — | shims paravirt (`$C000`/`$F700`) |
+| `web/ui/{index.html,app.js,style.css}` | — | UI vanilla (4 panes) |
+| `web/serve.js` | — | serveur dev statique + HMR |
+| `web/smoke.mjs` | — | test boot+commande sans navigateur |
 
 Le cœur 6502 n'est **pas réécrit** : `tools/cc65/src/sim65/{6502,memory,
 peripherals,error,trace}.c` sont compilés tels quels par `emcc`. Seuls
@@ -42,8 +46,8 @@ du lieu courant), **table** objets/PNJ + **carte** (pastilles NPC + lieu joueur)
   refuse le Python 3.9 d'Xcode → forcer `EMSDK_PYTHON=/opt/local/bin/python3.14`
   (déjà intégré au `Makefile` et à `serve.js`).
 - **`ca65`/`ld65`** : vendus dans `tools/cc65/bin/` (cf. AGENTS.md §3), servent
-  à assembler les shims (`harness/shim.s`, `harness/snap.s`).
-- **`make`** pur (pas de cmake), cibles dans `web/Makefile`.
+  à assembler les shims (`src/6502/shim.s`, `src/6502/snap.s`).
+- **`make`** pur (pas de cmake), cibles dans le `Makefile` racine.
 - **`node`** : serveur dev + test CLI.
 - L'image (`data/hobbit.bin`), la fonte (`data/basic10.rom`) et les shims sont
   chargés par **`fetch`** → il faut servir en HTTP (le protocole `file://`
@@ -52,21 +56,23 @@ du lieu courant), **table** objets/PNJ + **carte** (pastilles NPC + lieu joueur)
 ## 3. Recettes
 
 ```
-make -C web            # check + shims + wasm + assets -> web/build/
-make -C web check      # gardes byte-identiques sur data/hobbit.bin (PROPRE exige)
-make -C web test       # boot + OPEN DOOR/EAST en Node (sans navigateur)
-make -C web serve      # http://localhost:8000  (HMR actif)
-make -C web clean
+make                 # check + wasm + assets -> build/wasm/
+make check           # gardes byte-identiques sur data/hobbit.bin (PROPRE exige)
+make native          # build/native/hobplay (CLI natif)
+make test            # boot + OPEN DOOR/EAST en Node (sans navigateur)
+make serve           # http://localhost:8000 (HMR actif)
+make clean
 ```
 
 - `make check` vérifie les octets d'origine des sites patchés (`$7353` clavier,
   `$75B8`/`$7694`/`$7514` hooks texte, `$7628` pause, `$2C4A` fast,
   `$2C0B/$2C0E/$2C11` vecteurs cassette) : échec = arrêt avant tout build.
-- `make serve` : serveur statique + **HMR**. Éditer `web/{ui,core,cpu,include}`,
-  `harness/*.s` ou `web/Makefile` relance `make wasm assets` puis recharge la
+- `make serve` : serveur statique + **HMR**. Éditer `web/ui`, `src/core`,
+  `src/6502/*.s` ou le `Makefile` racine relance `make wasm assets` puis
+  recharge la
   page (SSE `/__hmr`) ; le client HMR est injecté dans le HTML servi, donc
   `ui/index.html` reste propre. `--no-hmr` pour couper.
-- Les artefacts (`web/build/`) sont gitignorés.
+- Les artefacts (`build/`) sont gitignorés.
 
 ## 4. Points techniques non triviaux
 
@@ -77,11 +83,11 @@ make -C web clean
   consomme plus la 1re touche de la commande suivante (indispensable en saisie
   live). Choix de saisie = variante **solveur** du shim (`-D SOLVER`, capture
   ASCII aux hooks `$75B8`/`$7694`/`$7514`), pas de dumps hires/OCR.
-- **Table `HSHK`** ajoutée à `harness/shim.s` : signature binaire suivie des 3
+- **Table `HSHK`** ajoutée à `src/6502/shim.s` : signature binaire suivie des 3
   adresses `asc_plot/asc_eol/asc_eol2`, lue directement dans le shim par
-  `core/hobbit.c` (évite de parser le listing ca65 côté C ; le harness natif
+  `src/core/hobbit.c` (évite de parser le listing ca65 côté C ; le natif
   continue de lire le listing).
-- **SAVE/LOAD** : `harness/snap.s` (`vec_02/03/04` → `snap_load/save/clc`). Le
+- **SAVE/LOAD** : `src/6502/snap.s` (`vec_02/03/04` → `snap_load/save/clc`). Le
   blob `"SNAP"`+3623 o émis via `@@SNAP` est capturé par `io.c` puis stocké en
   `localStorage` ; au boot suivant il est déposé en `$E800` et restauré par un
   `LOAD` automatique.
@@ -122,10 +128,10 @@ Validé (commit `e3774c9`) :
 ## 7. Reprise (handoff)
 
 **État** : tout est commité (`e3774c9` web, `9f5f680` + `3b534df` doc) ;
-`web/build/` est gitignoré → régénérer avec `make -C web` avant `serve`/`test`.
+`build/wasm/` est gitignoré → régénérer avec `make` avant `serve`/`test`.
 Toolchain déjà validée : `emcc` + `EMSDK_PYTHON=/opt/local/bin/python3.14`.
 
-**ABI WASM** (`web/include/hobbit.h`, exports `EMSCRIPTEN_KEEPALIVE`) :
+**ABI WASM** (`src/include/hobbit.h`, exports `EMSCRIPTEN_KEEPALIVE`) :
 slots `hob_slot/_cap/_len` ; cycle `hob_init` → `hob_boot` → `hob_key` +
 `hob_run` ; texte `hob_text_ptr/_len` ; SAVE `hob_save_ready/_ptr/_len/_clear` ;
 état `hob_player_room`, `hob_obj_*` (61), `hob_ent_*` (17), `hob_evt_*` (10) ;
@@ -153,4 +159,4 @@ bilingue EN/FR (cookie `hobbit.lang`, drapeaux) et propose un bouton
 - Patchs sensibles (`make check` les garde) : `$7353`, `$75B8/$7694/$7514`,
   `$7628`, `$2C4A`, `$2C0B/$2C0E/$2C11`.
 - `vbuf` en ligne mémoire `r = $7F - y` (sinon image miroir).
-- HMR : serveur dev uniquement (`web/serve.js`), jamais dans `web/build`.
+- HMR : serveur dev uniquement (`web/serve.js`), jamais dans `build/wasm`.

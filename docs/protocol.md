@@ -2,7 +2,7 @@
 
 Contrat bas niveau **identique** natif et WASM. Seuls les backends d'E/S
 diffèrent (fd POSIX vs buffers mémoire). Tout le reste (traps, arguments,
-marqueurs, décodage) est partagé dans `host/core.c`.
+marqueurs, décodage) est partagé dans `src/core/core.c`.
 
 ## 1. Traps de paravirtualisation
 
@@ -67,7 +67,7 @@ le saut (RETURN + réponse = 1 ligne), sinon émettre `\n`.
 | `@@FRAME hires\n` | 14 | 8192 o (`$A000-$BFFF`) |
 | `@@MEM XXXX YYYY\n` | 16 | payload `len` o (6 régions) |
 
-Le parseur du core (`host/core.c`) décode les **deux** saveurs (superset).
+Le parseur du core (`src/core/core.c`) décode les **deux** saveurs (superset).
 
 ### 4.3 Trace mémoire (`@@M` / `@@D`, opt-in)
 
@@ -85,7 +85,7 @@ croissante. `scripts/mem_diff.py` compare natif↔WASM en lockstep
 (`--serve` des deux côtés) et stoppe au premier octet divergent
 (explication via `memmap_defs.annotate`).
 
-## 5. SAVE/LOAD (`harness/snap.s`)
+## 5. SAVE/LOAD (`src/6502/snap.s`)
 
 Émission : `@@SNAP\n` + `NLEN(1)` + `NOM` + `IDX(1)` + `LEN(2 LE)` + payload,
 4 blocs (idx 0..3 = `$00BE/$18`, `$1B1A/$556`, `$28CC/$2F1`, `$211A/$5C8`).
@@ -111,16 +111,16 @@ suffisante fait jouer `WAIT` tout seul, `play.sh`) : tour fantôme qui
 décale la phase. Toute attente au-delà du premier prompt est interdite.
 Le pacing appartient au flux de lignes, jamais à l'arrêt du run.
 
-## 7. Frontière d'environnement (`host/platform.h`)
+## 7. Frontière d'environnement (`src/native/platform.h`)
 
 Seules fonctions spécifiques à l'exécution (noms imposés `platform_*`) :
 
-| Fonction | natif (`platform_native.c`) | WASM (`platform_wasm.c`) |
+| Fonction | natif (`src/native/platform_native.c`) | WASM (JS `hob_key`/`hob_text_*`) |
 |---|---|---|
 | `platform_input_*` | `read(0, …)` | anneau rempli par `hob_key()` |
 | `platform_output(b, n)` | `write(1, …)` | `memcpy` vers buffer texte |
 | `platform_fatal(code)` | `exit`/`SimExit` | `Halt=1` |
 | `platform_image_*` | `fopen`/`fread` | slots JS |
 
-Tout le reste (traps, parseur, tour, boot, SAVE, state) = `host/core.c`,
+Tout le reste (traps, parseur, tour, boot, SAVE, state) = `src/core/core.c`,
 partagé, sans POSIX ni emscripten.

@@ -15,7 +15,7 @@
  * Les frames texte/hires sont parsees-et-jetees (servent juste
  * a detecter l'activite).
  *
- * Snapshots (harness/snap.s) : "@@SNAP\n" + NLEN(1) + NOM + IDX(1) +
+ * Snapshots (src/6502/snap.s) : "@@SNAP\n" + NLEN(1) + NOM + IDX(1) +
  * LEN(2) + octets bruts, 4 blocs (idx 0..3 = ZP/etats/scripts/records).
  * Un SAVE complet -> sav/NOM.bin ("SNAP" + 3623 o) + ligne snapshots.
  */
@@ -93,7 +93,7 @@ static long G_frames = 0;
 static int G_rfd = -1;
 static long G_timeout_ms = 300;
 static long G_settle_ms = 0;   /* delai de tassement apres le silence (-s) */
-/* snapshot en cours d'accumulation (harness/snap.s) */
+/* snapshot en cours d'accumulation (src/6502/snap.s) */
 static unsigned char G_snapbuf[NREG][0x05C8];
 static int G_got[NREG] = {0};
 static char G_snapname[SNAP_NAMEMAX + 1] = {0};

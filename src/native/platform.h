@@ -7,7 +7,7 @@
  * Voir docs/protocol.md (source de verite).
  *
  * Parallele impose :
- *   natif : cpu/platform_native.c  (remplit l'anneau par read(0),
+ *   natif : src/native/platform_native.c  (remplit l'anneau par read(0),
  *                                    vide le texte par write(1))
  *   wasm  : JS (remplit par hob_key(), lit par hob_text_ptr/len)
  *
@@ -16,7 +16,7 @@
 #ifndef HOBBIT_PLATFORM_H
 #define HOBBIT_PLATFORM_H
 
-/* Codes de sortie du CLI natif (cpu/platform_native.c). */
+/* Codes de sortie du CLI natif (src/native/platform_native.c). */
 enum {
     PLATFORM_OK       = 0,  /* session terminee (texte compare/fini) */
     PLATFORM_USAGE    = 1,  /* arguments invalides */

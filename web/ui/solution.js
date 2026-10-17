@@ -3,7 +3,8 @@
 // (mastered 70.0%), 107 commandes, moteur sim65 unifie natif==WASM
 // (RAM byte-identique, scripts/mem_diff.py).
 //
-// Derivee de harness/brute/win_seq.txt (111 cmds, shim classic) adaptee au
+// Derivee de la sequence gagnante a froid (ex harness/brute/win_seq.txt,
+// supprime avec l'emu C++ ; 111 cmds, shim classic) adaptee au
 // shim solveur : SW immediat en sortie du donjon $1F (tour capture),
 // 3e WEAR RING -> WAIT (le ring est deja porte ; le throw sinon echoue),
 // marche directe $24->UP->$25->N->$26->N->$27->N->$29 (Bard ne guide pas,

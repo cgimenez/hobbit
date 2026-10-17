@@ -29,11 +29,11 @@
 
 ## Harnais sim65 : fonctionnel
 
-- `scripts/sim_pack.py` : assemble `harness/shim.s` (`$C000`, zone "ROM" —
+- `scripts/sim_pack.py` : assemble `src/6502/shim.s` (`$C000`, zone "ROM" —
   le jeu n'y écrit jamais), patch `JMP $C000` sur `$7353` (scan clavier
   VIA), charge le charset ROM 1.0 (`$FC70-$FFBF`, font lue en `($0403)`),
   packe `build/sim/hobbit.sim` (load `$0400`, reset `$2C00`, SPAddr `$02`).
-- `harness/shim.s` (en `$C000`, ~600 o, zone CODE `$C000-$C2EF`) :
+- `src/6502/shim.s` (en `$C000`, ~600 o, zone CODE `$C000-$C2EF`) :
   `shim_kb` — `PVRead` stdin avec machine à états pressé/relâché
   (compatible `BPL`/`BMI` des 4 sites d'appel ; EOF → `$00`, le jeu boucle
   → borner par `sim65 -x`, exit 254 = fin de script normale), `PVWrite`
@@ -273,7 +273,7 @@
 
 ## Prochaine étape (snapshots : FAIT, 0-delta prouvé)
 
-**Bascule snapshots implémentée** (`harness/snap.s`, `sim_pack
+**Bascule snapshots implémentée** (`src/6502/snap.s`, `sim_pack
 --snapshot NOM`, `sim_tickdiff @@SNAP`, `sim_tickdb.py snaps/snap-show/
 snap-diff/snap-verify/snap-init`) : `vec_02/03/04`
 (`$2C0B/$2C0E/$2C11`) → `snap_load`/`snap_save`/`s_clc`, sans état
@@ -307,7 +307,7 @@ Ensuite : checkpoints (`rivendell`, `cellar`…), fin du jeu (tonneau :
 vider ? butler endormi ? ; cond `$06`→`$0F` ; `$16` NW ; dragon
 `$29`), puis B1 byte-layer en validation croisée. Sondes en
 attente : bit7 `b0`/`b1`, identité `$3C`, eloc runtime, `$xC`.
-**B1** (`harness/tape.s` + `sim_pack.py` + `tape_save.py` +
+**B1** (`src/6502/tape.s` + `sim_pack.py` + `tape_save.py` +
 `tape_diff.py`, 6 vecteurs `$0405`–`$0414` ; `$0417` = loader jeu
 conservé, pas un vecteur) : SAVE écrit 4 blocs valides (headers+EOR
 vérifiés) ; bugs stub trouvés+fixés (`MARK_1` sans `\n`, header 9 o

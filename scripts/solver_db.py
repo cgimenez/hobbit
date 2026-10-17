@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DB = Path(os.environ.get("SOLVER_DB", ROOT / "build" / "sim" / "solver.db"))
 
-# Regions SAVE, meme ordre que harness/snap.s REGTAB / sim_tickdiff.c.
+# Regions SAVE, meme ordre que src/6502/snap.s REGTAB / sim_tickdiff.c.
 REGIONS = [(0x00BE, 0x18), (0x1B1A, 0x556), (0x28CC, 0x2F1), (0x211A, 0x5C8)]
 SNAP_MAGIC = b"SNAP"
 BLOB_LEN = 4 + sum(ln for _, ln in REGIONS)

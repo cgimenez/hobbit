@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extrait le flux cassette @@TAPE du harnais sim65 vers un fichier .tape.
 
-Le stub $040E (harness/tape.s) emet "@@TAPE-BYTE\n" + 1 octet brut par octet ecrit.
+Le stub $040E (src/6502/tape.s) emet "@@TAPE-BYTE\n" + 1 octet brut par octet ecrit.
 Ce script reassemble les octets, decoupe en blocs ($24 + 9 o header +
 $00 + donnees + checksum EOR), verifie et sauve.
 

@@ -11,7 +11,7 @@ Affiche :
 
 Persistance SAVE/LOAD (mode --snapshot) : le jeu emet 4 blocs
   "@@SNAP\\n" + NLEN + NOM + IDX + LEN(2 LE) + payload
-via harness/snap.s. Des que les 4 regions sont vues, le blob 3627 o
+via src/6502/snap.s. Des que les 4 regions sont vues, le blob 3627 o
 ("SNAP" + regions idx 0..3) est ecrit dans l'argument (sav/play.bin) :
 la session suivante le recharge (pack --snapshot).
 
@@ -30,7 +30,7 @@ M_P = b"@@P\n"            # 4
 M_K = b"@@K"              # 3 + 1 octet
 M_SNAP = b"@@SNAP\n"      # 7 + NLEN(1) + NOM + IDX(1) + LEN(2) + payload
 TAIL = 32
-# Regions SAVE, meme ordre que harness/snap.s REGTAB / sim_tickdiff.c /
+# Regions SAVE, meme ordre que src/6502/snap.s REGTAB / sim_tickdiff.c /
 # solver_db.REGIONS : idx 0 = ZP $00BE/24 ; 1 = etats $1B1A/1366 ;
 # 2 = scripts $28CC/753 ; 3 = records $211A/1480.
 REGION_LENS = (0x0018, 0x0556, 0x02F1, 0x05C8)

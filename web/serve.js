@@ -1,10 +1,10 @@
-/* Serveur statique dev (web/build) + HMR (hot reload).
+/* Serveur statique dev (build/wasm) + HMR (hot reload).
  *
  * Zero dependance. Usage : node serve.js <dir> [port] [--no-hmr]
  *
- * HMR : surveille les sources (web/ui, host/,
- * harness/shim.s, harness/snap.s, web/Makefile) ; a chaque changement, lance
- * `make -C web wasm assets` puis pousse un evenement SSE "reload" aux pages
+ * HMR : surveille les sources (web/ui, src/core/,
+ * src/6502/shim.s, src/6502/snap.s, Makefile racine) ; a chaque changement,
+ * lance `make -C <racine> wasm assets` puis pousse un evenement SSE "reload" aux pages
  * connectees (le client HMR est injecte dans le HTML servi, index.html reste
  * propre). En cas d'echec de build, pousse "error" (pas de rechargement).
  */
@@ -16,7 +16,7 @@ const { spawn } = require('child_process');
 
 const here = __dirname;            // web/
 const root = path.resolve(here, '..');
-const dir = path.resolve(process.argv[2] || path.join(here, 'build'));
+const dir = path.resolve(process.argv[2] || path.join(root, 'build', 'wasm'));
 const port = parseInt(process.argv[3] || '8000', 10);
 const hmr = !process.argv.includes('--no-hmr');
 
@@ -73,7 +73,7 @@ function runBuild() {
   process.stderr.write('[hmr] make wasm assets...\n');
   const env = { ...process.env };
   if (!env.EMSDK_PYTHON) env.EMSDK_PYTHON = '/opt/local/bin/python3.14';
-  const child = spawn('make', ['-C', here, 'wasm', 'assets'], {
+  const child = spawn('make', ['-C', root, 'wasm', 'assets'], {
     stdio: ['ignore', 'ignore', 'inherit'], env,
   });
   child.on('exit', (code) => {
@@ -98,12 +98,13 @@ if (hmr) {
   for (const d of ['ui']) {
     watch(path.join(here, d), { recursive: true });
   }
-  watch(path.join(root, 'host'), { recursive: true });
-  // cpu/ (hote natif) exclu : ne participe pas au build wasm.
-  // harness (shim.s/snap.s) : recursif ; web/ (Makefile) : non recursif pour
-  // ne pas boucler sur web/build (dont les octets changent a chaque build).
-  watch(path.join(root, 'harness'), { recursive: true });
-  watch(here, {});
+  watch(path.join(root, 'src', 'core'), { recursive: true });
+  // src/native (hote natif) exclu : ne participe pas au build wasm.
+  // src/6502 (shim.s/snap.s) : recursif ; Makefile racine : le fichier seul
+  // (pas le dossier racine, pour ne pas boucler sur build/wasm dont les
+  // octets changent a chaque build).
+  watch(path.join(root, 'src', '6502'), { recursive: true });
+  watch(path.join(root, 'Makefile'), {});
   process.stderr.write('[hmr] surveillance des sources active\n');
 }
 

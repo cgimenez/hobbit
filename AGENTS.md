@@ -37,10 +37,11 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
 ## 4. Règles d'or
 
 - **Ne jamais éditer `disasm/block1.asm`, `disasm/block4.asm` (ni leurs
-  `.info`) ni les sources `src/*.s` à la main.** Le modèle vient de
+  `.info`) à la main.** Le modèle vient de
   `scripts/disasm.py` (descente récursive + `MANUAL_ENTRIES` / `SEED_EXCLUDE`
   par bloc, dans `BLOCKS`). Toute correction = patch du script + régénération
-  + re-vérification.
+  + re-vérification. (Les shims `src/6502/*.s`, eux, sont écrits à la main et
+  éditables : ils ne sont pas générés.)
 - **Avant chaque commit : `scripts/disasm_check.py --block <bloc>` doit sortir
   exit 0** (`RÉSULTAT: PROPRE`).
 - **Documenter les routines via `ROUTINE_DOCS`/`ROUTINE_NOTES` dans
@@ -110,9 +111,10 @@ Source de vérité : `data/hobbit-1982.tap` → `data/hobbit.bin` (image mémoir
                                              # [--out DIR] [--mono] [--scale N]
 SOLVER_DB=build/sim/cover.db .venv/bin/python scripts/solver.py \
     --seed NOM --goal coverage --budget B   # BFS depuis un checkpoint
-make -C web            # app web (WASM) : check + shims + wasm + assets
-make -C web test       # boot + commandes en Node (sans navigateur)
-make -C web serve      # http://localhost:8000 (HMR) ; doc : docs/web-wasm.md
+make                 # app web (WASM) : check + shims + wasm + assets
+make native          # CLI natif (sim65 embarqué) : build/native/hobplay
+make test            # boot + commandes en Node (sans navigateur)
+make serve           # http://localhost:8000 (HMR) ; doc : docs/web-wasm.md
 ```
 
 ## 7. État et pistes
@@ -143,18 +145,21 @@ make -C web serve      # http://localhost:8000 (HMR) ; doc : docs/web-wasm.md
 - Round-trip ca65 prouvé (byte-identique) : les 4 blocs, et `--all` recolle
   l'image complète `$0400`–`$91B1` (36274 o, 4 blocs + 129 o de remplissage
   `$00` dans les trous `$2BBE-$2BFF`/`$7A81-$7ABF`) = `data/hobbit.bin` ;
-  harnais sim65 fonctionnel :
-  `harness/shim.s` (clavier + dumps d'écrans via paravirt, en `$C000`),
+   harnais sim65 fonctionnel :
+   `src/6502/shim.s` (clavier + dumps d'écrans via paravirt, en `$C000`),
   boot validé jusqu'au prompt (`You are in a comfortable tunnel like hall`,
   `> LOOK.`), entrées scriptées + réponses parser observées
   (`I DO NOT KNOW THE WORD " OOK."`), écho caractère par caractère OK.
 - Détails à jour : `docs/status.md`, `docs/block4-analysis.md`,
   `docs/tape-archive.md`, `docs/tape-format.md`, `docs/web-wasm.md`.
-- **App web WASM** (`web/`) : jeu jouable dans le navigateur + état live
+- **App web WASM** (`web/`, UI + outillage Node) + **émulateur** (`src/` :
+  `core/` moteur C portable, `native/` CLI natif, `6502/` shims ASM,
+  build par le `Makefile` racine → `build/{native,wasm,shims}`) : jeu jouable
+  dans le navigateur + état live
   (objets/PNC), carte et illustrations vectorielles. Cœur sim65 compilé par
   `emcc` ; les scripts `sim_pack/sim_play/memmap_defs/map_static/vec_decode`
   sont portés en C (zéro Python au runtime). Build/HMR/test :
-  `make -C web [test|serve]` ; détails et limites : `docs/web-wasm.md`.
+  `make [native|test|serve]` ; détails et limites : `docs/web-wasm.md`.
 - Pistes : AnimTalk (parser, via harnais) ; AnimAction (PNJ autonomes :
   l'init recopie une table `$28E6`+ vers le workspace haut — base de données
   jeu probable) ; zéro-page nommée (51 `ZP_NAMES`) ; bloc 3 élucidé

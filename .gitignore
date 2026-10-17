@@ -4,8 +4,6 @@ __pycache__/
 disasm/.r2_afl.txt
 /tmp/
 tools/cc65/
-/build/sim/
-/web/build/
+/build/
 /sav/
 external_ressources/
-/build/host/

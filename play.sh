@@ -2,7 +2,7 @@
 # The Hobbit (Oric 1982, Melbourne House) jouable en interactif sous sim65.
 #
 # Image dediee build/sim/play.sim (shim ASCII + SAVE/LOAD par snapshots,
-# harness/snap.s) et sauvegarde sav/play.bin : RIEN n'est partage avec les
+# src/6502/snap.s) et sauvegarde sav/play.bin : RIEN n'est partage avec les
 # experimentations solver (SLVW*.sim, solver.db, slv_run*.bin) — jouer ne
 # les perturbe pas, ni l'inverse (repack isole, build/sim/ et sav/ ignorés).
 #
@@ -35,7 +35,7 @@ fi
 if [ "${1:-}" != "--no-pack" ]; then
   need_pack=0
   [ ! -f "$IMG" ] && need_pack=1
-  for f in harness/shim.s harness/shim.cfg harness/snap.s harness/snap.cfg \
+  for f in src/6502/shim.s src/6502/shim.cfg src/6502/snap.s src/6502/snap.cfg \
            scripts/sim_pack.py data/hobbit.bin data/basic10.rom; do
     [ "$ROOT/$f" -nt "$IMG" ] 2>/dev/null && need_pack=1
   done

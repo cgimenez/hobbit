@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Test differentiel natif vs WASM (option 1) : meme image, memes entrees,
-memes octets en sortie. Les deux cotes partagent host/*.c + sim65 ;
+memes octets en sortie. Les deux cotes partagent src/core/*.c + sim65 ;
 seuls compilateur et backend I/O changent (cc/buffers vs emcc/JS).
 
 Usage : .venv/bin/python scripts/host_diff.py [cmdfile]
   cmdfile : 1 commande/ligne (#... ignore, vides ignorees).
   Compare stdout (texte jeu) de :
     node web/smoke.mjs <cmdfile>      (WASM, emcc)
-    build/host/hobplay <cmdfile>      (natif, cc)
+    build/native/hobplay <cmdfile>      (natif, cc)
   Sortie exit 0 si byte-identique, 1 sinon (avec premier offset divergent).
 """
 import subprocess
@@ -35,7 +35,7 @@ def main() -> int:
                                  encoding="utf-8")
 
     w = run(["node", "web/smoke.mjs", cmdfile])
-    n = run(["build/host/hobplay", cmdfile])
+    n = run(["build/native/hobplay", cmdfile])
     if w.returncode != 0:
         print(f"WASM rc={w.returncode}\n{w.stderr.decode()[-2000:]}")
         return 1

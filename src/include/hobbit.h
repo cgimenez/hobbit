@@ -20,8 +20,8 @@
 /* Slots de chargement (remplis par le JS avant hob_init). */
 #define HOB_SLOT_IMG   0  /* data/hobbit.bin   (image $0400, 36274 o)   */
 #define HOB_SLOT_ROM   1  /* data/basic10.rom  (fonte, lue $FC70)       */
-#define HOB_SLOT_SHIM  2  /* build/shim.bin    (shim solveur @ $C000)   */
-#define HOB_SLOT_SNAP  3  /* build/snap.bin    (shim SAVE/LOAD @ $F700)*/
+#define HOB_SLOT_SHIM  2  /* build/shims/shim.bin (shim solveur @ $C000)  */
+#define HOB_SLOT_SNAP  3  /* build/shims/snap.bin (shim SAVE/LOAD @ $F700)*/
 #define HOB_SLOT_BLOB  4  /* sauvegarde SAVE ("SNAP"+3623) ou vide      */
 #define HOB_SLOT_N    5
 

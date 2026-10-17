@@ -16,9 +16,9 @@
  *   --memfd N : fd du canal memoire en --serve (defaut 3).
  *   Les chemins d'images sont relatifs a la racine du repo (CWD attendu).
  *
- * Compilé par cpu/Makefile (cc du systeme, -O2) avec les sources host
- * et tools/cc65/src/sim65 (6502, memory, peripherals, error, trace) :
- * le MEME code source que le WASM, autre compilateur.
+ * Compile par le Makefile racine (cible native, cc du systeme, -O2) avec
+ * les sources src/core et tools/cc65/src/sim65 (6502, memory, peripherals,
+ * error, trace) : le MEME code source que le WASM, autre compilateur.
  */
 
 #include <stdio.h>
@@ -37,7 +37,7 @@ static int load_slot(const char *path, int slot)
     uint8_t *p;
     int cap, n;
     if (!f) {
-        fprintf(stderr, "hobplay: illisible %s (lancer `make -C web shims` ?)\n", path);
+        fprintf(stderr, "hobplay: illisible %s (lancer `make shims` ?)\n", path);
         return -1;
     }
     p = hob_slot(slot);
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
         }
     }
     if (load_slot("data/hobbit.bin", 0) || load_slot("data/basic10.rom", 1) ||
-        load_slot("web/build/shim.bin", 2) || load_slot("web/build/snap.bin", 3)) {
+        load_slot("build/shims/shim.bin", 2) || load_slot("build/shims/snap.bin", 3)) {
         return PLATFORM_IO_ERR;
     }
     hob_slot_len(4, 0);

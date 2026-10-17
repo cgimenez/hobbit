@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Construit l'image sim65 du jeu : hobbit.bin + shims + patchs.
 
-- Assemble harness/shim.s (ca65+ld65, cale a $C000).
-- Assemble harness/tape.s (stubs cassette B1, cales a $F700).
+- Assemble src/6502/shim.s (ca65+ld65, cale a $C000).
+- Assemble src/6502/tape.s (stubs cassette B1, cales a $F700).
 - Patch : JMP $C000 sur $7353 (scan clavier VIA -> shim paravirt),
   JMP stubs sur les 6 vecteurs bloc 1 $0405-$0414 (ROM 1.0 morte sous
-  sim65 ; $0417 = loader jeu conserve, cf. harness/tape.s).
+  sim65 ; $0417 = loader jeu conserve, cf. src/6502/tape.s).
 - Packe au format sim65 (header + load $0400 + reset $2C00 + SPAddr $02).
 
 Artefacts dans build/sim/ (regenerables, gitignore). Sortie 0 si OK.
@@ -20,7 +20,7 @@ Usage : .venv/bin/python scripts/sim_pack.py [--hires] [--fast]
              (save produite par scripts/tape_save.py) ; RD/WR inits.
              Combine avec --fast (sortie build/sim/hobbit_fast.sim).
           --snapshot NOM : image checkpoint (sortie build/sim/NOM.sim) :
-            assemble harness/snap.s AU LIEU de tape.s (slot $F700),
+            assemble src/6502/snap.s AU LIEU de tape.s (slot $F700),
             patch vec_02/03/04 ($2C0B/$2C0E/$2C11) vers snap_load/
             snap_save/s_clc (bypass couche octet), bake NOM en $F700+19,
             embarque sav/NOM.bin (ou --snap-file F) en $E800 ("SNAP"+3623).
@@ -49,8 +49,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from disasm import BASE, BIN, CA65, LD65, ROOT  # noqa: E402
 
-SHIM_SRC = ROOT / "harness" / "shim.s"
-SHIM_CFG = ROOT / "harness" / "shim.cfg"
+SHIM_SRC = ROOT / "src" / "6502" / "shim.s"
+SHIM_CFG = ROOT / "src" / "6502" / "shim.cfg"
 SHIM_ADDR = 0xC000  # zone "ROM" : le jeu n'y ecrit jamais (ROM sur Oric)
 KB_SCAN = 0x7353  # scan clavier VIA -> remplace par JMP shim
 # Hooks ASCII (variante --solver) : L75B8 (plot, `stx L75E0`), L7694
@@ -60,19 +60,19 @@ PLOT_ADDR, PLOT_WANT = 0x75B8, bytes((0x8E, 0xE0, 0x75))
 EOL_ADDR, EOL_WANT = 0x7694, bytes((0x48, 0xA9, 0x00))
 EOL2_ADDR, EOL2_WANT = 0x7514, bytes((0x48, 0xA9, 0x00))
 PLOT_BACK, EOL_BACK, EOL2_BACK = 0x75BE, 0x7697, 0x7517  # reprises (shim.s)
-TAPE_SRC = ROOT / "harness" / "tape.s"
-TAPE_CFG = ROOT / "harness" / "tape.cfg"
+TAPE_SRC = ROOT / "src" / "6502" / "tape.s"
+TAPE_CFG = ROOT / "src" / "6502" / "tape.cfg"
 TAPE_ADDR = 0xF700  # stubs cassette B1 (zone ROM, cf. tape.s)
 TAPE_VECS = (0x0405, 0x0408, 0x040B, 0x040E, 0x0411, 0x0414)
-# ($0417 n'est pas un vecteur : loader jeu conserve ; cf. harness/tape.s)
+# ($0417 n'est pas un vecteur : loader jeu conserve ; cf. src/6502/tape.s)
 TAPE_RD, TAPE_WR, TAPE_DATA, TAPE_END = 0xE800, 0xE802, 0xE804, 0xF700
 TAPE_CAP = TAPE_END - TAPE_DATA  # 3820 o utiles
 # Bypass snapshots : vec_02/03/04 -> snap_load/snap_save/s_clc.
 VEC02, VEC02_WANT = 0x2C0B, 0x71DB  # JMP tape_load (mesure image)
 VEC03, VEC03_WANT = 0x2C0E, 0x7215  # JMP tape_save
 VEC04, VEC04_WANT = 0x2C11, 0x71CB  # JMP L71CB (verify)
-SNAP_SRC = ROOT / "harness" / "snap.s"
-SNAP_CFG = ROOT / "harness" / "snap.cfg"
+SNAP_SRC = ROOT / "src" / "6502" / "snap.s"
+SNAP_CFG = ROOT / "src" / "6502" / "snap.cfg"
 SNAP_ADDR = 0xF700  # meme slot que tape.s (remplace en mode --snapshot)
 SNAP_BLOB = 0xE800  # "SNAP" + 3623 o (sim_pack --snapshot)
 SNAP_LEN = 4 + 0x0018 + 0x0556 + 0x02F1 + 0x05C8  # 3627 o

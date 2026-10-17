@@ -3,7 +3,7 @@
 
 Chaque @@FRAME s'accompagne (si l'ecran a change) de dumps
 "@@MEM <addr4hex> <len4hex>\\n" + octets bruts (zero-page $0000 et tables
-scheduler $2B00, cf. harness/shim.s). Par defaut affiche, pour chaque
+scheduler $2B00, cf. src/6502/shim.s). Par defaut affiche, pour chaque
 trame, les octets modifies depuis la trame precedente ; --full vide
 aussi les regions completes.
 

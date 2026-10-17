@@ -1,6 +1,6 @@
 /* Entrees/sorties du shim solveur -> texte + blob SAVE (port de sim_play.py).
  *
- * Le shim (harness/shim.s -D SOLVER) emet sur PVWrite :
+ * Le shim (src/6502/shim.s -D SOLVER) emet sur PVWrite :
  *   "@@A"+octet   caractere final rendu ('+' = curseur, 0x08 = backspace)
  *   "@@EOL\n"     scroll mode texte (6 o)
  *   "@@EOLR\n"    scroll mode RAW = fin de ligne de commande (7 o)

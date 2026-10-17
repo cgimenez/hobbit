@@ -1,18 +1,18 @@
 /* Smoke test Node : charge le wasm, boot jusqu'au prompt, joue une commande.
  * Usage : node web/smoke.mjs [--serve [--memfd N]] [cmdfile]
- * Lit les fichiers depuis web/build/ (meme repertoire que l'image servie).
+ * Lit les fichiers depuis build/wasm/ (meme repertoire que l'image servie).
  *   --serve : mode serveur lockstep (cf. scripts/mem_diff.py) : trace
  *     memoire activee apres boot ; chaque ligne de stdin (meme vide) = 1
  *     hob_run ; snapshot post-boot "@@M" puis delta "@@D" par tour
  *     (protocol.md §4.3) ecrits sur le fd --memfd (defaut 3).
  */
-import createHobbit from './build/hobbit.js';
+import createHobbit from '../build/wasm/hobbit.js';
 import { readFileSync, readSync, writeSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const build = join(here, 'build');
+const build = join(here, '..', 'build', 'wasm');
 
 let serve = false, memfd = 3, cmdfile = null;
 for (let i = 2; i < process.argv.length; i++) {

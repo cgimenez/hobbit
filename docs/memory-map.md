@@ -380,7 +380,7 @@ rivière=`$86`, barrique=`$84`, portes verrouillées=`$81`, butler=`$60`) :
 Header (écrit `Y=9..1` depuis `$36+Y`, vérifié sur flux réel) :
 `$24 FF FF 50 50 end_hi end_lo ptr_hi ptr_lo FF`.
 `code_72FC` (VERIFY) relit pareil et compare à `($37)` ; `$32`/`$33`
-:= dest ; `$0417` (LOAD) : stub B1 (`harness/tape.s`).
+:= dest ; `$0417` (LOAD) : stub B1 (`src/6502/tape.s`).
 
 Ordre SAVE/LOAD : ZP (`$0018`@`$00BE`), états (`$0556`@`$1B1A`),
 scripts (`$02F1`@`$28CC`), records (`$05C8`@`$211A`) — params inline
@@ -651,7 +651,7 @@ repros — `build/sim/hobbit.db`, run `r1` supprimé : artefact)
   `L471B` + boucle. Pile retours logicielle `$0200`+`rstk`
   (`L46E6` push ptr/ptr2, `L471B`/`fetch_retaddr` pop).
   `($FFFE)` toujours `$FFFF` (jamais écrit) — aucun handler BRK.
-- **Snapshots** (`harness/snap.s`, images `--snapshot`, runs
+- **Snapshots** (`src/6502/snap.s`, images `--snapshot`, runs
   `sna`/`snb`) : bypass `vec_02/03/04`, marqueur binaire `@@SNAP\n`
   +`NLEN+NOM+IDX+LEN`+payload, `sav/NOM.bin` (`"SNAP"`+3623) +
   table `snapshots`. 0-delta prouvé (LOAD==SAVE byte-exact).

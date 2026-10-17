@@ -4,7 +4,7 @@
 Decomposition des 4 regions basses sauvegardees + nommage des slots.
 Consomme par scripts/memmap.py (registre/couverture) et memmap_check.py.
 
-Regions (meme ordre que harness/snap.s REGTAB / solver_db.REGIONS) :
+Regions (meme ordre que src/6502/snap.s REGTAB / solver_db.REGIONS) :
   $00BE   24  ZP joueur/contexte
   $1B1A 1366  etats (61 cles $1A62)
   $28CC  753  tables INDIR + scripts VM + events + entites

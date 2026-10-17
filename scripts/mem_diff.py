@@ -164,7 +164,7 @@ def main() -> int:
     simdir.mkdir(parents=True, exist_ok=True)
     rn, wn = os.pipe()
     rw, ww = os.pipe()
-    pn, lfn = spawn(["build/host/hobplay", "--serve", "--memfd", str(wn)],
+    pn, lfn = spawn(["build/native/hobplay", "--serve", "--memfd", str(wn)],
                     wn, simdir / "memdiff_native.log")
     pw, lfw = spawn(["node", "web/smoke.mjs", "--serve", "--memfd", str(ww)],
                     ww, simdir / "memdiff_wasm.log")
