@@ -100,56 +100,87 @@ int hob_room_id(int i)
     return (i < 0 || i >= nrooms) ? -1 : rooms[i].id;
 }
 
-/* Noms runtime (miroir de scripts/map_static.py NAMES) pour les lieux
- * sans desc statique (record desc $0000). */
+/* Noms courts significatifs (miroir exact de scripts/map_static.py NAMES,
+ * 78 lieux). Prioritaires sur la desc statique (phrases brutes du moteur). */
 static const struct { uint8_t id; const char *name; } room_names[] = {
-    { 0x02, "The forest road" },
-    { 0x03, "The forest" },
-    { 0x05, "The trolls' clearing" },
-    { 0x08, "The running river" },
+    { 0x01, "Tunnel hall" },
+    { 0x02, "Forest road" },
+    { 0x03, "Forest" },
+    { 0x04, "Dreary hills" },
+    { 0x05, "Trolls' clearing" },
+    { 0x06, "Trolls' path" },
+    { 0x07, "Trolls' cave" },
+    { 0x08, "Running river" },
     { 0x09, "Rivendell" },
-    { 0x0D, "The goblins' dungeon" },
-    { 0x0F, "The dark stuffy passage" },
-    { 0x12, "The dark winding passage" },
-    { 0x15, "The treeless opening" },
+    { 0x0A, "Misty mountains" },
+    { 0x0B, "High pass" },
+    { 0x0C, "Mountain path" },
+    { 0x0D, "Goblins' dungeon" },
+    { 0x0E, "Dry cave" },
+    { 0x0F, "Dark passage" },
+    { 0x10, "Torch cavern" },
+    { 0x11, "Underground lake" },
+    { 0x12, "Winding passage" },
+    { 0x13, "Goblin gate" },
+    { 0x14, "Goblin gate" },
+    { 0x15, "Treeless opening" },
     { 0x16, "Beorn's house" },
     { 0x17, "Forestriver" },
-    { 0x1D, "The deep bog" },
-    { 0x1E, "The elvenking's great halls" },
-    { 0x21, "The barrel" },
+    { 0x18, "Mirkwood gate" },
+    { 0x19, "Bewitched forest" },
+    { 0x1A, "Spider place" },
+    { 0x1B, "Tangled forest" },
+    { 0x1C, "Elvish clearing" },
+    { 0x1D, "Deep bog" },
+    { 0x1E, "Elvenking's halls" },
+    { 0x1F, "Elven dungeon" },
+    { 0x20, "Wine cellar" },
+    { 0x21, "Barrel" },
     { 0x22, "Long lake" },
-    { 0x2D, "The waterfall" },
-    { 0x2E, "The forest road" },
-    { 0x30, "The mountains" },
-    { 0x31, "The great river" },
-    { 0x32, "The green forest" },
-    { 0x33, "The empty place" },
-    { 0x34, "The dark stuffy passage" },
-    { 0x35, "The dark stuffy passage" },
-    { 0x36, "The dark stuffy passage" },
-    { 0x37, "The dark stuffy passage" },
-    { 0x38, "The dark stuffy passage" },
-    { 0x39, "The dark stuffy passage" },
-    { 0x3A, "The dark stuffy passage" },
-    { 0x3B, "The dark stuffy passage" },
-    { 0x3C, "The dark stuffy passage" },
-    { 0x3D, "The dark stuffy passage" },
-    { 0x3E, "The dark stuffy passage" },
-    { 0x3F, "The dark stuffy passage" },
-    { 0x40, "The dark stuffy passage" },
-    { 0x41, "The dark stuffy passage" },
-    { 0x44, "The narrow path" },
-    { 0x45, "The narrow path" },
-    { 0x46, "The narrow path" },
-    { 0x47, "The narrow path" },
-    { 0x48, "The narrow path" },
-    { 0x49, "The narrow path" },
-    { 0x4A, "The narrow path" },
-    { 0x4B, "The steep path" },
-    { 0x4C, "The steep path" },
-    { 0x4D, "The steep path" },
-    { 0x4E, "The deep misty valley" },
-    { 0x4F, "The deep misty valley" },
+    { 0x23, "Wooden town" },
+    { 0x24, "Strong river" },
+    { 0x25, "Barren land" },
+    { 0x26, "Dale ruins" },
+    { 0x27, "Mountain gate" },
+    { 0x28, "Ravenhill" },
+    { 0x29, "Dragon halls" },
+    { 0x2A, "Steep bay" },
+    { 0x2B, "Straight passage" },
+    { 0x2C, "Lonely mountain" },
+    { 0x2D, "Waterfall" },
+    { 0x2E, "Forest road" },
+    { 0x30, "Mountains" },
+    { 0x31, "Great river" },
+    { 0x32, "Green forest" },
+    { 0x33, "Empty place" },
+    { 0x34, "Dark passage" },
+    { 0x35, "Dark passage" },
+    { 0x36, "Dark passage" },
+    { 0x37, "Dark passage" },
+    { 0x38, "Dark passage" },
+    { 0x39, "Dark passage" },
+    { 0x3A, "Dark passage" },
+    { 0x3B, "Dark passage" },
+    { 0x3C, "Dark passage" },
+    { 0x3D, "Dark passage" },
+    { 0x3E, "Dark passage" },
+    { 0x3F, "Dark passage" },
+    { 0x40, "Dark passage" },
+    { 0x41, "Dark passage" },
+    { 0x42, "West bank" },
+    { 0x43, "East bank" },
+    { 0x44, "Narrow path" },
+    { 0x45, "Narrow path" },
+    { 0x46, "Narrow path" },
+    { 0x47, "Narrow path" },
+    { 0x48, "Narrow path" },
+    { 0x49, "Narrow path" },
+    { 0x4A, "Narrow path" },
+    { 0x4B, "Steep path" },
+    { 0x4C, "Steep path" },
+    { 0x4D, "Steep path" },
+    { 0x4E, "Misty valley" },
+    { 0x4F, "Misty valley" },
 };
 
 const char *hob_room_name(int id)
@@ -159,18 +190,13 @@ const char *hob_room_name(int id)
     if (id < 0 || id >= 0x50 || index_of[id] < 0) {
         return "";
     }
-    if (rooms[index_of[id]].desc) {
-        msg_first_line(rooms[index_of[id]].desc, buf, sizeof buf);
-        if (buf[0] && strcmp(buf, "(sans description)") != 0) {
-            return buf;
-        }
-    }
     for (k = 0; k < sizeof(room_names) / sizeof(room_names[0]); k++) {
         if (room_names[k].id == id) {
             return room_names[k].name;
         }
     }
-    return "";
+    msg_first_line(rooms[index_of[id]].desc, buf, sizeof buf);
+    return buf;
 }
 
 int hob_room_exit_count(int id)
