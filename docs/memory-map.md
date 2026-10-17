@@ -342,16 +342,16 @@ Recensement des sites `block4.asm` (lectures `AND`, poses `ORA`, retraits
 `AND ~`) + dump au boot via WASM (`$00`=`$E0`, épée/torche=`$94`,
 rivière=`$86`, barrique=`$84`, portes verrouillées=`$81`, butler=`$60`) :
 
-| bit | masque | nom (FR/EN) | sens |
+| bit | masque | nom (FR/EN) | sens (preuve) |
 |---|---|---|---|
-| 0 | `$01` | verrouillé / locked | serrure/porte verrouillée (`ORA` = verrouille, `AND $FE` = déverrouille) |
-| 1 | `$02` | noué·liquide / tied·liquid | selon objet : corde nouée (`action_tie`), eau/vin/rivière = liquide (évaporé/versé) |
-| 2 | `$04` | plein / full | contenant plein (rivière, barrique ; aussi épée/torche — à confirmer) |
-| 3 | `$08` | à terre / downed | mort/cassé quand les PV tombent (`ORA` = tue/casse ; testé = déjà à terre) |
-| 4 | `$10` | lumineux / glowing | source de lumière (épée, torche) ; statique, testé dans `is_dark` (`EOR $B7`/`AND $5C`) |
-| 5 | `$20` | ouvert / open | ouvert/allumé (`ORA` = ouvre/allume, `AND $DF` = ferme/éteint ; porte magique, toile, barrique) |
-| 6 | `$40` | créature / creature | créature vs objet (statique, jamais écrit ; testé « animal » pour combat/capture : bit6 + bit3 clair) |
-| 7 | `$80` | présent / present | visible/en jeu (effacé = retiré, invisible, dormant non spawné ; butler `$60` au boot) |
+| 0 | `$01` | verrouillé / locked | serrure/porte verrouillée (`ORA` = verrouille `L643C`, `AND $FE` = déverrouille `L647B`) |
+| 1 | `$02` | liquide / liquid | **exclusif eau/vin/rivière au boot** (`$82`/`$86`, seuls porteurs) ; testé partout où un liquide est requis (eau versée sur la toile `L6F56`, consommation) ; effacé à l'usage (`AND $FD`, handler FEED) ; **jamais posé à l'exécution** (aucun `ora #$02` dans le bloc 4 : bit template-only). Le test `action_tie` (`and #$02` → « ALREADY TIED ») ne peut jamais se déclencher sur la corde (bit1 toujours clair, pas d'écrivain) : garde inopérante ; nouer attache via `+1` (porteur=cible `L682B`), pas via ce bit. Ancien nom « noué » abandonné. |
+| 2 | `$04` | plein / full | contenant plein : rivière `$86`, barrique `$84` (posée par `evt_act0`, vidée par `AND $FB` `L5FDD`) ; refus « déjà plein » `L6F61`. Aussi posé sur épée/torche `$94` (charge ? jamais consommé en jeu — à confirmer) |
+| 3 | `$08` | à terre / downed | mort/cassé quand les PV tombent (`ORA` = tue/casse `L4D4E`/`L6152`/`code_6327` ; testé = déjà à terre) |
+| 4 | `$10` | lumineux / glowing | source de lumière (épée + torche `$94`, seuls porteurs avec bit2) ; statique (aucun site isolé, jamais écrit), testé dans `is_dark` (`EOR $B7`/`AND $5C`) |
+| 5 | `$20` | ouvert / open | **prouvé dynamiquement** (porte verte `$80`↔`$A0` sur OPEN/CLOSE DOOR, outil natif) ; `ORA` = ouvre/allume (`L6636` temporaire combat, porte magique), `AND $DF` = ferme/éteint. Créatures : uniformément posé (sens côté PNJ = « actif » ?, ouvert) |
+| 6 | `$40` | créature / creature | créatures + joueur (`$E0`), aucun objet ; statique, jamais écrit ; testé « animal » pour combat/capture (bit6 posé + bit3 clair = combattable) |
+| 7 | `$80` | présent / present | visible/en jeu (effacé = retiré, invisible, dormant non spawné ; butler `$60` au boot ; posé par `evt_disarme6`, effacé par `evt_arme6`) |
 
 | Slot | Addr | id | nmax | PC init | base (table) | reply | Qui |
 |---|---|---|---|---|---|---|---|
