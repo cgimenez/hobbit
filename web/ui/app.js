@@ -183,7 +183,7 @@ function drawObjs() {
       k = M._hob_obj_field(i, 1);   // +1 brut ($FF = personne)
       if (k === 0xFF) break;
     }
-    return parts.join(' ⊂ ');
+    return parts.join(L(' in ', ' dans '));
   };
   const rows = [];
   for (let i = 0; i < n; i++) {
