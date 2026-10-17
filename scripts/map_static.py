@@ -145,6 +145,70 @@ def short_desc(addr):
     return first[:110]
 
 
+# Noms canoniques (anglais, style jeu) des lieux sans desc statique
+# (record desc $0000, texte fourni par le moteur a l'execution).
+# Derives des ecrans observes sous harnais (1re ligne de
+# build/sim/solver.db:nodes.text par ploc). Lieux a texte variable :
+# $05 (trolls vivants / pierre), $21-$22 (dans le tonneau / au lac).
+NAMES = {
+    0x02: "The forest road",
+    0x03: "The forest",
+    0x05: "The trolls' clearing",
+    0x08: "The running river",
+    0x09: "Rivendell",
+    0x0D: "The goblins' dungeon",
+    0x0F: "The dark stuffy passage",
+    0x12: "The dark winding passage",
+    0x15: "The treeless opening",
+    0x16: "Beorn's house",
+    0x17: "Forestriver",
+    0x1D: "The deep bog",
+    0x1E: "The elvenking's great halls",
+    0x21: "The barrel",
+    0x22: "Long lake",
+    0x2D: "The waterfall",
+    0x2E: "The forest road",
+    0x30: "The mountains",
+    0x31: "The great river",
+    0x32: "The green forest",
+    0x33: "The empty place",
+    0x34: "The dark stuffy passage",
+    0x35: "The dark stuffy passage",
+    0x36: "The dark stuffy passage",
+    0x37: "The dark stuffy passage",
+    0x38: "The dark stuffy passage",
+    0x39: "The dark stuffy passage",
+    0x3A: "The dark stuffy passage",
+    0x3B: "The dark stuffy passage",
+    0x3C: "The dark stuffy passage",
+    0x3D: "The dark stuffy passage",
+    0x3E: "The dark stuffy passage",
+    0x3F: "The dark stuffy passage",
+    0x40: "The dark stuffy passage",
+    0x41: "The dark stuffy passage",
+    0x44: "The narrow path",
+    0x45: "The narrow path",
+    0x46: "The narrow path",
+    0x47: "The narrow path",
+    0x48: "The narrow path",
+    0x49: "The narrow path",
+    0x4A: "The narrow path",
+    0x4B: "The steep path",
+    0x4C: "The steep path",
+    0x4D: "The steep path",
+    0x4E: "The deep misty valley",
+    0x4F: "The deep misty valley",
+}
+
+
+def place_name(i, g):
+    """Libelle d'affichage du lieu i : desc statique (1re ligne),
+    sinon nom runtime (NAMES), sinon "(sans desc)"."""
+    if g["desc"]:
+        return short_desc(g["desc"])
+    return NAMES.get(i, "(sans desc)")
+
+
 def plan_path(graph, src, dst):
     """BFS sur le graphe statique (sorties ignorées les conditions) :
     rend [(dir, cond, id), ...] de src a dst, ou None."""

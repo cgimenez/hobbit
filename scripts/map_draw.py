@@ -79,8 +79,8 @@ def clean(desc: str) -> str:
 
 
 def node_label(i: int, g: dict) -> str:
-    desc = clean(M.short_desc(g["desc"])).replace('"', "'").strip()
-    if not desc or desc == "(sans desc propre)":
+    desc = clean(M.place_name(i, g)).replace('"', "'").strip()
+    if not desc:
         desc = "(sans desc)"
     return esc(f"${i:02X}  {desc[:36]}")
 
