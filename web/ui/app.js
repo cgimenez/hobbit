@@ -16,9 +16,24 @@ const STR = {
   th_hash: ['#', '#'],
   th_name: ['Name', 'Nom'],
   th_room: ['Room', 'Lieu'],
-  th_carrier: ['Carrier', 'Porteur'],
+  th_carrier: ['Container', 'Contenant'],
   th_hp: ['HP', 'PV'],
-  th_attrs: ['Attributes', 'Attributs'],
+  th_f0: ['Lock.', 'Verr.'],
+  th_f0t: ['Locked (bit0)', 'Verrouillé (bit0)'],
+  th_f1: ['Tied', 'Noué'],
+  th_f1t: ['Tied / liquid, per object (bit1)', 'Noué / liquide selon objet (bit1)'],
+  th_f2: ['Full', 'Plein'],
+  th_f2t: ['Full container (bit2)', 'Contenant plein (bit2)'],
+  th_f3: ['Down', 'À terre'],
+  th_f3t: ['Downed / dead / broken (bit3)', 'À terre / mort / cassé (bit3)'],
+  th_f4: ['Glow', 'Lum.'],
+  th_f4t: ['Light source (bit4)', 'Source de lumière (bit4)'],
+  th_f5: ['Open', 'Ouvert'],
+  th_f5t: ['Open / lit (bit5)', 'Ouvert / allumé (bit5)'],
+  th_f6: ['Creat.', 'Créat.'],
+  th_f6t: ['Creature vs object (bit6)', 'Créature vs objet (bit6)'],
+  th_f7: ['Present', 'Présent'],
+  th_f7t: ['Present / visible in game (bit7)', 'Présent / visible en jeu (bit7)'],
   btn_load: ['LOAD', 'CHARGER'],
   btn_save: ['SAVE', 'SAUVER'],
   btn_about: ['ABOUT', 'À PROPOS'],
@@ -69,7 +84,6 @@ function applyI18n() {
 
 const SLOT = { IMG: 0, ROM: 1, SHIM: 2, SNAP: 3, BLOB: 4 };
 const SAVE_KEY = 'hobbit.oric.save';
-const ATTR = ['l', 'F', 'f', 'b', '*', 'o', 'A', 'v']; // bit0..7
 const PAL = [[0,0,0],[255,0,0],[0,255,0],[255,255,0],
              [0,0,255],[255,0,255],[0,255,255],[255,255,255]];
 
@@ -155,6 +169,22 @@ const hex = (v) => v.toString(16).toUpperCase().padStart(2, '0');
 
 function drawObjs() {
   const n = M._hob_obj_count();
+  const byKey = new Map();
+  for (let i = 0; i < n; i++) byKey.set(M._hob_obj_key(i), i);
+  const oname = (i) => M.UTF8ToString(M._hob_obj_name(i));
+  // poupée russe : remonte les contenants (+1) jusqu'à $FF
+  const chain = (key) => {
+    const parts = [];
+    let k = key, guard = 0;
+    while (guard++ < 70) {
+      const i = byKey.get(k);
+      if (i === undefined) { parts.push('$' + hex(k)); break; }
+      parts.push(oname(i));
+      k = M._hob_obj_field(i, 1);   // +1 brut ($FF = personne)
+      if (k === 0xFF) break;
+    }
+    return parts.join(' ⊂ ');
+  };
   const rows = [];
   for (let i = 0; i < n; i++) {
     const key = M._hob_obj_key(i);
@@ -162,15 +192,17 @@ function drawObjs() {
     const alive = M._hob_obj_alive(i);
     const eloc = M._hob_obj_field(i, 7);
     const carrier = M._hob_obj_carrier(i);
-    let attrs = '';
-    for (let b = 0; b < 8; b++) attrs += (flags & (1 << b)) ? ATTR[b] : '.';
+    let bits = '';
+    for (let b = 0; b < 8; b++)
+      bits += `<td class="f">${(flags & (1 << b)) ? '✓' : ''}</td>`;
     const cls = key === 0x00 ? 'player' : (alive ? '' : 'dead');
-    rows.push(`<tr class="${cls}"><td>$${hex(key)}</td>` +
+    const tip = esc(chain(key) + (eloc < 0 ? '' : ` @ $${hex(eloc)} ${roomName(eloc)}`))
+      .replace(/"/g, '&quot;');
+    rows.push(`<tr class="${cls}" title="${tip}"><td>$${hex(key)}</td>` +
       `<td>${esc(M.UTF8ToString(M._hob_obj_name(i)))}</td>` +
       `<td>${eloc < 0 ? '—' : '$' + hex(eloc)}</td>` +
       `<td>${carrier < 0 ? '—' : '$' + hex(carrier)}</td>` +
-      `<td>${alive ? M._hob_obj_field(i, 4) : '✝'}</td>` +
-      `<td class="attrs">${attrs}</td></tr>`);
+      `<td>${alive ? M._hob_obj_field(i, 4) : '✝'}</td>` + bits + `</tr>`);
   }
   $('#objs tbody').innerHTML = rows.join('');
 }

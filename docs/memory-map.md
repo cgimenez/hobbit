@@ -336,6 +336,23 @@ Chaque pose est **gardée par le `+$07` bit3 de la fiche cible** (`$1DC5` butler
 combat le pose quand les PV tombent : `(orec)+7 |= $08`), le spawn est sauté
 (un boss vaincu ne revient pas).
 
+### 3d-bis. Flags `orec+7` (8 bits, cf. `HOB_F_FLAGS` = `rd(base+0x07)`)
+
+Recensement des sites `block4.asm` (lectures `AND`, poses `ORA`, retraits
+`AND ~`) + dump au boot via WASM (`$00`=`$E0`, épée/torche=`$94`,
+rivière=`$86`, barrique=`$84`, portes verrouillées=`$81`, butler=`$60`) :
+
+| bit | masque | nom (FR/EN) | sens |
+|---|---|---|---|
+| 0 | `$01` | verrouillé / locked | serrure/porte verrouillée (`ORA` = verrouille, `AND $FE` = déverrouille) |
+| 1 | `$02` | noué·liquide / tied·liquid | selon objet : corde nouée (`action_tie`), eau/vin/rivière = liquide (évaporé/versé) |
+| 2 | `$04` | plein / full | contenant plein (rivière, barrique ; aussi épée/torche — à confirmer) |
+| 3 | `$08` | à terre / downed | mort/cassé quand les PV tombent (`ORA` = tue/casse ; testé = déjà à terre) |
+| 4 | `$10` | lumineux / glowing | source de lumière (épée, torche) ; statique, testé dans `is_dark` (`EOR $B7`/`AND $5C`) |
+| 5 | `$20` | ouvert / open | ouvert/allumé (`ORA` = ouvre/allume, `AND $DF` = ferme/éteint ; porte magique, toile, barrique) |
+| 6 | `$40` | créature / creature | créature vs objet (statique, jamais écrit ; testé « animal » pour combat/capture : bit6 + bit3 clair) |
+| 7 | `$80` | présent / present | visible/en jeu (effacé = retiré, invisible, dormant non spawné ; butler `$60` au boot) |
+
 | Slot | Addr | id | nmax | PC init | base (table) | reply | Qui |
 |---|---|---|---|---|---|---|---|
 | e0 | `$2B45` | `$3E` | `$07` | `$295C` | `$2943` | `$05` | GANDALF (eloc `$01`) |

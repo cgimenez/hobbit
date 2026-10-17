@@ -69,11 +69,16 @@ section h2 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
 
 #live .room { margin-bottom: 6px; flex: 0 0 auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#objs { table-layout: fixed; }
+#objs th:nth-child(1), #objs td:nth-child(1) { width: 4ch; white-space: nowrap; }
+#objs th:nth-child(2), #objs td:nth-child(2) { width: 19ch; white-space: normal;
+  overflow-wrap: break-word; }
 th, td { text-align: left; padding: 2px 6px; border-bottom: 1px solid #23282e; }
 th { color: #8b95a1; font-weight: 500; position: sticky; top: 0; background: #1a1d22; }
 tr.player td { color: #9fe0a0; }
 tr.dead td { color: #6b727a; font-style: italic; }
-td.attrs { letter-spacing: .12em; color: #c9b46a; }
+.objs-wrap { overflow-x: auto; }
+#objs td.f { text-align: center; color: #c9b46a; }
 
 #map-svg { flex: 1; min-height: 0; }
 #map-svg svg { width: 100%; height: 100%; display: block; }
