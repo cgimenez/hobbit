@@ -796,3 +796,31 @@ capacités de *notre* édition ; `sav/win.bin` reste la référence.
   `web test` 0. Blindage associé : `startAutoplay` vide le slot BLOB
   (cold boot même avec sauvegarde locale) + bouton MEM (trace `@@M/@@D`
   téléchargeable pour futurs diagnostics).
+
+## Séance 21 — grand rangement du dépôt (2026-10-17)
+- **Audit `scripts/`** : supprimés `tape_check.py` (0 référence, docstring
+  auto-invalide → remplacé par `tape_diff.py`) et `sim_cold.py` (aucune réf
+  code, « dépassé/lent » séance 15 → remplacé par `sim_search.py`).
+  Gardés : tout le reste (SSOT reverse + pipeline disasm/solver/validation).
+- **Commit `905e8e1`** : `host/`+`cpu/`+`harness/` → `src/{core,include,
+  native,6502}` ; `cpu/Makefile`+`web/Makefile` fusionnés en `Makefile`
+  racine ; `build/` unique (`native/`, `wasm/`, `shims/` + `sim` inchangé) ;
+  `web/build/` et `build/host/` supprimés. `AGENTS.md` §4 clarifié (les
+  shims `src/6502/*.s` sont éditables, pas générés).
+- **Commit `141b9fb`** : `web/` supprimé → `src/web/` (UI = source prod,
+  stagée dans `build/wasm/`) + `dev/` (`serve.js`, `smoke.mjs` = dev/test) ;
+  `sav/`+`routes/` → `runs/sav/` (gitignoré, `/runs/sav/`) + `runs/routes/`
+  (suivi). `sim_tickdiff.c` (`sav_dir_for`), `sim_pack`/`sim_tickdb`/
+  `solver`/`play.sh` repointés ; docs + `AGENTS.md` à jour.
+- **`runs/sav/` nettoyé** : 21 orphelins supprimés (18 `.bin` + 3 `.tape`
+  B1, zéro référence) ; restent 25 (23 checkpoints utiles + `revise.bin`/
+  `dunj.bin`, traçabilité journal). `runs/routes/` gardé entier (corpus
+  versionné de `solver.py --route`, non régénérable).
+- **Règles à retenir** : ne pas recréer `web/ host/ cpu/ harness/ sav/
+  routes/` à la racine ; `journal.md` laissé volontairement historique
+  (anciens chemins dans les séances passées).
+- **Vérifié vert** : `make check` PROPRE, `make all`/`test` OK, `host_diff`
+  DIFF VIDE, `mem_diff` RAM IDENTIQUE, `sim_tickdiff.c` compile,
+  `sim_pack --snapshot revise` OK, `disasm_check`/`memmap_check` PROPRES,
+  `disasm_rebuild --all` byte-identique. Bruits pré-existants : warning
+  version LLVM d'emcc, `i13` inutilisé dans `platform_native.c`.
