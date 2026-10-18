@@ -37,10 +37,10 @@ const STR = {
   btn_load: ['LOAD', 'CHARGER'],
   btn_save: ['SAVE', 'SAUVER'],
   btn_about: ['ABOUT', 'À PROPOS'],
-  btn_auto: ['AUTO PLAY', 'AUTO PLAY'],
+  btn_auto: ['AUTO PLAY', 'JEU AUTO'],
   btn_auto_title: ['Replay the solution (spoilers)', 'Rejouer la solution (spoilers)'],
-  btn_cheat: ['CHEAT', 'CHEAT'],
-  btn_nocheat: ["DON'T CHEAT", "DON'T CHEAT"],
+  btn_cheat: ['CHEAT', 'TRICHER'],
+  btn_nocheat: ["DON'T CHEAT", 'NE PAS TRICHER'],
   btn_cheat_title: ['Show/hide objects table and map',
                     'Afficher/masquer la table des objets et la carte'],
   auto_cancel: ['Cancel', 'Annuler'],
@@ -152,21 +152,24 @@ const persistSave = () => {
 
 function afterTurn() {
   drainText();
-  if (persistSave())
+  const saved = persistSave();
+  if (saved)
     setStatus('save written (localStorage)', 'sauvegarde enregistree (localStorage)');
   refreshLive();
+  return saved;
 }
 
 function sendCommand(text) {
-  if (busy) return;
+  if (busy) return false;
   busy = true;
   M._hob_key_flush();
   for (const b of enc.encode(text)) M._hob_key(b);
   M._hob_key(0x0d);
   M._hob_run(0);
-  afterTurn();
+  const saved = afterTurn();
   busy = false;
   $('#cmd').focus();
+  return saved;
 }
 
 function refreshLive() {
@@ -693,15 +696,18 @@ $('#cmd').addEventListener('keydown', (e) => {
 });
 
 $('#btn-save').addEventListener('click', () => {
-  if (persistSave()) setStatus('saved (localStorage)', 'sauvegarde (localStorage)');
-  else setStatus('nothing to save — type SAVE in the game',
-                 'rien a sauver — tapez SAVE en jeu');
+  if (!M) return;
+  if (autoPlaying) stopAutoplay();
+  if (sendCommand('SAVE')) setStatus('saved (localStorage)', 'sauvegarde (localStorage)');
+  else setStatus('save failed — try again', 'sauvegarde impossible — reessayez');
 });
 
 $('#btn-load').addEventListener('click', async () => {
+  if (!M) return;
   if (!(await loadBlobFromStorage())) {
     setStatus('no save', 'pas de sauvegarde'); return;
   }
+  if (autoPlaying) stopAutoplay();
   M._hob_init();
   textLen = 0;
   $('#screen').textContent = '';
