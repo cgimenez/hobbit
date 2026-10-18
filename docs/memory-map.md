@@ -90,8 +90,12 @@ robustesse ; `+$07` = **attributs** (8 bits : `b0` verrou, `b1` fluide, `b2` ple
 `name_from_record` `$5A9D`) ; `+$0A`/`+$0B` = **adjectif 1** (`adj1`, réutilisé en
 pointeur secondaire : `$098F` posé par `$6F1B`) ; `+$0C`/`+$0D` = **adjectif 2**
 (`adj2`, tenu pour `descp` : RAZ par `code_5AF0` puis posé par les actions, `$04D6`
-→ texte « t while THE… »). **Fin du bloc** = liste des **verbes autorisés**
-(cf. infra).
+→ texte « t while THE… ») ; `+$0E`/`+$0F` = **pointeur du message EXAMINE
+propre** (`exam` : `action_examine` `$63C4` l'imprime s'il est non nul, sinon
+défaut `$13E0 <OBJ>SEE` ; seuls `map` = `$1886` et `river09` = `$1899` au boot ;
+jamais muté = gabarit) ; `+$11…+$10+N-1` = **lieux suivants** (`eloc1…`,
+balayés par `L5FFA` comme `+$10`). **Fin du bloc** = liste des **verbes
+autorisés** (cf. infra).
 
 | Clé | Addr | +0 =N | +1 porteur | +8 nom | lieux (+$10..+$10+N-1) |
 |---|---|---|---|---|---|
@@ -670,7 +674,7 @@ couverture (fusion sim_tickdiff+solver) : 237/3623 octets (6.5 %).
 | Region | Octets | Couverts | % | Var couverts |
 |---|---|---|---|---|
 | `$00BE` ZP | 24 | 17 | 70.8 | 17/24 |
-| `$1B1A` etats | 1366 | 105 | 7.7 | 105/549 |
+| `$1B1A` etats | 1366 | 105 | 7.7 | 105/579 |
 | `$28CC` scripts | 753 | 37 | 4.9 | 34/61 |
 | `$211A` records | 1480 | 78 | 5.3 | 66/79 |
 

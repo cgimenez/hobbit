@@ -110,6 +110,8 @@ STATE_FIELD: dict[int, tuple[str, str, str]] = {
     0x0B: ("adj1_hi", VAR, "haut de adj1"),
     0x0C: ("adj2/descp", VAR, "adjectif 2 (mot dico) ; RAZ en pointeur de description runtime (obj_state_clear $5AF0)"),
     0x0D: ("adj2_hi", VAR, "haut de adj2"),
+    0x0E: ("exam", GABARIT, "pointeur message EXAMINE propre (action_examine $63C4 ; $0000 = defaut $13E0 ; map=$1886, river09=$1899 au boot)"),
+    0x0F: ("exam_hi", GABARIT, "haut de exam"),
     0x10: ("eloc", VAR, "premier des N lieux (+$00) (= WL.h P10_OFF_ROOM) ; liste +$10..+$10+N-1"),
 }
 # Champs specifiques a une cle (cle, offset) -> (nom, genre, doc).
@@ -312,6 +314,9 @@ def annotate(base: int, off: int) -> list[Slot]:
             else:
                 sp = STATE_SPECIAL.get((key, d))
                 fld = sp or STATE_FIELD.get(d)
+                if fld is None and 0x10 < d < 0x10 + n:
+                    fld = (f"eloc{d - 0x10}", VAR,
+                           f"lieu {d - 0x10 + 1}/{n} (liste +$10.., N=+$00, cf. L5FFA)")
                 if fld:
                     nm, kind, doc = fld
                 else:
