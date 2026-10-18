@@ -57,6 +57,9 @@ static uint8_t rd(uint16_t a) { return MemReadByte(a); }
 
 void state_build(void)
 {
+    /* Fige une fois (hob_init) : le set verifie stable sur les 107 tours
+     * gagnants (aucun objet n'apparait/disparait en cours de partie), donc
+     * pas de reconstruction par tour. */
     nactive = 0;
     for (int i = 0; i < NKEYS; i++) {
         uint16_t base = KEYS[i].base;

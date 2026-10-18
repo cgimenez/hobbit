@@ -41,7 +41,10 @@ void msg_word(uint8_t lo, uint8_t hib, char *out, int cap)
         return;
     }
     a = 0x0500 + ((hib & 0x0F) << 8) + lo;
-    for (;;) {
+    /* garde-fou : le dico valide termine toujours par c == 0 en quelques
+     * octets (word_render Python boucle de meme) ; borne large (le plus
+     * long mot fait < 40 car). */
+    for (int k = 0; k < 64; k++) {
         uint8_t b = MemReadByte((uint16_t)(a + y));
         uint8_t c = b & 0x1F;
         if (c == 0) {

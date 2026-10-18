@@ -15,7 +15,8 @@
 
 #define RAW_CAP  (1u << 20)
 #define TXT_CAP  (1u << 20)
-#define KEY_CAP  4096
+#define KEY_CAP  16384  /* >= LINE_CAP (8192) : pire cas 8191 + CR tient
+                         * (anneau : capacite utile CAP-1) */
 
 #define SAVE_HDR 8   /* "@@SNAP\n" + NLEN */
 /* Blob SAVE = "SNAP" + 4 regions (ordre REGTAB snap.s). */
@@ -38,6 +39,7 @@ static int      blob_len;
 
 static int      prompt_flag;
 static unsigned keys_consumed;   /* @@K vus depuis io_clear_prompt() */
+static unsigned long dropped;    /* octets perdus (raw/txt/cles pleins) */
 
 void io_reset(void)
 {
@@ -50,12 +52,15 @@ void io_reset(void)
     blob_len = 0;
     prompt_flag = 0;
     keys_consumed = 0;
+    dropped = 0;
 }
 
 static void emit(uint8_t c)
 {
     if (txtlen < TXT_CAP) {
         txt[txtlen++] = c;
+    } else {
+        dropped++;
     }
 }
 
@@ -201,8 +206,10 @@ static void parse(void)
 
 void io_write_raw(const uint8_t *p, unsigned n)
 {
-    if (n > sizeof raw - rawlen) {
-        n = sizeof raw - rawlen;
+    unsigned room = (unsigned)sizeof raw - rawlen;
+    if (n > room) {
+        dropped += n - room;
+        n = room;
     }
     if (n) {
         memcpy(raw + rawlen, p, n);
@@ -275,6 +282,11 @@ int io_kb_pending(void)
 unsigned io_keys_consumed(void)
 {
     return keys_consumed;
+}
+
+unsigned long io_dropped(void)
+{
+    return dropped;
 }
 
 const uint8_t *io_text_ptr(void)

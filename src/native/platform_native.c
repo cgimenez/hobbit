@@ -96,10 +96,14 @@ static int find_obj(int key)
 static void dump_state(void)
 {
     int i08 = find_obj(0x08), i42 = find_obj(0x42), i0f = find_obj(0x0f);
-    int i10 = find_obj(0x10), i13 = find_obj(0x13);
+    int i10 = find_obj(0x10);
     int e, first = 1;
-    fprintf(stderr, "  STATE door08=$%02x butler42=",
-            i08 >= 0 ? hob_obj_field(i08, HOB_F_FLAGS) : -1);
+    if (i08 >= 0) {
+        fprintf(stderr, "  STATE door08=$%02x butler42=",
+                hob_obj_field(i08, HOB_F_FLAGS));
+    } else {
+        fprintf(stderr, "  STATE door08=-- butler42=");
+    }
     if (i42 >= 0) {
         fprintf(stderr, "flags=$%02x eloc=$%02x alive=%d",
                 hob_obj_field(i42, HOB_F_FLAGS),
@@ -225,9 +229,13 @@ int main(int argc, char **argv)
         }
         while (fgets(line, sizeof line, in)) {
             /* Serve : chaque ligne (meme vide) = un tour ; seul le \n
-             * final est retire (les \r internes sont des octets clavier). */
+             * final est retire, puis un unique \r trailing (fichier CRLF),
+             * comme smoke.mjs ; les \r interieurs sont des octets clavier. */
             size_t n = strlen(line);
             if (n > 0 && line[n - 1] == '\n') {
+                line[--n] = '\0';
+            }
+            if (n > 0 && line[n - 1] == '\r') {
                 line[--n] = '\0';
             }
             push_line(line);

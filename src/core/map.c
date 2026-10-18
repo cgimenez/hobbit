@@ -210,11 +210,11 @@ int hob_room_exit_count(int id)
 static const exit_t *exit_at(int id, int j)
 {
     if (id < 0 || id >= 0x50 || index_of[id] < 0) {
-        return 0;
+        return NULL;
     }
     const room_t *r = &rooms[index_of[id]];
     if (j < 0 || j >= r->ne) {
-        return 0;
+        return NULL;
     }
     return &r->ex[j];
 }

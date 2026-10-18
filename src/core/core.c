@@ -23,6 +23,7 @@ static unsigned long ShimCount, Kb7353Count;
 unsigned long hob_autokey_count(void) { return AutokeyCount; }
 unsigned long hob_shim_count(void) { return ShimCount; }
 unsigned long hob_kb7353_count(void) { return Kb7353Count; }
+unsigned long hob_io_dropped(void) { return io_dropped(); }
 uint16_t hob_last_pc(void) { return Regs.PC; }
 static unsigned char SPAddr;
 static int Halt;
@@ -209,6 +210,9 @@ static void memdiff_build(int rc)
     for (a = 0; a < 0x10000; a++) {
         uint8_t old = PrevMem[a], cur = Mem[a];
         if (old != cur) {
+            if (n == 0xFFFF) {
+                break;  /* sature (nlen 2 o) : jamais de record tronque */
+            }
             o[0] = (uint8_t)(a & 0xFF);
             o[1] = (uint8_t)((a >> 8) & 0xFF);
             o[2] = old;

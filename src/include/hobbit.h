@@ -45,6 +45,7 @@ HOB_API int hob_run(int max_insn);
 HOB_API unsigned long hob_autokey_count(void);
 HOB_API unsigned long hob_shim_count(void);
 HOB_API unsigned long hob_kb7353_count(void);
+HOB_API unsigned long hob_io_dropped(void); /* octets perdus (caps pleines) */
 HOB_API uint16_t hob_last_pc(void);
 
 /* Boot : le jeu rejoue lui-meme "> LOOK." (prompt tutoriel) puis decrit le

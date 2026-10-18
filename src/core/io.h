@@ -33,6 +33,9 @@ void io_clear_prompt(void);
  * (donc depuis le debut du dernier hob_run). */
 unsigned io_keys_consumed(void);
 
+/* Octets perdus par saturation (raw/txt/cles pleins) depuis io_reset(). */
+unsigned long io_dropped(void);
+
 /* Copie un octet clavier a emettre par le shim. */
 void io_key_push(uint8_t c);
 void io_key_flush(void);

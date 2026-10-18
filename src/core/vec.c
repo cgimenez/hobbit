@@ -255,8 +255,17 @@ int hob_vec_render(int room, uint8_t *buf)
             VTR("  after fill x=%d y=%d pop=%d\n", x, y, vpop());
         } else if (op & 0x20) {
             p += 1;
-            while (rd(p) != 0xFF) {
-                p += 1;
+            /* garde-fou : un flux valide atteint toujours $FF (vec_decode.py
+             * boucle de meme) ; borne pour ne jamais boucler sur donnee
+             * corrompue. */
+            {
+                int k;
+                for (k = 0; k < 4096 && rd(p) != 0xFF; k++) {
+                    p += 1;
+                }
+                if (rd(p) != 0xFF) {
+                    break;  /* flux corrompu : stoppe le rendu */
+                }
             }
             p += 1;
             VTR("SKIP pop=%d\n", vpop());
