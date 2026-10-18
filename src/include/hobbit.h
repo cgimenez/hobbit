@@ -84,6 +84,19 @@ HOB_API const uint8_t *hob_memdiff_ptr(void); /* dernier delta (frame @@D) */
 HOB_API int            hob_memdiff_len(void);
 HOB_API int            hob_mem_turn(void);    /* tour du dernier delta */
 
+/* --- Paroles PNJ (observatoire hors-champ, piege passif $5B24/$5279) ---
+ * hob_say_ptr() donne EvtCount records de HOB_SAY_REC octets : tour(2 LE),
+ * espece(1 : 0 = act_msg, 1 = say_if_visible), locuteur(1 : $3C-$4C),
+ * lieu(1), msg(2 LE), reserve(1), texte (1re ligne, NUL, 80 o).
+ * Le JS lit puis hob_say_clear() a chaque tour. */
+#define HOB_SAY_TEXT 80
+#define HOB_SAY_N 64
+#define HOB_SAY_REC (8 + HOB_SAY_TEXT)
+HOB_API const uint8_t *hob_say_ptr(void);
+HOB_API int            hob_say_len(void);    /* octets utilises */
+HOB_API int            hob_say_count(void);  /* nb de records */
+HOB_API void           hob_say_clear(void);  /* vide apres lecture */
+
 /* --- Etat live (decode de Mem[], cf. state.c) --- */
 HOB_API int hob_player_room(void);        /* player.eloc ($1B2A)      */
 HOB_API int hob_ploc(void);               /* miroir $C8               */

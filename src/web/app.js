@@ -10,6 +10,7 @@ const dec = new TextDecoder();
 const STR = {
   cmd_placeholder: ['Type a command…', 'Tapez une commande…'],
   objs_title: ['Objects & characters', 'Objets & personnages'],
+  offstage_title: ['Offstage (out of sight)', 'Hors-champ (loin du joueur)'],
   map_title: ['Map', 'Carte'],
   room_label: ['Room', 'Lieu'],
   vec_empty: ['(no illustration here)', "(pas d'illustration ici)"],
@@ -158,6 +159,7 @@ function afterTurn() {
   const saved = persistSave();
   if (saved)
     setStatus('save written (localStorage)', 'sauvegarde enregistree (localStorage)');
+  collectOffstage();
   refreshLive();
   return saved;
 }
@@ -182,6 +184,7 @@ function refreshLive() {
   drawObjs();
   drawVector(room);
   drawMap(room);
+  renderOffstage();
 }
 
 const hex = (v) => v.toString(16).toUpperCase().padStart(2, '0');
@@ -227,6 +230,143 @@ function drawObjs() {
 }
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// --- hors-champ : faits PNJ<->PNJ / PNJ<->objets loin du joueur, par tour.
+// Deux sources : (1) snapshot objets/entites/events via les getters d'etat
+// (lieu/porteur/flags/PV/compteurs) compare avant/apres chaque hob_run ;
+// (2) anneau paroles du core (piege passif $5B24 act_msg / $5279
+// say_if_visible, cf. src/core/core.c evt_speech) : locuteur $3C-$4C +
+// 1re ligne du message, meme si l'affichage est jete (outen=0).
+// Filtre : on ne garde que les faits dont le lieu != lieu du joueur
+// (ce qu'il voit est deja sur l'ecran). Max 200 faits en memoire. ---
+const OFF_CAP = 200;
+const SAY_REC = 88;   // HOB_SAY_REC (tour 2 + espece/locuteur/lieu/msg 5 + res 1 + texte 80)
+let turnNo = 0;
+let offBaseline = null;
+let offHold = false;
+let offFacts = [];
+
+function snapOff() {
+  const objs = new Map();
+  for (let i = 0; i < M._hob_obj_count(); i++) {
+    objs.set(M._hob_obj_key(i), {
+      eloc: M._hob_obj_field(i, 7),
+      carrier: M._hob_obj_field(i, 1),
+      flags: M._hob_obj_field(i, 6),
+      hp: M._hob_obj_field(i, 4),
+    });
+  }
+  const evts = [];
+  for (let e = 0; e < M._hob_evt_count(); e++) evts.push(M._hob_evt_cpt(e));
+  return { objs, evts };
+}
+
+function resetOffstage() {
+  turnNo = 0;
+  offFacts = [];
+  offBaseline = snapOff();
+  if (M._hob_say_clear) M._hob_say_clear();
+  renderOffstage();
+}
+
+const capName = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '?');
+
+function collectOffstage() {
+  if (offHold || !M) return;
+  if (!offBaseline) {
+    offBaseline = snapOff();
+    if (M._hob_say_clear) M._hob_say_clear();
+    return;
+  }
+  turnNo++;
+  const now = snapOff();
+  const proom = M._hob_player_room();
+  const facts = [];
+  for (const [k, a] of offBaseline.objs) {
+    const b = now.objs.get(k);
+    if (!b) continue;
+    const isNpc = k >= 0x3C;
+    if (isNpc && b.eloc !== a.eloc)
+      facts.push({ turn: turnNo, cat: 'move', who: k, from: a.eloc, to: b.eloc });
+    if (b.carrier !== a.carrier) {
+      const room = b.eloc >= 0 ? b.eloc : a.eloc;
+      if (a.carrier === 0xFF && b.carrier !== 0xFF)
+        facts.push({ turn: turnNo, cat: 'take', who: b.carrier, obj: k, room });
+      else if (b.carrier === 0xFF && a.carrier !== 0xFF)
+        facts.push({ turn: turnNo, cat: 'drop', who: a.carrier, obj: k, room });
+      else
+        facts.push({ turn: turnNo, cat: 'give', who: a.carrier, obj: k, to: b.carrier, room });
+    }
+    if (isNpc && (a.flags & 8) === 0 && (b.flags & 8) !== 0)
+      facts.push({ turn: turnNo, cat: 'dead', who: k, room: b.eloc });
+    else if (isNpc && b.hp < a.hp)
+      facts.push({ turn: turnNo, cat: 'hurt', who: k, from: a.hp, to: b.hp, room: b.eloc });
+  }
+  for (let e = 0; e < now.evts.length; e++) {
+    if (e < offBaseline.evts.length && now.evts[e] !== offBaseline.evts[e])
+      facts.push({ turn: turnNo, cat: 'evt', who: e, from: offBaseline.evts[e], to: now.evts[e] });
+  }
+  const hasSay = M._hob_say_count && M._hob_say_ptr && M._hob_say_clear;
+  const sn = hasSay ? M._hob_say_count() : 0;
+  const sp = hasSay ? M._hob_say_ptr() : 0, u = M.HEAPU8;
+  for (let i = 0; i < sn; i++) {
+    const o = sp + i * SAY_REC;
+    const speaker = u[o + 3], eloc = u[o + 4];
+    let end = o + 8;
+    while (end < o + SAY_REC && u[end]) end++;
+    const text = dec.decode(u.subarray(o + 8, end));
+    if (speaker >= 0x3C && speaker <= 0x4C && text)
+      facts.push({ turn: turnNo, cat: 'say', who: speaker, room: eloc, text });
+  }
+  if (hasSay) M._hob_say_clear();
+  for (const f of facts) {
+    const room = f.room !== undefined ? f.room : f.to;
+    if (room === undefined || room !== proom) offFacts.push(f);
+  }
+  while (offFacts.length > OFF_CAP) offFacts.shift();
+  offBaseline = now;
+}
+
+function renderFact(f, nameByKey) {
+  const nm = (k) => k === 0x00 ? L('you', 'vous')
+    : (nameByKey.get(k) || ('$' + hex(k & 0xFF)));
+  const rn = (r) => (r !== undefined && r >= 0) ? `$${hex(r)} ${roomName(r)}` : '?';
+  const w = capName(nm(f.who));
+  switch (f.cat) {
+    case 'move': return `${w} : ${rn(f.from)} → ${rn(f.to)}`;
+    case 'take': return `${w} ${L('took', 'a pris')} ${esc(nm(f.obj))} (${rn(f.room)})`;
+    case 'drop': return `${w} ${L('dropped', 'a déposé')} ${esc(nm(f.obj))} (${rn(f.room)})`;
+    case 'give': return `${w} ${L('gave', 'a donné')} ${esc(nm(f.obj))} ${L('to', 'à')} ${esc(nm(f.to))} (${rn(f.room)})`;
+    case 'dead': return `${w} ${L('died', 'est mort')} (${rn(f.room)})`;
+    case 'hurt': return `${w} ${L('was wounded', 'est blessé')} (PV ${f.from}→${f.to}, ${rn(f.room)})`;
+    case 'evt': return `${L('event', 'événement')} nº${f.who} ${L('fired', 'déclenché')} (${f.from}→${f.to})`;
+    case 'say': return `${w} ${L('says', 'dit')} : « ${esc(f.text)} » (${rn(f.room)})`;
+    default: return '';
+  }
+}
+
+function renderOffstage() {
+  const feed = $('#offstage-feed');
+  if (!feed) return;
+  if (!offFacts.length) {
+    feed.innerHTML = `<div class="off-empty">${esc(L('Nothing yet — NPCs act every turn.',
+      'Rien pour l\u2019instant — les PNJ agissent à chaque tour.'))}</div>`;
+    return;
+  }
+  const nameByKey = new Map();
+  for (let i = 0; i < M._hob_obj_count(); i++)
+    nameByKey.set(M._hob_obj_key(i), M.UTF8ToString(M._hob_obj_name(i)));
+  let html = '', lastTurn = -1;
+  for (const f of offFacts) {
+    if (f.turn !== lastTurn) {
+      lastTurn = f.turn;
+      html += `<div class="off-turn">— ${L('turn', 'tour')} ${f.turn} —</div>`;
+    }
+    html += `<div class="off-fact">${renderFact(f, nameByKey)}</div>`;
+  }
+  feed.innerHTML = html;
+  feed.scrollTop = feed.scrollHeight;   // auto-scroll comme #screen
+}
 
 function renderVecInto(cv, room) {
   const ptr = M._hob_vec_ptr();
@@ -555,6 +695,7 @@ function startAutoplay() {
   $('#screen').textContent = '';
   M._hob_boot();
   drainText();
+  resetOffstage();
   refreshLive();
   autoIdx = 0;
   autoPlaying = true;
@@ -666,6 +807,7 @@ async function boot() {
   M._hob_boot();
   textLen = 0;
   drainText();
+  resetOffstage();
   refreshLive();
   setStatus('', '');
   $('#cmd').focus();
@@ -713,9 +855,15 @@ $('#btn-load').addEventListener('click', async () => {
   $('#screen').textContent = '';
   M._hob_boot();
   drainText();
+  /* LOAD restaure le monde d'un coup : gele la collecte pendant la
+   * sequence (sinon tout ecart boot->sauvegarde spammerait le fil),
+   * puis rebase sur l'etat restaure. */
+  offHold = true;
   sendCommand('LOAD');
   sendCommand('');
   sendCommand('');
+  offHold = false;
+  resetOffstage();
   refreshLive();
   setStatus('save reloaded', 'sauvegarde rechargee');
   $('#cmd').focus();

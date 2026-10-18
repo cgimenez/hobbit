@@ -17,6 +17,7 @@
 
 #include "hobbit.h"
 #include "io.h"
+#include "msg.h"
 
 static unsigned long AutokeyCount;   /* diagnostic : nb d'auto-touches pause */
 static unsigned long ShimCount, Kb7353Count;
@@ -35,6 +36,94 @@ static int MemTurn;          /* compteur de hob_run traces */
 static uint8_t PrevMem[0x10000];
 static uint8_t DiffBuf[9 + 0x10000 * 4];  /* "@@D\n"+turn+rc+nlen+recs */
 static int DiffLen;
+
+/* ---- paroles PNJ (observatoire hors-champ, passif) ----
+ * Piege PC a l'entree de act_msg ($5B24) et say_if_visible ($5279) :
+ * aucune modification du flot 6502 (ni RTS simule, ni PC touche), on se
+ * contente de photographier (locuteur, message) + decoder la 1re ligne.
+ * Conventions verifiees dans disasm/block4.asm :
+ *   act_msg : locuteur = ZP obj ($C5, "<OBJ>" du "$13E8 <OBJ>SAY '"),
+ *             message = mot inline apres le JSR (via l'adresse de retour
+ *             sur la pile 6502) ; les appelants ne passent aucun registre.
+ *   say_if_visible : A = id locuteur, X/Y = adresse du message ; on note
+ *             la tentative meme si la routine sort tot (code_52C8) car,
+ *             loin du joueur, l'affichage est jete (outen=0) : c'est
+ *             exactement le hors-champ qui nous interesse.
+ * Garde phase==1 ($0C) : en phase 0 (sonde act_probe) aucun message ne
+ * part, et on eviterait un double comptage sonde/reel. */
+#define EVT_TEXT 80
+#define EVT_N 64
+#define EVT_REC (8 + EVT_TEXT)
+static uint8_t EvtBuf[EVT_N * EVT_REC];
+static int EvtCount;
+static unsigned EvtTurn;   /* incremente a chaque fin de hob_run */
+
+static void evt_push(int kind, int speaker, int eloc, uint16_t msg)
+{
+    uint8_t *r;
+    char *txt;
+    if (EvtCount >= EVT_N) {
+        return;   /* sature : les plus anciens sont gardes, pas de shift */
+    }
+    r = EvtBuf + EvtCount * EVT_REC;
+    r[0] = (uint8_t)(EvtTurn & 0xFF);
+    r[1] = (uint8_t)((EvtTurn >> 8) & 0xFF);
+    r[2] = (uint8_t)kind;      /* 0 = act_msg, 1 = say_if_visible */
+    r[3] = (uint8_t)speaker;   /* cle d'etat $3C-$4C */
+    r[4] = (uint8_t)eloc;      /* lieu du locuteur au moment du fait */
+    r[5] = (uint8_t)(msg & 0xFF);
+    r[6] = (uint8_t)(msg >> 8);
+    r[7] = 0;                  /* reserve */
+    msg_first_line(msg, (char *)(r + 8), EVT_TEXT);
+    /* les marqueurs non rendus (ex. <MSG>/<OBJ> en tete) sortent en
+     * espaces : purge a gauche pour un "X dit : ..." propre */
+    txt = (char *)(r + 8);
+    {
+        char *s = txt;
+        while (*s == ' ' || *s == '\t') {
+            s++;
+        }
+        if (s != txt) {
+            memmove(txt, s, strlen(s) + 1);
+        }
+    }
+    EvtCount++;
+}
+
+static void evt_speech(int kind)
+{
+    unsigned sp;
+    uint16_t ret, msg;
+    int speaker, eloc;
+
+    if (MemReadByte(0x000C) != 1) {   /* phase ($0C) : 1 = action reelle */
+        return;
+    }
+    if (kind == 0) {
+        speaker = MemReadByte(0x00C5);   /* obj : acteur courant */
+        /* adresse de retour 6502 -> mot inline (convention INLINE_MSGS) */
+        sp = Regs.SP;
+        ret = (uint16_t)(MemReadByte((uint16_t)(0x0100 + ((sp + 1) & 0xFF)))
+              | (MemReadByte((uint16_t)(0x0100 + ((sp + 2) & 0xFF))) << 8));
+        msg = MemReadWord((uint16_t)(ret + 1));
+    } else {
+        if (Regs.AC == 0x00 || Regs.AC == 0xFF) {
+            return;   /* rien a dire (miroir du test say_if_visible) */
+        }
+        speaker = Regs.AC;
+        msg = (uint16_t)(Regs.XR | (Regs.YR << 8));
+    }
+    if (speaker < 0x3C || speaker > 0x4C) {
+        return;   /* PNJ seuls ($3C-$4C) : ni joueur ($00) ni objets */
+    }
+    if (kind == 1 && msg == 0x13F6) {
+        return;   /* tentative d'annonce "<MSG>ENTER" (move_announce) :
+                     l'arrivee est deja captee par le diff eloc, et le
+                     "<MSG>" ne se decode pas en nom de locuteur */
+    }
+    eloc = MemReadByte(0x00C9);   /* eloc : lieu de l'acteur courant */
+    evt_push(kind, speaker, eloc, msg);
+}
 
 /* ---- paravirtualisation : pile logicielle ZP (cf. paravirt.c sim65) ---- */
 
@@ -177,6 +266,32 @@ int hob_mem_turn(void)
     return MemTurn;
 }
 
+/* --- Paroles PNJ (observatoire hors-champ, cf. evt_speech) ---
+ * Chaque record fait HOB_SAY_REC octets : tour(2 LE), espece(1 : 0 =
+ * act_msg, 1 = say_if_visible), locuteur(1 : cle $3C-$4C), lieu(1),
+ * msg(2 LE), reserve(1), texte (1re ligne decodee, NUL-termine, 80 o).
+ * hob_say_clear() vide le tampon (appele par le JS apres lecture du
+ * tour) ; sature a HOB_SAY_N records (les plus anciens sont gardes). */
+const uint8_t *hob_say_ptr(void)
+{
+    return EvtBuf;
+}
+
+int hob_say_len(void)
+{
+    return EvtCount * EVT_REC;
+}
+
+int hob_say_count(void)
+{
+    return EvtCount;
+}
+
+void hob_say_clear(void)
+{
+    EvtCount = 0;
+}
+
 /* Refonte session (appele par hob_init) : sans RAZ, un 2e hob_init dans le
  * meme processus (ex. page web boot() puis AUTO PLAY) repartirait avec le
  * Halt d'un PVExit precedent (hob_run rend 2 immediatement) et une base
@@ -191,6 +306,8 @@ void core_reset(void)
     PrevValid = 0;
     MemTurn = 0;
     DiffLen = 0;
+    EvtCount = 0;
+    EvtTurn = 0;
 }
 
 /* Construit le delta "@@D\n"+turn+rc+nlen+recs depuis PrevMem, puis fige
@@ -247,6 +364,8 @@ int hob_run(int max_insn)
          * $7483. */
         if (Regs.PC == 0xC000) ShimCount++;
         if (Regs.PC == 0x7353) Kb7353Count++;
+        if (Regs.PC == 0x5B24) evt_speech(0);   /* act_msg : parole PNJ */
+        else if (Regs.PC == 0x5279) evt_speech(1);  /* say_if_visible */
         if (Regs.PC == 0x7353 && !io_kb_pending()) {
             uint16_t ret = (uint16_t)(MemReadByte(0x0100 + ((Regs.SP + 1) & 0xFF))
                            | (MemReadByte(0x0100 + ((Regs.SP + 2) & 0xFF)) << 8));
@@ -276,6 +395,7 @@ int hob_run(int max_insn)
     if (TraceOn) {
         memdiff_build(rc);
     }
+    EvtTurn++;
     return rc;
 }
 

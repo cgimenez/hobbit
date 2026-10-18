@@ -100,6 +100,9 @@ static void decode(uint16_t a, char *out, int cap, int *n, int depth)
             uint8_t nib = hi & 0xF0;
             t += 2;
             if (nib == 0x30 || nib == 0x20 || nib == 0x60) {
+                /* mot final : compte (decode_msg Python l'ajoute avant
+                 * ".<CR>"/"<CR>"/"<END>"), puis fin de 1re ligne */
+                append_word(out, cap, n, &last_word, lo, hi);
                 break;  /* fin (point / fin / CR) */
             }
             append_word(out, cap, n, &last_word, lo, hi);
