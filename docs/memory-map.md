@@ -280,7 +280,11 @@ plein/cassé/éclaire/ouvert/animal/visible`, cf. table ci-dessous). Encodés da
 
 ### 3b. Scripts VM (`$28E1`–`$2B11`, opcodes nibble bas, ≤6 ops/tick)
 
-Propriétaires par point d'entrée (PC initiaux ; `base` = table §3a).
+Désassemblage vérifié : `scripts/vm_decode.py` (127 instructions, 402 o
+depuis les PC initiaux + 25 o via 34 graines DB ; tailles : `MOVE` 4 o,
+`ACT` 3 o, court 2 o, **+2 o si bit `$10` = vecteur de secours**
+`PC := *(inst+X)` en cas d'échec — ex. trolls `$2AD0` bouclent sur eux-mêmes
+tant que l'action 16 échoue ; `wid=$FF`+`$10` = saut absolu).
 Détail des programmes : `docs/block4-analysis.md` (§ AnimAction).
 
 | Entrée | Propriétaires (slot entité) |

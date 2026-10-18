@@ -562,23 +562,46 @@ L'opcode est l'octet pointé par le PC. On le dispatche sur son **nibble bas** :
 | Opcode | Nom | Taille | Effet |
 |---|---|---|---|
 | `$x0/$x2` | MOVE long | 4 o (+2) | `wid=(PC)1, arg1=(PC)2, arg2=(PC)3` → `entity_move` |
-| `$x1/$x3` | ACT | 3 o (+2) | `(PC)1` = index dans la table d'actions `$7143` |
-| `$x4` | MOVE court | 2 o (+2) | `wid=(PC)1` ; `$FF` + bit `$10` = saut inconditionnel |
-| `$x5-$xD` | INDIR | 2 o | saute via la table de base (`script_indir` `$51DA`, cible `[0]`) |
-| `$xC` | GOTO clé | 2 o | `entity_goto(id, clé)` via la table de base |
+| `$x1/$x3` | ACT | 3 o (+2) | `(PC)1` = index dans la table d'actions `$7143` (tiers `(PC)2` toujours `$00` sur les 13 flux) |
+| `$x4` | MOVE court | 2 o (+2) | `wid=(PC)1` ; `wid=$FF` + bit `$10` = saut absolu `PC := (PC)2/(PC)3` (4 o, ex. Elrond `$2A42` → `$2A38`) |
+| `$x5-$xD` | INDIR | 2 o | saute via la table de base (`script_indir` `$51DA`, cible `[0]` ; l'octet `(PC)1` est ignoré) |
+| `$xC` | GOTO clé | 2 o | `entity_goto(id, clé)` via la table de base (1er match `index_id_table` `$53C0`) |
 | `$xE` | GOTO absolu | 3 o | `PC := (PC)1/(PC)2` |
-| `$xF` | RAND | 2 o | tire une cible parmi `min(op, nmax)` (`script_rand` `$51CA`) |
+| `$xF` | RAND | 2 o | tire une cible parmi `min(op, nmax)` (`script_rand` `$51CA`) ; cibles `table[0..min(op,nmax)]` |
 
 Bits de contrôle de l'opcode :
 
 - bit `$20` : **auto-modification** — l'opcode est effacé (`sta (ptr),y`) après
   le move, ce qui rend le personnage dormant au tour suivant.
-- bit `$10` : **plan de secours** — si l'action échoue, saute de la taille de
-  l'instruction (saut calculé, `script_step2`).
+- bit `$10` : **vecteur de secours** — l'instruction occupe **2 octets de plus**
+  (`MOVE` 6 o, `ACT` 5 o, court 4 o), qui encodent une adresse : en cas d'échec,
+  `PC := *(inst+X)` (`L50FB`, `X` = taille de base ; ex. trolls `$2AD0` :
+  échec → `*$2AD3` = `$2AD0`, boucle d'attente ; Gandalf `$2966` : échec →
+  `$2971`). En cas de succès, reprise à `inst+taille`. Corrige l'ancienne note
+  « saut de la taille de l'instruction » (pas de saut calculé : indirection).
+- La table `$7143` porte en pratique les index **1–32** (`$6915`–`$6DBB`,
+  relevé image) : 1–15 actions connues, 16–18 inédites (`$6E8B/$6CDB/$6EA7`),
+  19–32 = table adjacente `$7169` (actA d'événements, ex. `$2B0E` :
+  `ACT 19` → `$6915` = actA#1).
+- Décodeur vérifié : `scripts/vm_decode.py` (127 instructions + graines DB,
+  402 o depuis les PC initiaux ; tailles ci-dessus + vecteurs de secours ;
+  validation : pas de chevauchement, PC observés sur frontières).
 
 > `$xC` (GOTO par clé) n'apparaît **dans aucun des 17 scripts** : chemin
 > runtime-only d'après le code (`entity_goto` `$5249`), corrige l'ancienne note
 > « PATCH table ».
+>
+> Octets de code **inatteignables statiquement** (62 o en 5 plages :
+> `$2941-42`, `$2A46-4C` = boucle morte avec secours `$2A38`,
+> `$2A81-87` = boucle morte avec secours `$2AED`, `$2AC0-C8` = fin en
+> `GOTO $8F2A` hors plage, `$2B03-0D`), dont un fragment **atteint en jeu**
+> (`$2AED-$2B11`, cibles `0B/1D/30` des tables + `ACT 19` → `INDIR`) :
+> `PC` observés `$2AED/$2B02/$2B0E/$2B11` (Gandalf, DB), posés hors flot
+> script — ex. `GIVE X TO GANDALF` → `PC=$2B0E`, `GIVE GANDALF` → `PC=$2B11`
+> (parent `PC=$2971`, solver). Mécanisme d'écriture (handler GIVE ? planner
+> `$40` ?) : ouvert. Deux PC observés **au milieu d'une instruction**
+> (`$29F7` = opérande du `MOVE $29F6`, `$2B02` = opérande de l'`INDIR $2B01`) :
+> écritures `PC` non alignées, ouvert.
 
 ### Le tour d'une entité (`entity_tick` `$4ED5`)
 
