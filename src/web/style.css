@@ -168,12 +168,14 @@ tr.dead td { color: #6b727a; font-style: italic; }
 #intro.hidden { display: none; }
 .intro-title { font-size: 20px; margin: 0; font-weight: 600; text-align: center; }
 .intro-title .sub { color: #6d7681; font-weight: 400; font-size: 13px; }
-#intro-play {
+.intro-play-row { display: flex; gap: 12px; }
+.intro-play {
+  display: inline-block; text-decoration: none;
   background: #2b3b2b; color: #d7e3d7; border: 1px solid #3d523d;
   border-radius: 6px; padding: 10px 46px; cursor: pointer; font: inherit;
   font-size: 16px;
 }
-#intro-play:hover { background: #354735; }
+.intro-play:hover { background: #354735; }
 #intro-cols {
   width: min(94vw, 1100px);
   display: grid; grid-template-columns: 1fr 1fr; gap: 24px;

@@ -50,6 +50,8 @@ const STR = {
   btn_save_title: ['Save game (localStorage + file)',
                    'Enregistrer la partie (localStorage + fichier)'],
   btn_about_title: ['About / credits', 'À propos / crédits'],
+  doc_title: ['The Hobbit (1982, Oric/Atmos) — Playable WASM Emulator',
+              'The Hobbit (1982, Oric/Atmos) — Émulateur WASM jouable'],
 };
 
 const getCookie = (k) => {
@@ -60,7 +62,9 @@ const setCookie = (k, v) => {
   document.cookie = `${k}=${encodeURIComponent(v)}; max-age=31536000; path=/; SameSite=Lax`;
 };
 
-let LANG = getCookie('hobbit.lang')
+const QLANG = new URLSearchParams(location.search).get('lang');
+let LANG = (QLANG === 'fr' || QLANG === 'en') ? QLANG
+  : getCookie('hobbit.lang')
   || ((navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en');
 const t = (k) => STR[k][LANG === 'fr' ? 1 : 0];
 const L = (en, fr) => (LANG === 'fr' ? fr : en);
@@ -73,6 +77,7 @@ function setStatus(en, fr) {
 
 function applyI18n() {
   document.documentElement.lang = LANG;
+  document.title = t('doc_title');
   for (const el of document.querySelectorAll('[data-i18n]'))
     el.textContent = t(el.dataset.i18n);
   for (const el of document.querySelectorAll('[data-i18n-ph]'))
@@ -732,7 +737,10 @@ function stopAutoplay() {
 function setLang(lang) {
   LANG = lang === 'fr' ? 'fr' : 'en';
   setCookie('hobbit.lang', LANG);
-  applyI18n();
+applyI18n();
+
+// Lien direct ?lang=fr|en (SEO, partage, sans JS) : langue appliquée + entrée immédiate.
+if (QLANG === 'fr' || QLANG === 'en') { setCookie('hobbit.lang', LANG); hideIntro(); }
   if (!$('#modal').classList.contains('hidden')) updateModalTitle();
   if (M) refreshLive();
 }
@@ -773,10 +781,12 @@ async function loadIntro() {
   $('#intro-en').innerHTML = marked.parse(en);
 }
 
-$('#intro-play').addEventListener('click', () => {
+function hideIntro() {
   $('#intro').classList.add('hidden');
   $('#cmd').focus();
-});
+}
+$('#intro-play-fr').addEventListener('click', (e) => { e.preventDefault(); setLang('fr'); hideIntro(); });
+$('#intro-play-en').addEventListener('click', (e) => { e.preventDefault(); setLang('en'); hideIntro(); });
 loadIntro();
 
 applyI18n();
