@@ -38,3 +38,7 @@ of locations, etc).
 
 The illustrations were converted to SVG from the vector data encoded
 in the game binary.
+
+## Notes
+
+The OFFSTAGE panel data is probably buggy.

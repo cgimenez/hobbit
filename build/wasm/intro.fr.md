@@ -38,3 +38,7 @@ des lieux, etc).
 
 Les illustrations ont été transformées en SVG à partir des données vectorielles encodées
 dans le binaire du jeu.
+
+## Notes
+
+Les données du panel HORS-CHAMP sont certainement buggués.
