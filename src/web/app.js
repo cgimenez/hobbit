@@ -360,7 +360,9 @@ function buildMapSvg(playerRoom, focus) {
     }
     const who = npc.get(id);
     if (who && who.length) {
-      nodes += `<text x="${x + 8}" y="${y + 25}" fill="#c9b46a" font-size="9">${esc(who.join(', '))}</text>`;
+      who.forEach((n, k) => {
+        nodes += `<text x="${x + 8}" y="${y + 25 + k * 11}" fill="#c9b46a" font-size="9">${esc(n)}</text>`;
+      });
     }
     nodes += `</g>`;
   }
@@ -436,9 +438,9 @@ function attachPanZoom(box, getView) {
     const r = svg.getBoundingClientRect();
     const mx = v.x + ((e.clientX - r.left) / r.width) * v.w;
     const my = v.y + ((e.clientY - r.top) / r.height) * v.h;
-    // zoom proportionnel a l'amplitude du scroll (doux au touchpad)
-    const unit = e.deltaMode === 1 ? 16 : 1;
-    zoomView(box, v, mx, my, Math.pow(1.004, -e.deltaY * unit));
+    // zoom a pas fixe : 10 % par tick (pinch touchpad via ctrlKey = pas fin 5 %)
+    const step = e.ctrlKey ? 1.05 : 1.1;
+    zoomView(box, v, mx, my, e.deltaY > 0 ? step : 1 / step);
   }, { passive: false });
   box.addEventListener('pointerdown', (e) => {
     const v = getView();
