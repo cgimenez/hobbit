@@ -41,4 +41,4 @@ dans le binaire du jeu.
 
 ## Notes
 
-Les données du panel HORS-CHAMP sont certainement buggués.
+Les données du panel HORS-CHAMP sont partiellement buggués.

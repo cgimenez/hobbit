@@ -41,4 +41,4 @@ in the game binary.
 
 ## Notes
 
-The OFFSTAGE panel data is probably buggy.
+The OFFSTAGE panel data is partially buggy.

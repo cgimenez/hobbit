@@ -169,6 +169,7 @@ tr.dead td { color: #6b727a; font-style: italic; }
 .intro-title { font-size: 20px; margin: 0; font-weight: 600; text-align: center; }
 .intro-title .sub { color: #6d7681; font-weight: 400; font-size: 13px; }
 .intro-play-row { display: flex; gap: 12px; }
+.intro-sign { margin: 0; color: #6d7681; font-size: 12px; text-align: center; }
 .intro-play {
   display: inline-block; text-decoration: none;
   background: #2b3b2b; color: #d7e3d7; border: 1px solid #3d523d;
