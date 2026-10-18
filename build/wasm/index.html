@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Hobbit</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<section id="intro">
+  <h2 class="intro-title">The Hobbit <span class="sub">1982 - Oric-1/Atmos version</span></h2>
+  <button id="intro-play" type="button" class="primary">Jouer</button>
+  <div id="intro-cols">
+    <article class="intro-col" id="intro-fr" lang="fr"></article>
+    <article class="intro-col" id="intro-en" lang="en"></article>
+    </div>
+  </section>
+
+<header>
+  <h1>The Hobbit <span class="sub">1982 - Oric-1/Atmos version</span></h1>
+  <button id="btn-load" data-i18n="btn_load" data-i18n-title="btn_load_title" title="Recharger la sauvegarde locale">LOAD</button>
+  <button id="btn-save" data-i18n="btn_save" data-i18n-title="btn_save_title" title="Enregistrer la partie (localStorage + fichier)">SAVE</button>
+  <button id="btn-about" data-i18n="btn_about" data-i18n-title="btn_about_title" title="À propos / crédits">ABOUT</button>
+  <button id="btn-auto" data-i18n-title="btn_auto_title" title="Rejouer la solution">AUTO PLAY</button>
+  <button id="btn-cheat" type="button" data-i18n-title="btn_cheat_title" title="Afficher/masquer table et carte">DON'T CHEAT</button>
+  <span class="langs" id="lang">
+    <button class="lang-flag" type="button" data-lang="en" title="English">🇬🇧</button>
+    <button class="lang-flag" type="button" data-lang="fr" title="Français">🇫🇷</button>
+  </span>
+  <span id="status">chargement…</span>
+</header>
+
+<main>
+  <section id="game">
+    <div class="game-text">
+    <div id="screen" aria-live="polite"></div>
+    <form id="cmdline" autocomplete="off">
+      <span class="prompt">&gt;</span>
+      <input id="cmd" type="text" autofocus spellcheck="false"
+             autocapitalize="characters" data-i18n-ph="cmd_placeholder"
+             placeholder="EAST · LOOK · OPEN DOOR · SAY TO THORIN &quot;CARRY ME&quot;">
+       <button type="submit">OK</button>
+    </form>
+    </div>
+    <div class="game-img">
+      <canvas id="vec" width="240" height="128"></canvas>
+      <div id="vec-empty" data-i18n="vec_empty">(pas d'illustration ici)</div>
+    </div>
+  </section>
+
+  <section id="live">
+    <div class="room"><span data-i18n="room_label">Lieu</span> : <b id="room">?</b></div>
+    <div class="objs-wrap">
+    <table id="objs">
+      <thead>
+        <tr><th data-i18n="th_hash">#</th><th data-i18n="th_name">Nom</th>
+            <th data-i18n="th_room">Lieu</th><th data-i18n="th_carrier">Contenant</th>
+            <th data-i18n="th_hp">PV</th><th data-i18n="th_f0" data-i18n-title="th_f0t">Verr.</th><th data-i18n="th_f1" data-i18n-title="th_f1t">Liquide</th><th data-i18n="th_f2" data-i18n-title="th_f2t">Plein</th><th data-i18n="th_f3" data-i18n-title="th_f3t">À terre</th><th data-i18n="th_f4" data-i18n-title="th_f4t">Lum.</th><th data-i18n="th_f5" data-i18n-title="th_f5t">Ouvert</th><th data-i18n="th_f6" data-i18n-title="th_f6t">Créat.</th><th data-i18n="th_f7" data-i18n-title="th_f7t">Présent</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="offstage">
+    <h2 data-i18n="offstage_title">Offstage</h2>
+    <div id="offstage-feed" aria-live="polite"></div>
+  </section>
+
+  <section id="map">
+    <div id="map-svg"></div>
+  </section>
+</main>
+
+<div id="modal" class="hidden" role="dialog" aria-modal="true">
+  <div id="modal-box">
+    <div id="modal-head">
+      <h3 id="modal-title"></h3>
+      <button id="modal-close" type="button" title="Fermer">✕</button>
+    </div>
+    <div id="modal-body">
+      <div id="modal-map"></div>
+      <div id="modal-about" hidden>
+        <div data-lang-block="en">
+          <p class="lead">The Hobbit (1982) — Oric-1/Atmos WebAssembly emulator:
+          playable game, live object/NPC state, map and vector illustrations.</p>
+
+          <h4>The Hobbit — 1982</h4>
+          <ul>
+            <li>Veronika Megler, Philip Mitchell — design &amp; programming</li>
+            <li>Gregg Barnett — 6502 ports</li>
+          </ul>
+
+          <h4>With great help from</h4>
+          <ul>
+            <li>Wilderland — <a href="https://github.com/efa/Wilderland"
+                target="_blank" rel="noopener">Valerio Messina</a></li>
+            <li>The Hobbit ZX Spectrum disassembly — <a href="https://github.com/pobtastic/hobbit"
+                target="_blank" rel="noopener">Paul Maddern</a></li>
+          </ul>
+
+          <h4>This project — reverse-engineering &amp; WASM emulator</h4>
+          <ul>
+            <li>AI — DeepSeek V4.1 flash, Muse Spark 1.3</li>
+            <li>Supervised by Christophe Gimenez</li>
+            <li>Tools: cc65 (ca65/ld65/sim65), Emscripten</li>
+          </ul>
+
+          <p class="note">The Hobbit is © Melbourne House / Beam Software, 1982.
+          This is non-commercial study and tribute.</p>
+        </div>
+
+        <div data-lang-block="fr" hidden>
+          <p class="lead">The Hobbit (1982) — émulateur WebAssembly Oric-1/Atmos :
+          jeu jouable, état live des objets/PNJ, carte et illustrations
+          vectorielles.</p>
+
+          <h4>The Hobbit — 1982</h4>
+          <ul>
+            <li>Veronika Megler, Philip Mitchell — conception &amp; programmation</li>
+            <li>Gregg Barnett — 6502 ports</li>
+          </ul>
+
+          <h4>Avec l'aide précieuse de</h4>
+          <ul>
+            <li>Wilderland — <a href="https://github.com/efa/Wilderland"
+                target="_blank" rel="noopener">Valerio Messina</a></li>
+            <li>désassemblage The Hobbit (ZX Spectrum) — <a href="https://github.com/pobtastic/hobbit"
+                target="_blank" rel="noopener">Paul Maddern</a></li>
+          </ul>
+
+          <h4>Ce projet — reverse-engineering &amp; émulateur WASM</h4>
+          <ul>
+            <li>IA — DeepSeek V4.1 flash, Muse Spark 1.3</li>
+            <li>Sous la supervision de Christophe Gimenez</li>
+            <li>Outils : cc65 (ca65/ld65/sim65), Emscripten</li>
+          </ul>
+
+          <p class="note">The Hobbit est © Melbourne House / Beam Software, 1982.
+          Ceci est une étude et un hommage sans but lucratif.</p>
+        </div>
+      </div>
+
+      <div id="modal-disclaimer" hidden>
+        <div data-lang-block="en">
+          <p class="lead">Warning — spoilers!</p>
+          <p>AUTO PLAY replays the full verified solution of the game (every
+          move, up to the victory) and <b>restarts the game from the
+          beginning</b>. You will be shown the entire walkthrough.</p>
+        </div>
+        <div data-lang-block="fr" hidden>
+          <p class="lead">Avertissement — spoilers !</p>
+          <p>AUTO PLAY rejoue la solution complète et vérifiée du jeu (tous les
+          coups, jusqu'à la victoire) et <b>redémarre la partie depuis le
+          début</b>. Vous allez voir l'intégralité de la solution.</p>
+        </div>
+        <div class="modal-actions">
+          <button id="auto-cancel" type="button" data-i18n="auto_cancel">Cancel</button>
+          <button id="auto-confirm" type="button" class="primary" data-i18n="auto_confirm">Start</button>
+        </div>
+      </div>
+    </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
