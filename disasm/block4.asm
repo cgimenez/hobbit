@@ -409,7 +409,7 @@ L2DCC:  sta     $97,x
         cld
         jmp     main
 
-; '@' en tete de ligne : recule le curseur de 2 et annule la saisie en cours
+; '@' en tete de ligne : annule la commande tapee et reaffiche le prompt
 input_abort:
         lda     $57
         bne     line_read
@@ -419,13 +419,12 @@ input_abort:
         lda     #$00
         rts
 
-; Editeur de ligne du parser (prompt '> '). Lit les touches une a une et
-; construit la commande dans le tampon $40BE jusqu'a un CR. Le dernier
-; caractere doit etre un point ($2E) : ins_period l'ajoute si besoin, ce point
-; sert de marqueur de fin pour le lexeur. Les guillemets " encadrent un nom ;
-; l'etat ouvert/ferme est memorise en $B8. Backspace ($08) et DEL ($7F)
-; corrigent la saisie. Les fleches sont converties en N/S/E/W (key_arrow).
-; Sortie : A=1 quand la ligne est valide (CR), A=0 pour '@' en tete (annule).
+; QUOI : lit la commande du joueur (prompt '> ', ex. TAKE LAMP puis ENTREE).
+; ENTREE : rien ; SORTIE : tampon $40BE rempli jusqu'au CR, A=1 (ok) ou 0 ('@' annule).
+; EXEMPLE : le joueur tape OPEN GREEN DOOR. -> $40BE recoit la phrase + point final.
+; COMMENT : boucle touche par touche (line_loop) ; ins_period ajoute le point
+; manquant, ins_quote ferme le guillemet ; $B8 = etat guillemet ; DEL efface tout,
+; RETOUR efface une lettre ; les fleches deviennent N/S/E/W (key_arrow).
 read_line:
         lda     #$30
         sta     $61
@@ -439,30 +438,30 @@ read_line:
         lda     #$20
         jsr     putchar
         ldx     #$00
-; Lit une touche, la traduit (fleches) puis la traite
+; Saisie : lit une touche du joueur puis l'aiguille vers son traitement
 line_loop:
         stx     $B8
         jsr     read_key
         jsr     key_arrow
         jmp     line_dispatch
 
-; Lit une touche sans traduction (relecture apres effacement)
+; Saisie : relit une touche apres un effacement, sans retraduire les fleches
 line_read:
         jsr     read_key
-; Repartit la touche : fin de ligne, effacement ou edition
+; Saisie : aiguille la touche vers fin de ligne, effacement ou edition
 line_dispatch:
         cpx     #$00
         bne     line_del
         cmp     #$40
         beq     input_abort
-; Touche DEL ($7F) : efface toute la ligne saisie
+; Saisie : touche DEL efface toute la ligne tapee par le joueur
 line_del:
         cmp     #$7F
         bne     line_backspace
         jsr     line_clear
         jmp     line_loop
 
-; Retour arriere ($08) : efface le dernier caractere et suit l'etat guillemet
+; Saisie : touche RETOUR efface la derniere lettre tapee par le joueur
 line_backspace:
         cmp     #$08
         bne     line_edit
@@ -478,7 +477,7 @@ line_backspace:
         sta     $B8
         jmp     line_read
 
-; Edition d'un caractere : guillemets, espaces et ponctuation
+; Saisie : accepte une lettre, un guillemet ou un espace tapes par le joueur
 line_edit:
         cmp     #$40
         bcs     line_store
@@ -492,7 +491,7 @@ line_edit:
 L2E53:  lda     #$22
         jmp     line_store
 
-; Trie le caractere saisi (espace, CR, point, virgule) avant stockage
+; Saisie : trie espace, ENTREE, point et virgule tapes par le joueur
 line_classify:
         cmp     #$20
         beq     line_store
@@ -502,7 +501,7 @@ line_classify:
         beq     line_store
         cmp     #$2C
         bne     line_read
-; Stocke le caractere dans le tampon de commande $40BE et l'affiche (echo)
+; Saisie : ajoute la lettre tapee a la commande et l'affiche en echo
 line_store:
         cpx     #$80
         beq     line_read
@@ -511,7 +510,7 @@ line_store:
         inx
         jmp     line_read
 
-; Entree : ferme la ligne (guillemet/point manquants), stocke CR et renvoie 1
+; Saisie : ENTREE termine la commande du joueur et la rend utilisable
 line_cr:lda     $B8                             ; CR : la commande est close (point final + guillemet)
         beq     L2E7D
         jsr     ins_quote
@@ -523,7 +522,7 @@ L2E7D:  jsr     ins_period
         lda     #$01
         rts
 
-; Ajoute un guillemet fermant si la saisie en a ouvert un
+; Saisie : ferme le guillemet oublie par le joueur en fin de ligne
 ins_quote:
         jsr     ins_period
         lda     #$22
@@ -531,7 +530,7 @@ ins_quote:
         inx
         jmp     putchar
 
-; Ajoute un point final a la commande si elle n'en a pas deja
+; Saisie : ajoute le point final oublie par le joueur en fin de commande
 ins_period:
         lda     L40BD,x
         cmp     #$2E
@@ -542,9 +541,9 @@ ins_period:
         jsr     putchar
 L2EA8:  rts
 
-; Traduit les codes des fleches Oric en lettres de direction : chaque fleche
-; ecrit directement la lettre + un CR dans la commande ($40BE), ce qui declenche
-; un deplacement immediat au tour suivant (sans mot-cle de direction).
+; QUOI : une fleche Oric joue un deplacement sans taper de commande.
+; EXEMPLE : fleche haut -> le jeu recoit N. comme si le joueur avait tape NORTH.
+; COMMENT : ecrit la lettre + CR dans $40BE (key_dir_put), declenche GO au tour suivant.
 key_arrow:
         cmp     #$15
         beq     key_e
@@ -556,9 +555,9 @@ key_arrow:
         beq     key_n
         rts
 
-; Fleche haut : ecrit 'N' puis valide
+; Fleche haut : le joueur va au NORD sans taper de commande
 key_n:  lda     #$4E
-; Ecrit la lettre de direction dans le tampon, echo, puis valide par CR
+; Fleche : ecrit la direction voulue dans la commande et valide par ENTREE
 key_dir_put:
         sta     L40BE,x
         inx
@@ -566,28 +565,24 @@ key_dir_put:
         lda     #$0D
         rts
 
-; Fleche gauche : ecrit 'W' puis valide
+; Fleche gauche : le joueur va a l'OUEST sans taper de commande
 key_w:  lda     #$57
         jmp     key_dir_put
 
-; Fleche droite : ecrit 'E' puis valide
+; Fleche droite : le joueur va a l'EST sans taper de commande
 key_e:  lda     #$45
         jmp     key_dir_put
 
-; Fleche bas : ecrit 'S' puis valide
+; Fleche bas : le joueur va au SUD sans taper de commande
 key_s:  lda     #$53
         jmp     key_dir_put
 
-; Lexeur : lit un mot du tampon $40BE a partir de X, puis le cherche dans le
-; dictionnaire 5-bit du bloc 2. Etapes :
-;   1. saute les espaces ; $60 = position du mot ; un CR donne le token $C0.
-;   2. ponctuation immediate via punct_class (point $B0, virgule $A0, guillemet $90).
-;   3. sinon dict_bucket decode le mot (lettres rangees en $47C3) et se place sur
-;      le seau $0500[2*1re lettre], puis boucle dict_next/word_prefix_cmp.
-;   4. word_finish (word_type) extrait le type (nibble de classe) et l'adresse du
-;      mot dans le bloc 2. Type $D0 = entrees ignorees du parseur (mots de messages).
-; Sortie : $5B = type ($C0 fin, $D0 inconnu, sinon classe<<4) ; adr/adr_hi =
-; pointeur $0500+... ; A = $5B. Le mot est ensuite copie en file par l'appelant.
+; QUOI : decoupe la phrase du joueur en mots connus (ex. TAKE -> verbe, LAMP -> nom).
+; ENTREE : tampon $40BE, curseur X ; SORTIE : $5B = nature du mot, adr = fiche dico, A = $5B.
+; EXEMPLE : TAKE LAMP. -> [verbe TAKE][nom LAMP][fin .] ; mot inconnu -> $D0 puis WHAT ?.
+; COMMENT : 1. saute espaces ($60 = position), CR -> $C0 ; 2. ponctuation $B0/$A0/$90
+; (punct_class) ; 3. decode lettres en $47C3 puis balaye le seau $0500[2*lettre]
+; (dict_next/word_prefix_cmp) ; 4. word_type lit la classe dans le bloc 2.
 tokenize:
         tya                                     ; entree du lexeur : un mot -> un token
         pha
@@ -633,16 +628,16 @@ L2EFF:  lda     $67
         tay
         jmp     L2EF5
 
-; Fin de ligne : produit le token de type $C0 (fin de commande)
+; Fin de commande : le joueur a tape ENTREE, on clot la phrase
 lex_cr: lda     #$C0
-; Prepare le token courant (adresse vide) puis passe a l'emission du type
+; Lexeur : prepare un mot sans adresse (ponctuation, fin de phrase)
 lex_emit:
         pha
         lda     #$00
         sta     adr
         sta     adr_hi
         pla
-; Renseigne le type du token ($5B), combine l'adresse et rend la main
+; Lexeur : range la nature du mot (verbe, nom, fin...) et rend la main
 lex_type:
         sta     $5B
         ora     adr_hi
@@ -652,7 +647,7 @@ lex_type:
         lda     $5B
         rts
 
-; Restaure le pointeur d'entree sauvegarde apres le test d'abreviation
+; Lexeur : abandonne un essai d'abrege et reprend la recherche au mot entier
 lex_restore:
         pla
         sta     $64
@@ -660,12 +655,12 @@ lex_restore:
         sta     $63
         pla
         tay
-; Mot trouve : suit un eventuel renvoi, extrait son type et son adresse de dictionnaire
+; Mot reconnu : retrouve sa fiche dictionnaire et sa nature (verbe, nom...)
 word_finish:
         tya
         pha
         ldy     #$00
-; Avance jusqu'au dernier octet de lettres du mot (bit7 pose)
+; Dictionnaire : saute les lettres d'un mot pour passer au mot suivant
 word_skip:
         lda     ($63),y
         iny
@@ -682,7 +677,7 @@ word_skip:
         iny
         and     #$80
         bne     word_skip
-; Teste le bit de renvoi de l'entree et suit la redirection de pointeur si pose
+; Dictionnaire : suit le renvoi vers la vraie fiche du mot (synonyme)
 word_grammar:
         dey
         lda     ($63),y
@@ -699,7 +694,7 @@ word_grammar:
         sta     $64
         pla
         sta     $63
-; Extrait le nibble de type (bits 6-5 des 2 premiers octets) et le range dans $5B
+; Mot reconnu : lit sa nature grammaticale (verbe, nom, adjectif...)
 word_type:
         ldy     #$00                            ; type = bits 6-5 des 2 premiers octets de l'entree de dictionnaire
         lda     ($63),y
@@ -726,7 +721,7 @@ word_type:
         bne     lex_type
         jmp     L2EF5
 
-; Classe un signe de ponctuation : point ($B0), virgule ($A0) ou guillemet ($90)
+; Ponctuation du joueur : distingue le point, la virgule et le guillemet
 punct_class:
         ldy     #$B0
         cmp     #$2E
@@ -740,13 +735,13 @@ punct_class:
         lda     #$00
         rts
 
-; Signe de ponctuation reconnu : avance le curseur et renvoie son type
+; Ponctuation reconnue : avance apres le signe et rend sa nature
 punct_hit:
         inx
         tya
         rts
 
-; Decode les lettres du mot cherche et se place sur le seau de dictionnaire de sa 1re lettre
+; Cherche le mot tape par le joueur dans la tranche de sa 1re lettre
 dict_bucket:
         ldy     #$00
 L2FBD:  lda     L40BE,x
@@ -758,7 +753,7 @@ L2FBD:  lda     L40BE,x
         iny
         jmp     L2FBD
 
-; Calcule le seau $0500[2*lettre] et positionne le pointeur sur sa 1re entree
+; Dictionnaire : se place au debut des mots commencant par cette lettre
 dict_start:
         sty     $66
         lda     L47C3
@@ -774,7 +769,7 @@ dict_start:
         adc     #$05
         sta     $64
         ldy     #$00
-; Avance de la taille de l'entree courante et compare la 1re lettre de la suivante
+; Dictionnaire : passe au mot suivant commencant par la meme lettre
 dict_next:
         tya
         clc
@@ -782,7 +777,7 @@ dict_next:
         sta     $63
         bcc     dict_cmp1
         inc     $64
-; Compare la 1re lettre de l'entree au mot cherche
+; Dictionnaire : verifie que le candidat commence pareil
 dict_cmp1:
         ldy     #$00
         lda     ($63),y
@@ -791,21 +786,21 @@ dict_cmp1:
         beq     dict_read
         rts
 
-; Entree correspondante : decode ses lettres dans $47D3 et mesure sa longueur
+; Candidat serieux : decode ses lettres pour comparaison complete
 dict_read:
         sta     L47D3,y
         txa
         pha
         ldx     #$01
         iny
-; Decode les lettres 5 bits d'une entree de dictionnaire (bit7 = suite)
+; Dictionnaire : decode les lettres tassees 5-bit d'un mot du jeu
 dict_letters:
         lda     ($63),y
         and     #$1F
         beq     dict_letter_next
         sta     L47D3,x
         inx
-; Gere les cas particuliers de 2 et 3 lettres (fin de mot)
+; Dictionnaire : gere les mots tres courts de 2-3 lettres (ex. GO, IN)
 dict_letter_next:
         lda     ($63),y
         iny
@@ -822,7 +817,7 @@ dict_letter_next:
         iny
         and     #$80
         bne     dict_letters
-; Fin des lettres : note la longueur du candidat ($67) et le bit de renvoi
+; Candidat decode : note sa longueur pour la comparaison finale
 dict_end:
         stx     $67
         dey
@@ -832,16 +827,17 @@ dict_end:
         beq     dict_done
         iny
         iny
-; Fin de lecture d'une entree : rend Z (A=0) quand la 1re lettre correspond
+; Lecture finie : dit si la 1re lettre correspondait au mot tape
 dict_done:
         pla
         tax
         lda     #$00
         rts
 
-; Compare le mot saisi (lettres en $47C3, longueur $66) et le candidat du
-; dictionnaire ($47D3, longueur $67) sur min($66,$67) caracteres. Rend A=0
-; (Z) si le prefixe commun est identique, A=1 sinon. Sert au matcher.
+; QUOI : accepte les abreges du joueur (N. pour NORTH, L. pour LOOK...).
+; ENTREE : mot tape ($47C3, long. $66) et candidat ($47D3, long. $67).
+; SORTIE : A=0 (Z) si le debut coincide, A=1 sinon.
+; COMMENT : compare sur min($66,$67) lettres (cmp_min/cmp_loop).
 word_prefix_cmp:
         txa
         pha
@@ -851,10 +847,10 @@ word_prefix_cmp:
         cmp     $67
         bcc     cmp_min
         lda     $67
-; Longueur de comparaison = minimum des deux longueurs
+; Abrege : compare sur la longueur du plus court des 2 mots
 cmp_min:tax
         ldy     #$00
-; Boucle de comparaison lettre a lettre
+; Abrege : compare lettre a lettre le mot tape et le candidat
 cmp_loop:
         lda     L47C3,y
         cmp     L47D3,y
@@ -869,7 +865,7 @@ cmp_loop:
         lda     #$00
         rts
 
-; Difference trouvee : rend Z clair (A=1)
+; Mots differents : le candidat est rejete, on passe au suivant
 cmp_diff:
         pla
         tay
@@ -878,9 +874,10 @@ cmp_diff:
         lda     #$01
         rts
 
-; Recopie $65 mots de 24 octets (enregistrements de commande) depuis $4927
-; vers $4A17, en n'emportant que les mots marques (bit $40 de l'octet +1).
-; Prepare la forme consommee plus loin dans la boucle de commandes.
+; QUOI : garde les propositions comprises avant de les executer (ex. avant/apres AND).
+; ENTREE : $65 propositions de 24 o en $4927 ; SORTIE : copie filtree en $4A17.
+; EXEMPLE : TAKE LAMP AND SWORD -> 2 propositions gardees pour execution.
+; COMMENT : ne garde que les mots marques (bit $40 de l'octet +1).
 cmd_store:
         jsr     push_ptr
         lda     #$27
@@ -978,28 +975,25 @@ L30F6:  ora     ptr2_hi
 L30F9:  .byte   $56,$05,$1A,$1B,$D0,$91,$F1,$02
         .byte   $CC,$28,$26,$97,$C8,$05,$1A,$21
         .byte   $17,$9A,$18,$00,$BE,$00,$DF,$9F
-; Interpreteur de commande (grammaire). Consomme la file de tokens $4783
-; construite par le lexeur et classe chaque mot par grammaire via la table
-; $315A (index = type>>3, soit 2 x le nibble de classe).
+; QUOI : comprend la phrase (GO NORTH, TAKE ALL EXCEPT LAMP, OPEN DOOR WITH KEY).
+; ENTREE : file de mots $4783 ; SORTIE : fiche commande 24 o a (ptr2), A=0 ok / 1 WHAT ? / 2 refaire.
+; EXEMPLE : TAKE ALL EXCEPT LAMP -> portee ALL ($6E=1) sauf LAMP.
+; COMMENT : dispatch chaque mot par sa classe via table $315A (index = type>>3) ;
+; etat : $6D attente, $6E portee (0 normal, 1 ALL, 2 EXCEPT), $9D virgules, $65 mots,
+; $5A/$5B precedant/courant, $5F curseur, $A3..$AC groupe nominal courant.
 ;
-; Classes (nibble de type du dictionnaire, cf. bloc 2) :
+; Classes dictionnaire (cf. bloc 2) :
 ;   $00 adverbe   $10 IN/INTO     $20 direction   $30 verbe
 ;   $40 GO/RUN    $50 nom         $60 adjectif    $70 preposition
-;   $80 article   $90 mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT/...)
+;   $80 article   $90 mot-cle special (SAVE/QUIT/HELP/ALL/EXCEPT...)
 ;   $A0 AND/virgule   $B0 THEN/point(=fin de commande)
-;
-; Etat interne : $6D = drapeaux d'attente, $6E = portee (0 normal, 1 ALL,
-; 2 EXCEPT), $9D = compteur de virgules, $65 = nb de mots retenus, $5A/$5B =
-; type precedent/courant, $5F = curseur de file, $A3..$AC = groupe nominal
-; courant, (ptr2) = enregistrement de commande de travail (24 octets).
-; Retour : A=0 (commande construite), A=1 ('WHAT ?'), A=2 (recommencer la saisie).
 parse_cmd:
         jsr     set_mode0
         lda     #$FF
         sta     $6D
         lda     #$C0                            ; $5B = $C0 : on amorce avec un type precedent 'fin de commande'
         sta     $5B
-; Debut d'un nouveau mot a analyser (remet le compteur de virgules $9D)
+; Grammaire : commence une nouvelle proposition (ex. apres AND ou THEN)
 next_word:
         lda     #$00
         sta     $9D
@@ -1013,7 +1007,7 @@ next_word:
         and     #$FD
         sta     $6D
 L3132:  jsr     rec_clear
-; Reinitialise l'accumulateur de groupe nominal et lit le token suivant
+; Grammaire : oublie le groupe de mots precedent et lit la suite
 next_phrase:
         ldx     #$09
         lda     #$00
@@ -1023,9 +1017,9 @@ L3139:  sta     $A3,x
         lda     $6D
         ora     #$10
         sta     $6D
-; Lit le token suivant (next_token) et calcule l'index de classe = type>>3,
-; puis saute indirectement via la table $315A (adresses des handlers). La
-; table est auto-patchee : l'operande de 'jmp ($315A)' est ecrit en $3158/$3159.
+; QUOI : aiguille chaque mot vers son traitement (verbe, nom, direction...).
+; ENTREE : mot courant (next_token) ; SORTIE : saut vers le handler de classe.
+; COMMENT : index = type>>3, saut indirect table $315A ; operande auto-patche en $3158/$3159.
 dispatch:
         jsr     next_token                      ; dispatch : lit le token suivant et saute vers sa classe
         lsr     a                               ; index de classe = type >> 3 (2 x le nibble de classe)
@@ -1059,10 +1053,11 @@ L315A:  .byte   $99
         .byte   ";"
         .byte   $B9
         .byte   "2r1"
-; Handler de classe 11 ($B0, point ; produit a la fin de chaque commande par
-; l'editeur, et aussi THEN). Si un groupe nominal est en cours d'attente (bit1
-; de $6D) mais qu'aucun mot n'a ete retenu, renvoie 2 (saisie a refaire) ; sinon
-; renvoie 1 ou poursuit la finalisation de la commande a $3196.
+; QUOI : le point final valide la commande du joueur (ou THEN l'enchaine).
+; ENTREE : attente $6D, mots $65 ; SORTIE : poursuit, A=1 WHAT ? ou A=2 saisie a refaire.
+; EXEMPLE : GO NORTH. -> valide ; phrase vide -> WHAT ?.
+; COMMENT : si un groupe nominal attendait (bit1 $6D) sans mot retenu, echec ; sinon
+; finalise en $3196 (portee ALL/EXCEPT, rec_next, fusions).
 cmd_end:lda     $6D                             ; classe 11 ($B0) : point/THEN = fin de commande
         and     #$02
         beq     L3196
@@ -1512,16 +1507,16 @@ noun_store_adj:
         ldx     #$04
         jmp     L3451
 
-; Recule a l'enregistrement precedent puis remet le mode de commande a zero
+; Grammaire : revient a la proposition precedente en mode normal
 rec_back_mode0:
         jsr     rec_rewind
-; Remet le mode de commande ($6E) a zero
+; Grammaire : quitte le mode ALL/EXCEPT, revient au normal
 set_mode0:
         lda     #$00
         sta     $6E
         rts
 
-; Efface l'enregistrement de commande courant (26 octets a (ptr2))
+; Grammaire : efface la proposition en cours pour la reecrire
 rec_clear:
         ldy     #$00
         lda     #$00
@@ -1531,10 +1526,9 @@ L347D:  sta     (ptr2),y
         bne     L347D
         rts
 
-; Lit un token de la file $4783 a l'offset $5F : octet 0 = type (nibble haut)
-; et page du pointeur (nibble bas) ; octet 1 = octet bas du pointeur. Recopie
-; l'ancien type en $5A, le nouveau en $5B, l'adresse en adr/adr_hi, avance $5F.
-; Sortie : A = $5B (type courant).
+; QUOI : lit le mot suivant de la phrase du joueur (verbe, nom, fin...).
+; ENTREE : curseur $5F dans $4783 ; SORTIE : $5A ex-mot, $5B mot courant, adr sa fiche, A = $5B.
+; COMMENT : octet 0 = nature (haut) + page (bas), octet 1 = octet bas ; avance $5F de 2.
 next_token:
         ldx     $5F
         stx     $60
@@ -1554,16 +1548,16 @@ next_token:
         lda     $5B
         rts
 
-; Recule d'un enregistrement et decremente le compteur de commandes
+; Propositions : revient en arriere et compte une proposition de moins
 rec_prev_dec:
         dec     $6C
-; Rembobine sur le premier enregistrement de la file courante
+; Propositions : revient a la premiere proposition de la commande
 rec_rewind:
         lda     ptr2
         sta     ptr
         lda     ptr2_hi
         sta     ptr_hi
-; Boucle de rembobinage (recule tant que le bit $40 est pose)
+; Propositions : recule jusqu'a la premiere (ex. TAKE A AND B -> TAKE A)
 rec_rewind_loop:
         jsr     rec_prev
         ldy     #$01
@@ -1572,7 +1566,7 @@ rec_rewind_loop:
         bne     rec_rewind_loop
         rts
 
-; Enregistrement precedent : (ptr2) -= $18
+; Propositions : recule d'une proposition (24 octets)
 rec_prev:
         lda     ptr2
         sec
@@ -1583,14 +1577,15 @@ rec_prev:
         sta     ptr2_hi
         rts
 
-; Decremente le compteur et avance a l'enregistrement suivant
+; Propositions : avance d'une proposition et compte une de moins
 rec_fwd_dec:
         dec     $6C
         jmp     rec_rewind2
 
-; Fusionne le mot pointe par (ptr) dans l'enregistrement courant (ptr2) :
-; reporte le type et marque les champs ; recule d'un enregistrement (rec_prev)
-; puis avance (rec_next). Si les champs +4/+5 sont non nuls, applique rec_fixup1.
+; QUOI : assemble deux bouts de commande (GREEN + DOOR -> GREEN DOOR).
+; ENTREE : bout en (ptr), fiche en (ptr2) ; SORTIE : fiche completee.
+; COMMENT : reporte le type, recule (rec_prev) puis avance (rec_next) ; si +4/+5
+; non nuls, remet l'ordre via rec_fixup1 (echange sujet/complement si bit7 $6D).
 rec_merge:
         ldy     #$01                            ; fusionne deux mots en un enregistrement de commande
         lda     (ptr),y
@@ -1611,14 +1606,14 @@ rec_merge:
         bne     rec_fixup1
         rts
 
-; Apres fusion : echange des champs si le drapeau $6D bit7 est pose
+; Apres assemblage : remet sujet et complement dans le bon ordre si besoin
 rec_fixup1:
         lda     $6D
         and     #$80
         bne     rec_swap6
         rts
 
-; Echange 6 octets (+8..+$0D) avec (+$12..+$17) dans l'enregistrement
+; Assemblage : echange objet et complement dans la proposition
 rec_swap6:
         ldy     #$08
         ldx     #$00
@@ -1638,7 +1633,7 @@ L350A:  lda     $A7,x
         cpx     #$06
         bne     L350A
         ldy     #$04
-; Copie un bloc de champs de l'enregistrement puis teste la suite
+; Assemblage : recopie un groupe de mots puis verifie qu'il est complet
 rec_copy_check:
         jsr     rec_copy10
         ldy     #$02
@@ -1652,20 +1647,20 @@ L3523:  ldy     #$02
         jsr     rec_copy2
         rts
 
-; Copie 6 octets de (ptr) vers (ptr2)
+; Assemblage : recopie un petit groupe de mots (6 octets)
 rec_copy6:
         ldx     #$06
         jmp     copy_bytes
 
-; Copie 10 octets de (ptr) vers (ptr2)
+; Assemblage : recopie un groupe de mots (10 octets)
 rec_copy10:
         ldx     #$0A
         jmp     copy_bytes
 
-; Copie 2 octets de (ptr) vers (ptr2)
+; Assemblage : recopie un mot (2 octets)
 rec_copy2:
         ldx     #$02
-; Copie X octets de (ptr) vers (ptr2)
+; Assemblage : recopie X octets d'une proposition vers l'autre
 copy_bytes:
         lda     (ptr),y
         sta     (ptr2),y
@@ -1674,13 +1669,13 @@ copy_bytes:
         bne     copy_bytes
         rts
 
-; Range l'adresse du mot courant dans le champ de l'enregistrement
+; Grammaire : range le mot reconnu dans la proposition en cours
 rec_store_here:
         lda     $6D
         and     #$FD
         sta     $6D
         ldx     #$00
-; Ecrit adr/adr_hi a (ptr2)+2*X
+; Grammaire : range le mot reconnu a sa place dans la fiche
 rec_store_at:
         txa
         tay
@@ -1691,24 +1686,26 @@ rec_store_at:
         sta     (ptr2),y
         rts
 
-; Abandon : depile deux octets puis signale l'erreur
+; Phrase refusee : abandonne proprement la commande
 parse_fail_pop:
         pla
         pla
-; Echec du parseur : revient a la boucle de commandes avec 'WHAT ?'
+; QUOI : phrase incomprise -> le jeu repond WHAT ? et redemande.
+; EXEMPLE : joueur tape BLORP. -> WHAT ? puis nouveau prompt '> '.
+; COMMENT : saut vers la boucle start ($2D45), sans toucher au monde.
 parse_fail:
         jmp     L2D45
 
         lda     #$01
         rts
 
-; Rembobine puis avance jusqu'au premier enregistrement marque
+; Propositions : repart du debut pour executer la commande validee
 rec_rewind2:
         lda     ptr2
         sta     ptr
         lda     ptr2_hi
         sta     ptr_hi
-; Boucle d'avance (avance tant que le bit $40 est pose)
+; Propositions : avance jusqu'a la premiere a executer
 rec_rewind2_loop:
         jsr     rec_next
         ldy     #$01
@@ -1717,7 +1714,7 @@ rec_rewind2_loop:
         bne     rec_rewind2_loop
         rts
 
-; Enregistrement suivant : (ptr2) += $18
+; Propositions : avance a la proposition suivante (24 octets)
 rec_next:
         lda     ptr2
         clc
@@ -1728,14 +1725,12 @@ rec_next:
         sta     ptr2_hi
         rts
 
-; Enchainement d'execution d'une commande joueur (appele par start).
-; Tente d'abord de la traiter comme un deplacement (move_begin $359B) : si le
-; mouvement se termine par A<>0, cmd_run le rend tel quel a start. Sinon
-; cmd_probe ($36D5) evalue l'action en sonde : passok<>0 -> A=0 (start
-; execute l'action en reel : phase=1, describe_room, perform_action) ;
-; passok=0 -> $57=3 et A=3 (start declenche rev_real $3A2D).
-; start interprete $57 : 1 (pas une sortie) -> WAIT ou special_cmd ;
-; 2 (deplacement partiel) -> rev_dispatch2 $3A0B ; 3 (action) -> rev_real.
+; QUOI : joue l'ordre du joueur (GO NORTH deplace, TAKE LAMP agit).
+; EXEMPLE : GO NORTH -> move_begin ; TAKE LAMP -> cmd_probe puis perform_action.
+; COMMENT : tente move_begin ($359B), sinon sonde cmd_probe ($36D5) : passok<>0 -> A=0
+; (start rejoue en reel : phase=1, describe_room, perform_action) ; passok=0 -> $57=3, A=3
+; (start via rev_real $3A2D). $57 : 1 pas une sortie -> WAIT/special_cmd ; 2 partiel ->
+; rev_dispatch2 $3A0B ; 3 action -> rev_real.
 cmd_run:jsr     move_begin                      ; tente d'abord de traiter la commande comme un deplacement (L359B)
         beq     L3582
         rts
@@ -1749,7 +1744,7 @@ L358A:  lda     #$03                            ; $57=3 : rien a reviser pour la
         sta     $57
         rts
 
-; Remet a zero l'espace de resolution ($D7-$E7) et le mode brut avant un essai de deplacement
+; Deplacement : oublie la tentative precedente avant d'essayer GO NORTH
 move_raz:
         lda     #$00
         sta     raw
@@ -1759,17 +1754,11 @@ L3595:  sta     op1,x
         bpl     L3595
         rts
 
-; Chaine d'execution d'un deplacement joueur.
-; 1. Force arg1/arg2=$FF puis remet a zero l'espace de resolution ($D7-$E7).
-; 2. exit_resolve ($3790) : construit les arguments VM ($F2-$F7) depuis le
-;    record de commande et cherche, dans les sorties du lieu (table $26E2,
-;    pas de 8), celle dont la signature correspond au mot courant. Rend 1 si
-;    trouvee ; sinon 0 et $57=1 (cmd_run bascule alors sur l'action).
-; 3. Si trouvee (move_go $35AE) : wid := index de sortie ($6C), derive les
-;    options (move_flags) puis tente le deplacement en deux temps : une
-;    sonde (phase=0) et, si elle passe, l'execution reelle.
-; Espace de travail : $D7/$D8 = etats des operateurs resolus (bits 0/1),
-; $D9-$DB = compteurs de la boucle, $DC/$E2 = conditions memorisees.
+; QUOI : GO NORTH cherche la sortie NORD parmi les sorties du lieu.
+; ENTREE : mot courant ; SORTIE : 1 sortie trouvee (move_go $35AE), 0 sinon ($57=1 -> action).
+; EXEMPLE : GO NORTH dans le tunnel -> sortie NORD ; GO UP sans sortie -> action/WHAT ?.
+; COMMENT : arg1/arg2=$FF, raz $D7-$E7 ; exit_resolve ($3790) balaye $26E2 par pas de 8 ;
+; si trouvee wid := index ($6C), move_flags puis essai sonde (phase=0) puis reel.
 move_begin:
         lda     #$FF
         sta     arg2
@@ -1781,7 +1770,7 @@ move_begin:
         sta     $57
         rts
 
-; Suite d'un deplacement : cale wid sur l'index de sortie ($6C), derive les options et tente l'essai
+; Sortie trouvee : tente d'abord pour de faux, puis vraiment si ca passe
 move_go:lda     $6C
         sta     wid
         sta     $14
@@ -1811,7 +1800,7 @@ L35D8:  lda     $7E
 L35E1:  lda     #$00
         rts
 
-; Un essai de deplacement : resout un objet-porte, sinon enchaine sur l'essai suivant
+; Deplacement avec porte (ex. OPEN DOOR) : trouve la porte puis l'ouvre
 move_iter:
         jsr     op_resolve1
         bne     move_iter2
@@ -1827,7 +1816,7 @@ L35F0:  lda     rid1
         bne     move_second
         rts
 
-; Essai suivant : incremente le compteur d'objet ($D9) et reprend la resolution
+; Autre porte possible : essaie l'objet-porte suivant (ex. 2e porte)
 move_iter2:
         inc     rn1
         jsr     move_gate
@@ -1845,12 +1834,12 @@ L3613:  lda     arg1
         inc     rn2
         jmp     move_iter
 
-; Aucun objet-porte : rejoue l'action en sonde (cmd_probe) puis reprend
+; Sans porte : joue directement l'action (ex. GO NORTH simple)
 move_iter_none:
         jsr     cmd_probe
         jmp     L360A
 
-; Resout le 2e operateur d'un deplacement a plusieurs objets
+; Deplacement a 2 objets (ex. GO THROUGH DOOR WITH KEY) : vise le 2e
 move_second:
         jsr     op_resolve2
         bne     L3635
@@ -1869,7 +1858,7 @@ L3635:  lda     arg2
         inc     rn3
         jmp     move_second
 
-; Cherche dans les records un objet-porte (record+1 bit6) dont l'id vaut arg1
+; Retrouve la porte visee (ex. GREEN DOOR) parmi les objets du jeu
 move_find_obj:
         jsr     push_ptr2
 L3641:  jsr     rec_next
@@ -1899,13 +1888,13 @@ L366E:  tax
         txa
         rts
 
-; Met de cote les options de la sortie (svptr) sauf si une annonce est en cours ($7E)
+; Deplacement : met de cote la sortie prevue sauf si on annonce deja
 move_saveopt:
         lda     $7E
         beq     move_saveptr
         rts
 
-; Sauve le pointeur de travail dans svptr (branche directe)
+; Deplacement : memorise ou on en est (aller direct)
 move_saveptr:
         lda     xaux
         lsr     a
@@ -1920,7 +1909,7 @@ L3687:  lda     ptr
         sta     svptr_hi
         rts
 
-; Meme sauvegarde pour la variante (dans $EA/$EB)
+; Deplacement : memorise ou on en est (chemin detourne)
 move_saveptr2:
         lda     xaux
         jsr     move_pick_tbl
@@ -1933,7 +1922,7 @@ L369C:  lda     ptr
         sta     $EB
         rts
 
-; Choisit la table de conditions (directe $1A5F / etendue $1A62) selon xaux
+; Deplacement : choisit la liste des sorties (normales ou secretes)
 move_pick_tbl:
         and     #$03
         beq     L36B2
@@ -1949,7 +1938,7 @@ L36B2:  lda     #$62
         sta     ptr_hi
         rts
 
-; Porte de controle du deplacement : teste xmode/$D8 et rend 1 (continuer) ou 0
+; Porte : dit si on continue (ouverte) ou si on s'arrete (fermee)
 move_gate:
         lda     xmode
         and     #$04
@@ -1970,19 +1959,18 @@ L36C9:  lda     xmode
 L36D2:  lda     #$00
         rts
 
-; Rejoue la commande courante via perform_action ($4B37) en mode sonde
-; (phase=0). Renvoie passok dans A : <>0 = l'action passe et sera rejouee en
-; reel ; 0 = elle n'a pas abouti (cmd_run pose alors $57=3).
+; QUOI : simule l'ordre sans rien afficher (ex. porte fermee -> ca ne passe pas).
+; ENTREE : commande prete ; SORTIE : A = passok (1 ca passe, 0 refuse, alors $57=3).
+; COMMENT : rejoue perform_action ($4B37) en phase=0.
 cmd_probe:
         jsr     perform_action
         lda     passok
         rts
 
-; Coeur du deplacement : quand le joueur demande a aller quelque part, cette routine
-; retrouve la sortie correspondante du lieu, verifie ses eventuelles conditions (objet
-; requis, passage cache...), puis effectue ou refuse le deplacement.
-; Technique : exit_ptr(wid), flags via code_4141, conditions cond1/cond2 via cond_eval,
-; execution en mode sonde (L4B37) ou en deux temps (L35E4).
+; QUOI : deplace joueur ou PNJ (GO NORTH) : trouve la sortie, verifie porte/noir, bouge ou refuse.
+; EXEMPLE : porte fermee -> YOU CANNOT... ; noir sans lampe -> I SEE NOTHING.
+; COMMENT : exit_ptr(wid), flags code_4141, conditions cond1/cond2 via cond_eval,
+; essai sonde (L4B37) ou deux temps (L35E4).
 move_core:
         lda     svptr
         pha
@@ -2034,7 +2022,7 @@ L3733:  lda     #$01
         jmp     move_core_end
 
 L3741:  lda     #$01
-; Fin de move_core : restaure les pointeurs de travail et rend le resultat
+; Deplacement fini : range les pointeurs et dit reussi/refuse
 move_core_end:
         tax
         lda     #$01
@@ -2095,13 +2083,10 @@ L3784:  sta     direct
 L378D:  sta     variant
         rts
 
-; Prepare le bloc d'arguments de la commande puis localise la sortie du lieu.
-; Arguments : lit le record de commande (ptr2, 24 o) - octet 0 -> $F2, octet
-; 1 (& $80) -> $EC et (& $7F) -> $F3 - puis copie les paires d'operandes
-; (y=4/$0E puis 6/$10 via op_copy_pair) ; $F4-$F7 = les 2 operandes.
-; Puis balaye les sorties a partir de $26E2 (pas de 8) : code_433A teste la
-; signature ; la premiere qui correspond arrete la boucle ($6C = index de
-; sortie). Rend 1 si une sortie correspond, 0 sinon (fin de table).
+; QUOI : prepare verbe+objets puis localise la sortie (ex. NORD) du lieu.
+; ENTREE : fiche commande 24 o a (ptr2) ; SORTIE : 1 sortie trouvee ($6C = index), 0 sinon.
+; COMMENT : octet 0 -> $F2, octet 1 -> $EC/$F3, paires via op_copy_pair ($F4-$F7) ; balaye
+; $26E2 par pas de 8, signature testee par code_433A, arret a la 1re qui correspond.
 exit_resolve:
         ldy     #$01
         lda     (ptr2),y
@@ -2141,7 +2126,7 @@ L37A7:  sta     rarg1,x                         ; raz des operandes $F4-$F7
         sta     ptr3
         lda     #$00
         sta     ptr3_hi
-; Boucle de parcours des sorties du lieu (pas de 8) jusqu'a correspondance ou fin de table
+; Passe les sorties du lieu en revue (NORD, SUD...) jusqu'a la bonne
 exit_scan:
         lda     exitp
         sta     $7C
@@ -2164,13 +2149,13 @@ exit_scan:
         bne     exit_scan
         rts
 
-; Sortie trouvee : assemble ses arguments et rend 1
+; Bonne sortie trouvee : prepare ses objets et continue
 exit_found:
         jsr     exit_build_args
         lda     #$01
         rts
 
-; Prepare les 2 operandes de la sortie (echange + copie des conditions) et leurs offsets
+; Sortie : prepare ses 2 conditions (ex. porte fermee + cle) et leurs places
 exit_build_args:
         txa
         beq     L381C
@@ -2207,13 +2192,13 @@ L3839:  lda     rarg1
         cmp     (ptr2),y
 L3846:  bne     L384F
         lda     xmode
-; Mise en forme des operandes : echange selon xmode
+; Conditions : remet objet et complement dans le bon ordre
 exit_arg_swap:
         eor     #$20
         jmp     exit_arg_mix
 
 L384F:  lda     xmode
-; Suite de mise en forme des operandes (bits de xmode)
+; Conditions : ajuste l'ordre pour les sorties detournees
 exit_arg_mix:
         and     #$20
         beq     L3860
@@ -2227,7 +2212,7 @@ L3860:  lda     #$12
         sta     roff1
         lda     #$08
         sta     roff2
-; Charge les conditions de la sortie dans l'espace de travail
+; Conditions : charge ce qu'exige la sortie (ex. porte, cle)
 exit_arg_load:
         ldy     roff1
         ldx     #$05
@@ -2258,7 +2243,7 @@ L3893:  lda     cond1,x
 L389A:  ldy     roff2
         ldx     #$0B
         lda     #$01
-; Copie des octets de condition depuis le record vers l'espace de travail
+; Conditions : recopie ce qu'exige la sortie vers la zone de travail
 op_load_cond:
         pha
         lda     #$06
@@ -2289,7 +2274,7 @@ L38C0:  pla
         sta     op1,x
         rts
 
-; Recopie une paire d'operandes (mot + masque) du record de commande
+; Commande : recopie un couple verbe+objet (mot + precision)
 op_copy_pair:
         dec     $6C
         bpl     L38CE
@@ -2311,7 +2296,7 @@ L38DF:  inx
         inx
         rts
 
-; Saut indirect auto-modifie vers le matcher ($53C3 direct ou $54F8 variante)
+; Test : appelle le bon comparateur (direct ou detourne)
 op_stub:
 L38E3           := * + 1
 L38E4           := * + 2
@@ -2341,7 +2326,7 @@ op_resolve1:
         ror     a
         and     #$03
         sta     $81
-; Corps de la boucle de resolution du 1er operande (sauve/restaure les pointeurs)
+; Essaie chaque 1er objet possible (sauve puis restaure la position)
 op_loop1:
         jsr     op_step1
         pha
@@ -2360,7 +2345,7 @@ L391B:  lda     #$F8
         sta     L38E4
         jmp     op_loop1
 
-; Un candidat du 1er operande : matche, pose arg1 et rejoue l'action (cmd_probe)
+; Essaie un 1er objet (ex. GREEN DOOR) : verifie puis rejoue l'action
 op_step1:
         lda     #$DC
         sta     ptr3
@@ -2380,7 +2365,7 @@ L3938:  sta     arg1                            ; candidat retenu : arg1 := id, 
         beq     op_step1
         rts
 
-; Boucle de resolution du 2e operande
+; Trouve le bon 2e objet (ex. laquelle des cles) en les essayant
 op_resolve2:
         jsr     push_ptr2
         lda     #$00
@@ -2399,7 +2384,7 @@ op_resolve2:
         lda     xaux
         and     #$03
         sta     $81
-; Corps de la boucle de resolution du 2e operande
+; Essaie chaque 2e objet possible
 op_loop2:
         jsr     op_step2
         pha
@@ -2421,7 +2406,7 @@ L3986:  lda     #$F8
         sta     L38E4
         jmp     op_loop2
 
-; Un candidat du 2e operande : matche, pose arg2 et rejoue l'action
+; Essaie un 2e objet (ex. BRASS KEY) : verifie puis rejoue l'action
 op_step2:
         lda     #$E2
         sta     ptr3
@@ -2440,19 +2425,19 @@ L39A3:  sta     arg2                            ; candidat retenu : arg2 := id, 
         beq     op_step2
         rts
 
-; Affiche le message inline en mode reel (raw=1, phase=1) ; variante de print_msg
+; Action : affiche son message final en mode reel (ex. YOU TAKE...)
 print_spc:
         jsr     set_real
         jmp     probe_flag_end
 
-; Repasse en mode reel : raw=1 et phase=1
+; Action : repasse en vrai affichage avant de jouer l'effet
 set_real:
         lda     #$01
         sta     raw
         sta     phase
         rts
 
-; Copie le record de commande (24 o) vers le tampon de travail $490F
+; Action : recopie verbe+objets vers la zone de l'effet a jouer
 vm_arg_set:
         sta     $57
         tya
@@ -2466,10 +2451,10 @@ L39C4:  lda     (ptr2),y
         tay
         rts
 
-; Assemble un argument depuis l'espace de travail, affiche le message puis rend 1
+; Action : prepare un objet, montre son message, puis continue
 rev_1:  lda     roff1
         ldy     #$05
-; Corps de rev_1 : copie une paire d'octets vers l'argument VM
+; Action : recopie un objet mot a mot vers l'effet a jouer
 rev_1_loop:
         jsr     vm_arg_set
         ldx     #$00
@@ -2484,7 +2469,7 @@ rev_1_loop:
         lda     #$01
         rts
 
-; Aiguillage de revision d'apres les etats $D8/$DB (2e operande)
+; Apres essai : aiguille selon l'etat du 2e objet (reussi, porte, echec)
 rev_dispatch:
         lda     op2
         and     #$01
@@ -2525,14 +2510,14 @@ L3A1A:  lda     op1
         bne     rev_1
         jsr     move_gate
         bne     rev_dispatch
-; Rejoue l'action en mode reel (set_real + perform_action)
+; Essai reussi : rejoue l'action vraiment (ex. YOU GO NORTH)
 rev_real:
         jsr     set_real
         jsr     perform_action                  ; rejoue l'action en mode reel
         lda     #$00
         rts
 
-; Resolution du 2e objet en variante puis reprise de l'action
+; 2e objet flou (ex. KEY) : precise lequel puis rejoue l'action
 rev_obj2:
         jsr     cond_match_alt
         lda     #$01
@@ -2560,7 +2545,7 @@ L3A63:  sta     arg2
         lda     #$01
         rts
 
-; Resolution du 1er objet en direct puis reprise de l'action
+; 1er objet flou (ex. DOOR) : precise lequel puis rejoue l'action
 rev_obj1:
         jsr     cond_match_alt
         lda     #$01
@@ -2597,7 +2582,7 @@ L3AA0:  jsr     set_real
         tax
         ora     ($A9),y
         ora     ($60,x)
-; Assemble les arguments VM et enchaine l'execution (variante 2)
+; Action : prepare ses objets (variante detournee) puis joue l'effet
 rev_exec2:
         ldx     #$00
         lda     rword
@@ -2620,7 +2605,7 @@ L3AD2:  lda     roff1
 code_3ADB:
         ora     ($A9),y
         ora     ($60,x)
-; Assemble les arguments VM et enchaine l'execution (variante 1)
+; Action : prepare ses objets (chemin direct) puis joue l'effet
 rev_exec1:
         ldx     #$00
         lda     rword
@@ -2654,15 +2639,15 @@ L3B14:  lda     roff2
         tya
         ora     ($A9),y
         ora     ($60,x)
-; Fixe la source des 2 derniers mots d'argument (jeu bas)
+; Effet : prend les 2 derniers mots dans le bas du jeu
 rev_sel_lo:
         lda     #$F0
         jmp     rev_sel
 
-; Fixe la source des 2 derniers mots d'argument (jeu haut)
+; Effet : prend les 2 derniers mots dans le haut du jeu
 rev_sel_hi:
         lda     #$D0
-; Ajoute conditionnellement 2 mots de la fiche de sortie au bloc d'arguments
+; Effet : ajoute si besoin 2 mots de la sortie (ex. condition cachee)
 rev_sel:sta     L3B34
         sta     L3B58
         ldy     #$03
@@ -2684,7 +2669,7 @@ L3B43:  ldy     #$02
         lda     (exitp),y
         sta     L466F,x
         inx
-; Seconde partie de rev_sel (octet +7 bit7 de la sortie)
+; Effet : ajoute la 2e moitie cachee de la condition de sortie
 rev_sel2:
         ldy     #$07
         lda     (exitp),y
@@ -2707,10 +2692,9 @@ L3B65:  ldy     #$04
         inx
         rts
 
-; Mot-cle special du parser (classe $90). Compare l'adresse du mot (adr) a la
-; table $3BC6 (13 cles de 2 octets) et saute via la table $3BE0 vers le
-; handler correspondant : ALL, EXCEPT, IT, ONE, PRINT, NOPRINT, LOAD, SAVE,
-; QUIT, HELP, SCORE, PAUSE. Ces commandes court-circuitent les actions $7014.
+; QUOI : ordres speciaux (SAVE/LOAD/QUIT/HELP/SCORE/PAUSE/ALL/EXCEPT/IT...).
+; EXEMPLE : SCORE -> YOU HAVE MASTERED...% ; SAVE -> ecrit la cassette.
+; COMMENT : compare adr a table $3BC6 (13 cles) puis saute via $3BE0 ; court-circuite $7014.
 special_cmd:
         lda     rword
         sta     L466F
@@ -3532,11 +3516,10 @@ move_run_real:
 L4179:  lda     #$00
         rts
 
-; Decrit le lieu courant : utilise notamment apres un deplacement reussi.
-; S'appuie sur le pointeur de sortie exitp (rempli par exit_ptr ; L4232 rend
-; les mots du record) : affiche le nom du lieu puis les sorties autorisees,
-; en raccourcissant le rendu en mode sonde (passok) et en tenant compte de
-; l'obscurite (is_dark) et des variantes de sortie (xmode/xaux).
+; QUOI : decrit le lieu (nom, sorties, objets visibles, ex. YOU ARE IN...).
+; EXEMPLE : apres GO NORTH reussi ou LOOK.
+; COMMENT : via exitp (exit_ptr), mots par L4232 ; raccourci en sonde (passok), tient compte
+; de is_dark et xmode/xaux.
 describe_room:
         tya
         pha
@@ -4755,17 +4738,10 @@ action_probe:
 L4B32:  stx     passok
         jmp     fetch_retaddr
 
-; Execution de la commande du joueur (le coeur d'AnimTalk cote action) :
-;   1. sauve le contexte (L46E9) et resout les objets de la commande.
-;   2. dans un lieu sombre sans lumiere portee (is_dark) : I SEE NOTHING HERE.
-;   3. range arg1 (puis arg2) dans orec/orec2 via locate_object ; un objet
-;      inconnu ou inaccessible est intercepte par obj_check.
-;   4. verifie la compatibilite verbe/objet (verb_obj_ok) puis appelle
-;      l'action : table $7014 pour un objet ordinaire, table etendue $7114
-;      (indexee par l'octet d'action de l'entree [verbe,action] ; bit7 => $7114) sinon ; appel via indirect_call.
-;   5. en action reelle (phase=1) : gere l'obscurite puis annonce les objets
-;      transportes qui reagissent.
-; Le meme corps sert de sonde a cmd_probe ($36D5).
+; QUOI : execute vraiment l'ordre (TAKE LAMP -> YOU TAKE... ; noir sans lampe -> I SEE NOTHING).
+; ENTREE : fiche commande ; SORTIE : effet joue via table $7014 (ordinaire) ou $7114 (etendue).
+; COMMENT : sauve contexte, resout arg1/arg2 en orec via locate_object (obj_check filtre),
+; teste is_dark puis compatibilite verb_obj_ok, appelle via indirect_call ; sert aussi de sonde.
 perform_action:
         jsr     push_ptr_ax
         jsr     arg1_check
@@ -5065,10 +5041,9 @@ code_4D3F:
 L4D44:  .byte   ":"
 code_4D45:
         lda     arg1
-; Retire un personnage du jeu (mort ou disparu) : marque son record
-; ((record)+7 bit3), remet son compteur (code_5AF0), le sort de la table des
-; entites (entity_find) et de la liste d'errance (wander_remove). Appele
-; quand un personnage change d'etat.
+; QUOI : fait disparaitre un personnage (mort/disparu, ex. tue au combat).
+; COMMENT : marque record+7 bit3, raz compteur (code_5AF0), sort de $2B45 (entity_find)
+; et d'errance (wander_remove).
 unit_remove:
         cmp     #$00
         bne     L4D4E
@@ -5097,9 +5072,8 @@ L4D74:  lda     L4D83
         jmp     pop_ptr2
 
 L4D83:  .byte   $00
-; Au lancement de la partie : cale crec sur la fiche du joueur ($1B1A), remet
-; obj et said a zero, puis enchaine sur L6487 qui affiche le lieu de depart
-; (premier LOOK).
+; QUOI : debut de partie, montre le tunnel comme apres un LOOK.
+; COMMENT : crec sur fiche joueur ($1B1A), obj/said=0, puis L6487 affiche le lieu.
 intro_look:
         lda     #$1A
         sta     crec
@@ -5228,10 +5202,9 @@ L4E49:  sta     L4DF5
         jmp     L4E17
 
 L4E58:  .byte   $1A
-; Fait vivre le monde autour du joueur : chaque personnage joue son script (il se deplace,
-; parle...), et les evenements differes se declenchent (un PNJ qui arrive, une porte qui
-; s'ouvre...). Appele apres chaque commande reussie.
-; Technique : L69E7, entity_tick (VM des PNJ), puis evt_tick (table $2B12).
+; QUOI : apres chaque ordre, les PNJ jouent (bougent, parlent) puis les evenements tombent.
+; EXEMPLE : Gollum avance meme si le joueur est ailleurs ; le tonneau derive.
+; COMMENT : L69E7 (victoire), entity_tick (VM PNJ), puis evt_tick ($2B12).
 world_tick:
         jsr     push_ptr
         jsr     victory_check
@@ -6083,7 +6056,7 @@ obj_room_slot:
         pla
         rts
 
-; Teste une action : soit l'execute, soit annule et retient qu'elle passe (mode sonde)
+; Teste une action sans l'executer (ex. TAKE mur = non, TAKE LAMP = oui)
 act_probe:
         lda     phase
         cmp     #$01
@@ -7231,7 +7204,7 @@ obj_flag48_test:
         cmp     #$40
         rts
 
-; Affiche le message d'une action puis termine l'action
+; Action : montre son message (ex. YOU TAKE...) puis termine
 act_msg:jsr     print_msg
 ; -> $13E8 <OBJ>SAY '
 msg_5B27:
@@ -8997,7 +8970,7 @@ msg_66EE:
 code_66F0:
         rts
 
-; Action d'objet (index 35 de $7014) : controle le contenant puis deplace l'objet
+; Contenant (ex. BARREL) : verifie l'interieur puis y met/sort l'objet
 act_p14_35:
         ldy     #$01
         lda     (crec),y
