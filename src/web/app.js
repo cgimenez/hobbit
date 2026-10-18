@@ -97,12 +97,15 @@ let textLen = 0;
 let busy = false;
 
 // Triche : table des objets + carte visibles (CHEAT) ou jeu seul (DON'T CHEAT).
-let cheatOn = true;
+// Le choix est memorise dans le cookie "hobbit.cheat".
+let cheatOn = getCookie('hobbit.cheat') !== '0';
 function setCheat(on) {
   cheatOn = on;
+  setCookie('hobbit.cheat', on ? '1' : '0');
   document.body.classList.toggle('nocheat', !on);
   $('#btn-cheat').textContent = on ? t('btn_nocheat') : t('btn_cheat');
 }
+if (!cheatOn) document.body.classList.add('nocheat');
 
 // Autoplay (rejoue la solution). autoTimer : setTimeout courant.
 let autoPlaying = false;
@@ -652,7 +655,8 @@ async function boot() {
   await fetchInto('basic10.rom', SLOT.ROM);
   await fetchInto('shim.bin', SLOT.SHIM);
   await fetchInto('snap.bin', SLOT.SNAP);
-  const isSave = await loadBlobFromStorage();
+  M._hob_slot_len(SLOT.BLOB, 0);   /* boot froid : la sauvegarde locale
+                                      n'est restauree que sur clic LOAD */
 
   const rc = M._hob_init();
   if (rc !== 0) { setStatus(`init: error ${rc}`, `init: erreur ${rc}`); return; }
@@ -660,14 +664,8 @@ async function boot() {
   M._hob_boot();
   textLen = 0;
   drainText();
-  if (isSave) {
-    sendCommand('LOAD');   // restaure la sauvegarde locale
-    sendCommand('');       // touches sacrifiees des invites cassette
-    sendCommand('');
-  }
   refreshLive();
-  setStatus(isSave ? 'local save restored' : '',
-            isSave ? 'sauvegarde locale restauree' : '');
+  setStatus('', '');
   $('#cmd').focus();
 }
 
