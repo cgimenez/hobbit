@@ -33,7 +33,8 @@ HOB_API int      hob_slot_cap(int which);
 HOB_API void hob_slot_len(int which, int len);
 
 /* Construit l'image en RAM ($0400 + patchs + shims) et reset a $2C00.
- * Rend 0 si OK, <0 si un slot requis manque. */
+ * Rend 0 si OK, <0 sinon (-1 slot vide, -2 signature shim absente,
+ * -3 image inattendue, -4 ROM courte, -5 snap court). */
 HOB_API int hob_init(void);
 
 /* Execute jusqu'a un prompt "@@P" (rend 0), budget epuise (rend 1) ou halt

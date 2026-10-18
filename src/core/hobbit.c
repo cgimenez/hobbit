@@ -21,6 +21,7 @@ void state_build(void);
 void map_build(void);
 
 #define IMG_CAP   0x9000
+#define IMG_LEN   36274   /* image $0400-$91B1 (data/hobbit.bin, cf. check) */
 #define ROM_CAP   0x4000
 #define SHIM_CAP  0x02F0
 #define SNAP_CAP  0x0500
@@ -144,6 +145,15 @@ int hob_init(void)
 
     if (len_img <= 0 || len_rom <= 0 || len_shim <= 0 || len_snap <= 0) {
         return -1;
+    }
+    if (len_img != IMG_LEN) {
+        return -3;   /* image inattendue : trous a $00 silencieux sinon */
+    }
+    if (len_rom < FONT_HI - ROM_FILE_BASE) {
+        return -4;   /* fonte utile $FC70-$FFBF incomplete */
+    }
+    if (len_snap < 2 * 9) {
+        return -5;   /* snap_ent[9] : vecteurs JMP poubelle sinon */
     }
     if (find_hooks(hooks) < 0) {
         return -2;

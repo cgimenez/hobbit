@@ -59,6 +59,26 @@ static void emit(uint8_t c)
     }
 }
 
+/* Prefixe strict d'un marqueur : "@@A"+octet et "@@K"+octet (4),
+ * "@@P\n" (4), "@@EOL\n" (6), "@@EOLR\n"/"@@SNAP\n" (7). Un PVWrite peut
+ * couper un marqueur en deux : attendre la suite au lieu de
+ * resynchroniser. */
+static const struct { const char *s; unsigned n; } MARKS[] = {
+    { "@@A", 4 }, { "@@P\n", 4 }, { "@@K", 4 },
+    { "@@EOL\n", 6 }, { "@@EOLR\n", 7 }, { "@@SNAP\n", 7 },
+};
+
+static int marker_prefix(const uint8_t *p, unsigned avail)
+{
+    for (unsigned m = 0; m < sizeof MARKS / sizeof MARKS[0]; m++) {
+        unsigned n = MARKS[m].n;
+        if (avail < n && memcmp(p, MARKS[m].s, avail) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Consomme le plus de marqueurs possible ; s'arrete sur un marqueur incomplet
  * (donnees a cheval sur deux PVWrite) ou sur un @@EOLR indecidable. */
 static void parse(void)
@@ -161,7 +181,12 @@ static void parse(void)
             rawpos += SAVE_HDR + nl + 3 + ln;
             continue;
         }
-        /* octet hors marqueur : resynchronisation */
+        /* octet hors marqueur : resynchronisation, sauf si c'est le debut
+         * d'un marqueur coupe (attendre la suite dans le prochain
+         * PVWrite). */
+        if (marker_prefix(p, avail)) {
+            break;
+        }
         rawpos++;
     }
 
@@ -192,6 +217,13 @@ void io_flush(void)
     if (rawpos + 7 <= rawlen && memcmp(raw + rawpos, "@@EOLR\n", 7) == 0) {
         emit('\n');
         rawpos += 7;
+    }
+    /* Un prefixe de marqueur ne peut plus se completer en fin de tour (le
+     * shim emet chaque marqueur d'un bloc ; un vrai marqueur coupe aurait
+     * ete complete avant le prompt) : resynchroniser pour ne pas laisser
+     * le parseur bloque sur des octets fantomes. */
+    while (rawpos < rawlen && marker_prefix(raw + rawpos, rawlen - rawpos)) {
+        rawpos++;
     }
     parse();
 }
