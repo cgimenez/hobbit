@@ -338,13 +338,13 @@ function renderFact(f, nameByKey) {
   const rn = (r) => (r !== undefined && r >= 0) ? `$${hex(r)} ${roomName(r)}` : '?';
   const w = capName(nm(f.who));
   switch (f.cat) {
-    case 'move': return `${w} : ${rn(f.from)} → ${rn(f.to)}`;
+    case 'move': return `${w} : ${rn(f.from)} -> ${rn(f.to)}`;
     case 'take': return `${w} ${L('took', 'a pris')} ${esc(nm(f.obj))} (${rn(f.room)})`;
     case 'drop': return `${w} ${L('dropped', 'a déposé')} ${esc(nm(f.obj))} (${rn(f.room)})`;
     case 'give': return `${w} ${L('gave', 'a donné')} ${esc(nm(f.obj))} ${L('to', 'à')} ${esc(nm(f.to))} (${rn(f.room)})`;
     case 'dead': return `${w} ${L('died', 'est mort')} (${rn(f.room)})`;
-    case 'hurt': return `${w} ${L('was wounded', 'est blessé')} (PV ${f.from}→${f.to}, ${rn(f.room)})`;
-    case 'evt': return `${L('event', 'événement')} nº${f.who} ${L('fired', 'déclenché')} (${f.from}→${f.to})`;
+    case 'hurt': return `${w} ${L('was wounded', 'est blessé')} (PV ${f.from}->${f.to}, ${rn(f.room)})`;
+    case 'evt': return `${L('event', 'événement')} nº${f.who} ${L('fired', 'déclenché')} (${f.from}->${f.to})`;
     case 'say': return `${w} ${L('says', 'dit')} : « ${esc(f.text)} » (${rn(f.room)})`;
     default: return '';
   }
