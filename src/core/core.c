@@ -176,6 +176,22 @@ int hob_mem_turn(void)
     return MemTurn;
 }
 
+/* Refonte session (appele par hob_init) : sans RAZ, un 2e hob_init dans le
+ * meme processus (ex. page web boot() puis AUTO PLAY) repartirait avec le
+ * Halt d'un PVExit precedent (hob_run rend 2 immediatement) et une base
+ * PrevMem obsolete (premier delta trace fantome). TraceOn est conserve tel
+ * quel : avec PrevValid=0, le prochain hob_run trace refige sa base. */
+void core_reset(void)
+{
+    Halt = 0;
+    AutokeyCount = 0;
+    ShimCount = 0;
+    Kb7353Count = 0;
+    PrevValid = 0;
+    MemTurn = 0;
+    DiffLen = 0;
+}
+
 /* Construit le delta "@@D\n"+turn+rc+nlen+recs depuis PrevMem, puis fige
  * l'etat courant comme base du prochain tour. */
 static void memdiff_build(int rc)

@@ -201,6 +201,7 @@ int hob_init(void)
     poke(HIBIT_ADDR, 0x00);
 
     io_reset();
+    core_reset();
 
     /* index live (objets/personnages, graphe des lieux) */
     state_build();

@@ -10,6 +10,11 @@
 /* Reinitialise tous les tampons (appele par hob_init). */
 void io_reset(void);
 
+/* Reinitialise l'etat session de core.c (Halt, compteurs diag, base trace).
+ * Appele par hob_init (un 2e init dans le meme processus doit repartir de
+ * zero : cf. core.c). */
+void core_reset(void);
+
 /* Octet ecrit par le shim via PVWrite (0xFFF7) : alimente le parseur. */
 void io_write_raw(const uint8_t *p, unsigned n);
 

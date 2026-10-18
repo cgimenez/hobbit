@@ -124,7 +124,12 @@ int hob_obj_alive(int i)
 const char *hob_obj_name(int i)
 {
     int s = key_slot(i);
-    return s < 0 ? "?" : IDENT[KEYS[s].key];
+    const char *n;
+    if (s < 0) {
+        return "?";
+    }
+    n = IDENT[KEYS[s].key];
+    return n ? n : "(inconnu)";
 }
 
 const char *hob_obj_noun(int i)
