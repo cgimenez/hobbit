@@ -39,18 +39,16 @@ const STR = {
   btn_about: ['ABOUT', 'À PROPOS'],
   btn_auto: ['AUTO PLAY', 'AUTO PLAY'],
   btn_auto_title: ['Replay the solution (spoilers)', 'Rejouer la solution (spoilers)'],
+  btn_cheat: ['CHEAT', 'CHEAT'],
+  btn_nocheat: ["DON'T CHEAT", "DON'T CHEAT"],
+  btn_cheat_title: ['Show/hide objects table and map',
+                    'Afficher/masquer la table des objets et la carte'],
   auto_cancel: ['Cancel', 'Annuler'],
   auto_confirm: ['Start AUTO PLAY', 'Lancer AUTO PLAY'],
   btn_load_title: ['Reload local save', 'Recharger la sauvegarde locale'],
   btn_save_title: ['Save game (localStorage + file)',
                    'Enregistrer la partie (localStorage + fichier)'],
   btn_about_title: ['About / credits', 'À propos / crédits'],
-  btn_copy: ['COPY', 'COPIER'],
-  btn_copy_title: ['Copy game text to clipboard',
-                   'Copier le texte du jeu dans le presse-papiers'],
-  btn_mem: ['MEM', 'MEM'],
-  btn_mem_title: ['Download memory trace (debug)',
-                  'Télécharger la trace mémoire (debug)'],
 };
 
 const getCookie = (k) => {
@@ -85,6 +83,7 @@ function applyI18n() {
   for (const b of document.querySelectorAll('.lang-flag'))
     b.classList.toggle('active', b.dataset.lang === LANG);
   $('#btn-auto').textContent = autoPlaying ? 'STOP' : t('btn_auto');
+  $('#btn-cheat').textContent = cheatOn ? t('btn_nocheat') : t('btn_cheat');
   $('#status').textContent = L(statusEn, statusFr);
 }
 
@@ -97,12 +96,19 @@ let M = null;
 let textLen = 0;
 let busy = false;
 
+// Triche : table des objets + carte visibles (CHEAT) ou jeu seul (DON'T CHEAT).
+let cheatOn = true;
+function setCheat(on) {
+  cheatOn = on;
+  document.body.classList.toggle('nocheat', !on);
+  $('#btn-cheat').textContent = on ? t('btn_nocheat') : t('btn_cheat');
+}
+
 // Autoplay (rejoue la solution). autoTimer : setTimeout courant.
 let autoPlaying = false;
 let autoTimer = null;
 let autoIdx = 0;
 const AUTO_DELAY = 800;
-let memFrames = null;   /* trace @@M/@@D de l'autoplay en cours (debug) */
 
 // Historique des commandes (fleches HAUT/BAS dans le champ de saisie).
 const cmdHistory = [];
@@ -542,10 +548,6 @@ function startAutoplay() {
   M._hob_boot();
   drainText();
   refreshLive();
-  /* Trace memoire (debug mem_diff.py) : sync post-boot + 1 delta/tour. */
-  M._hob_mem_trace(1);
-  memFrames = [new TextEncoder().encode('@@M\n'),
-               M.HEAPU8.slice(M._hob_mem(), M._hob_mem() + M._hob_mem_len())];
   autoIdx = 0;
   autoPlaying = true;
   $('#btn-auto').textContent = 'STOP';
@@ -561,10 +563,6 @@ function autoStep() {
   setStatus(`AUTO PLAY ${autoIdx}/${SOLUTION.length}`,
             `AUTO PLAY ${autoIdx}/${SOLUTION.length}`);
   sendCommand(SOLUTION[i]);
-  if (memFrames) {
-    const p = M._hob_memdiff_ptr(), n = M._hob_memdiff_len();
-    memFrames.push(M.HEAPU8.slice(p, p + n));
-  }
   autoTimer = setTimeout(autoStep, AUTO_DELAY);
 }
 
@@ -599,36 +597,7 @@ $('#map-svg').addEventListener('click', (e) => {
   openMapModal(c ? +c.dataset.room : -1);
 });
 $('#btn-about').addEventListener('click', openAboutModal);
-$('#btn-copy').addEventListener('click', async () => {
-  const txt = $('#screen').textContent;
-  try {
-    await navigator.clipboard.writeText(txt);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = txt;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
-  setStatus('game text copied', 'texte du jeu copié');
-  $('#cmd').focus();
-});
-$('#btn-mem').addEventListener('click', () => {
-  if (!memFrames || !memFrames.length) {
-    setStatus('no memory trace (run AUTO PLAY first)',
-              'pas de trace mémoire (lance AUTO PLAY d\'abord)');
-    return;
-  }
-  const blob = new Blob(memFrames, { type: 'application/octet-stream' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'mem_browser.bin';
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  setStatus('memory trace downloaded', 'trace mémoire téléchargée');
-  $('#cmd').focus();
-});
+$('#btn-cheat').addEventListener('click', () => setCheat(!cheatOn));
 $('#btn-auto').addEventListener('click', () => {
   if (autoPlaying) stopAutoplay(); else openDisclaimerModal();
 });
@@ -701,7 +670,6 @@ async function boot() {
 
 $('#cmdline').addEventListener('submit', (e) => {
   e.preventDefault();
-  memFrames = null;   /* commande manuelle : la trace autoplay n'est plus valide */
   const v = $('#cmd').value;
   $('#cmd').value = '';
   if (v.trim() && v !== cmdHistory[cmdHistory.length - 1]) cmdHistory.push(v);

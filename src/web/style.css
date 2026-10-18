@@ -42,6 +42,12 @@ main {
 .game-img { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 #live { grid-area: live; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 #map { grid-area: map; display: flex; flex-direction: column; min-height: 0; }
+/* DON'T CHEAT : jeu seul en pleine largeur/hauteur, table et carte masquees. */
+body.nocheat #live, body.nocheat #map { display: none; }
+body.nocheat main {
+  grid-template-columns: 1fr; grid-template-rows: 1fr;
+  grid-template-areas: "game";
+}
 section {
   background: #1a1d22; border: 1px solid #262b31; border-radius: 8px;
   padding: 10px 12px; min-width: 0; min-height: 0; overflow: hidden;
@@ -72,7 +78,7 @@ section h2 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 #objs { table-layout: fixed; }
 #objs th:nth-child(1), #objs td:nth-child(1) { width: 4ch; white-space: nowrap; }
-#objs th:nth-child(2), #objs td:nth-child(2) { width: 19ch; white-space: normal;
+#objs th:nth-child(2), #objs td:nth-child(2) { width: 16ch; white-space: normal;
   overflow-wrap: break-word; }
 th, td { text-align: left; padding: 2px 6px; border-bottom: 1px solid #23282e; }
 th { color: #8b95a1; font-weight: 500; position: sticky; top: 0; background: #1a1d22; }
