@@ -588,20 +588,37 @@ Bits de contrôle de l'opcode :
   validation : pas de chevauchement, PC observés sur frontières).
 
 > `$xC` (GOTO par clé) n'apparaît **dans aucun des 17 scripts** : chemin
-> runtime-only d'après le code (`entity_goto` `$5249`), corrige l'ancienne note
-> « PATCH table ».
+> runtime-only, désormais observé en trace (et plus seulement lu dans le
+> code) : `announce_move` (`$4C6D`) y saute en queue (`jmp entity_goto`)
+> quand la fiche porte `$40` sans `$08`, avec `A` = arg transmis tel quel
+> et `X` = wid résiduel — corrige l'ancienne note « PATCH table ».
+>
+> Slot dormant e04 comme brouillon (prouvé par trace sim65 + image) : au
+> tick 1, le MOVE `$295C` de Gandalf (`wid=$1D` GIVE) finit en
+> `announce_move(arg2=$00)` → `entity_goto($00, $1D)` → `entity_find`
+> trouve e04 (`$2B61`, premier id `$00`) → `index_id_table($1D, base
+> $29E4)` → `e04.PC := $2B0E` (table lue dans l'image :
+> `{00:$29EE, 0B:$29FE, 1D:$2B0E}` ; unique écriture PC du tick en trace).
+> `GIVE MAP TO GANDALF` accepté (*You give… / Gandalf says Thank you*) :
+> au tour suivant Gandalf exécute le fragment `$2B0E` (`ACT 19 → $6915`)
+> puis `$2B11` (`INDIR table[0]`(base `$2943` de Gandalf) `→ $2964`,
+> tête de boucle) ; `PC` observés `$2AED/$2B02/$2B0E/$2B11` (DB + frames
+> + traces). La note disait `GIVE X TO GANDALF → $2B0E, GIVE GANDALF →
+> $2B11` : en fait `$2B0E` est la valeur parquée (e04) et `$2B11` la
+> reprise (Gandalf, = `$2B0E`+3, taille de l'ACT).
+> Reste ouvert : l'instruction exacte qui dépose `$2B0E` en `$2B47/48`
+> (criblage : ni stores `($88)/($8A)` ni absolus `$2B4x` dans ~1,9M
+> d'instructions tracées `$358F-$7300` + défauts ; voir `docs/ghidra.md`).
 >
 > Octets de code **inatteignables statiquement** (62 o en 5 plages :
 > `$2941-42`, `$2A46-4C` = boucle morte avec secours `$2A38`,
 > `$2A81-87` = boucle morte avec secours `$2AED`, `$2AC0-C8` = fin en
 > `GOTO $8F2A` hors plage, `$2B03-0D`), dont un fragment **atteint en jeu**
-> (`$2AED-$2B11`, cibles `0B/1D/30` des tables + `ACT 19` → `INDIR`) :
-> `PC` observés `$2AED/$2B02/$2B0E/$2B11` (Gandalf, DB), posés hors flot
-> script — ex. `GIVE X TO GANDALF` → `PC=$2B0E`, `GIVE GANDALF` → `PC=$2B11`
-> (parent `PC=$2971`, solver). Mécanisme d'écriture (handler GIVE ? planner
-> `$40` ?) : ouvert. Deux PC observés **au milieu d'une instruction**
+> (`$2AED-$2B11`, cibles `0B/1D/30` des tables + `ACT 19` → `INDIR`,
+> décodé avec graines DB au § précédent).
+> Deux PC observés **au milieu d'une instruction**
 > (`$29F7` = opérande du `MOVE $29F6`, `$2B02` = opérande de l'`INDIR $2B01`) :
-> écritures `PC` non alignées, ouvert.
+> écritures `PC` non alignées, ouvert (phénomène distinct du parking e04).
 
 ### Le tour d'une entité (`entity_tick` `$4ED5`)
 
@@ -635,7 +652,8 @@ et teste la noirceur (compteur d'ambiance `L4ED4`). Puis, pour chaque entrée de
 - `say_if_visible` (`$5279`) n'affiche un dialogue que si le personnage est
   **visible du joueur** (même lieu, pas en pleine annonce, drapeau `L5611`).
 - `entity_goto` (`$5249`) = saut « nommé » : X = clé, A = id ; la clé est
-  résolue dans la table de base de l'entité.
+  résolue dans la table de base de l'entité. Usage scratch prouvé :
+  `A=$00` désigne le slot dormant e04 (cf. ci-dessus).
 
 ### Les actions autonomes : table `$7143`
 

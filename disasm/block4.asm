@@ -4911,7 +4911,10 @@ L4C65           := * + 2
         pla
         rts
 
-; Annonce le deplacement de l'objet courant aupres du joueur (entity_goto)
+; Annonce le deplacement via say_if_visible, sauf si la fiche porte $40 sans $08 :
+; tail-jmp vers entity_goto (A = arg transmis tel quel, X = wid residuel).
+; Prouve par trace : MOVE $295C de Gandalf (wid=$1D) -> announce_move(arg2=$00)
+; -> entity_goto($00, $1D) -> e04.PC := $2B0E (slot dormant = scratch).
 announce_move:
         pha
         ldy     #$07
@@ -5828,6 +5831,9 @@ L5245:  sta     L4ED4
 ; Opcode GOTO par cle ($xC) : X = cle, A = id. Retrouve l'entite (entity_find),
 ; lit dans sa table de base l'entree de cle X (L5399) et reprend le script a
 ; l'adresse [cle] : permet des sauts 'nommes' a l'interieur d'un script.
+; Usage scratch prouve par trace : A=$00 designe le slot dormant e04 ($2B61) ;
+; la cle X est resolue dans la table de base du slot (e04 : $29E4 =
+; {00:$29EE, 0B:$29FE, 1D:$2B0E}, verifiee dans l'image).
 entity_goto:
         jsr     push_ptr
         jsr     entity_find
@@ -8556,7 +8562,12 @@ code_63C9:
         jsr     putchar
         jmp     print_cr
 
-; Verbe Give To ($1D) : verifie poids/lumiere puis donne l'objet
+; QUOI : le joueur donne un objet a un PNJ (GIVE MAP TO GANDALF).
+; EXEMPLE : You give the curious map to Gandalf. / Gandalf says Thank you. ($1423).
+; COMMENT : act_probe puis transfert (orec), event_arm_obj ; au tour suivant,
+; Gandalf execute le fragment $2B0E (ACT 19 -> $6915) puis $2B11 (INDIR -> $2964).
+; Le depot de $2B0E dans son entree ($2B47/48) reste non localise (voir la note
+; de block4-analysis et docs/ghidra.md pour le point ouvert).
 action_give:
         lda     orec2
         sta     ptr2
