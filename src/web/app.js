@@ -15,6 +15,9 @@ const STR = {
   room_label: ['Room', 'Lieu'],
   vec_empty: ['(no illustration here)', "(pas d'illustration ici)"],
   th_hash: ['#', '#'],
+  th_turn: ['Turn', 'Tour'],
+  th_actor: ['Who', 'Qui'],
+  th_event: ['Event', 'Fait'],
   th_name: ['Name', 'Nom'],
   th_room: ['Room', 'Lieu'],
   th_carrier: ['Container', 'Contenant'],
@@ -336,21 +339,26 @@ function collectOffstage() {
   offBaseline = now;
 }
 
-function renderFact(f, nameByKey) {
+// Une ligne <tr> par fait : [acteur, fait, lieu]. Tout est echappe
+// (noms d'objets/lieux et paroles « say » viennent du jeu).
+function renderFactCells(f, nameByKey) {
   const nm = (k) => k === 0x00 ? L('you', 'vous')
     : (nameByKey.get(k) || ('$' + hex(k & 0xFF)));
   const rn = (r) => (r !== undefined && r >= 0) ? `$${hex(r)} ${roomName(r)}` : '?';
-  const w = capName(nm(f.who));
+  const w = esc(capName(nm(f.who)));
+  // evt : f.to = nouvelle valeur du compteur, pas un lieu -> pas de colonne Lieu.
+  const roomOf = f.cat === 'evt' ? undefined : (f.room !== undefined ? f.room : f.to);
+  const loc = roomOf === undefined ? '—' : esc(rn(roomOf));
   switch (f.cat) {
-    case 'move': return `${w} : ${rn(f.from)} -> ${rn(f.to)}`;
-    case 'take': return `${w} ${L('took', 'a pris')} ${esc(nm(f.obj))} (${rn(f.room)})`;
-    case 'drop': return `${w} ${L('dropped', 'a déposé')} ${esc(nm(f.obj))} (${rn(f.room)})`;
-    case 'give': return `${w} ${L('gave', 'a donné')} ${esc(nm(f.obj))} ${L('to', 'à')} ${esc(nm(f.to))} (${rn(f.room)})`;
-    case 'dead': return `${w} ${L('died', 'est mort')} (${rn(f.room)})`;
-    case 'hurt': return `${w} ${L('was wounded', 'est blessé')} (PV ${f.from}->${f.to}, ${rn(f.room)})`;
-    case 'evt': return `${L('event', 'événement')} nº${f.who} ${L('fired', 'déclenché')} (${f.from}->${f.to})`;
-    case 'say': return `${w} ${L('says', 'dit')} : « ${esc(f.text)} » (${rn(f.room)})`;
-    default: return '';
+    case 'move': return [w, esc(`${L('is at', 'est à')} ${rn(f.from)}, ${L('moving to', 'se déplace vers')}`), loc];
+    case 'take': return [w, `${esc(L('took', 'a pris'))} ${esc(nm(f.obj))}`, loc];
+    case 'drop': return [w, `${esc(L('dropped', 'a déposé'))} ${esc(nm(f.obj))}`, loc];
+    case 'give': return [w, `${esc(L('gave', 'a donné'))} ${esc(nm(f.obj))} ${esc(L('to', 'à'))} ${esc(nm(f.to))}`, loc];
+    case 'dead': return [w, esc(L('died', 'est mort')), loc];
+    case 'hurt': return [w, `${esc(L('was wounded', 'est blessé'))} (PV ${f.from}→${f.to})`, loc];
+    case 'evt': return [w, `${esc(L('event', 'événement'))} nº${f.who} ${esc(L('fired', 'déclenché'))} (${f.from}→${f.to})`, loc];
+    case 'say': return [w, `${esc(L('says', 'dit'))} : « ${esc(f.text)} »`, loc];
+    default: return [w, '', loc];
   }
 }
 
@@ -358,23 +366,19 @@ function renderOffstage() {
   const feed = $('#offstage-feed');
   if (!feed) return;
   if (!offFacts.length) {
-    feed.innerHTML = `<div class="off-empty">${esc(L('Nothing yet — NPCs act every turn.',
-      'Rien pour l\u2019instant — les PNJ agissent à chaque tour.'))}</div>`;
+    feed.innerHTML = `<tr><td colspan="4" class="off-empty">${esc(L('Nothing yet — NPCs act every turn.',
+      'Rien pour l\u2019instant — les PNJ agissent à chaque tour.'))}</td></tr>`;
     return;
   }
   const nameByKey = new Map();
   for (let i = 0; i < M._hob_obj_count(); i++)
     nameByKey.set(M._hob_obj_key(i), M.UTF8ToString(M._hob_obj_name(i)));
-  let html = '', lastTurn = -1;
-  for (const f of offFacts) {
-    if (f.turn !== lastTurn) {
-      lastTurn = f.turn;
-      html += `<div class="off-turn">— ${L('turn', 'tour')} ${f.turn} —</div>`;
-    }
-    html += `<div class="off-fact">${renderFact(f, nameByKey)}</div>`;
-  }
-  feed.innerHTML = html;
-  feed.scrollTop = feed.scrollHeight;   // auto-scroll comme #screen
+  feed.innerHTML = offFacts.map((f) => {
+    const [who, what, where] = renderFactCells(f, nameByKey);
+    return `<tr><td>${f.turn}</td><td>${who}</td><td>${what}</td><td>${where}</td></tr>`;
+  }).join('');
+  const wrap = feed.closest('.objs-wrap');
+  if (wrap) wrap.scrollTop = wrap.scrollHeight;   // auto-scroll comme #screen
 }
 
 function renderVecInto(cv, room) {

@@ -29,7 +29,7 @@ de "paravirtualisation" de sim65.
 70% de la rétro ingéniérie a été réalisée par une paire d'IA.
 
 La finalisation de la documentation étant relativement
-laborieuse j'ai ensuite inclus dans la boucle d'analyse IA 'les projets "Wilderland" (Valerio Messina)
+laborieuse j'ai ensuite inclus dans la boucle d'analyse IA les projets "Wilderland" (Valerio Messina)
 et "The Hobbit ZX Spectrum disassembly" (Paul Maddern)
 comme sources complémentaires (variables manquantes, corrélation
 des lieux, etc).
@@ -37,7 +37,9 @@ des lieux, etc).
 ## Graphismes
 
 Les illustrations ont été transformées en SVG à partir des données vectorielles encodées
-dans le binaire du jeu.
+dans le binaire du jeu. Les illustrations originelles ont été réalisées à partir de dessins
+par Kent Rees.
+
 
 ## Notes
 

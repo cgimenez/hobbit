@@ -37,7 +37,8 @@ of locations, etc).
 ## Graphics
 
 The illustrations were converted to SVG from the vector data encoded
-in the game binary.
+in the game binary. The original illustrations were made from drawings
+by Kent Rees.
 
 ## Notes
 
