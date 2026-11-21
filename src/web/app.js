@@ -62,9 +62,13 @@ const setCookie = (k, v) => {
   document.cookie = `${k}=${encodeURIComponent(v)}; max-age=31536000; path=/; SameSite=Lax`;
 };
 
-const QLANG = new URLSearchParams(location.search).get('lang');
-let LANG = (QLANG === 'fr' || QLANG === 'en') ? QLANG
-  : getCookie('hobbit.lang')
+const langParam = (s) => new URLSearchParams(s).get('lang');
+const validLang = (v) => (v === 'fr' || v === 'en') ? v : null;
+// #lang= prioritaire (nouveau lien) ; ?lang= conservé pour les anciens liens.
+const QLANG = validLang(langParam(location.hash.slice(1)))
+  || validLang(langParam(location.search));
+let LANG = QLANG
+  || getCookie('hobbit.lang')
   || ((navigator.language || '').toLowerCase().startsWith('fr') ? 'fr' : 'en');
 const t = (k) => STR[k][LANG === 'fr' ? 1 : 0];
 const L = (en, fr) => (LANG === 'fr' ? fr : en);
@@ -737,13 +741,18 @@ function stopAutoplay() {
 function setLang(lang) {
   LANG = lang === 'fr' ? 'fr' : 'en';
   setCookie('hobbit.lang', LANG);
-applyI18n();
-
-// Lien direct ?lang=fr|en (SEO, partage, sans JS) : langue appliquée + entrée immédiate.
-if (QLANG === 'fr' || QLANG === 'en') { setCookie('hobbit.lang', LANG); hideIntro(); }
+  applyI18n();
   if (!$('#modal').classList.contains('hidden')) updateModalTitle();
   if (M) refreshLive();
 }
+
+// Lien direct #lang=fr|en (partage ; le fragment n'est jamais indexé) :
+// langue appliquée + entrée immédiate, y compris si on change le hash à chaud.
+if (QLANG) { setCookie('hobbit.lang', LANG); hideIntro(); }
+window.addEventListener('hashchange', () => {
+  const v = validLang(langParam(location.hash.slice(1)));
+  if (v) { setLang(v); hideIntro(); }
+});
 
 for (const b of document.querySelectorAll('.lang-flag'))
   b.addEventListener('click', () => setLang(b.dataset.lang));
@@ -785,8 +794,8 @@ function hideIntro() {
   $('#intro').classList.add('hidden');
   $('#cmd').focus();
 }
-$('#intro-play-fr').addEventListener('click', (e) => { e.preventDefault(); setLang('fr'); hideIntro(); });
-$('#intro-play-en').addEventListener('click', (e) => { e.preventDefault(); setLang('en'); hideIntro(); });
+// Les liens JOUER/PLAY (#lang=fr|en) sont de vrais liens : le hashchange
+// ci-dessus applique la langue et masque l'intro, et l'URL reste partageable.
 loadIntro();
 
 applyI18n();
